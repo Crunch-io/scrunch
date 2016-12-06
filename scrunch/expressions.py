@@ -44,7 +44,7 @@ import ast
 import copy
 
 import six
-from scrunch.datasets import Dataset
+import scrunch
 from scrunch.variables import validate_variable_url
 
 CRUNCH_FUNC_MAP = {
@@ -492,7 +492,7 @@ def prettify(expr, ds=None):
 
         if not is_url:
             return var
-        elif not isinstance(ds, Dataset):
+        elif not isinstance(ds, scrunch.datasets.Dataset):
             raise Exception(
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'
