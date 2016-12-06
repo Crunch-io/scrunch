@@ -1,4 +1,4 @@
-# Install pycrunch as development
+# Install scrunch as development
 -e .
 
 pycrunch
@@ -6,5 +6,6 @@ pandas
 mock
 pytest
 pytest-sugar
+pytest-cov
 requests
 backports.unittest_mock
