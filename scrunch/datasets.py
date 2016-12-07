@@ -401,7 +401,7 @@ class Dataset(object):
         -------
         None
         """
-        if len(self.savepoints.index) > 0:
+        if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes('description'):
                 raise KeyError(
                     "A checkpoint with the description '{}' already"
@@ -461,7 +461,8 @@ class Dataset(object):
             return []
         else:
             attribs = [
-                cp[attrib] for url, cp in six.iteritems(self.savepoints.index)
+                cp[attrib]
+                for url, cp in six.iteritems(self.resource.savepoints.index)
             ]
 
             return attribs

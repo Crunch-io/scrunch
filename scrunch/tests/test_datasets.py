@@ -794,7 +794,7 @@ class TestSavepoints(TestCase):
             }
         }
         ds = Dataset(ds_res)
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
     def test_load_initial_savepoint(self):
