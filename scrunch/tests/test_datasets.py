@@ -11,8 +11,66 @@ from pycrunch.shoji import Entity
 from pycrunch.variables import cast
 
 
-class TestExclusionFilters(TestCase):
+class TestDatasetBase(object):
 
+    def dataset_mock(self):
+        variables = dict(
+            disposition=dict(
+                id='0001',
+                alias='disposition',
+                type='numeric',
+                is_subvar=False
+            ),
+            exit_status=dict(
+                id='0002',
+                alias='exit_status',
+                type='numeric',
+                is_subvar=False
+            ),
+        )
+
+        # Mocking setup.
+        def _get(name):
+            def f(*args):
+                return variables[name].get(args[0], args[0])
+            return f
+
+        metadata = {}
+        for alias in variables.keys():
+            v = variables[alias]
+            url = '%svariables/%s/' % (self.ds_url, v['id'])
+            _m = mock.MagicMock()
+            _m.entity.self = url
+            _m.__getitem__.side_effect = _get(alias)
+            _m.get.side_effect = _get(alias)
+            metadata[alias] = _m
+
+        class CrunchPayload(dict):
+            def __getattr__(self, item):
+                if item == 'payload':
+                    return self
+                else:
+                    return self[item]
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return CrunchPayload({
+                    'metadata': metadata
+                })
+            return CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.__class__ = Dataset
+        ds.exclude = Dataset.exclude
+        ds.session.get.side_effect = _session_get
+
+        return Dataset(ds)
+
+
+class TestExclusionFilters(TestDatasetBase, TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_apply_exclusion(self):
@@ -65,10 +123,11 @@ class TestExclusionFilters(TestCase):
         ds.__class__ = Dataset
         ds.exclude = Dataset.exclude
         ds.session.get.side_effect = _session_get
+        ds = Dataset(ds)
 
         # Action!
         exclusion_filter = 'disposition != 0'
-        ds.exclude(ds, exclusion_filter)
+        ds.exclude(exclusion_filter)
 
         # Ensure .patch was called the right way.
         assert len(ds.session.patch.call_args_list) == 1
@@ -86,62 +145,6 @@ class TestExclusionFilters(TestCase):
             }
         }
         assert json.loads(call[1]['data']) == expected_expr_obj
-
-    def dataset_mock(self):
-        vars = dict(
-            disposition=dict(
-                id='0001',
-                alias='disposition',
-                type='numeric',
-                is_subvar=False
-            ),
-            exit_status=dict(
-                id='0002',
-                alias='exit_status',
-                type='numeric',
-                is_subvar=False
-            ),
-        )
-
-        # Mocking setup.
-        def _get(name):
-            def f(*args):
-                return vars[name].get(args[0], args[0])
-            return f
-
-        metadata = {}
-        for alias in vars.keys():
-            v = vars[alias]
-            url = '%svariables/%s/' % (self.ds_url, v['id'])
-            _m = mock.MagicMock()
-            _m.entity.self = url
-            _m.__getitem__.side_effect = _get(alias)
-            _m.get.side_effect = _get(alias)
-            metadata[alias] = _m
-
-        class CrunchPayload(dict):
-            def __getattr__(self, item):
-                if item == 'payload':
-                    return self
-                else:
-                    return self[item]
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return CrunchPayload({
-                    'metadata': metadata
-                })
-            return CrunchPayload()
-
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.session.get.side_effect = _session_get
-
-        return ds
 
     def test_remove_exclusion(self):
         """
@@ -161,7 +164,7 @@ class TestExclusionFilters(TestCase):
 
     def _exclude_payload(self, expr):
         dataset = self.dataset_mock()
-        dataset.exclude(dataset, expr)
+        dataset.exclude(expr)
         call = dataset.session.patch.call_args_list[0]
         return json.loads(call[1]['data'])
 
@@ -193,7 +196,7 @@ class TestExclusionFilters(TestCase):
 
         assert data == expected_expr_obj
 
-    def test_in_nultiple(self):
+    def test_in_multiple(self):
         data = self._exclude_payload('disposition in (32766, 32767)')
         expected_expr_obj = {
             "expression": {
@@ -716,7 +719,7 @@ class TestVariables(TestCase):
         }
 
 
-class TestCurrentEditor(TestCase):
+class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
     user_url = 'https://test.crunch.io/api/users/12345/'
 
@@ -726,11 +729,12 @@ class TestCurrentEditor(TestCase):
             'name': 'Dataset Name'
         }
         sess = mock.MagicMock()
-        ds = Dataset(session=sess, body=body)
-        ds.patch = mock.MagicMock()
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds_res.patch = mock.MagicMock()
+        ds = Dataset(ds_res)
         ds.change_editor(self.user_url)
 
-        ds.patch.assert_called_with({
+        ds_res.patch.assert_called_with({
             'current_editor': self.user_url
         })
 
@@ -749,12 +753,13 @@ class TestCurrentEditor(TestCase):
             return response
 
         sess.get.side_effect = _get
-        ds = Dataset(session=sess)
-        ds.self = self.ds_url
-        ds.patch = mock.MagicMock()
+        ds_res = mock.MagicMock(session=sess)
+        ds_res.self = self.ds_url
+        ds_res.patch = mock.MagicMock()
+        ds = Dataset(ds_res)
         ds.change_editor('jane.doe@crunch.io')
 
-        ds.patch.assert_called_with({
+        ds_res.patch.assert_called_with({
             'current_editor': self.user_url
         })
 
@@ -765,26 +770,27 @@ class TestSavepoints(TestCase):
 
     def test_create_savepoint(self):
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.savepoints = mock.MagicMock()
+        ds_res = mock.MagicMock(session=sess)
+        ds_res.savepoints = mock.MagicMock()
+        ds = Dataset(ds_res)
         ds.create_savepoint('savepoint description')
-        ds.savepoints.create.assert_called_with(
-            {
-                'body': {
-                    'description': 'savepoint description'
-                }
+        ds_res.savepoints.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'description': 'savepoint description'
             }
-        )
+        })
 
     def test_create_savepoint_keyerror(self):
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.savepoints = mock.MagicMock()
-        ds.savepoints.index = {
+        ds_res = mock.MagicMock(session=sess)
+        ds_res.savepoints = mock.MagicMock()
+        ds_res.savepoints.index = {
             1: {
                 'description': 'savepoint description'
             }
         }
+        ds = Dataset(ds_res)
         with pytest.raises(KeyError) as err:
             ds.create_savepoint('savepoint description')
 
@@ -819,20 +825,24 @@ class TestForks(TestCase):
             'name': 'ds name',
             'description': 'ds description'
         })
-        ds = Dataset(session=sess, body=body)
-        ds.forks = mock.MagicMock()
-        ds.forks.index = {}
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {}
+        ds = Dataset(ds_res)
         f = ds.fork()
-        ds.forks.create.assert_called_with(
-            {
-                'body': {
-                    'name': 'FORK #1 of ds name',
-                    'description': 'ds description',
-                    'is_published': False,
-                }
+        ds_res.forks.create.assert_called_with({
+            'body': {
+                'name': 'FORK #1 of ds name',
+                'description': 'ds description',
+                'is_published': False,
             }
-        )
-        f.create_savepoint.assert_called_with('initial fork')
+        })
+        f.resource.savepoints.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'description': 'initial fork'
+            }
+        })
 
     def test_fork_preserve_owner(self):
         project_id = 'http://test.crunch.io/api/projects/456/'
@@ -842,25 +852,27 @@ class TestForks(TestCase):
             'description': 'ds description',
             'owner': project_id
         })
-        ds = Dataset(session=sess, body=body)
-        ds.forks = mock.MagicMock()
-        ds.forks.index = {}
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {}
+        ds = Dataset(ds_res)
         f = ds.fork(preserve_owner=True)
-        f.patch.assert_called_with({'owner': project_id})
+        f.resource.patch.assert_called_with({'owner': project_id})
 
     def test_delete_forks(self):
         f1 = mock.MagicMock()
         f2 = mock.MagicMock()
         f3 = mock.MagicMock()
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.forks = mock.MagicMock()
-        ds.forks.index = {
+        ds_res = mock.MagicMock(session=sess)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {
             'abc1': f1,
             'abc2': f2,
             'abc3': f3
         }
 
+        ds = Dataset(ds_res)
         ds.delete_forks()
 
         f1.entity.delete.call_count == 1
@@ -879,12 +891,13 @@ class TestForks(TestCase):
             id='abc123',
         )
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.forks = mock.MagicMock()
-        ds.forks.index = {
+        ds_res = mock.Mock(session=sess)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {
             'abc1': f1
         }
 
+        ds = Dataset(ds_res)
         df = ds.forks_dataframe()
         assert isinstance(df, DataFrame)
         keys = [k for k in df.keys()]
@@ -894,12 +907,12 @@ class TestForks(TestCase):
         ]
 
     def test_forks_dataframe_empty(self):
-
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.forks = mock.MagicMock()
-        ds.forks.index = {}
+        ds_res = mock.Mock(session=sess)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {}
 
+        ds = Dataset(ds_res)
         df = ds.forks_dataframe()
 
         assert df is None

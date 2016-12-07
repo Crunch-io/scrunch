@@ -75,7 +75,7 @@ def var_name_to_url(ds, alias):
     :return: the id of the given varname or None
     """
     try:
-        return ds.variables.by('alias')[alias].entity.self
+        return ds.variables.by('alias')[alias].entity_url
     except KeyError:
         raise KeyError(
             'Variable %s does not exist in Dataset %s' % (alias,
@@ -205,11 +205,11 @@ class Dataset(object):
     def __getattr__(self, item):
         # First check if the parent class provides the attribute
         try:
-            return super(Dataset, self.resource).__getattr__(item)
+            return super(Dataset, self).__getattr__(item)
         except AttributeError:
             # If not, then check if the attribute corresponds to a variable
             # alias
-            variable = self.variables.by('alias').get(item)
+            variable = self.resource.variables.by('alias').get(item)
 
             if variable is None:
                 # Variable doesn't exists, must raise an AttributeError
@@ -413,7 +413,10 @@ class Dataset(object):
                     " exists.".format(description)
                 )
 
-        self.resource.savepoints.create({'body': {'description': description}})
+        self.resource.savepoints.create({
+            'element': 'shoji:entity',
+            'body': {'description': description}
+        })
 
     def load_savepoint(self, description=None):
         """
@@ -497,7 +500,7 @@ class Dataset(object):
 
         nforks = len(self.resource.forks.index)
         if name is None:
-            name = "FORK #{} of {}".format(nforks + 1, self.body.name)
+            name = "FORK #{} of {}".format(nforks + 1, self.resource.body.name)
         if description is None:
             description = self.resource.body.description
 
@@ -509,7 +512,8 @@ class Dataset(object):
         )
         # not returning a dataset
         _fork = self.resource.forks.create({"body": body}).refresh()
-        _fork.create_savepoint("initial fork")
+        fork = Dataset(_fork)
+        fork.create_savepoint("initial fork")
 
         if preserve_owner:
             try:
@@ -520,7 +524,7 @@ class Dataset(object):
                 # as the parent dataset.
                 pass
 
-        return _fork
+        return fork
 
     def forks_dataframe(self):
         """
@@ -533,7 +537,7 @@ class Dataset(object):
             on the given dataset.
         """
 
-        if len(self.forks.index) == 0:
+        if len(self.resource.forks.index) == 0:
             return None
         else:
             _forks = pd.DataFrame(
@@ -560,7 +564,7 @@ class Dataset(object):
         Deletes all the forks on the dataset. CANNOT BE UNDONE!
         """
 
-        for fork in six.itervalues(self.forks.index):
+        for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
     def download(self, path, filter=None, variables=None, include_hidden=True):
