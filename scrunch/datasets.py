@@ -203,20 +203,15 @@ class Dataset(object):
         self.session = self.resource.session
 
     def __getattr__(self, item):
-        # First check if the parent class provides the attribute
-        try:
-            return super(Dataset, self).__getattr__(item)
-        except AttributeError:
-            # If not, then check if the attribute corresponds to a variable
-            # alias
-            variable = self.resource.variables.by('alias').get(item)
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
 
-            if variable is None:
-                # Variable doesn't exists, must raise an AttributeError
-                raise
+        if variable is None:
+            # Variable doesn't exists, must raise an AttributeError
+            raise AttributeError('Dataset has no attribute %s' % item)
 
-            # Variable exists!, return the variable entity
-            return variable.entity
+        # Variable exists!, return the variable entity
+        return variable.entity
 
     def exclude(self, expr=None):
         """
