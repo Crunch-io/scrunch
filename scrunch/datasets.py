@@ -494,7 +494,7 @@ class Dataset(object):
 
         Returns
         -------
-        _fork : pycrunch.datasets.Dataset
+        _fork : scrunch.datasets.Dataset
             The forked dataset.
         """
 
