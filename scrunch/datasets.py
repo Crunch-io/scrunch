@@ -364,7 +364,7 @@ class Dataset(object):
 
         def _to_url(email):
             api_users = 'https://{}/api/users/'.format(
-                _host_from_url(self.self)
+                _host_from_url(self.resource.self)
             )
             user_url = None
 
