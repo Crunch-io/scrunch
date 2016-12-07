@@ -812,10 +812,11 @@ class TestSavepoints(TestCase):
 
     def test_load_empty_savepoint(self):
         sess = mock.MagicMock()
-        ds = Dataset(session=sess)
-        ds.savepoints = mock.MagicMock()
-        ds.savepoints.index = {}
-        with pytest.raises(KeyError) as err:
+        ds_res = mock.MagicMock(session=sess)
+        ds_res.savepoints = mock.MagicMock()
+        ds_res.savepoints.index = {}
+        ds = Dataset(ds_res)
+        with pytest.raises(KeyError):
             ds.load_savepoint('savepoint')
 
 
