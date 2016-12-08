@@ -825,7 +825,8 @@ class TestForks(TestCase):
         sess = mock.MagicMock()
         body = JSONObject({
             'name': 'ds name',
-            'description': 'ds description'
+            'description': 'ds description',
+            'owner': 'http://test.crunch.io/api/users/123/'
         })
         ds_res = mock.MagicMock(session=sess, body=body)
         ds_res.forks = mock.MagicMock()
@@ -847,6 +848,21 @@ class TestForks(TestCase):
         })
 
     def test_fork_preserve_owner(self):
+        user_id = 'http://test.crunch.io/api/users/123/'
+        sess = mock.MagicMock()
+        body = JSONObject({
+            'name': 'ds name',
+            'description': 'ds description',
+            'owner': user_id
+        })
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {}
+        ds = Dataset(ds_res)
+        f = ds.fork(preserve_owner=True)
+        f.resource.patch.assert_called_with({'owner': user_id})
+
+    def test_fork_preserve_owner_project(self):
         project_id = 'http://test.crunch.io/api/projects/456/'
         sess = mock.MagicMock()
         body = JSONObject({
@@ -858,7 +874,7 @@ class TestForks(TestCase):
         ds_res.forks = mock.MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
-        f = ds.fork(preserve_owner=True)
+        f = ds.fork()
         f.resource.patch.assert_called_with({'owner': project_id})
 
     def test_delete_forks(self):
