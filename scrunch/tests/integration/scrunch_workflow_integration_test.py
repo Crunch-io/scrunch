@@ -676,7 +676,7 @@ def main():
         )
         dataset.exclude(expr)
 
-        # 1.8 Exclusion filters using date variables.
+        # 1.9 Exclusion filters using date variables.
         dt_str = '2014-12-30T00:00:00+00:00'
         dt = isodate.parse_datetime(dt_str)
         expr = 'registration_time < "%s"' % dt_str
