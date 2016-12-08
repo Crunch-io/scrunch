@@ -229,8 +229,8 @@ class Dataset(object):
             expr_obj = {}
         else:
             expr_obj = expr
-        return self.session.patch(
-            self.fragments.exclusion,
+        return self.resource.session.patch(
+            self.resource.fragments.exclusion,
             data=json.dumps(dict(expression=expr_obj))
         )
 
@@ -486,7 +486,8 @@ class Dataset(object):
             will only be viewable to editors of ds.
         preserve_owner : bool, default=False
             If True, the owner of the fork will be the same as the parent
-            dataset (be it a user or a project).
+            dataset. If the owner of the parent dataset is a Crunch project,
+            then it will be preserved regardless of this parameter.
 
         Returns
         -------
@@ -511,7 +512,7 @@ class Dataset(object):
         fork = Dataset(_fork)
         fork.create_savepoint("initial fork")
 
-        if preserve_owner:
+        if preserve_owner or '/api/projects/' in self.resource.body.owner:
             try:
                 _fork.patch({'owner': self.resource.body.owner})
                 _fork.refresh()

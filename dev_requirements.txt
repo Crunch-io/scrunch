@@ -12,3 +12,4 @@ pytest-sugar
 pytest-cov
 requests
 backports.unittest_mock
+isodate

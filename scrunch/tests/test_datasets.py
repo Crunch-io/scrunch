@@ -116,24 +116,22 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 })
             return CrunchPayload()
 
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.session.get.side_effect = _session_get
-        ds = Dataset(ds)
+        ds_res = mock.MagicMock()
+        ds_res.self = self.ds_url
+        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds_res.fragments.table = '%stable/' % self.ds_url
+        ds_res.session.get.side_effect = _session_get
+        ds = Dataset(ds_res)
 
         # Action!
         exclusion_filter = 'disposition != 0'
         ds.exclude(exclusion_filter)
 
         # Ensure .patch was called the right way.
-        assert len(ds.session.patch.call_args_list) == 1
+        assert len(ds.resource.session.patch.call_args_list) == 1
 
-        call = ds.session.patch.call_args_list[0]
-        assert call[0][0] == ds.fragments.exclusion
+        call = ds.resource.session.patch.call_args_list[0]
+        assert call[0][0] == ds.resource.fragments.exclusion
 
         expected_expr_obj = {
             'expression': {
@@ -151,14 +149,13 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         Tests that the proper PATCH request is sent to Crunch in order to
         clear (i.e. remove) the exclusion filter from a dataset.
         """
-        ds = mock.MagicMock()
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.exclude(ds)
+        ds_res = mock.MagicMock()
+        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds = Dataset(ds_res)
+        ds.exclude()
 
-        ds.session.patch.assert_called_once_with(
-            ds.fragments.exclusion,
+        ds.resource.session.patch.assert_called_once_with(
+            ds.resource.fragments.exclusion,
             data=json.dumps({'expression': {}})
         )
 
@@ -828,7 +825,8 @@ class TestForks(TestCase):
         sess = mock.MagicMock()
         body = JSONObject({
             'name': 'ds name',
-            'description': 'ds description'
+            'description': 'ds description',
+            'owner': 'http://test.crunch.io/api/users/123/'
         })
         ds_res = mock.MagicMock(session=sess, body=body)
         ds_res.forks = mock.MagicMock()
@@ -850,6 +848,21 @@ class TestForks(TestCase):
         })
 
     def test_fork_preserve_owner(self):
+        user_id = 'http://test.crunch.io/api/users/123/'
+        sess = mock.MagicMock()
+        body = JSONObject({
+            'name': 'ds name',
+            'description': 'ds description',
+            'owner': user_id
+        })
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds_res.forks = mock.MagicMock()
+        ds_res.forks.index = {}
+        ds = Dataset(ds_res)
+        f = ds.fork(preserve_owner=True)
+        f.resource.patch.assert_called_with({'owner': user_id})
+
+    def test_fork_preserve_owner_project(self):
         project_id = 'http://test.crunch.io/api/projects/456/'
         sess = mock.MagicMock()
         body = JSONObject({
@@ -861,7 +874,7 @@ class TestForks(TestCase):
         ds_res.forks = mock.MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
-        f = ds.fork(preserve_owner=True)
+        f = ds.fork()
         f.resource.patch.assert_called_with({'owner': project_id})
 
     def test_delete_forks(self):

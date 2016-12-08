@@ -3,8 +3,12 @@
 import math
 import os
 
+import isodate
 import pycrunch
 from pycrunch import pandaslib
+
+from scrunch.datasets import Dataset
+
 
 CRUNCH_URL = os.environ.get('CRUNCH_TEST_URL')
 CRUNCH_USER = os.environ.get('CRUNCH_TEST_USER')
@@ -13,8 +17,8 @@ CRUNCH_PASSWORD = os.environ.get('CRUNCH_TEST_PASSWORD')
 # Metadata.
 DATASET_DOC = {
     'body': {
-        'name': 'pycrunch test dataset',
-        'description': 'pycrunch integration tests',
+        'name': 'scrunch test dataset',
+        'description': 'scrunch integration tests',
         'table': {
             'element': 'crunch:table',
             'metadata': {
@@ -336,15 +340,16 @@ def main():
     assert isinstance(site, pycrunch.shoji.Catalog)
 
     # Create the test dataset.
-    dataset = site.datasets.create(DATASET_DOC).refresh()
-    assert isinstance(dataset, pycrunch.shoji.Entity)
+    dataset_resource = site.datasets.create(DATASET_DOC).refresh()
+    assert isinstance(dataset_resource, pycrunch.shoji.Entity)
+    dataset = Dataset(dataset_resource)
 
     try:
         # Load initial data.
-        pycrunch.importing.importer.append_rows(dataset, ROWS)
+        pycrunch.importing.importer.append_rows(dataset.resource, ROWS)
 
         # Check the initial number of rows.
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert len(df) == len(ROWS) - 1  # excluding the header
 
         # 1. Exclusion Filter Integration Tests
@@ -352,7 +357,7 @@ def main():
         # 1.1 Set a simple exclusion filter.
 
         dataset.exclude('identity > 5')
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert len(df) == 5
         assert not any(r['identity'] > 5 for _, r in df.iterrows())
 
@@ -360,7 +365,7 @@ def main():
 
         expr = 'speak_spanish in [32766]'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] != 32766
@@ -371,7 +376,7 @@ def main():
 
         expr = 'speak_spanish in (32766, 32767)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] not in (32766, 32767)
@@ -383,7 +388,7 @@ def main():
 
         expr = 'not (speak_spanish in (1, 2) and operating_system == "Linux")'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] in (1, 2) and row[2] == 'Linux'
@@ -400,7 +405,7 @@ def main():
 
         expr = 'hobbies.has_any([32766])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and 32766 not in row[5:9]
@@ -412,7 +417,7 @@ def main():
 
         expr = 'not hobbies.has_any([32766])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and 32766 in row[5:9]
@@ -424,7 +429,7 @@ def main():
 
         expr = 'hobbies.has_any([32766, 32767])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -438,7 +443,7 @@ def main():
 
         expr = 'music.has_any([32766])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and 32766 not in row[9:14]
@@ -450,7 +455,7 @@ def main():
 
         expr = 'music.has_any([1])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and 1 not in row[9:14]
@@ -462,7 +467,7 @@ def main():
 
         expr = 'music.has_any([1, 2])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -477,7 +482,7 @@ def main():
 
         expr = 'hobbies.has_all([32767])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[5:9] != [32767, 32767, 32767, 32767]
@@ -490,7 +495,7 @@ def main():
 
         expr = 'not hobbies.has_all([32767])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[5:9] == [32767, 32767, 32767, 32767]
@@ -503,7 +508,7 @@ def main():
 
         expr = 'music.has_all([1])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[9:14] != [1, 1, 1, 1, 1]
@@ -515,7 +520,7 @@ def main():
 
         expr = 'music.has_all([1]) or music.has_all([2])'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -529,7 +534,7 @@ def main():
 
         expr = 'not ( music.has_all([1]) or music.has_all([2]) )'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -545,7 +550,7 @@ def main():
 
         expr = 'ip_address.duplicates()'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         seen_ip_addresses = []
         for _, row in df.iterrows():
             assert row['ip_address'] not in seen_ip_addresses
@@ -555,7 +560,7 @@ def main():
 
         expr = 'valid(speak_spanish)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] in (32766, 32767)
@@ -567,7 +572,7 @@ def main():
 
         expr = 'not valid(speak_spanish)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] not in (32766, 32767)
@@ -579,7 +584,7 @@ def main():
 
         expr = 'missing(speak_spanish)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[4] not in (32766, 32767)
@@ -591,7 +596,7 @@ def main():
 
         expr = 'missing(hobbies)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -608,7 +613,7 @@ def main():
 
         expr = 'not missing(hobbies)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -625,7 +630,7 @@ def main():
 
         expr = 'valid(hobbies)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and (32766 in row[5:9] or 32767 in row[5:9])
@@ -638,7 +643,7 @@ def main():
 
         expr = 'not valid(hobbies)'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity'
@@ -653,7 +658,7 @@ def main():
         # 1.7 Exclusion filter that refers to a subvariable by alias.
         expr = 'hobbies_1 == 4'
         dataset.exclude(expr)
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
             row[0] for row in ROWS
             if row[0] != 'identity' and row[5] != 4
@@ -671,9 +676,62 @@ def main():
         )
         dataset.exclude(expr)
 
-        # 1.9 Clear the exclusion filter.
+        # 1.9 Exclusion filters using date variables.
+        dt_str = '2014-12-30T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time < "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) >= dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2015-01-01T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time >= "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) < dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2014-05-10T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time == "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) != dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2014-05-10T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'not(registration_time == "%s")' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) == dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        # 1.10 Clear the exclusion filter.
         dataset.exclude()
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert len(df) == len(ROWS) - 1  # excluding the header
 
         # 2. Integration Tests for "Transformations".
@@ -704,7 +762,7 @@ def main():
         assert new_var.body.type == 'categorical'
 
         # Check the data on the new variable.
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert 'operating_system_users' in df
 
         # Check the nerds.
@@ -754,7 +812,7 @@ def main():
         new_var.refresh()
         assert new_var.body.type == 'categorical'
 
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert 'bilingual' in df
 
         # Check the data in the recoded variable.
@@ -810,7 +868,7 @@ def main():
         new_var.refresh()
         assert new_var.body.type == 'categorical_array'
 
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert 'hobbies_recoded' in df
 
         # Check the data in the recoded variable.
@@ -841,13 +899,13 @@ def main():
         new_var.refresh()
         assert new_var.body.type == 'multiple_response'
 
-        df = pandaslib.dataframe(dataset)
+        df = pandaslib.dataframe(dataset.resource)
         assert 'music_recoded' in df
 
         # TODO: Test the data in the recoded variable. Unsure of its meaning.
 
     finally:
-        dataset.delete()
+        dataset.resource.delete()
 
 
 if __name__ == '__main__':

@@ -47,6 +47,7 @@ setup_params = dict(
     ],
     tests_require=[
         'backports.unittest_mock',
+        'isodate',
         'mock',
         'pandas',
         'pytest',
