@@ -65,6 +65,8 @@ new_ds = create_dataset('Test dataset', {
     }
 })
 
+print "Dataset %s created" % new_ds.attrs.id
+
 rows = {
     'catvar': [1, 2, 3, 1, 2],
     'numvar': [-1, 0, 1, 2, 3],
@@ -81,11 +83,17 @@ assert dataset.attrs.id == new_ds.attrs.id
 
 dataset.add_rows(rows)
 
+print "Added %s rows" % len(rows.values()[0])
+
 dataset.exclude("numvar > 0")
+
+print "Exclusion filter set"
 
 dataset.create_savepoint("After setting exclusion")
 
-catvar = dataset.variables.catvar
+print "Created savepoint"
+
+catvar = dataset['catvar']
 
 combined = catvar.combine_categories({
     1: {

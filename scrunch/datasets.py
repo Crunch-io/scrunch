@@ -194,22 +194,6 @@ def download_file(url, filename):
     return filename
 
 
-class DatasetVariables(object):
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __getattr__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        variable = self.dataset.resource.variables.by('alias').get(item)
-
-        if variable is None:
-            # Variable doesn't exists, must raise an AttributeError
-            raise AttributeError('Dataset has no attribute %s' % item)
-
-        # Variable exists!, return the variable entity
-        return Variable(variable.entity)
-
-
 class DatasetAttrs(object):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -244,9 +228,15 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return variable.entity
 
-    @property
-    def variables(self):
-        return DatasetVariables(self)
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
+        if variable is None:
+            # Variable doesn't exists, must raise an ValueError
+            raise ValueError('Dataset has no variable %s' % item)
+
+        # Variable exists!, return the variable entity
+        return Variable(variable.entity)
 
     @property
     def attrs(self):
