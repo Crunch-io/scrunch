@@ -42,11 +42,10 @@ def get_dataset(dataset, site=None):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
-    global session
     if site is None:
-        if session is None:
-            raise AttributeError("Authenticate first with pycrunch.connect()")
-        site = session
+        if pycrunch.session is None:
+            raise AttributeError("Authenticate first with scrunch.connect()")
+        site = pycrunch.session
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
@@ -54,7 +53,12 @@ def get_dataset(dataset, site=None):
     return Dataset(shoji_ds)
 
 
-def create_dataset(site, name, variables):
+def create_dataset(name, variables, site=None):
+    if site is None:
+        if pycrunch.session is None:
+            raise AttributeError("Authenticate first with scrunch.connect()")
+        site = pycrunch.session
+
     shoji_ds = site.datasets.create({
         'element': 'shoji:entity',
         'body': {
@@ -190,6 +194,33 @@ def download_file(url, filename):
     return filename
 
 
+class DatasetVariables(object):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getattr__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.dataset.resource.variables.by('alias').get(item)
+
+        if variable is None:
+            # Variable doesn't exists, must raise an AttributeError
+            raise AttributeError('Dataset has no attribute %s' % item)
+
+        # Variable exists!, return the variable entity
+        return Variable(variable.entity)
+
+
+class DatasetAttrs(object):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __getattr__(self, item):
+        try:
+            return self.dataset.resource.body[item]
+        except KeyError as e:
+            raise AttributeError(e)
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -212,6 +243,23 @@ class Dataset(object):
 
         # Variable exists!, return the variable entity
         return variable.entity
+
+    @property
+    def variables(self):
+        return DatasetVariables(self)
+
+    @property
+    def attrs(self):
+        return DatasetAttrs(self)
+
+    def rename(self, new_name):
+        self.resource.edit(name=new_name)
+
+    def add_rows(self, columns):
+        self.resource.batches.post({
+            'element': 'crunch:table',
+            'data': columns
+        })
 
     def exclude(self, expr=None):
         """

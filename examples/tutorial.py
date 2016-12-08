@@ -3,12 +3,12 @@
 from scrunch import connect
 from scrunch.datasets import get_dataset, create_dataset
 
-username = ''
-password = ''
+username = raw_input("Enter email: ")
+password = raw_input("Enter password for %s: " % username)
 
-site = connect(username, password)
+site = connect(username, password, site_url='https://alpha.crunch.io/api/')
 
-new_ds = create_dataset(site, 'test dataset', {
+new_ds = create_dataset('Test dataset', {
     "catvar": {
         'name': 'categorical variable',
         'type': 'categorical',
@@ -72,15 +72,18 @@ rows = {
     'cavar': [[1, 2], [1, 1], [3, 2], [2, 2], [3, 1]]
 }
 
-new_ds.rename("My dataset")
+new_ds.rename('My Dataset')
 
-dataset = get_dataset(site, "My dataset")
+dataset = get_dataset(new_ds.attrs.id)
+
+# Assert it is the same dataset
+assert dataset.attrs.id == new_ds.attrs.id
 
 dataset.add_rows(rows)
 
 dataset.exclude("numvar > 0")
 
-dataset.make_savepoint("After setting exclusion")
+dataset.create_savepoint("After setting exclusion")
 
 catvar = dataset.variables.catvar
 
