@@ -116,24 +116,22 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 })
             return CrunchPayload()
 
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.session.get.side_effect = _session_get
-        ds = Dataset(ds)
+        ds_res = mock.MagicMock()
+        ds_res.self = self.ds_url
+        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds_res.fragments.table = '%stable/' % self.ds_url
+        ds_res.session.get.side_effect = _session_get
+        ds = Dataset(ds_res)
 
         # Action!
         exclusion_filter = 'disposition != 0'
         ds.exclude(exclusion_filter)
 
         # Ensure .patch was called the right way.
-        assert len(ds.session.patch.call_args_list) == 1
+        assert len(ds.resource.session.patch.call_args_list) == 1
 
-        call = ds.session.patch.call_args_list[0]
-        assert call[0][0] == ds.fragments.exclusion
+        call = ds.resource.session.patch.call_args_list[0]
+        assert call[0][0] == ds.resource.fragments.exclusion
 
         expected_expr_obj = {
             'expression': {
@@ -151,14 +149,13 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         Tests that the proper PATCH request is sent to Crunch in order to
         clear (i.e. remove) the exclusion filter from a dataset.
         """
-        ds = mock.MagicMock()
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.exclude(ds)
+        ds_res = mock.MagicMock()
+        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds = Dataset(ds_res)
+        ds.exclude()
 
-        ds.session.patch.assert_called_once_with(
-            ds.fragments.exclusion,
+        ds.resource.session.patch.assert_called_once_with(
+            ds.resource.fragments.exclusion,
             data=json.dumps({'expression': {}})
         )
 
