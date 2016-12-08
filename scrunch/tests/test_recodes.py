@@ -354,10 +354,10 @@ class TestRecodes(TestCase):
 
 class TestSpssRecodes(TestCase):
 
-    @mock.patch('pycrunch.get_dataset')
+    @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_categoricals(self, get_dataset_mock):
         dataset_id = '123'
-        var = Variable(mock.MagicMock(), **{
+        var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': ('http://test.crunch.io/api/datasets/%s/variables/0001/'
                      % dataset_id),
@@ -414,7 +414,7 @@ class TestSpssRecodes(TestCase):
                 'dataset_id': dataset_id
             }
         })
-        assert isinstance(var, Variable)
+        var = Variable(var_res)
 
         var.recode(
             'sexuality2', {1: 1, 2: (2, 3, 4, 5)}, ('Straight', 'LGBT')
@@ -476,10 +476,10 @@ class TestSpssRecodes(TestCase):
             }
         }
 
-    @mock.patch('pycrunch.get_dataset')
+    @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_multiple_responses(self, get_dataset_mock):
         dataset_id = '123'
-        var = Variable(mock.MagicMock(), **{
+        var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
             'body': {
@@ -546,7 +546,7 @@ class TestSpssRecodes(TestCase):
             }
 
         })
-        assert isinstance(var, Variable)
+        var = Variable(var_res)
 
         var.recode(
             'Q1_recoded',

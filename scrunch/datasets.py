@@ -39,7 +39,7 @@ def get_dataset(dataset, site=None):
     This method uses the library singleton session if the optional "site"
     parameter is not provided.
 
-    Returns a Dataset Entity record if the dataset exsists.
+    Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
     global session
@@ -700,11 +700,11 @@ class Variable(object):
                 'The "default" argument must be either "missing" or "copy"'
             )
 
-        if 'body' not in self:
+        if 'body' not in self.resource:
             self.resource.refresh()
 
         if self.resource.body.type not in ('categorical', 'categorical_array',
-                                  'multiple_response'):
+                                           'multiple_response'):
             raise TypeError(
                 'Only categorical, categorical_array and multiple_response '
                 'variables are supported'
@@ -726,7 +726,7 @@ class Variable(object):
             default_name = 'Missing'
             existing_categories_by_id = dict()
             existing_categories_by_name = dict()
-            for existing_category in self.body.get('categories', []):
+            for existing_category in self.resource.body.get('categories', []):
                 _id = existing_category['id']
                 _name = existing_category['name']
                 existing_categories_by_id[_id] = existing_category
@@ -792,7 +792,7 @@ class Variable(object):
                 'missing': True,
                 'combined_ids': []
             }
-            for existing_category in self.body.get('categories', []):
+            for existing_category in self.resource.body.get('categories', []):
                 _id = existing_category['id']
                 if _id not in processed_categories:
                     if default == 'missing':
@@ -819,15 +819,15 @@ class Variable(object):
             payload['body']['expr']['function'] = 'combine_categories'
             payload['body']['expr']['args'] = [
                 {
-                    'variable': self['self']
+                    'variable': self.resource['self']
                 },
                 {
                     'value': category_defs
                 }
             ]
         else:  # multiple_response
-            subreferences = self.body.get('subreferences', [])
-            subvariables = self.body.get('subvariables', [])
+            subreferences = self.resource.body.get('subreferences', [])
+            subvariables = self.resource.body.get('subvariables', [])
             assert len(subreferences) == len(subvariables)
 
             # 1. Gather the URLs of the subvariables.
@@ -866,15 +866,15 @@ class Variable(object):
             payload['body']['expr']['function'] = 'combine_responses'
             payload['body']['expr']['args'] = [
                 {
-                    'variable': self['self']
+                    'variable': self.resource['self']
                 },
                 {
                     'value': response_defs
                 }
             ]
 
-        ds = pycrunch.get_dataset(self.body.dataset_id)
-        return ds.resource.variables.create(payload).refresh()
+        ds = get_dataset(self.resource.body.dataset_id)
+        return ds.variables.create(payload).refresh()
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -890,7 +890,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = pycrunch.get_dataset(self.body.dataset_id)
+        ds = get_dataset(self.resource.body.dataset_id)
         more_args = process_expr(more_args, ds)
         # epression value building
         expr = dict(function='case', args=args + more_args)
@@ -899,13 +899,13 @@ class Variable(object):
             body=dict(expr=expr)
         )
         # patch the variable with the new payload
-        return self.patch(payload)
+        return self.resource.patch(payload)
 
     def edit_derived(self, variable, mapper):
         # get some initial variables
-        ds = pycrunch.get_dataset(self.body.dataset_id)
+        ds = get_dataset(self.resource.body.dataset_id)
         variable_url = variable_to_url(ds, variable)
-        function = self.body.derivation['function']
+        function = self.resource.body.derivation['function']
 
         # make the proper transformations based on the function
         # array is combine_responses
@@ -936,4 +936,4 @@ class Variable(object):
                 }
             }
         }
-        return self.patch(payload)
+        return self.resource.patch(payload)
