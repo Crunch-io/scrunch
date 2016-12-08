@@ -114,6 +114,16 @@ We can also exclude a list of ids using:
 ds.exclude("disposition in [0, 1]")
 ```
 
+Date variables are also supported for exclusion filters, like shown in the
+following examples:
+
+```python
+ds.exclude('registration_time >= "2015-01-01T00:00:00+00:00"')
+ds.exclude('registration_time < "2015-01-01T00:00:00+00:00"')
+ds.exclude('registration_time == "2015-01-01T00:00:00+00:00"')
+ds.exclude('not(registration_time == "2015-01-01T00:00:00+00:00")')
+```
+
 #### Filter expressions
 
 At the moment *filter expressions* can be composed using the following logical expressions:
