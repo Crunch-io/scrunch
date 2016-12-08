@@ -683,6 +683,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 class TestVariables(TestCase):
     def test_variable_as_attribute(self):
         session = mock.MagicMock()
+        dataset_resource = mock.MagicMock()
+        dataset_resource.session = session
 
         test_variable = mock.MagicMock()
         test_variable.entity = Entity(session=session)
@@ -690,9 +692,10 @@ class TestVariables(TestCase):
         variables = {
             'test_variable': test_variable
         }
-        dataset = Dataset({})
-        dataset.variables = mock.MagicMock()
-        dataset.variables.by.return_value = variables
+        dataset_resource.variables = mock.MagicMock()
+        dataset_resource.variables.by.return_value = variables
+
+        dataset = Dataset(dataset_resource)
 
         assert isinstance(dataset.test_variable, Entity)
         with pytest.raises(AttributeError) as err:
@@ -791,7 +794,7 @@ class TestSavepoints(TestCase):
             }
         }
         ds = Dataset(ds_res)
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
     def test_load_initial_savepoint(self):
@@ -804,7 +807,7 @@ class TestSavepoints(TestCase):
             }
         }
         ds = Dataset(ds_res)
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
     def test_load_empty_savepoint(self):
@@ -813,7 +816,7 @@ class TestSavepoints(TestCase):
         ds_res.savepoints = mock.MagicMock()
         ds_res.savepoints.index = {}
         ds = Dataset(ds_res)
-        with pytest.raises(KeyError) as err:
+        with pytest.raises(KeyError):
             ds.load_savepoint('savepoint')
 
 

@@ -57,14 +57,14 @@ class TestCreateCategorical(TestCase):
             return CrunchPayload()
 
         ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
+        ds.resource.self = self.ds_url
+        ds.resource.fragments.table = '%stable/' % self.ds_url
         ds.__class__ = Dataset
         ds.create_categorical = Dataset.create_categorical
-        ds.session.get.side_effect = _session_get
+        ds.resource.session.get.side_effect = _session_get
 
         ds.create_categorical(ds, categories, rules, 'name', 'alias', 'description')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
         payload = {
           "element": "shoji:entity",
           "body": {
@@ -142,8 +142,9 @@ class TestCreateCategorical(TestCase):
         assert call == payload
 
     def test_create_categorical_raises_valueerror(self):
-        sess = mock.MagicMock()
-        ds = Dataset(sess)
+        ds_res = mock.MagicMock()
+        ds_res.session = mock.MagicMock()
+        ds = Dataset(ds_res)
         with pytest.raises(ValueError) as err:
             categories = [
                 {'id': 2, 'name': 'Normal Users', 'numeric_value': 2, 'missing': False},
@@ -168,4 +169,3 @@ class TestCreateCategorical(TestCase):
 
         assert str(err.value) == \
                'Amount of rules should match categories (or categories -1)'
-

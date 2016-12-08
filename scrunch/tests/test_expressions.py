@@ -1,10 +1,10 @@
 import json
 
-import pycrunch
 import pytest
 import mock
 from unittest import TestCase
 
+import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
 from scrunch.expressions import prettify
@@ -2339,7 +2339,7 @@ class TestExpressionPrettify(TestCase):
         }
 
         ds = mock.MagicMock()
-        ds.__class__ = pycrunch.datasets.Dataset
+        ds.__class__ = scrunch.datasets.Dataset
         response = mock.MagicMock()
         response.payload.body.alias = 'age'
 
@@ -2367,7 +2367,7 @@ class TestExpressionPrettify(TestCase):
             prettify(expr)
 
         assert str(err.value) == (
-            'Valid dataset instance is required to resolve variable urls '
+            'Valid Dataset instance is required to resolve variable urls '
             'in the expression'
         )
 

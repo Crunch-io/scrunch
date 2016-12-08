@@ -124,10 +124,10 @@ class TestRecodes(TestCase):
         ds.__class__ = Dataset
         ds.combine_categories = Dataset.combine_categories
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
         with pytest.raises(KeyError) as err:
@@ -140,14 +140,14 @@ class TestRecodes(TestCase):
         ds.__class__ = Dataset
         ds.combine_categories = Dataset.combine_categories
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
         ds.combine_categories(ds, 'test', CATEGORY_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == RECODES_PAYLOAD
 
@@ -156,14 +156,14 @@ class TestRecodes(TestCase):
         ds.__class__ = Dataset
         ds.combine_categories = Dataset.combine_categories
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
         ds.combine_categories(ds, var_url, CATEGORY_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == RECODES_PAYLOAD
 
@@ -172,15 +172,15 @@ class TestRecodes(TestCase):
         ds.__class__ = Dataset
         ds.combine_categories = Dataset.combine_categories
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
         entity = Entity(mock.MagicMock(), self=var_url, body={})
         ds.combine_categories(ds, entity, CATEGORY_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == RECODES_PAYLOAD
 
@@ -191,7 +191,7 @@ class TestRecodes(TestCase):
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
         subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
         subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
@@ -209,14 +209,14 @@ class TestRecodes(TestCase):
             'sub2': subvar2_mock
         }
 
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
 
         # mock response from ds.session.get(variable_url)
         var_response = mock.MagicMock()
         var_response.payload = entity_mock.entity
-        ds.session.get.return_value = var_response
+        ds.resource.session.get.return_value = var_response
         response_map = {
             'newsubvar': ['unknown', 'sub1', 'sub2']
         }
@@ -232,7 +232,7 @@ class TestRecodes(TestCase):
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
         subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
         subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
@@ -250,18 +250,18 @@ class TestRecodes(TestCase):
             'sub2': subvar2_mock
         }
 
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
 
         # mock response from ds.session.get(variable_url)
         var_response = mock.MagicMock()
         var_response.payload = entity_mock.entity
-        ds.session.get.return_value = var_response
+        ds.resource.session.get.return_value = var_response
 
         # make the actual response call
         ds.combine_responses(ds, 'test', RESPONSE_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == COMBINE_RESPONSES_PAYLOAD
 
@@ -272,7 +272,7 @@ class TestRecodes(TestCase):
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
         subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
         subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
@@ -290,18 +290,18 @@ class TestRecodes(TestCase):
             'sub2': subvar2_mock
         }
 
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
 
         # mock response from ds.session.get(variable_url)
         var_response = mock.MagicMock()
         var_response.payload = entity_mock.entity
-        ds.session.get.return_value = var_response
+        ds.resource.session.get.return_value = var_response
 
         # make the actual response call
         ds.combine_responses(ds, 'test', RESPONSE_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == COMBINE_RESPONSES_PAYLOAD
 
@@ -312,7 +312,7 @@ class TestRecodes(TestCase):
         var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
         subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
         subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
@@ -330,14 +330,14 @@ class TestRecodes(TestCase):
             'sub2': subvar2_mock
         }
 
-        ds.variables.by.return_value = {
+        ds.resource.variables.by.return_value = {
             'test': entity_mock
         }
 
         # mock response from ds.session.get(variable_url)
         var_response = mock.MagicMock()
         var_response.payload = entity_mock.entity
-        ds.session.get.return_value = var_response
+        ds.resource.session.get.return_value = var_response
 
         entity = Entity(
             mock.MagicMock(),
@@ -347,17 +347,17 @@ class TestRecodes(TestCase):
 
         # make the actual response call
         ds.combine_responses(ds, entity, RESPONSE_MAP, 'name', 'alias')
-        call = ds.variables.create.call_args_list[0][0][0]
+        call = ds.resource.variables.create.call_args_list[0][0][0]
 
         assert call == COMBINE_RESPONSES_PAYLOAD
 
 
 class TestSpssRecodes(TestCase):
 
-    @mock.patch('pycrunch.get_dataset')
+    @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_categoricals(self, get_dataset_mock):
         dataset_id = '123'
-        var = Variable(mock.MagicMock(), **{
+        var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': ('http://test.crunch.io/api/datasets/%s/variables/0001/'
                      % dataset_id),
@@ -414,7 +414,7 @@ class TestSpssRecodes(TestCase):
                 'dataset_id': dataset_id
             }
         })
-        assert isinstance(var, Variable)
+        var = Variable(var_res)
 
         var.recode(
             'sexuality2', {1: 1, 2: (2, 3, 4, 5)}, ('Straight', 'LGBT')
@@ -476,10 +476,10 @@ class TestSpssRecodes(TestCase):
             }
         }
 
-    @mock.patch('pycrunch.get_dataset')
+    @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_multiple_responses(self, get_dataset_mock):
         dataset_id = '123'
-        var = Variable(mock.MagicMock(), **{
+        var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
             'body': {
@@ -546,7 +546,7 @@ class TestSpssRecodes(TestCase):
             }
 
         })
-        assert isinstance(var, Variable)
+        var = Variable(var_res)
 
         var.recode(
             'Q1_recoded',

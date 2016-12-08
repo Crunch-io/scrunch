@@ -39,7 +39,7 @@ def get_dataset(dataset, site=None):
     This method uses the library singleton session if the optional "site"
     parameter is not provided.
 
-    Returns a Dataset Entity record if the dataset exsists.
+    Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
     global session
@@ -75,7 +75,7 @@ def var_name_to_url(ds, alias):
     :return: the id of the given varname or None
     """
     try:
-        return ds.variables.by('alias')[alias].entity_url
+        return ds.variables.by('alias')[alias].entity.self
     except KeyError:
         raise KeyError(
             'Variable %s does not exist in Dataset %s' % (alias,
@@ -203,20 +203,15 @@ class Dataset(object):
         self.session = self.resource.session
 
     def __getattr__(self, item):
-        # First check if the parent class provides the attribute
-        try:
-            return super(Dataset, self).__getattr__(item)
-        except AttributeError:
-            # If not, then check if the attribute corresponds to a variable
-            # alias
-            variable = self.resource.variables.by('alias').get(item)
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
 
-            if variable is None:
-                # Variable doesn't exists, must raise an AttributeError
-                raise
+        if variable is None:
+            # Variable doesn't exists, must raise an AttributeError
+            raise AttributeError('Dataset has no attribute %s' % item)
 
-            # Variable exists!, return the variable entity
-            return variable.entity
+        # Variable exists!, return the variable entity
+        return variable.entity
 
     def exclude(self, expr=None):
         """
@@ -270,7 +265,7 @@ class Dataset(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
 
-        more_args = process_expr(more_args, self)
+        more_args = process_expr(more_args, self.resource)
 
         expr = dict(function='case', args=args + more_args)
 
@@ -369,7 +364,7 @@ class Dataset(object):
 
         def _to_url(email):
             api_users = 'https://{}/api/users/'.format(
-                _host_from_url(self.self)
+                _host_from_url(self.resource.self)
             )
             user_url = None
 
@@ -406,7 +401,7 @@ class Dataset(object):
         -------
         None
         """
-        if len(self.savepoints.index) > 0:
+        if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes('description'):
                 raise KeyError(
                     "A checkpoint with the description '{}' already"
@@ -466,7 +461,8 @@ class Dataset(object):
             return []
         else:
             attribs = [
-                cp[attrib] for url, cp in six.iteritems(self.savepoints.index)
+                cp[attrib]
+                for url, cp in six.iteritems(self.resource.savepoints.index)
             ]
 
             return attribs
@@ -704,11 +700,11 @@ class Variable(object):
                 'The "default" argument must be either "missing" or "copy"'
             )
 
-        if 'body' not in self:
+        if 'body' not in self.resource:
             self.resource.refresh()
 
         if self.resource.body.type not in ('categorical', 'categorical_array',
-                                  'multiple_response'):
+                                           'multiple_response'):
             raise TypeError(
                 'Only categorical, categorical_array and multiple_response '
                 'variables are supported'
@@ -730,7 +726,7 @@ class Variable(object):
             default_name = 'Missing'
             existing_categories_by_id = dict()
             existing_categories_by_name = dict()
-            for existing_category in self.body.get('categories', []):
+            for existing_category in self.resource.body.get('categories', []):
                 _id = existing_category['id']
                 _name = existing_category['name']
                 existing_categories_by_id[_id] = existing_category
@@ -796,7 +792,7 @@ class Variable(object):
                 'missing': True,
                 'combined_ids': []
             }
-            for existing_category in self.body.get('categories', []):
+            for existing_category in self.resource.body.get('categories', []):
                 _id = existing_category['id']
                 if _id not in processed_categories:
                     if default == 'missing':
@@ -823,15 +819,15 @@ class Variable(object):
             payload['body']['expr']['function'] = 'combine_categories'
             payload['body']['expr']['args'] = [
                 {
-                    'variable': self['self']
+                    'variable': self.resource['self']
                 },
                 {
                     'value': category_defs
                 }
             ]
         else:  # multiple_response
-            subreferences = self.body.get('subreferences', [])
-            subvariables = self.body.get('subvariables', [])
+            subreferences = self.resource.body.get('subreferences', [])
+            subvariables = self.resource.body.get('subvariables', [])
             assert len(subreferences) == len(subvariables)
 
             # 1. Gather the URLs of the subvariables.
@@ -870,14 +866,14 @@ class Variable(object):
             payload['body']['expr']['function'] = 'combine_responses'
             payload['body']['expr']['args'] = [
                 {
-                    'variable': self['self']
+                    'variable': self.resource['self']
                 },
                 {
                     'value': response_defs
                 }
             ]
 
-        ds = pycrunch.get_dataset(self.body.dataset_id)
+        ds = get_dataset(self.resource.body.dataset_id)
         return ds.variables.create(payload).refresh()
 
     def edit_categorical(self, categories, rules):
@@ -894,7 +890,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = pycrunch.get_dataset(self.body.dataset_id)
+        ds = get_dataset(self.resource.body.dataset_id)
         more_args = process_expr(more_args, ds)
         # epression value building
         expr = dict(function='case', args=args + more_args)
@@ -903,13 +899,13 @@ class Variable(object):
             body=dict(expr=expr)
         )
         # patch the variable with the new payload
-        return self.patch(payload)
+        return self.resource.patch(payload)
 
     def edit_derived(self, variable, mapper):
         # get some initial variables
-        ds = pycrunch.get_dataset(self.body.dataset_id)
+        ds = get_dataset(self.resource.body.dataset_id)
         variable_url = variable_to_url(ds, variable)
-        function = self.body.derivation['function']
+        function = self.resource.body.derivation['function']
 
         # make the proper transformations based on the function
         # array is combine_responses
@@ -940,4 +936,4 @@ class Variable(object):
                 }
             }
         }
-        return self.patch(payload)
+        return self.resource.patch(payload)
