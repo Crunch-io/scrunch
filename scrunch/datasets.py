@@ -75,7 +75,7 @@ def var_name_to_url(ds, alias):
     :return: the id of the given varname or None
     """
     try:
-        return ds.variables.by('alias')[alias].entity_url
+        return ds.variables.by('alias')[alias].entity.self
     except KeyError:
         raise KeyError(
             'Variable %s does not exist in Dataset %s' % (alias,
@@ -874,7 +874,7 @@ class Variable(object):
             ]
 
         ds = pycrunch.get_dataset(self.body.dataset_id)
-        return ds.variables.create(payload).refresh()
+        return ds.resource.variables.create(payload).refresh()
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
