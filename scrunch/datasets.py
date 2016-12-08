@@ -265,7 +265,7 @@ class Dataset(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
 
-        more_args = process_expr(more_args, self)
+        more_args = process_expr(more_args, self.resource)
 
         expr = dict(function='case', args=args + more_args)
 
