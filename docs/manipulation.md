@@ -114,7 +114,7 @@ We can also exclude a list of ids using:
 ds.exclude("disposition in [0, 1]")
 ```
 
-Date variables are also supported for exclusion filters, like shown in the
+Date variables are also supported in exclusion filters, like shown in the
 following examples:
 
 ```python
