@@ -229,8 +229,8 @@ class Dataset(object):
             expr_obj = {}
         else:
             expr_obj = expr
-        return self.session.patch(
-            self.fragments.exclusion,
+        return self.resource.session.patch(
+            self.resource.fragments.exclusion,
             data=json.dumps(dict(expression=expr_obj))
         )
 
