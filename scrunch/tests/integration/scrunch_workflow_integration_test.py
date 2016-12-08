@@ -3,6 +3,7 @@
 import math
 import os
 
+import isodate
 import pycrunch
 from pycrunch import pandaslib
 
@@ -675,7 +676,60 @@ def main():
         )
         dataset.exclude(expr)
 
-        # 1.9 Clear the exclusion filter.
+        # 1.8 Exclusion filters using date variables.
+        dt_str = '2014-12-30T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time < "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) >= dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2015-01-01T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time >= "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) < dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2014-05-10T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'registration_time == "%s"' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) != dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        dt_str = '2014-05-10T00:00:00+00:00'
+        dt = isodate.parse_datetime(dt_str)
+        expr = 'not(registration_time == "%s")' % dt_str
+        dataset.exclude(expr)
+        df = pandaslib.dataframe(dataset.resource)
+        valid_ids = [
+            row[0] for row in ROWS
+            if row[0] != 'identity' and isodate.parse_datetime(row[3]) == dt
+        ]
+        assert len(df) == len(valid_ids)
+        for _, row in df.iterrows():
+            assert row['identity'] in valid_ids
+
+        # 1.10 Clear the exclusion filter.
         dataset.exclude()
         df = pandaslib.dataframe(dataset.resource)
         assert len(df) == len(ROWS) - 1  # excluding the header
