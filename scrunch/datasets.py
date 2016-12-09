@@ -309,6 +309,13 @@ class Dataset(object):
 
         return self.resource.variables.create(payload)
 
+    def create_multiple_response(self, responses, rules, name, alias, description=''):
+        """
+        Creates a Multiple response (array) using a set of rules for each
+         of the responses(subvariables).
+        """
+        raise NotImplementedError()
+
     def copy_variable(self, variable, name, alias):
         payload = {
             'element': 'shoji:entity',
