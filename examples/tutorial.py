@@ -65,7 +65,7 @@ new_ds = create_dataset('Test dataset', {
     }
 })
 
-print "Dataset %s created" % new_ds.attrs.id
+print "Dataset %s created" % new_ds.id
 
 rows = {
     'catvar': [1, 2, 3, 1, 2],
@@ -76,10 +76,10 @@ rows = {
 
 new_ds.rename('My Dataset')
 
-dataset = get_dataset(new_ds.attrs.id)
+dataset = get_dataset(new_ds.id)
 
 # Assert it is the same dataset
-assert dataset.attrs.id == new_ds.attrs.id
+assert dataset.id == new_ds.id
 
 dataset.add_rows(rows)
 
@@ -95,7 +95,7 @@ print "Created savepoint"
 
 catvar = dataset['catvar']
 
-combined = catvar.combine_categories({
+combined = dataset.combine_categories(catvar, {
     1: {
         'name': 'valid',
         'missing': False,
@@ -108,9 +108,16 @@ combined = catvar.combine_categories({
     }
 }, name='combined', alias='combined')
 
-copy_numeric = dataset.variables.numvar.copy()
+assert combined.resource.body.derivation['function'] == 'combine_categories'
+print "Variable combined as: %s" % combined.alias
 
-dataset.download('/home/user/rows.csv',
+numvar = dataset['numvar']
+copy_numeric = dataset.copy_variable(numvar, name='Copied numvar',
+                                     alias='copied_numvar')
+
+assert copy_numeric.resource.body.derivation['function'] == 'copy_variable'
+
+dataset.download('rows.csv',
                  variables=[catvar, copy_numeric],
                  filter='combined == 1')
 
