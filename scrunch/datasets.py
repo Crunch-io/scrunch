@@ -10,10 +10,11 @@ else:
 import pandas as pd
 
 import pycrunch
+from pycrunch.shoji import Entity, wait_progress
+from pycrunch.exporting import export_dataset
+
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.variables import validate_variable_url
-from pycrunch.shoji import Entity
-from pycrunch.shoji import wait_progress
 
 
 SKELETON = {
@@ -190,25 +191,19 @@ def download_file(url, filename):
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:   # filter out keep-alive new chunks
+                print chunk
                 f.write(chunk)
     return filename
-
-
-class DatasetAttrs(object):
-    def __init__(self, dataset):
-        self.dataset = dataset
-
-    def __getattr__(self, item):
-        try:
-            return self.dataset.resource.body[item]
-        except KeyError as e:
-            raise AttributeError(e)
 
 
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
+
+    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'descrpition', 'is_published',
+                         'archived', 'end_date', 'start_date', 'creation_time',
+                         'modification_time'}
 
     def __init__(self, resource):
         """
@@ -218,6 +213,9 @@ class Dataset(object):
         self.session = self.resource.session
 
     def __getattr__(self, item):
+        if item in self.ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
         # Check if the attribute corresponds to a variable alias
         variable = self.resource.variables.by('alias').get(item)
 
@@ -237,10 +235,6 @@ class Dataset(object):
 
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
-
-    @property
-    def attrs(self):
-        return DatasetAttrs(self)
 
     def rename(self, new_name):
         self.resource.edit(name=new_name)
@@ -315,6 +309,23 @@ class Dataset(object):
 
         return self.resource.variables.create(payload)
 
+    def copy_variable(self, variable, name, alias):
+        payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': name,
+                'alias': alias,
+                'derivation': {
+                    'function': 'copy_variable',
+                    'args': [{
+                        'variable': variable.resource.self
+                    }]
+                }
+            }
+        }
+        shoji_var = self.resource.variables.create(payload).refresh()
+        return Variable(shoji_var)
+
     def combine_categories(self, variable, category_map,
                            name, alias, description=''):
         """
@@ -334,7 +345,7 @@ class Dataset(object):
         :param category_map: map to combine categories
         :return: the new created variable
         """
-        variable_url = variable_to_url(self.resource, variable)
+        variable_url = variable.resource.self
         categories = validate_category_map(category_map)
         payload = SKELETON.copy()
         payload['body']['name'] = name
@@ -349,7 +360,7 @@ class Dataset(object):
                 'value': categories
             }
         ]
-        return self.resource.variables.create(payload)
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def combine_responses(self, variable, response_map,
                           name, alias, description=''):
@@ -621,7 +632,7 @@ class Dataset(object):
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
-                id_vars.append(variable_to_url(self.resource, var))
+                id_vars.append(var.resource.self)
             # Now build the payload with selected variables
             payload['where'] = {
                     'function': 'select',
@@ -642,15 +653,9 @@ class Dataset(object):
                         }
                     }]
                 }
-        # convert the dict to JSON
-        data = json.dumps(payload)
-        try:
-            resp = self.session.post(csv_url, data)
-            file_url = resp.headers['Location']
-            filename = download_file(file_url, path)
-        except:
-            raise
-        return filename
+        print "Payload", payload
+        url = export_dataset(self.resource, payload, format='csv')
+        download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
              filter=None, wait=True):
@@ -720,8 +725,15 @@ class Variable(object):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
 
+    ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
+                         'type', 'id', 'view', 'notes'}
+
     def __init__(self, resource):
         self.resource = resource
+
+    def __getattr__(self, item):
+        if item in self.ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
 
     def recode(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
