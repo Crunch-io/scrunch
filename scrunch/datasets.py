@@ -191,7 +191,6 @@ def download_file(url, filename):
     with open(filename, 'wb') as f:
         for chunk in r.iter_content(chunk_size=1024):
             if chunk:   # filter out keep-alive new chunks
-                print chunk
                 f.write(chunk)
     return filename
 
@@ -660,7 +659,6 @@ class Dataset(object):
                         }
                     }]
                 }
-        print "Payload", payload
         url = export_dataset(self.resource, payload, format='csv')
         download_file(url, path)
 
