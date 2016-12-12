@@ -187,11 +187,16 @@ def validate_response_map(map):
 
 
 def download_file(url, filename):
-    r = requests.get(url, stream=True)
-    with open(filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:   # filter out keep-alive new chunks
-                f.write(chunk)
+    if url.startswith('file://'):
+        # Result is in local filesystem (for local development mostly)
+        import shutil
+        shutil.copyfile(url.split('file://', 1)[1], filename)
+    else:
+        r = requests.get(url, stream=True)
+        with open(filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:   # filter out keep-alive new chunks
+                    f.write(chunk)
     return filename
 
 
