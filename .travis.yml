@@ -25,6 +25,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas mock pytest
   - source activate test-environment
+  - pip install --user -r dev_requirements.txt
   - python setup.py install
 
 script:
