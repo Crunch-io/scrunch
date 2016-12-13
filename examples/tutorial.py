@@ -1,10 +1,11 @@
 # coding: utf-8
 
+from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import get_dataset, create_dataset
 
 username = raw_input("Enter email: ")
-password = raw_input("Enter password for %s: " % username)
+password = getpass("Enter password for %s: " % username)
 
 site = connect(username, password, site_url='https://alpha.crunch.io/api/')
 
@@ -81,7 +82,8 @@ dataset = get_dataset(new_ds.id)
 # Assert it is the same dataset
 assert dataset.id == new_ds.id
 
-dataset.add_rows(rows)
+total = dataset.stream_rows(rows)
+dataset.push_rows(total)
 
 print "Added %s rows" % len(rows.values()[0])
 
@@ -117,9 +119,9 @@ copy_numeric = dataset.copy_variable(numvar, name='Copied numvar',
 
 assert copy_numeric.resource.body.derivation['function'] == 'copy_variable'
 
-dataset.download('rows.csv',
-                 variables=[catvar, copy_numeric],
-                 filter='combined == 1')
+dataset.download('rows.csv')#,
+                 #variables=[catvar, copy_numeric],
+                 #filter='combined == 1')
 
 
 

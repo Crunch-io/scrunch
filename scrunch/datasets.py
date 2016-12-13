@@ -10,6 +10,7 @@ else:
 import pandas as pd
 
 import pycrunch
+from pycrunch.importing import Importer
 from pycrunch.shoji import Entity, wait_progress
 from pycrunch.exporting import export_dataset
 
@@ -243,10 +244,29 @@ class Dataset(object):
     def rename(self, new_name):
         self.resource.edit(name=new_name)
 
-    def add_rows(self, columns):
-        self.resource.batches.post({
-            'element': 'crunch:table',
-            'data': columns
+    def stream_rows(self, columns):
+        """
+        Receives a dict with columns of values to add and streams them
+         into the dataset. Client must call .push_rows(n) later.
+
+        Returns the total of rows streamed
+        """
+        importer = Importer()
+        count = len(columns.values()[0])
+        for x in range(count):
+            importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
+        return count
+
+    def push_rows(self, count):
+        """
+        Batches in the rows that have been currently streamed.
+        """
+        self.resource.batches.create({
+            'element': 'shoji:entity',
+            'body': {
+                'stream': count,
+                'type': 'ldjson'
+            }
         })
 
     def exclude(self, expr=None):
