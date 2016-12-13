@@ -1,14 +1,15 @@
 # coding: utf-8
 
+from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import get_dataset, create_dataset
 
-username = ''
-password = ''
+username = raw_input("Enter email: ")
+password = getpass("Enter password for %s: " % username)
 
-site = connect(username, password)
+site = connect(username, password, site_url='https://alpha.crunch.io/api/')
 
-new_ds = create_dataset(site, 'test dataset', {
+new_ds = create_dataset('Test dataset', {
     "catvar": {
         'name': 'categorical variable',
         'type': 'categorical',
@@ -65,6 +66,8 @@ new_ds = create_dataset(site, 'test dataset', {
     }
 })
 
+print "Dataset %s created" % new_ds.id
+
 rows = {
     'catvar': [1, 2, 3, 1, 2],
     'numvar': [-1, 0, 1, 2, 3],
@@ -72,19 +75,29 @@ rows = {
     'cavar': [[1, 2], [1, 1], [3, 2], [2, 2], [3, 1]]
 }
 
-new_ds.rename("My dataset")
+new_ds.rename('My Dataset')
 
-dataset = get_dataset(site, "My dataset")
+dataset = get_dataset(new_ds.id)
 
-dataset.add_rows(rows)
+# Assert it is the same dataset
+assert dataset.id == new_ds.id
+
+total = dataset.stream_rows(rows)
+dataset.push_rows(total)
+
+print "Added %s rows" % len(rows.values()[0])
 
 dataset.exclude("numvar > 0")
 
-dataset.make_savepoint("After setting exclusion")
+print "Exclusion filter set"
 
-catvar = dataset.variables.catvar
+dataset.create_savepoint("After setting exclusion")
 
-combined = catvar.combine_categories({
+print "Created savepoint"
+
+catvar = dataset['catvar']
+
+combined = dataset.combine_categories(catvar, {
     1: {
         'name': 'valid',
         'missing': False,
@@ -97,11 +110,18 @@ combined = catvar.combine_categories({
     }
 }, name='combined', alias='combined')
 
-copy_numeric = dataset.variables.numvar.copy()
+assert combined.resource.body.derivation['function'] == 'combine_categories'
+print "Variable combined as: %s" % combined.alias
 
-dataset.download('/home/user/rows.csv',
-                 variables=[catvar, copy_numeric],
-                 filter='combined == 1')
+numvar = dataset['numvar']
+copy_numeric = dataset.copy_variable(numvar, name='Copied numvar',
+                                     alias='copied_numvar')
+
+assert copy_numeric.resource.body.derivation['function'] == 'copy_variable'
+
+dataset.download('rows.csv')#,
+                 #variables=[catvar, copy_numeric],
+                 #filter='combined == 1')
 
 
 

@@ -10,10 +10,12 @@ else:
 import pandas as pd
 
 import pycrunch
+from pycrunch.importing import Importer
+from pycrunch.shoji import Entity, wait_progress
+from pycrunch.exporting import export_dataset
+
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.variables import validate_variable_url
-from pycrunch.shoji import Entity
-from pycrunch.shoji import wait_progress
 
 
 SKELETON = {
@@ -42,11 +44,10 @@ def get_dataset(dataset, site=None):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
-    global session
     if site is None:
-        if session is None:
-            raise AttributeError("Authenticate first with pycrunch.connect()")
-        site = session
+        if pycrunch.session is None:
+            raise AttributeError("Authenticate first with scrunch.connect()")
+        site = pycrunch.session
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
@@ -54,7 +55,12 @@ def get_dataset(dataset, site=None):
     return Dataset(shoji_ds)
 
 
-def create_dataset(site, name, variables):
+def create_dataset(name, variables, site=None):
+    if site is None:
+        if pycrunch.session is None:
+            raise AttributeError("Authenticate first with scrunch.connect()")
+        site = pycrunch.session
+
     shoji_ds = site.datasets.create({
         'element': 'shoji:entity',
         'body': {
@@ -182,11 +188,16 @@ def validate_response_map(map):
 
 
 def download_file(url, filename):
-    r = requests.get(url, stream=True)
-    with open(filename, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:   # filter out keep-alive new chunks
-                f.write(chunk)
+    if url.startswith('file://'):
+        # Result is in local filesystem (for local development mostly)
+        import shutil
+        shutil.copyfile(url.split('file://', 1)[1], filename)
+    else:
+        r = requests.get(url, stream=True)
+        with open(filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:   # filter out keep-alive new chunks
+                    f.write(chunk)
     return filename
 
 
@@ -194,6 +205,10 @@ class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
+
+    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'descrpition', 'is_published',
+                         'archived', 'end_date', 'start_date', 'creation_time',
+                         'modification_time'}
 
     def __init__(self, resource):
         """
@@ -203,6 +218,9 @@ class Dataset(object):
         self.session = self.resource.session
 
     def __getattr__(self, item):
+        if item in self.ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
         # Check if the attribute corresponds to a variable alias
         variable = self.resource.variables.by('alias').get(item)
 
@@ -212,6 +230,44 @@ class Dataset(object):
 
         # Variable exists!, return the variable entity
         return variable.entity
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
+        if variable is None:
+            # Variable doesn't exists, must raise an ValueError
+            raise ValueError('Dataset has no variable %s' % item)
+
+        # Variable exists!, return the variable entity
+        return Variable(variable.entity)
+
+    def rename(self, new_name):
+        self.resource.edit(name=new_name)
+
+    def stream_rows(self, columns):
+        """
+        Receives a dict with columns of values to add and streams them
+         into the dataset. Client must call .push_rows(n) later.
+
+        Returns the total of rows streamed
+        """
+        importer = Importer()
+        count = len(columns.values()[0])
+        for x in range(count):
+            importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
+        return count
+
+    def push_rows(self, count):
+        """
+        Batches in the rows that have been currently streamed.
+        """
+        self.resource.batches.create({
+            'element': 'shoji:entity',
+            'body': {
+                'stream': count,
+                'type': 'ldjson'
+            }
+        })
 
     def exclude(self, expr=None):
         """
@@ -277,6 +333,30 @@ class Dataset(object):
 
         return self.resource.variables.create(payload)
 
+    def create_multiple_response(self, responses, rules, name, alias, description=''):
+        """
+        Creates a Multiple response (array) using a set of rules for each
+         of the responses(subvariables).
+        """
+        raise NotImplementedError()
+
+    def copy_variable(self, variable, name, alias):
+        payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': name,
+                'alias': alias,
+                'derivation': {
+                    'function': 'copy_variable',
+                    'args': [{
+                        'variable': variable.resource.self
+                    }]
+                }
+            }
+        }
+        shoji_var = self.resource.variables.create(payload).refresh()
+        return Variable(shoji_var)
+
     def combine_categories(self, variable, category_map,
                            name, alias, description=''):
         """
@@ -296,7 +376,7 @@ class Dataset(object):
         :param category_map: map to combine categories
         :return: the new created variable
         """
-        variable_url = variable_to_url(self.resource, variable)
+        variable_url = variable.resource.self
         categories = validate_category_map(category_map)
         payload = SKELETON.copy()
         payload['body']['name'] = name
@@ -311,7 +391,7 @@ class Dataset(object):
                 'value': categories
             }
         ]
-        return self.resource.variables.create(payload)
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def combine_responses(self, variable, response_map,
                           name, alias, description=''):
@@ -583,7 +663,7 @@ class Dataset(object):
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
-                id_vars.append(variable_to_url(self.resource, var))
+                id_vars.append(var.resource.self)
             # Now build the payload with selected variables
             payload['where'] = {
                     'function': 'select',
@@ -604,15 +684,8 @@ class Dataset(object):
                         }
                     }]
                 }
-        # convert the dict to JSON
-        data = json.dumps(payload)
-        try:
-            resp = self.session.post(csv_url, data)
-            file_url = resp.headers['Location']
-            filename = download_file(file_url, path)
-        except:
-            raise
-        return filename
+        url = export_dataset(self.resource, payload, format='csv')
+        download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
              filter=None, wait=True):
@@ -682,8 +755,15 @@ class Variable(object):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
 
+    ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
+                         'type', 'id', 'view', 'notes'}
+
     def __init__(self, resource):
         self.resource = resource
+
+    def __getattr__(self, item):
+        if item in self.ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
 
     def recode(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
