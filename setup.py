@@ -43,6 +43,7 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
+        'pycrunch',
         'six',
     ],
     tests_require=[
@@ -52,6 +53,7 @@ setup_params = dict(
         'pandas',
         'pytest',
         'pytest-cov',
+        'pytest-sugar',
     ],
     setup_requires=[
     ] + pytest_runner,
