@@ -376,7 +376,7 @@ class Dataset(object):
         :param category_map: map to combine categories
         :return: the new created variable
         """
-        variable_url = variable.resource.self
+        variable_url = variable_to_url(self.resource, variable)
         categories = validate_category_map(category_map)
         payload = SKELETON.copy()
         payload['body']['name'] = name
@@ -663,7 +663,7 @@ class Dataset(object):
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
-                id_vars.append(var.resource.self)
+                id_vars.append(variable_to_url(self.resource, var))
             # Now build the payload with selected variables
             payload['where'] = {
                     'function': 'select',
