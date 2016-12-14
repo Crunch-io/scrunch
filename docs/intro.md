@@ -14,9 +14,6 @@ site = connect(user="me@mycompany.com", pw="yourpassword")
 ds = get_dataset("Example Dataset", site=site)
 ```
 
-There is an optional argument `project` that indicates which 
-Crunch project should the scope of the session be based on.
-
 A session can also be created with a token:
 
 ```python
@@ -24,6 +21,20 @@ from scrunch import connect_with_token, get_dataset
 site = connect_with_token(token="token")
 ds = get_dataset("Example Dataset", site=site)
 ```
+
+Sometimes datasets will live in different project, in this
+case we need to switch the session environment to work
+with the needed project:
+
+```python
+from scrunch.datasets import change_project
+
+change_project("Project X", site=site)
+ds = get_dataset("Dataset X", site=site)
+```
+
+In both methods above `site` is an optional argument and
+the scope will look for previously instantiated sessions.
 
 Step 2: Set yourself as the current editor
 ------------------------------------------
