@@ -13,7 +13,7 @@ import pycrunch
 site = pycrunch.connect(
     user="me@mycompany.com", 
     pw="yourpassword", 
-    site_url"https://app.crunch.io/api/",
+    site_url="https://app.crunch.io/api/",
     project="US Election"
 )
 ```
