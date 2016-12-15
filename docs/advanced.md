@@ -83,7 +83,7 @@ A common operation is to create a new variable out of an existing variable
 by combining categories.
 
 Using scrunch's `combine_categories` helper method, we can achieve the
-same result as the "recode" example from the intro for the `brandrating` variable
+same result as the "combine" example from the intro for the `brandrating` variable
 as follows:
 
 ```python
