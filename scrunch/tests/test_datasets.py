@@ -12,9 +12,10 @@ from pycrunch.variables import cast
 
 
 class TestDatasetBase(object):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
 
-    def dataset_mock(self):
-        variables = dict(
+    def dataset_mock(self, variables=None):
+        variables = variables or dict(
             disposition=dict(
                 id='0001',
                 alias='disposition',
@@ -944,13 +945,156 @@ class TestRecode(TestDatasetBase):
         assert False
 
     def test_recode_multiple_response(self):
-        ds_res = mock.Mock()
-        ds = Dataset(ds_res)
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'var_c': {
+                'id': '003',
+                'alias': 'var_c',
+                'name': 'Variable C',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'gender': {
+                'id': '004',
+                'alias': 'gender',
+                'name': 'Gender',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'age': {
+                'id': '005',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+        }
+        ds = self.dataset_mock(variables=variables)
         responses = [
-            {'id': 1, 'name': 'Facebook', 'rules': ''},
-            {'id': 2, 'name': 'Twitter', 'rules': ''},
-            {'id': 3, 'name': 'Google+', 'rules': ''},
+            {'id': 1, 'name': 'Facebook', 'rules': 'var_a > 5'},
+            {'id': 2, 'name': 'Twitter', 'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
+            {'id': 3, 'name': 'Google+', 'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
         mr = ds.create_multiple_response(responses, 'mr', 'my mr')
-        assert False
+        ds.resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'mr',
+                'description': '',
+                'alias': 'my mr',
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '1': {
+                                    'function': 'case',
+                                    'name': 'Facebook',
+                                    'alias': 'my mr_Facebook',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # 'var_a > 5'
+                                        'function': '>',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                            {'value': 5}
+                                        ]
+                                    }]
+                                },
+                                '2': {
+                                    'function': 'case',
+                                    'alias': 'my mr_Twitter',
+                                    'name': 'Twitter',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # 'var_b < 10 and var_c in (1, 2, 3)'}
+                                        'function': 'and',
+                                        'args': [{
+                                            'function': '<',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'value': 10}
+                                            ]
+                                        }, {
+                                            'function': 'in',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'value': [1, 2, 3]}
+                                            ]
+                                        }]
+                                    }]
+                                },
+                                '3': {
+                                    'function': 'case',
+                                    'alias': 'my mr_Google+',
+                                    'name': 'Google+',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # '(gender == 1) and (age >= 16 and age <= 24)'
+                                        'function': 'and',
+                                        'args': [{
+                                            'function': '==',
+                                            'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['gender']['id']}, {'value': 1}]
+                                        }, {
+                                            'function': 'and',
+                                            'args': [{
+                                                'function': '>=',
+                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 16}]
+                                            }, {
+                                                'function': '<=',
+                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 24}]
+                                            }]
+                                        }]
+                                    }]
+                                }
+                            }
+                        }]
+                    }]
+                }
+            }
+        })
 

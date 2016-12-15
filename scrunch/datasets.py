@@ -218,6 +218,32 @@ def download_file(url, filename):
     return filename
 
 
+def case_expr(rules, name, alias):
+    """
+    Given a set of rules, return a `case` function expression to create a
+     variable.
+    """
+    expression = {
+        'name': name,
+        'alias': alias,
+        'function': 'case',
+        'args': [{
+            'column': [1, 2],
+            'type': {
+                'value': {
+                    'class': 'categorical',
+                    'categories': [
+                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
+                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
+                    ]
+                }
+            }
+        }]
+    }
+    expression['args'].append(parse_expr(rules))
+    return expression
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -310,7 +336,8 @@ class Dataset(object):
     def create_categorical(self, categories, rules,
                            name, alias, description='', missing=True):
         """
-        creates a categorical variable deriving from other variables
+        Creates a categorical variable deriving from other variables.
+        Uses Crunch's `case` function.
         """
         validate_category_rules(categories, rules)
         if not hasattr(self.resource, 'variables'):
@@ -348,14 +375,34 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return self.resource.variables.create(payload)
+        return Variable(self.resource.variables.create(payload))
 
-    def create_multiple_response(self, responses, rules, name, alias, description=''):
+    def create_multiple_response(self, responses, name, alias, description=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        raise NotImplementedError()
+        responses_map = {str(resp['id']): process_expr(case_expr(resp['rules'],
+            resp['name'], alias='%s_%s' % (alias, resp['name'])),
+            self.resource) for resp in responses}
+        payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': name,
+                'alias': alias,
+                'description': description,
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': responses_map
+                        }]
+                    }]
+                }
+            }
+        }
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def copy_variable(self, variable, name, alias):
         payload = {
@@ -768,6 +815,18 @@ class Dataset(object):
             return wait_progress(r=progress, session=self.session, entity=self)
         return progress.json()['value']
 
+    def recode(self, categories, alias, name, description, multiple):
+        """
+        Used to create new categorical variables using Crunchs's `case` function.
+
+         Will create either categorical variables or multiple response depending
+         on the `multiple` parameter.
+        """
+        if multiple:
+            self.create_multiple_response(categories, alias, name, description)
+        else:
+            self.create_categorical(categories, alias, name, description)
+
 
 class Variable(object):
     """
@@ -788,6 +847,10 @@ class Variable(object):
                name=None, description=None):
         """
         Implements SPSS-like recode functionality for Crunch variables.
+
+        This method combines Crunch's `combine_categories` and
+        `combine_responses` in a single method when applied to a variable
+        that is deemed as ~categorical~ by the user.
         """
         if alias is None:
             raise TypeError('Missing alias for the recoded variable')
@@ -817,6 +880,8 @@ class Variable(object):
             description = self.resource.body.description
 
         if self.resource.body.type in ('categorical', 'categorical_array'):
+            # On this case perform a `combine_categories` operation
+
             if names is None:
                 raise TypeError('Missing category names')
 
@@ -926,6 +991,7 @@ class Variable(object):
                 }
             ]
         else:  # multiple_response
+            # Perform a `combine_responses` derivation
             subreferences = self.resource.body.get('subreferences', [])
             subvariables = self.resource.body.get('subvariables', [])
             assert len(subreferences) == len(subvariables)

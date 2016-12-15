@@ -45,6 +45,7 @@ import copy
 
 import six
 import scrunch
+from urllib import urlencode
 from scrunch.variables import validate_variable_url
 
 CRUNCH_FUNC_MAP = {
