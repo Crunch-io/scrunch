@@ -416,7 +416,7 @@ class TestSpssRecodes(TestCase):
         })
         var = Variable(var_res)
 
-        var.recode(
+        var.combine(
             'sexuality2', {1: 1, 2: (2, 3, 4, 5)}, ('Straight', 'LGBT')
         )
 
@@ -548,7 +548,7 @@ class TestSpssRecodes(TestCase):
         })
         var = Variable(var_res)
 
-        var.recode(
+        var.combine(
             'Q1_recoded',
             {'Q1_recoded_1': ('Q1_1', 'Q1_2'), 'Q1_recoded_2': 'Q1_3'}
         )

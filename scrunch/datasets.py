@@ -765,7 +765,7 @@ class Variable(object):
         if item in self.ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
-    def recode(self, alias=None, map=None, names=None, default='missing',
+    def combine(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
         """
         Implements SPSS-like recode functionality for Crunch variables.

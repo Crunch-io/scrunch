@@ -149,17 +149,17 @@ At the moment *filter expressions* can be composed using the following logical e
 
 ### Recodes
 
-Pycrunch's Variable entities provide a `recode` method that tries to mimic
+Pycrunch's Variable entities provide a `combine` method that tries to mimic
 the SPSS recode syntax as much as possible.
 
 For example, if `brandrating` is a variable with categories: `Very favorable`,
 `Somewhat favorable`, `Neutral`, `Somewhat unfavorable`, `Very unfavorable`,
 `Don't know` (with codes 1,2,3,4,5,9 respectively), we can create a new
-re-coded variable `brandrating2` using the following code:
+combined variable `brandrating2` using the following code:
 
 ```python
 var = ds.brandrating
-new_var = var.recode(
+new_var = var.combine(
     alias='brandrating2',
     map={1: (1, 2), 2: 3, 3: (4, 5)},
     names=('Favorable', 'Neutral', 'Unfavorable'),
@@ -173,7 +173,7 @@ Sensible defaults are used whenever possible. For example, we can omit the
 
 ```python
 var = ds.brandrating
-new_var = var.recode(
+new_var = var.combine(
     alias='brandrating2',
     map={1: (1, 2), 2: 3, 3: (4, 5)},
     names=('Favorable', 'Neutral', 'Unfavorable')
@@ -183,11 +183,11 @@ new_var = var.recode(
 in which case the name of the new variable would be the original name plus the
 " (recoded)" suffix and the description would be same as the original variable.
 
-The `recode` method also works on `multiple_response` Variables. For example:
+The `combine` method also works on `multiple_response` Variables. For example:
 
 ```python
 var = ds.mult_resp
-new_var = var.recode(
+new_var = var.combine(
     alias='recoded_mult_resp',
     map={
         'new_subvar_alias1': ('orig_subvar_alias1', 'orig_subvar_alias2'),
@@ -213,7 +213,7 @@ A common operation is to create a new variable out of an existing variable
 by combining categories.
 
 Using pycrunch's `combine_categories` helper method, we can achieve the
-same result as the previous "recode" example for the `brandrating` variable
+same result as the previous "combine" example for the `brandrating` variable
 as follows:
 
 ```python
