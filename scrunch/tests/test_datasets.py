@@ -893,9 +893,9 @@ class TestForks(TestCase):
         ds = Dataset(ds_res)
         ds.delete_forks()
 
-        f1.entity.delete.call_count == 1
-        f2.entity.delete.call_count == 1
-        f3.entity.delete.call_count == 1
+        assert f1.entity.delete.call_count == 1
+        assert f2.entity.delete.call_count == 1
+        assert f3.entity.delete.call_count == 1
 
     def test_forks_dataframe(self):
         f1 = dict(
@@ -934,3 +934,23 @@ class TestForks(TestCase):
         df = ds.forks_dataframe()
 
         assert df is None
+
+
+class TestRecode(TestDatasetBase):
+    def test_recode_single_categorical(self):
+        ds_res = mock.Mock()
+        ds = Dataset(ds_res)
+        ds.recode()
+        assert False
+
+    def test_recode_multiple_response(self):
+        ds_res = mock.Mock()
+        ds = Dataset(ds_res)
+        responses = [
+            {'id': 1, 'name': 'Facebook', 'rules': ''},
+            {'id': 2, 'name': 'Twitter', 'rules': ''},
+            {'id': 3, 'name': 'Google+', 'rules': ''},
+        ]
+        mr = ds.create_multiple_response(responses, 'mr', 'my mr')
+        assert False
+
