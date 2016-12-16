@@ -11,10 +11,11 @@ from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import create_dataset
 
-username = raw_input("Enter email: ")
-password = getpass("Enter password for %s: " % username)
+#username = raw_input("Enter email: ")
+#password = getpass("Enter password for %s: " % username)
 
-site = connect(username, password, site_url='https://alpha.crunch.io/api/')
+#site = connect(username, password, site_url='https://alpha.crunch.io/api/')
+site = connect('captain@crunch.io', 'asdfasdf', site_url='http://localhost:8080/api/')
 
 # Create a dataset for usage
 
@@ -26,7 +27,6 @@ total = dataset.stream_rows(NEWS_DATASET_ROWS)
 dataset.push_rows(total)
 
 # Recode a new single response variable
-
 agerange = dataset.recode([
     {'id': 1, 'name': 'Underage', 'rules': 'age < 18'},
     {'id': 2, 'name': 'Millenials', 'rules': 'age > 18 and age < 25'},
@@ -37,9 +37,11 @@ agerange = dataset.recode([
 
 print("Variable %s created" % agerange.alias)
 
-# Recode a new multiple response variable using the single response as filter
+# Recode a new multiple response variable from an existing multiple response variable
 origintype = dataset.recode([
-    {'id': 1, 'name': "Online", 'rules': mr_in(dataset, 'newssource', ["newssource-1", "newssource-2", "newssource-3", "newssource-4"])},
+    {'id': 1, 'name': "Online",
+     # Mixed support for using "category"(subvariables really) IDs
+     'rules': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper
     {'id': 2, 'name': "Print", 'rules': mr_in(dataset, 'newssource', ["newssource-5", "newssource-6"])},
     {'id': 3, 'name': "Tv", 'rules': mr_in(dataset, 'newssource', ["newssource-7", "newssource-9"])},
     {'id': 4, 'name': "Radio", 'rules': mr_in(dataset, 'newssource', ["newssource-8", "newssource-10"])},

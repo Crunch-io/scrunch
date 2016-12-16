@@ -115,6 +115,9 @@ def mr_in(ds, mr, subvars):
         'args': [{
             'variable': mr.self
         }, {
-            'column': [subvariables[sv].id for sv in subvars]
+                       # In case int cat IDs are sent, pad them like subvar IDs
+                       # This is fragile and should either be formalized to
+                       # add proper support or not used.
+            'column': [subvariables[sv].id if sv in subvariables else '%04d' % sv for sv in subvars]
         }]
     }
