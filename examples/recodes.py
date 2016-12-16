@@ -32,6 +32,7 @@ agerange = dataset.recode([
     {'id': 2, 'name': 'Millenials', 'rules': 'age > 18 and age < 25'},
     {'id': 3, 'name': 'Gen X', 'rules': 'age < 35 and age >= 25'},
     {'id': 4, 'name': 'Grown ups', 'rules': 'age < 60 and age >= 35'},
+    {'id': 5, 'name': '60+', 'rules': 'age >= 60'}
 ], alias='agerange', name='Age range', multiple=False)
 
 print("Variable %s created" % agerange.alias)
