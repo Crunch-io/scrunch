@@ -385,6 +385,7 @@ def process_expr(obj, ds):
             elif key == 'variable':
                 var = variables.get(val)
                 if var:
+                    # TODO: We shouldn't be stitching URLs together, use the API
                     if var.get('is_subvar'):
                         obj[key] = '%svariables/%s/subvariables/%s/' \
                                    % (base_url, var['parent_id'], var['id'])

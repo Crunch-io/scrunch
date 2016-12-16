@@ -939,10 +939,121 @@ class TestForks(TestCase):
 
 class TestRecode(TestDatasetBase):
     def test_recode_single_categorical(self):
-        ds_res = mock.Mock()
-        ds = Dataset(ds_res)
-        ds.recode()
-        assert False
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'var_c': {
+                'id': '003',
+                'alias': 'var_c',
+                'name': 'Variable C',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'gender': {
+                'id': '004',
+                'alias': 'gender',
+                'name': 'Gender',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'age': {
+                'id': '005',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+        }
+        ds = self.dataset_mock(variables=variables)
+        responses = [
+            {'id': 1, 'name': 'Facebook', 'rules': 'var_a > 5'},
+            {'id': 2, 'name': 'Twitter',
+             'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
+            {'id': 3, 'name': 'Google+',
+             'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
+        ]
+        ds.recode(responses, 'cat', 'My cat', multiple=False)
+        ds.resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'description': '',
+                'name': 'cat',
+                'alias': 'My cat',
+                'expr': {
+                    'function': 'case',
+                    'args': [{
+                        'column': [1, 2, 3, -1],
+                        'type': {
+                            'value': {
+                                'class': 'categorical',
+                                'categories': [
+                                    {'missing': False, 'id': 1, 'name': 'Facebook'},
+                                    {'missing': False, 'id': 2, 'name': 'Twitter'},
+                                    {'missing': False, 'id': 3, 'name': 'Google+'},
+                                    {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+                                ]
+                            }
+                        }
+                    }, {
+                        'function': '>',
+                        'args': [
+                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'value': 5}
+                        ]
+                    }, {
+                        'function': 'and',
+                        'args': [{
+                            'function': '<',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/002/'},
+                                {'value': 10}
+                            ]}, {
+                            'function': 'in',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/003/'},
+                                {'value': [1, 2, 3]}
+                            ]
+                        }]
+                    }, {
+                        'function': 'and',
+                        'args': [{
+                            'function': '==',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/004/'},
+                                {'value': 1}
+                            ]
+                        }, {
+                            'function': 'and',
+                            'args': [{
+                                'function': '>=',
+                                'args': [
+                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'value': 16}
+                                ]
+                            }, {
+                                'function': '<=',
+                                'args': [
+                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'value': 24}
+                                ]
+                            }]
+                        }]
+                    }]
+                }
+            },
+        })
 
     def test_recode_multiple_response(self):
         variables = {
@@ -988,7 +1099,7 @@ class TestRecode(TestDatasetBase):
             {'id': 2, 'name': 'Twitter', 'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        mr = ds.create_multiple_response(responses, 'mr', 'my mr')
+        mr = ds.recode(responses, 'mr', 'my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {

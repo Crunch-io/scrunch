@@ -333,13 +333,16 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
-    def create_categorical(self, categories, rules,
+    def create_categorical(self, categories,
                            name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
         """
-        validate_category_rules(categories, rules)
+        rules = []
+        for cat in categories:
+            rules.append(cat.pop('rules'))
+
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
 
@@ -815,7 +818,7 @@ class Dataset(object):
             return wait_progress(r=progress, session=self.session, entity=self)
         return progress.json()['value']
 
-    def recode(self, categories, alias, name, description, multiple):
+    def recode(self, categories, alias, name, multiple, description=''):
         """
         Used to create new categorical variables using Crunchs's `case` function.
 
@@ -823,9 +826,9 @@ class Dataset(object):
          on the `multiple` parameter.
         """
         if multiple:
-            self.create_multiple_response(categories, alias, name, description)
+            return self.create_multiple_response(categories, alias, name, description)
         else:
-            self.create_categorical(categories, alias, name, description)
+            return self.create_categorical(categories, alias, name, description)
 
 
 class Variable(object):
