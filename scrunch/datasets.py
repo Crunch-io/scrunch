@@ -224,8 +224,10 @@ def case_expr(rules, name, alias):
      variable.
     """
     expression = {
-        'name': name,
-        'alias': alias,
+        'references': {
+            'name': name,
+            'alias': alias,
+        },
         'function': 'case',
         'args': [{
             'column': [1, 2],
@@ -240,7 +242,7 @@ def case_expr(rules, name, alias):
             }
         }]
     }
-    expression['args'].append(parse_expr(rules))
+    expression['args'].append(rules)
     return expression
 
 
@@ -385,9 +387,14 @@ class Dataset(object):
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        responses_map = {str(resp['id']): process_expr(case_expr(resp['rules'],
-            resp['name'], alias='%s_%s' % (alias, resp['name'])),
-            self.resource) for resp in responses}
+        responses_map = {}
+        for resp in responses:
+            rules = resp['rules']
+            if isinstance(rules, basestring):
+                rules = process_expr(parse_expr(rules), self.resource)
+            responses_map[str(resp['id'])] = case_expr(rules, name=resp['name'],
+                alias='%s_%s' % (alias, resp['name']))
+
         payload = {
             'element': 'shoji:entity',
             'body': {
@@ -826,9 +833,11 @@ class Dataset(object):
          on the `multiple` parameter.
         """
         if multiple:
-            return self.create_multiple_response(categories, alias, name, description)
+            return self.create_multiple_response(categories, alias=alias,
+                name=name, description=description)
         else:
-            return self.create_categorical(categories, alias, name, description)
+            return self.create_categorical(categories, alias=alias, name=name,
+                description=description)
 
 
 class Variable(object):

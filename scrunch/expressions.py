@@ -347,6 +347,9 @@ def get_dataset_variables(ds):
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
                 subvar['categories'] = copy.deepcopy(var['categories'])
+                if 'alias' not in subvar:
+                    print subvar
+                    print var
                 variables[subvar['alias']] = subvar
 
     return variables

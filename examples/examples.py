@@ -99,3 +99,20 @@ NEWS_DATASET_ROWS = {
     "gender": [1, 2, 2, 1, 1, 1, 2]
 }
 
+
+def mr_in(ds, mr, subvars):
+    """
+    Temporary helper until scrunch can parse correctly the expression:
+     mr.has_any([sv1, sv2...])
+    """
+    variables = ds.resource.variables.by('alias')
+    mr = variables[mr].entity
+    subvariables = mr.subvariables.by('alias')
+    return {
+        'function': 'any',
+        'args': [{
+            'variable': mr.self
+        }, {
+            'column': [subvariables[sv].id for sv in subvars]
+        }]
+    }
