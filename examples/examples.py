@@ -66,6 +66,7 @@ NEWS_DATASET = {
             "alias": "socialmedia-3"
         }, {
             "name": "VK",
+            "alias": "socialmedia-4"
         }]
     },
     "gender": {
@@ -96,6 +97,7 @@ NEWS_DATASET_ROWS = {
     "socialmedia-1": [1, 2, 1, 1, 2, 1, 2],
     "socialmedia-2": [1, 2, 1, 1, 2, 1, 2],
     "socialmedia-3": [2, 2, 1, 2, 2, 1, 2],
+    "socialmedia-4": [2, 2, 1, 2, 2, 2, 2],
     "gender": [1, 2, 2, 1, 1, 1, 2]
 }
 
