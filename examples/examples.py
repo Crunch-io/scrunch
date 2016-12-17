@@ -1,5 +1,8 @@
 # coding: utf-8
 
+from scrunch.datasets import subvar_alias
+
+
 # These are the categories that multiple response use. Selected and Not Selected
 MR_CATS = [
     {"id": 1, "name": "Selected", "missing": False, "numeric_value": None, "selected": True},
@@ -21,34 +24,34 @@ NEWS_DATASET = {
         "categories": MR_CATS,
         "subreferences": [{
             "name": "Facebook",
-            "alias": "newssource-1"
+            "alias": "newssource_1"
         }, {
             "name": "Twitter",
-            "alias": "newssource-2"
+            "alias": "newssource_2"
         }, {
             "name": "Google news",
-            "alias": "newssource-3"
+            "alias": "newssource_3"
         }, {
             "name": "Reddit",
-            "alias": "newssource-4"
+            "alias": "newssource_4"
         }, {
             "name": "NY Times (Print)",
-            "alias": "newssource-5"
+            "alias": "newssource_5"
         }, {
             "name": "Washington Post (Print)",
-            "alias": "newssource-6"
+            "alias": "newssource_6"
         }, {
             "name": "NBC News",
-            "alias": "newssource-7"
+            "alias": "newssource_7"
         }, {
             "name": "NPR",
-            "alias": "newssource-8"
+            "alias": "newssource_8"
         }, {
             "name": "Fox",
-            "alias": "newssource-9"
+            "alias": "newssource_9"
         }, {
             "name": "Local radio",
-            "alias": "newssource-10"
+            "alias": "newssource_10"
         }]
     },
     "socialmedia": {
@@ -57,16 +60,16 @@ NEWS_DATASET = {
         "categories": MR_CATS,
         "subreferences": [{
             "name": "Facebook",
-            "alias": "socialmedia-1"
+            "alias": "socialmedia_1"
         }, {
             "name": "Twitter",
-            "alias": "socialmedia-2"
+            "alias": "socialmedia_2"
         }, {
             "name": "Google+",
-            "alias": "socialmedia-3"
+            "alias": "socialmedia_3"
         }, {
             "name": "VK",
-            "alias": "socialmedia-4"
+            "alias": "socialmedia_4"
         }]
     },
     "gender": {
@@ -84,40 +87,37 @@ NEWS_DATASET = {
 NEWS_DATASET_ROWS = {
     "caseid": [1, 2, 3, 4, 5, 6, 7],
     "age": [25, 41, 33, 38, 50, 17, 61],
-    "newssource-1": [1, 1, 1, 1, 2, 1, 2],
-    "newssource-2": [2, 2, 1, 2, 2, 1, 2],
-    "newssource-3": [1, 2, 1, 1, 2, 1, 2],
-    "newssource-4": [1, 2, 1, 1, 2, 2, 2],
-    "newssource-5": [2, 1, 2, 1, 1, 2, 2],
-    "newssource-6": [2, 2, 1, 2, 1, 2, 2],
-    "newssource-7": [2, 1, 1, 1, 2, 2, 2],
-    "newssource-8": [2, 1, 1, 2, 2, 2, 2],
-    "newssource-9": [2, 2, 2, 2, 1, 2, 2],
-    "newssource-10": [2, 1, 2, 2, 1, 2, 1],
-    "socialmedia-1": [1, 2, 1, 1, 2, 1, 2],
-    "socialmedia-2": [1, 2, 1, 1, 2, 1, 2],
-    "socialmedia-3": [2, 2, 1, 2, 2, 1, 2],
-    "socialmedia-4": [2, 2, 1, 2, 2, 2, 2],
+    "newssource_1": [1, 1, 1, 1, 2, 1, 2],
+    "newssource_2": [2, 2, 1, 2, 2, 1, 2],
+    "newssource_3": [1, 2, 1, 1, 2, 1, 2],
+    "newssource_4": [1, 2, 1, 1, 2, 2, 2],
+    "newssource_5": [2, 1, 2, 1, 1, 2, 2],
+    "newssource_6": [2, 2, 1, 2, 1, 2, 2],
+    "newssource_7": [2, 1, 1, 1, 2, 2, 2],
+    "newssource_8": [2, 1, 1, 2, 2, 2, 2],
+    "newssource_9": [2, 2, 2, 2, 1, 2, 2],
+    "newssource_10": [2, 1, 2, 2, 1, 2, 1],
+    "socialmedia_1": [1, 2, 1, 1, 2, 1, 2],
+    "socialmedia_2": [1, 2, 1, 1, 2, 1, 2],
+    "socialmedia_3": [2, 2, 1, 2, 2, 1, 2],
+    "socialmedia_4": [2, 2, 1, 2, 2, 2, 2],
     "gender": [1, 2, 2, 1, 1, 1, 2]
 }
 
 
-def mr_in(ds, mr, subvars):
+def mr_in(ds, mr_alias, subvars):
     """
     Temporary helper until scrunch can parse correctly the expression:
      mr.has_any([sv1, sv2...])
     """
     variables = ds.resource.variables.by('alias')
-    mr = variables[mr].entity
+    mr = variables[mr_alias].entity
     subvariables = mr.subvariables.by('alias')
     return {
         'function': 'any',
         'args': [{
             'variable': mr.self
         }, {
-                       # In case int cat IDs are sent, pad them like subvar IDs
-                       # This is fragile and should either be formalized to
-                       # add proper support or not used.
-            'column': [subvariables[sv].id if sv in subvariables else '%04d' % sv for sv in subvars]
+            'column': [subvariables[subvar_alias(mr_alias, sv)].id for sv in subvars]
         }]
     }

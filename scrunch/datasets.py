@@ -35,6 +35,10 @@ REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
 REQUIRES_RESPONSES = {'combined_ids', 'name'}
 
 
+def subvar_alias(parent_alias, response_id):
+    return '%s_%d' % (parent_alias, response_id)
+
+
 def get_dataset(dataset, site=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
@@ -128,10 +132,10 @@ def variable_to_url(ds, variable):
                      or alias.
     :return: The variable url
     """
-    assert isinstance(variable, (six.string_types, Entity))
+    assert isinstance(variable, (six.string_types, Variable))
 
-    if isinstance(variable, Entity):
-        return variable.self
+    if isinstance(variable, Variable):
+        return variable.resource.self
 
     elif validate_variable_url(variable):
         return variable
@@ -150,14 +154,14 @@ def aliases_to_urls(ds, variable_url, response_map):
     :param response_map: mapping of new subvariables
     :return:
     """
-    suvars = ds.session.get(variable_url).payload.subvariables.by('alias')
+    suvars = ds.variables.index(variable_url).entity.subvariables.by('alias')
     mapped_urls = {}
     for key, values in response_map.items():
         try:
-            mapped_urls[key] = [suvars[x].entity.self for x in values]
+            mapped_urls[key] = [suvars[x].entity_url for x in values]
         except KeyError:
             raise KeyError(
-                'Unexistant variables %s in Dataset %s' % (
+                'Unexistent variables %s in Dataset %s' % (
                     values, ds['body']['alias']))
     return mapped_urls
 
@@ -393,7 +397,7 @@ class Dataset(object):
             if isinstance(rules, basestring):
                 rules = process_expr(parse_expr(rules), self.resource)
             responses_map[str(resp['id'])] = case_expr(rules, name=resp['name'],
-                alias='%s_%s' % (alias, resp['name']))
+                alias='%s_%d' % (alias, resp['id']))
 
         payload = {
             'element': 'shoji:entity',
@@ -430,6 +434,14 @@ class Dataset(object):
         }
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
+
+    def combine(self, variable, category_map, name, alias, description=''):
+        if variable.type in 'multiple_response':
+            return self.combine_responses(variable, category_map, name=name,
+                alias=alias, description=description)
+        else:
+            return self.combine_categories(variable, category_map, name=name,
+                alias=alias, description=description)
 
     def combine_categories(self, variable, category_map,
                            name, alias, description=''):
@@ -479,9 +491,16 @@ class Dataset(object):
         }
         :return: newly created variable
         """
-        variable_url = variable_to_url(self.resource, variable)
-        trans_responses = aliases_to_urls(self.resource, variable_url, response_map)
-        responses = validate_response_map(trans_responses)
+        if isinstance(variable, basestring):
+            parent_alias = variable
+            variable = self[variable]
+        else:
+            parent_alias = variable.alias
+        subvars = variable.resource.subvariables.by('alias')
+        responses = [{
+            'name': key,
+            'combined_ids': [subvars[subvar_alias(parent_alias, sv_alias)].entity_url for sv_alias in values]
+        } for key, values in response_map.items()]
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
@@ -489,13 +508,13 @@ class Dataset(object):
         payload['body']['expr']['function'] = 'combine_responses'
         payload['body']['expr']['args'] = [
             {
-                'variable': variable_url
+                'variable': variable.resource.self
             },
             {
                 'value': responses
             }
         ]
-        return self.resource.variables.create(payload)
+        return Variable(self.resource.variables.create(payload))
 
     def change_editor(self, user):
         """
@@ -857,6 +876,7 @@ class Variable(object):
 
     def combine(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
+        # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.
 

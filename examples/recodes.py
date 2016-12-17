@@ -42,9 +42,9 @@ origintype = dataset.recode([
     {'id': 1, 'name': "Online",
      # Mixed support for using "category"(subvariables really) IDs
      'rules': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper
-    {'id': 2, 'name': "Print", 'rules': mr_in(dataset, 'newssource', ["newssource-5", "newssource-6"])},
-    {'id': 3, 'name': "Tv", 'rules': mr_in(dataset, 'newssource', ["newssource-7", "newssource-9"])},
-    {'id': 4, 'name': "Radio", 'rules': mr_in(dataset, 'newssource', ["newssource-8", "newssource-10"])},
+    {'id': 2, 'name': "Print", 'rules': mr_in(dataset, 'newssource', [5, 6])},
+    {'id': 3, 'name': "Tv", 'rules': mr_in(dataset, 'newssource', [7, 9])},
+    {'id': 4, 'name': "Radio", 'rules': mr_in(dataset, 'newssource', [8, 10])},
 ], alias='origintype', name="News source by type", multiple=True)
 
 print("Variable %s created" % origintype.alias)
@@ -58,6 +58,13 @@ dataset.exclude('agerange == 1')  # Remove underage
 origintype_copy = dataset.copy_variable(origintype, name='Copy of origintype',
     alias='origintype_copy')
 print("Variable %s created" % origintype_copy.alias)
+
+
+# Combine responses from origin_type_copy
+onlinenewssource = dataset.combine_responses(origintype, {
+    "online": [1],
+    "notonline": [2, 3, 4]
+}, name='Online or not', alias='onlinenewssource')
 
 # Export some rows
 dataset.download("recodes.csv")
