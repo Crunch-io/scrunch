@@ -150,7 +150,7 @@ At the moment *filter expressions* can be composed using the following logical e
 |:--------:|-----------------------|
 | ==       | equal                 |
 | !=       | unequal               |
-| >        | greater than          |
+| \>       | greater than          |
 | >=       | greater or equal      |
 | <        | less than             |
 | <=       | less or equal         |
@@ -160,6 +160,9 @@ At the moment *filter expressions* can be composed using the following logical e
 | not in   | not in *list/tuple*   |
 | has_any  | has_any(*list/tuple*) |
 | has_all  | has_all(*list/tuple*) |
+
+[comment]: TODO: document missing/valid
+[comment]: TODO CRUNCH: Accept multiple variable aliases for missing/valid invocations
 
 
 ### Combine categories
@@ -219,6 +222,8 @@ Note: the SPSS-like `recode` method only works on `categorical`,
 `categorical_array` and `multiple_response` Variable entities.
 
 #### Creating a categorical variable
+
+[comment]: TODO: Jj is rewriting this section to enable creation of categoricals or multiple responses.
 
 Transformations create new variables based upon the values of one or more input variables. 
 
