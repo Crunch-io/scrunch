@@ -462,8 +462,13 @@ class Dataset(object):
         :param category_map: map to combine categories
         :return: the new created variable
         """
-        variable_url = variable_to_url(self.resource, variable)
-        categories = validate_category_map(category_map)
+        if isinstance(variable, basestring):
+            variable = self[variable]
+        combinations = [{
+            'name': combined['name'],
+            'missing': combined.get('missing', False),
+            'combined_ds': combined['combined_ids']
+        } for combined in category_map]
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
@@ -471,10 +476,10 @@ class Dataset(object):
         payload['body']['expr']['function'] = 'combine_categories'
         payload['body']['expr']['args'] = [
             {
-                'variable': variable_url
+                'variable': variable.resource.self
             },
             {
-                'value': categories
+                'value': combinations
             }
         ]
         return Variable(self.resource.variables.create(payload).refresh())
@@ -485,10 +490,10 @@ class Dataset(object):
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
 
-        response_map = {
-            new_subvar_name1:[old_subvar_alias1, old_subvar_alias2],
-            new_subvar_name2: [old_subvar_alias3, old_subvar_alias4]
-        }
+        response_map = [
+            {"id": 1, "name": 'online', 'combined_ids': [1]},
+            {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
+        ]
         :return: newly created variable
         """
         if isinstance(variable, basestring):
@@ -498,9 +503,10 @@ class Dataset(object):
             parent_alias = variable.alias
         subvars = variable.resource.subvariables.by('alias')
         responses = [{
-            'name': key,
-            'combined_ids': [subvars[subvar_alias(parent_alias, sv_alias)].entity_url for sv_alias in values]
-        } for key, values in response_map.items()]
+            'name': combined['name'],
+            'alias': subvar_alias(alias, combined['id']),
+            'combined_ids': [subvars[subvar_alias(parent_alias, sv_alias)].entity_url for sv_alias in combined['combined_ids']]
+        } for combined in response_map]
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
