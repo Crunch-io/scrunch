@@ -11,11 +11,10 @@ from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import create_dataset
 
-#username = raw_input("Enter email: ")
-#password = getpass("Enter password for %s: " % username)
+username = raw_input("Enter email: ")
+password = getpass("Enter password for %s: " % username)
 
-#site = connect(username, password, site_url='https://alpha.crunch.io/api/')
-site = connect('captain@crunch.io', 'asdfasdf', site_url='http://localhost:8080/api/')
+site = connect(username, password, site_url='https://alpha.crunch.io/api/')
 
 # Create a dataset for usage
 
