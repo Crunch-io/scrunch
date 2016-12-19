@@ -160,6 +160,11 @@ At the moment *filter expressions* can be composed using the following logical e
 | not in   | not in *list/tuple*   |
 | has_any  | has_any(*list/tuple*) |
 | has_all  | has_all(*list/tuple*) |
+| r        | r(*lower*, *upper*)   |
+
+
+The `r()` helper function declares a range of integers. The expression `[r(1,3), 6, 7]`
+automatically translates to `[1, 2, 6, 7]`.
 
 [comment]: TODO: document missing/valid
 [comment]: TODO CRUNCH: Accept multiple variable aliases for missing/valid invocations

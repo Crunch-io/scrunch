@@ -249,6 +249,21 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
+    def test_r_in(self):
+        data = self._exclude_payload('exit_status in [1, 2, r(4,7), r(10, 12)]')
+        expected_expr_obj = {
+            'expression': {
+                'args':
+                    [
+                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0002/'},
+                        {'value': [1, 2, 4, 5, 6, 10, 11]}
+                    ],
+                'function': 'in'
+                }
+        }
+
+        assert data == expected_expr_obj
+
     def test_has_any(self):
         data = self._exclude_payload('exit_status.has_any([32766])')
         expected_expr_obj = {

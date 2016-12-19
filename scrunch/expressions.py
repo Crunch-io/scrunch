@@ -118,6 +118,34 @@ def _nest(args, func):
     }
 
 
+def unfold_list(_list):
+    if any(isinstance(x, ast.Call) for x in _list):
+        new_list = list()
+        for e in _list:
+            if isinstance(e, ast.Call):
+                name = e.func.id
+                if name == 'r':
+                    try:
+                        lower = e.args[0].n
+                        upper = e.args[1].n
+                        r_list = r(lower, upper)
+                        for elem in r_list:
+                            new_list.append(ast.Num(elem))
+                    except:
+                        raise AttributeError("function 'r' needs 2 integer arguments")
+                else:
+                    return _list
+            else:
+                new_list.append(e)
+        return new_list
+    else:
+        return _list
+
+
+def r(lower, upper):
+    return list(range(lower, upper))
+
+
 def parse_expr(expr):
 
     def _parse(node, parent=None):
@@ -165,6 +193,8 @@ def parse_expr(expr):
                 return NOT_IN
             elif isinstance(node, ast.List) or isinstance(node, ast.Tuple):
                 _list = fields[0][1]
+                # checks for special helper functions like `r`
+                _list = unfold_list(_list)
                 if not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
                     # Only list-of-int or list-of-str are currently supported
@@ -576,3 +606,8 @@ def prettify(expr, ds=None):
         return _transform(_func, args, nest=nest)
 
     return _process(_resolve_variables(expr))
+
+
+if __name__ == '__main__':
+    expr = "q1 in [1, 2, r(4,7), r(10, 12)]"
+    print(parse_expr(expr))
