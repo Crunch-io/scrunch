@@ -143,7 +143,7 @@ def unfold_list(_list):
 
 
 def r(lower, upper):
-    return list(range(lower, upper))
+    return list(range(lower, upper + 1))
 
 
 def parse_expr(expr):
@@ -606,8 +606,3 @@ def prettify(expr, ds=None):
         return _transform(_func, args, nest=nest)
 
     return _process(_resolve_variables(expr))
-
-
-if __name__ == '__main__':
-    expr = "q1 in [1, 2, r(4,7), r(10, 12)]"
-    print(parse_expr(expr))
