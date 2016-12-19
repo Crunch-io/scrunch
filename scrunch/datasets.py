@@ -1,5 +1,6 @@
 import json
 import requests
+import re
 import six
 
 if six.PY2:  # pragma: no cover
@@ -11,7 +12,7 @@ import pandas as pd
 
 import pycrunch
 from pycrunch.importing import Importer
-from pycrunch.shoji import Entity, wait_progress
+from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
@@ -33,10 +34,54 @@ SKELETON = {
 
 REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
 REQUIRES_RESPONSES = {'combined_ids', 'name'}
+SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
 
 
 def subvar_alias(parent_alias, response_id):
     return '%s_%d' % (parent_alias, response_id)
+
+
+def responses_from_map(variable, response_map, alias, parent_alias):
+    subvars = variable.resource.subvariables.by('alias')
+    responses = [{
+                     'name': combined['name'],
+                     'alias': subvar_alias(alias, combined['id']),
+                     'combined_ids': [subvars[subvar_alias(parent_alias,
+                         sv_alias)].entity_url for sv_alias in
+                                      combined['combined_ids']]
+                 } for combined in response_map]
+    return responses
+
+
+def combinations_from_map(category_map):
+    combinations = [{
+                        'name': combined['name'],
+                        'missing': combined.get('missing', False),
+                        'combined_ds': combined['combined_ids']
+                    } for combined in category_map]
+    return combinations
+
+
+def combine_responses_expr(variable, responses):
+    return {
+        'function': 'combine_responses',
+        'args': [{
+            'variable': variable.resource.self
+        }, {
+            'value': responses
+        }]
+    }
+
+
+def combine_categories_expr(variable, combinations):
+    return {
+        'function': 'combine_categories',
+        'args': [{
+            'variable': variable.resource.self
+        }, {
+            'value': combinations
+        }]
+    }
 
 
 def get_dataset(dataset, site=None):
@@ -432,6 +477,25 @@ class Dataset(object):
                 }
             }
         }
+        if variable.type == 'multiple_response':
+            # In the case of MR variables, we want the copies' subvariables to
+            # have their aliases in the same pattern and order that the parent's
+            # are, that is `parent_alias_#`.
+            subreferences = []
+            for subvar in variable.resource.subvariables.index.values():
+                alias = subvar['alias']
+                match = SUBVAR_ALIAS.match(alias)
+                if match:  # Does this var have the subvar pattern?
+                    suffix = match.groups()[0]  # Keep the position
+                    alias = subvar_alias(alias, suffix)
+
+                subreferences.append({
+                    'name': subvar['name'],
+                    'alias': alias
+                })
+            payload['body']['derivation']['references'] = {
+                'subreferences': subreferences
+            }
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
 
@@ -464,24 +528,14 @@ class Dataset(object):
         """
         if isinstance(variable, basestring):
             variable = self[variable]
-        combinations = [{
-            'name': combined['name'],
-            'missing': combined.get('missing', False),
-            'combined_ds': combined['combined_ids']
-        } for combined in category_map]
+
+        combinations = combinations_from_map(category_map)
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['expr']['function'] = 'combine_categories'
-        payload['body']['expr']['args'] = [
-            {
-                'variable': variable.resource.self
-            },
-            {
-                'value': combinations
-            }
-        ]
+        payload['body']['derivation'] = combine_categories_expr(variable,
+            combinations)
         return Variable(self.resource.variables.create(payload).refresh())
 
     def combine_responses(self, variable, response_map,
@@ -501,25 +555,15 @@ class Dataset(object):
             variable = self[variable]
         else:
             parent_alias = variable.alias
-        subvars = variable.resource.subvariables.by('alias')
-        responses = [{
-            'name': combined['name'],
-            'alias': subvar_alias(alias, combined['id']),
-            'combined_ids': [subvars[subvar_alias(parent_alias, sv_alias)].entity_url for sv_alias in combined['combined_ids']]
-        } for combined in response_map]
+
+        responses = responses_from_map(variable, response_map, alias,
+            parent_alias)
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['expr']['function'] = 'combine_responses'
-        payload['body']['expr']['args'] = [
-            {
-                'variable': variable.resource.self
-            },
-            {
-                'value': responses
-            }
-        ]
+        payload['body']['derivation'] = combine_responses_expr(variable,
+            responses)
         return Variable(self.resource.variables.create(payload))
 
     def change_editor(self, user):
@@ -1079,6 +1123,16 @@ class Variable(object):
 
         ds = get_dataset(self.resource.body.dataset_id)
         return ds.variables.create(payload).refresh()
+
+    def edit_combination(self, response_map):
+        alias = self.alias
+        if self.type == 'multiple_response':
+            responses = responses_from_map(self, response_map, alias, alias)
+            derivation = combine_responses_expr(self, responses)
+        else:
+            combinations = combinations_from_map(response_map)
+            derivation = combine_categories_expr(self, combinations)
+        self.resource.edit(derivation=derivation)
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size

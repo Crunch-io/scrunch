@@ -266,6 +266,7 @@ class TestRecodes(TestCase):
         assert call == COMBINE_RESPONSES_PAYLOAD
 
     def test_combine_responses_by_url(self):
+        assert False, "Should not support by URL"
         ds = mock.MagicMock()
         ds.__class__ = Dataset
         ds.combine_responses = Dataset.combine_responses
