@@ -339,11 +339,25 @@ country = ds.order.variables['country']
 Manipulating the Hierarchical Order of a Dataset
 ------------------------------------------------
 
+### Referencing Elements
+
+In the context of manipulating the **Hierarchical Order** structure
+of a Dataset with the **scrunch** library, `string` objects are used
+to reference elements in the hierarchy.
+
+We call these strings _element references_. An _element reference_
+can resolve to either the `alias` of a variable or the `name` of a
+group within the hierarchy.
+
+The majority of methods that manipulate the hierarchical order need
+to be passed an _element reference_ (or a `list` of _element references_)
+to  perform their jobs.
+
 ### Group-level Reordering
 
 `Group` objects have a `set` method that allows the reordering
-of all first-level elements with a single call. Naturally, this also
-applies to the **root** group.
+of all first-level child elements with a single call. Naturally, this
+also applies to the **root** group.
 
 For instance, the `set` method could be used to reorder the elements
 of the **root** group in the following manner:
@@ -373,18 +387,19 @@ hobbies
     address
 ```
 
-The only argument to the `set` method is a `list` which must contain the
-new arrangement of elements at the same hierarchy level.
+The only argument to the `set` method is a `list` of
+_element references_, which must obey the following rules:
 
-The following validations to the new arrangement of elements are enforced:
-- The input list must only contain string elements that refer to
-  aliases or sub-group names that are first-level elements of the
-  `Group` being modified.
-- All of the current first-level elements must be included in the input list.
+- It must only contain _element references_ that resolve to first-level
+  child elements of the `Group` being modified.
+- _element references_ for **all** of the current first-level child
+  elements must be present.
 
-A `ValueError` exception is raised if any of the above validations fail.
+A `ValueError` exception is raised if any of the above rules is not
+observed.
 
-The `set` method works within nested groups. For example, the following code:
+Nested calls to the `set` method are possible. For example, the following
+code:
 
 ```python
 ds.order['Account'].set(
@@ -392,15 +407,14 @@ ds.order['Account'].set(
 )
 ```
 
-would reorder the **Account** sub-group in our example dataset.
+would give a new order to the **Account** sub-group in our example dataset.
 
 ### Modifying the position of Elements in a Group
 
 `Group` objects have a `move` method that allows moving an element to
 a target position **within the group**.
 
-The first argument is the `element` to move, given as a string reference
-to either the `alias` of a variable or the `name` of a sub-group.
+The first argument is the `element` to move (i.e. an _element reference_).
 
 The second argument is the target `position`, which is expected to be
 a 0-based integer index. If its value is `-1`, then the element is set to
@@ -425,10 +439,10 @@ ds.order['Account'].move_down('registration_time')
 ```
 
 Additionally, two useful methods are provided: `move_before` and
-`move_after`. Both of these take a `reference` element as their first
-argument, and the `element` to be moved as the second argument. The
-`reference` parameter must be the `alias` of a variable or the `name`
-of a sub-group **within the group**. For instance:
+`move_after`. Both of these methods have a first argument named
+`reference` and a second argument named `element`. As can be
+inferred, `element` is moved _before_ or _after_ the `reference`
+element. For instance:
 
 ```python
 ds.order.move_before('Account', 'id')
@@ -473,15 +487,15 @@ music
 religion
 ```
 
-The first argument of the `insert` method is the list of `elements`
-to _migrate_. Each element can be either the `alias` of a variable or the
-`name` of a group. If a single element (string) is provided as the first
-argument, then it is automatically converted to a one-element list.
+The first argument of the `insert` method, named `elements`, is the
+list of _element references_ to _migrate_. Passing a single
+_element reference_ (`string`) is also supported.
 
-The second (optional) argument is the target `position` at which the
-element(s) will be inserted, which is expected to be a 0-based integer index.
-Its default value is `-1`, which means that the element(s) will be inserted at
-the end (bottom) of the group's order.
+The second argument, named `position`, is the target position at which
+the element(s) will be inserted. The `position` argument is optional and
+is expected to be a 0-based integer index. Its default value is `-1`,
+which means that the element(s) will be inserted at the end (bottom)
+of the group's order.
 
 More examples:
 
@@ -492,10 +506,10 @@ ds.order.insert(elements='first_name', position=3)
 ```
 
 Additionally, two useful methods are provided: `insert_before` and
-`insert_after`. Both of these take a `reference` element as their first
-argument, and the list of `elements` to be _migrated_ as the second
-argument. The `reference` parameter must be the `alias` of a variable
-or the `name` of a sub-group **within the group**. For instance:
+`insert_after`. Both of these methods have a first argument named
+`reference` and a second argument named `elements`. As can be
+inferred, The input `elements` are inserted _before_ or _after_
+the `reference` element. For instance:
 
 ```python
 ds.order.insert_before('Account', 'id')
@@ -510,11 +524,9 @@ ds.order['Account'].insert_after('Location', elements=['id', 'religion'])
 elements within it. Target elements are removed from the group and
 moved to the **root** group (at the end).
 
-The only argument is the list of `elements` to remove
-from the new group. Each of these elements can be either the `alias` of
-a variable or the `name` of a sub-group (**within the group**). If a
-single element (string) is provided then it is automatically converted
-to a one-element list. Examples:
+The only argument, named `elements`, is the list of
+_element references_ to remove from the group. Passing a single
+_element reference_ (`string`) is also supported. Examples:
 
 ```python
 ds.order['Account'].remove('registration_time')
@@ -544,11 +556,9 @@ ds.order.create('new group')
 ds.order.order['Account'].create(name='another group')
 ```
 
-A second (and optional) argument is the list of `elements` to _migrate_
-to the new group. Each of these elements can be either the `alias` of
-a variable or the `name` of a group. If a single element (string) is provided
-then it is automatically converted to a one-element list. Examples:
-
+A second (and optional) argument, named `elements`, is the list of
+_element references_ to _migrate_ to the new group. Passing a single
+_element reference_ (`string`) is also supported. Examples:
 
 ```python
 ds.order.create('new group', 'id')
@@ -558,7 +568,7 @@ ds.order.order['Account'].create(name='my group', elements=['id', 'gender'])
 ### Deleting existing Groups
 
 The `delete` method in `Group` objects takes care of deleting the group
-from the hierarchical order structure. Before doing so, it first
+from the **Hierarchical Order** structure. Before doing so, it first
 migrates any existing element to the **root** group.
 
 This method has no arguments. Trying to `delete` the **root** group
@@ -599,5 +609,3 @@ group is not found, then `None` is returned:
 if ds.order.find_group('Account'):
     print('FOUND')
 ```
-
-
