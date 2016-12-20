@@ -40,7 +40,7 @@ purpose can become quite big and difficult to work with.
 The **scrunch** library provides a high-level API for manipulating such
 structures in a convenient manner.
 
-Quick Showcase of the API
+Quick showcase of the API
 -------------------------
 
 This section provides a quick example of how working with the
@@ -353,62 +353,6 @@ The majority of methods that manipulate the hierarchical order need
 to be passed an _element reference_ (or a `list` of _element references_)
 to  perform their jobs.
 
-### Group-level Reordering
-
-`Group` objects have a `set` method that allows the reordering
-of all first-level child elements with a single call. Naturally, this
-also applies to the **root** group.
-
-For instance, the `set` method could be used to reorder the elements
-of the **root** group in the following manner:
-
-```python
-ds.order.set(['id', 'music', 'religion', 'hobbies', 'Account'])
-```
-
-which should update the order structure like so:
-
-```
-id
-music
-religion
-hobbies
- Account
-  registration_time
-  last_login_time
-     User Information
-    first_name
-    last_name
-    gender
-     Location
-    country
-    city
-    zip_code
-    address
-```
-
-The only argument to the `set` method is a `list` of
-_element references_, which must obey the following rules:
-
-- It must only contain _element references_ that resolve to first-level
-  child elements of the `Group` being modified.
-- _element references_ for **all** of the current first-level child
-  elements must be present.
-
-A `ValueError` exception is raised if any of the above rules is not
-observed.
-
-Nested calls to the `set` method are possible. For example, the following
-code:
-
-```python
-ds.order['Account'].set(
-    ['User Information', 'Location', 'last_login_time', 'registration_time']
-)
-```
-
-would give a new order to the **Account** sub-group in our example dataset.
-
 ### Modifying the position of Elements in a Group
 
 `Group` objects have a `move` method that allows moving an element to
@@ -517,6 +461,62 @@ ds.order.insert_after(reference='Account', elements='religion')
 ds.order.insert_after(reference='Account', elements=['religion', 'gender'])
 ds.order['Account'].insert_after('Location', elements=['id', 'religion'])
 ```
+
+### Group-level Reordering
+
+`Group` objects have a `set` method that allows the reordering
+of all first-level child elements with a single call. Naturally, this
+also applies to the **root** group.
+
+For instance, the `set` method could be used to reorder the elements
+of the **root** group in the following manner:
+
+```python
+ds.order.set(['id', 'music', 'religion', 'hobbies', 'Account'])
+```
+
+which should update the order structure like so:
+
+```
+id
+music
+religion
+hobbies
+ Account
+  registration_time
+  last_login_time
+     User Information
+    first_name
+    last_name
+    gender
+     Location
+    country
+    city
+    zip_code
+    address
+```
+
+The only argument to the `set` method is a `list` of
+_element references_, which must obey the following rules:
+
+- It must only contain _element references_ that resolve to first-level
+  child elements of the `Group` being modified.
+- _element references_ for **all** of the current first-level child
+  elements must be present.
+
+A `ValueError` exception is raised if any of the above rules is not
+observed.
+
+Nested calls to the `set` method are possible. For example, the following
+code:
+
+```python
+ds.order['Account'].set(
+    ['User Information', 'Location', 'last_login_time', 'registration_time']
+)
+```
+
+would give a new order to the **Account** sub-group in our example dataset.
 
 ### Removing Elements from Groups
 
