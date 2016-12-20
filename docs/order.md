@@ -479,7 +479,7 @@ to _migrate_. Each element can be either the `alias` of a variable or the
 argument, then it is automatically converted to a one-element list.
 
 The second (optional) argument is the target `position` at which the
-element(s) will inserted, which is expected to be a 0-based integer index.
+element(s) will be inserted, which is expected to be a 0-based integer index.
 Its default value is `-1`, which means that the element(s) will be inserted at
 the end (bottom) of the group's order.
 
@@ -510,7 +510,7 @@ ds.order['Account'].insert_after('Location', elements=['id', 'religion'])
 elements within it. Target elements are removed from the group and
 moved to the **root** group (at the end).
 
-The first (and only) argument is the list of `elements` to remove
+The only argument is the list of `elements` to remove
 from the new group. Each of these elements can be either the `alias` of
 a variable or the `name` of a sub-group (**within the group**). If a
 single element (string) is provided then it is automatically converted
