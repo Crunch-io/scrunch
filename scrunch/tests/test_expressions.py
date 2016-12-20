@@ -1482,6 +1482,39 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_has_any_processing(self):
+        expr = 'a.has_any(["1", "2"])'
+        parsed = parse_expr(expr)
+        assert parsed == {
+            'function': 'any',
+            'args': [{'variable': 'a'}, {'value': ['1', '2']}],
+        }
+        urls_map = {
+            'a': {'id': 'url/a', 'type': 'multiple_response', 'subvariables': ['1', '2']},
+            '1': {'id': 'url/1', 'type': 'categorical', 'is_subvar': True},
+            '2': {'id': 'url/2', 'type': 'categorical', 'is_subvar': True},
+        }
+        ds = mock.MagicMock()
+        ds.self = '/dataset/'
+        gdv = lambda ds: urls_map
+        with mock.patch('scrunch.expressions.get_dataset_variables', gdv):
+            processed = process_expr(parsed, ds)
+
+        assert processed == {
+            'function': 'any',
+            'args': [
+                {
+                    'variable': '/dataset/variables/url/a/'
+                },
+                {
+                    'value': [
+                        '/dataset/variables/url/a/subvariables/1/',
+                        '/dataset/variables/url/a/subvariables/2/'
+                    ]
+                }
+            ]
+        }
+
     def test_array_expansion_single_subvariable(self):
         var_id = '0001'
         var_alias = 'hobbies'

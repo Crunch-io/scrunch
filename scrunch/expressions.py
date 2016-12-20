@@ -433,36 +433,60 @@ def process_expr(obj, ds):
                 subvariables = arrays[0]
                 value = values[0]
 
-                if op == 'all':
-                    if len(value['value']) != 1:
-                        raise ValueError
-                    value['value'] = value['value'][0]
+                def _extract_id(url):
+                    '''Extracts the id form the given url'''
+                    return [
+                        part for part in url.split('/') if part != ''
+                    ][-1]
 
-                if len(subvariables) == 1:
-                    obj['function'] = real_op
-                    obj['args'][0] = {'variable': subvariables[0]}
-                    obj['args'][1] = value
+                subvariables_dict = {
+                    _extract_id(subvar): subvar
+                    for subvar in subvariables
+                }
+
+                # no expansion is needed if all arguments are subvariables,
+                # instead we should just transform variable references to
+                # their corresponding urls
+                are_subvars = all(
+                    subvar in value['value']
+                    for subvar in subvariables_dict.keys()
+                )
+
+                if are_subvars:
+                    value['value'] = [
+                        subvariables_dict[v] for v in value['value']
+                    ]
                 else:
-                    obj = {
-                        'function': expansion_op,
-                        'args': []
-                    }
-                    args_ref = obj['args']
-                    for i, subvar in enumerate(subvariables):
-                        args_ref.append(
-                            {
-                                'function': real_op,
-                                'args': [
-                                    {'variable': subvar},
-                                    value
-                                ]
-                            }
-                        )
-                        if i < len(subvariables) - 2:
+                    if op == 'all':
+                        if len(value['value']) != 1:
+                            raise ValueError
+                        value['value'] = value['value'][0]
+
+                    if len(subvariables) == 1:
+                        obj['function'] = real_op
+                        obj['args'][0] = {'variable': subvariables[0]}
+                        obj['args'][1] = value
+                    else:
+                        obj = {
+                            'function': expansion_op,
+                            'args': []
+                        }
+                        args_ref = obj['args']
+                        for i, subvar in enumerate(subvariables):
                             args_ref.append(
-                                {'function': expansion_op, 'args': []}
+                                {
+                                    'function': real_op,
+                                    'args': [
+                                        {'variable': subvar},
+                                        value
+                                    ]
+                                }
                             )
-                            args_ref = args_ref[-1]['args']
+                            if i < len(subvariables) - 2:
+                                args_ref.append(
+                                    {'function': expansion_op, 'args': []}
+                                )
+                                args_ref = args_ref[-1]['args']
 
         return obj
 
