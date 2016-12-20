@@ -82,8 +82,8 @@ print('Created combination: %s' % over35.alias)
 
 # Edit combination placing subvar 3 on the right group
 over35.edit_combination([
-    {"id": 1, "name": 'under35', 'combined_ids': [1, 2, 3], 'missing': False},
-    {"id": 2, "name": 'over35', 'combined_ids': [4, 5], 'missing': False}
+    {"id": 1, "name": 'Under 35', 'combined_ids': [1, 2, 3], 'missing': False},
+    {"id": 2, "name": 'Over 35', 'combined_ids': [4, 5], 'missing': False}
 ])
 print('Fixed combination: %s' % over35.alias)
 
