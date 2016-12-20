@@ -17,7 +17,6 @@ password = getpass("Enter password for %s: " % username)
 site = connect(username, password, site_url='https://alpha.crunch.io/api/')
 
 # Create a dataset for usage
-
 dataset = create_dataset("Recodes example", NEWS_DATASET)
 print("Dataset %s created" % dataset.id)
 
@@ -64,18 +63,21 @@ onlinenewssource = dataset.combine(origintype_copy, [
     {"id": 1, "name": 'online', 'combined_ids': [1]},
     {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
 ], name='Online or not', alias='onlinenewssource')
+print('Created combination: %s' % onlinenewssource.alias)
 
 # Combine a single categorical - Combine with subvar 3 on the wrong place
 over35 = dataset.combine(agerange, [
     {"id": 1, "name": 'under35', 'combined_ids': [1, 2], 'missing': False},
     {"id": 2, "name": 'over35', 'combined_ids': [3, 4, 5], 'missing': False}
 ], name='over 35?', alias='over35')
+print('Created combination: %s' % over35.alias)
 
 # Edit combination placing subvar 3 on the right group
-over35 = over35.edit_combination([
+over35.edit_combination([
     {"id": 1, "name": 'under35', 'combined_ids': [1, 2, 3], 'missing': False},
     {"id": 2, "name": 'over35', 'combined_ids': [4, 5], 'missing': False}
-], name='over 35?', alias='over35')
+])
+print('Fixed combination: %s' % over35.alias)
 
 # Export some rows
 dataset.download("recodes.csv")

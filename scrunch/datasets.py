@@ -55,29 +55,30 @@ def responses_from_map(variable, response_map, alias, parent_alias):
 
 def combinations_from_map(category_map):
     combinations = [{
+                        'id': combined['id'],
                         'name': combined['name'],
                         'missing': combined.get('missing', False),
-                        'combined_ds': combined['combined_ids']
+                        'combined_ids': combined['combined_ids']
                     } for combined in category_map]
     return combinations
 
 
-def combine_responses_expr(variable, responses):
+def combine_responses_expr(variable_url, responses):
     return {
         'function': 'combine_responses',
         'args': [{
-            'variable': variable.resource.self
+            'variable': variable_url
         }, {
             'value': responses
         }]
     }
 
 
-def combine_categories_expr(variable, combinations):
+def combine_categories_expr(variable_url, combinations):
     return {
         'function': 'combine_categories',
         'args': [{
-            'variable': variable.resource.self
+            'variable': variable_url
         }, {
             'value': combinations
         }]
@@ -429,7 +430,7 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(self.resource.variables.create(payload))
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -483,15 +484,15 @@ class Dataset(object):
             # are, that is `parent_alias_#`.
             subreferences = []
             for subvar in variable.resource.subvariables.index.values():
-                alias = subvar['alias']
-                match = SUBVAR_ALIAS.match(alias)
+                sv_alias = subvar['alias']
+                match = SUBVAR_ALIAS.match(sv_alias)
                 if match:  # Does this var have the subvar pattern?
-                    suffix = match.groups()[0]  # Keep the position
-                    alias = subvar_alias(alias, suffix)
+                    suffix = int(match.groups()[0], 10)  # Keep the position
+                    sv_alias = subvar_alias(alias, suffix)
 
                 subreferences.append({
                     'name': subvar['name'],
-                    'alias': alias
+                    'alias': sv_alias
                 })
             payload['body']['derivation']['references'] = {
                 'subreferences': subreferences
@@ -534,8 +535,8 @@ class Dataset(object):
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['derivation'] = combine_categories_expr(variable,
-            combinations)
+        payload['body']['derivation'] = combine_categories_expr(
+            variable.resource.self, combinations)
         return Variable(self.resource.variables.create(payload).refresh())
 
     def combine_responses(self, variable, response_map,
@@ -562,9 +563,9 @@ class Dataset(object):
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['derivation'] = combine_responses_expr(variable,
-            responses)
-        return Variable(self.resource.variables.create(payload))
+        payload['body']['derivation'] = combine_responses_expr(
+            variable.resource.self, responses)
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def change_editor(self, user):
         """
@@ -1122,16 +1123,24 @@ class Variable(object):
             ]
 
         ds = get_dataset(self.resource.body.dataset_id)
-        return ds.variables.create(payload).refresh()
+        return Variable(ds.variables.create(payload).refresh())
 
     def edit_combination(self, response_map):
         alias = self.alias
+        if not self.resource.body.derivation:
+            raise ValueError('Cannot edit combination on non derived')
+
+        if self.resource.body.derivation['function'] not in {'combine_categories', 'combine_responses'}:
+            raise ValueError('Only possible to edit combinations on combined variables')
+
+        # Update the derivation sending the same original variable
+        parent = self.resource.body.derivation['args'][0]['variable']
         if self.type == 'multiple_response':
             responses = responses_from_map(self, response_map, alias, alias)
-            derivation = combine_responses_expr(self, responses)
+            derivation = combine_responses_expr(parent, responses)
         else:
             combinations = combinations_from_map(response_map)
-            derivation = combine_categories_expr(self, combinations)
+            derivation = combine_categories_expr(parent, combinations)
         self.resource.edit(derivation=derivation)
 
     def edit_categorical(self, categories, rules):
