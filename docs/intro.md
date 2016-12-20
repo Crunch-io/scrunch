@@ -50,9 +50,11 @@ ds.change_editor(user='me@mycompany.com')
 Step 3: Access and mutate variables
 -----------------------------------
 
-Variables are available as members of the dataset object, like a dictionary. You can change any of the variable's attributes by providing them as keyword
-arguments to the *edit* method. You can also add a description, and hide a variable for example:
-:
+Variables are available as members of the dataset object, like a dictionary. 
+You can change any of the variable's attributes by providing them as keyword
+arguments to the *edit* method. You can also add a description, and hide a 
+variable for example:
+
 
 ```python
 var = ds['gender']
@@ -87,24 +89,47 @@ Step 5: Standard Cleaning Features
 
 ### Exclusion Filters
 
-Drop rules are used to delete invalid cases -- respondents who spent too little 
-time answering the survey ("speeders"), cases with inconsistent data, etc. 
-In Crunch, these are supported using *exclusion filters*, which are 
-specified using a logical expression.
+Drop rules are used to delete invalid data -- in the context of a survey it
+could be respondents who spent too little time answering it ("speeders") --, 
+rows with inconsistent data, etc.  In Crunch, these are supported using 
+*exclusion filters*, which are specified using a logical expression.
 
 For example, assume that we have `disposition` as the alias of a variable 
-in the dataset. Then apply the exclusion filter:
+in the dataset (assigned to the Python object `ds`). Then apply the exclusion 
+filter:
+
+[comment]: TODO: Allow filters using category labels!
 
 ```python
-ds.exclude("disposition != 0")
+ds.exclude("disposition != 'complete'")
+```
+Here disposition is a categorical variable in crunch, and `complete` is the
+category label. An equivalent expression could reference the numeric code
+assigned to the complete category of `disposition`:
+
+```python
+ds.exclude("disposition != 1")
 ```
 
-(Here, zero is the id (or code) assigned to completed interviews.)
+Here, one is the id (or code) assigned to complete interviews.
 
-We can also exclude a list of ids using:
+We can also exclude a list using either ids or labels:
 
 ```python
-ds.exclude("disposition in [0, 1]")
+ds.exclude("disposition in [0, 2]")
+ds.exclude("disposition in ['incomplete', 'screenout']")
+```
+
+You can do this using either brackets [] or parenthesis, so this would be equivalent:
+
+```python
+ds.exclude("disposition in (0, 2)")
+ds.exclude("disposition in ('incomplete', 'screenout')")
+```
+We are also able to produce compound logical expressions, sucha as:
+
+```python
+ds.exclude(where = "disposition != 0 or exit_status != 1")
 ```
 
 Date variables are also supported in exclusion filters, like shown in the
@@ -125,7 +150,7 @@ At the moment *filter expressions* can be composed using the following logical e
 |:--------:|-----------------------|
 | ==       | equal                 |
 | !=       | unequal               |
-| >        | greater than          |
+| \>       | greater than          |
 | >=       | greater or equal      |
 | <        | less than             |
 | <=       | less or equal         |
@@ -135,8 +160,16 @@ At the moment *filter expressions* can be composed using the following logical e
 | not in   | not in *list/tuple*   |
 | has_any  | has_any(*list/tuple*) |
 | has_all  | has_all(*list/tuple*) |
+| r        | r(*lower*, *upper*)   |
 
-`Note:` The expression needs to contain the **alias** and the **value**.
+
+The `r()` helper function declares a range of integers. The expression `[r(1,3), 6, 7]`
+automatically translates to `[1, 2, 3, 6, 7]`. The function needs to be wrapped in a 
+list, i.e; `age in [r(16,24)]` or `q1.has_any([r(1,1000)])`.
+
+[comment]: TODO: document missing/valid
+[comment]: TODO CRUNCH: Accept multiple variable aliases for missing/valid invocations
+
 
 ### Combine categories
 
@@ -193,6 +226,8 @@ Note: the SPSS-like `recode` method only works on `categorical`,
 `categorical_array` and `multiple_response` Variable entities.
 
 #### Creating a categorical variable
+
+[comment]: TODO: Jj is rewriting this section to enable creation of categoricals or multiple responses.
 
 Transformations create new variables based upon the values of one or more input variables. 
 
