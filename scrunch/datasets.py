@@ -32,9 +32,11 @@ SKELETON = {
     }
 }
 
+MR_TYPE = 'multiple_response'
 REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
 REQUIRES_RESPONSES = {'combined_ids', 'name'}
 SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
+WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
 
 
 def subvar_alias(parent_alias, response_id):
@@ -336,6 +338,10 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
 
+    @property
+    def web_url(self):
+        return WEB_URL % self.id
+
     def rename(self, new_name):
         self.resource.edit(name=new_name)
 
@@ -478,7 +484,7 @@ class Dataset(object):
                 }
             }
         }
-        if variable.type == 'multiple_response':
+        if variable.type == MR_TYPE:
             # In the case of MR variables, we want the copies' subvariables to
             # have their aliases in the same pattern and order that the parent's
             # are, that is `parent_alias_#`.
@@ -501,7 +507,7 @@ class Dataset(object):
         return Variable(shoji_var)
 
     def combine(self, variable, category_map, name, alias, description=''):
-        if variable.type in 'multiple_response':
+        if variable.type in MR_TYPE:
             return self.combine_responses(variable, category_map, name=name,
                 alias=alias, description=description)
         else:
@@ -950,7 +956,7 @@ class Variable(object):
             self.resource.refresh()
 
         if self.resource.body.type not in ('categorical', 'categorical_array',
-                                           'multiple_response'):
+                                           MR_TYPE):
             raise TypeError(
                 'Only categorical, categorical_array and multiple_response '
                 'variables are supported'
@@ -1127,16 +1133,28 @@ class Variable(object):
 
     def edit_combination(self, response_map):
         alias = self.alias
-        if not self.resource.body.derivation:
+        res = self.resource
+        if not res.body.derivation:
             raise ValueError('Cannot edit combination on non derived')
 
-        if self.resource.body.derivation['function'] not in {'combine_categories', 'combine_responses'}:
+        fn_name = res.body.derivation['function']
+        if fn_name not in {'combine_categories', 'combine_responses', 'array'}:
             raise ValueError('Only possible to edit combinations on combined variables')
 
         # Update the derivation sending the same original variable
-        parent = self.resource.body.derivation['args'][0]['variable']
-        if self.type == 'multiple_response':
-            responses = responses_from_map(self, response_map, alias, alias)
+        if fn_name in {'combine_categories', 'combine_responses'}:
+            parent = res.body.derivation['args'][0]['variable']
+        else:
+            # Hack because Crunch API does not tell us clearly which is the
+            # original expression used for `combine_responses`, instead we have
+            # to dig through its array/select/combine derivation hierarchy.
+            parent = res.body.derivation['args'][0]['args'][0]['map'].values()[0]['args'][0]['variable']
+            parent = parent.split('.', 1)[0] if '.' in parent else parent
+
+        if self.type == MR_TYPE:
+            parent_var = Variable(self.resource.parent.by('id')[parent].entity)
+            responses = responses_from_map(parent_var, response_map, alias,
+                parent_var.alias)
             derivation = combine_responses_expr(parent, responses)
         else:
             combinations = combinations_from_map(response_map)

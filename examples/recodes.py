@@ -58,12 +58,18 @@ origintype_copy = dataset.copy_variable(origintype, name='Copy of origintype',
 print("Variable %s created" % origintype_copy.alias)
 
 
-# Combine responses from origintype_copy
+# Combine responses from origintype_copy, 4 is in the wrong place
 onlinenewssource = dataset.combine(origintype_copy, [
-    {"id": 1, "name": 'online', 'combined_ids': [1]},
-    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
+    {"id": 1, "name": 'online', 'combined_ids': [1, 4]},
+    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3]}
 ], name='Online or not', alias='onlinenewssource')
 print('Created combination: %s' % onlinenewssource.alias)
+
+onlinenewssource.edit_combination([
+    {"id": 1, "name": 'online', 'combined_ids': [1]},
+    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
+])
+print('Fixed combination: %s' % onlinenewssource.alias)
 
 # Combine a single categorical - Combine with subvar 3 on the wrong place
 over35 = dataset.combine(agerange, [
