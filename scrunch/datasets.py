@@ -4,9 +4,9 @@ import re
 import six
 
 if six.PY2:  # pragma: no cover
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urljoin
 else:
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urljoin
 
 import pandas as pd
 
@@ -37,6 +37,32 @@ REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
 REQUIRES_RESPONSES = {'combined_ids', 'name'}
 SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
 WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
+
+
+def is_relative_url(url):
+    return url.startswith(('.', '/'))
+
+
+def abs_url(expr, base_url):
+    """
+    Converts an expression that may contain relative references to variable
+     URLs into absolute URLs.
+
+    This is necessary when using the derivation expression from a variable
+    entity endpoint and sending it back to the variable catalog endpoint.
+    """
+    if isinstance(expr, dict):
+        for k in expr:
+            if k == 'variable':
+                if is_relative_url(expr[k]):
+                    expr[k] = urljoin(base_url, expr[k])
+            elif isinstance(expr[k], dict):
+                expr[k] = abs_url(expr[k], base_url)
+            elif isinstance(expr[k], list):
+                expr[k] = [abs_url(xpr, base_url) for xpr in expr[k]]
+    elif isinstance(expr, list):
+        expr = [abs_url(xpr, base_url) for xpr in expr]
+    return expr
 
 
 def subvar_alias(parent_alias, response_id):
@@ -338,9 +364,8 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
 
-    @property
-    def web_url(self):
-        return WEB_URL % self.id
+    def web_url(self, host):
+        return urljoin(host, WEB_URL % self.id)
 
     def rename(self, new_name):
         self.resource.edit(name=new_name)
@@ -448,7 +473,7 @@ class Dataset(object):
             rules = resp['rules']
             if isinstance(rules, basestring):
                 rules = process_expr(parse_expr(rules), self.resource)
-            responses_map[str(resp['id'])] = case_expr(rules, name=resp['name'],
+            responses_map['%04d' % resp['id']] = case_expr(rules, name=resp['name'],
                 alias='%s_%d' % (alias, resp['id']))
 
         payload = {
@@ -471,38 +496,71 @@ class Dataset(object):
         return Variable(self.resource.variables.create(payload).refresh())
 
     def copy_variable(self, variable, name, alias):
-        payload = {
-            'element': 'shoji:entity',
-            'body': {
-                'name': name,
-                'alias': alias,
-                'derivation': {
-                    'function': 'copy_variable',
-                    'args': [{
-                        'variable': variable.resource.self
-                    }]
-                }
-            }
-        }
-        if variable.type == MR_TYPE:
-            # In the case of MR variables, we want the copies' subvariables to
-            # have their aliases in the same pattern and order that the parent's
-            # are, that is `parent_alias_#`.
-            subreferences = []
-            for subvar in variable.resource.subvariables.index.values():
+        def subrefs(_variable, _alias):
+            # In the case of MR variables, we want the copies' subvariables
+            # to have their aliases in the same pattern and order that the
+            # parent's are, that is `parent_alias_#`.
+            _subreferences = []
+            for subvar in _variable.resource.subvariables.index.values():
                 sv_alias = subvar['alias']
                 match = SUBVAR_ALIAS.match(sv_alias)
                 if match:  # Does this var have the subvar pattern?
                     suffix = int(match.groups()[0], 10)  # Keep the position
-                    sv_alias = subvar_alias(alias, suffix)
+                    sv_alias = subvar_alias(_alias, suffix)
 
-                subreferences.append({
+                _subreferences.append({
                     'name': subvar['name'],
                     'alias': sv_alias
                 })
-            payload['body']['derivation']['references'] = {
-                'subreferences': subreferences
+            return _subreferences
+
+        if variable.resource.body.get('derivation'):
+            # We are dealing with a derived variable, we want the derivation
+            # to be executed again instead of doing a `copy_variable`
+            derivation = abs_url(variable.resource.body.derivation,
+                        variable.resource.self)
+            derivation.pop('references', None)
+            payload = {
+                'element': 'shoji:entity',
+                'body': {
+                    'name': name,
+                    'alias': alias,
+                    'derivation': derivation
+                }
             }
+
+            if variable.type == MR_TYPE:
+                # We are re-executing a multiple_response derivation.
+                # We need to update the complex `array` function expression
+                # to contain the new suffixed aliases. Given that the map is
+                # unordered, we have to iterated and find a name match.
+                subvars = payload['body']['derivation']['args'][0]['args'][0]['map']
+                subreferences = subrefs(variable, alias)
+                for subref in subreferences:
+                    for subvar_pos in subvars:
+                        subvar = subvars[subvar_pos]
+                        if subvar['references']['name'] == subref['name']:
+                            subvar['references']['alias'] = subref['alias']
+                            break
+        else:
+            payload = {
+                'element': 'shoji:entity',
+                'body': {
+                    'name': name,
+                    'alias': alias,
+                    'derivation': {
+                        'function': 'copy_variable',
+                        'args': [{
+                            'variable': variable.resource.self
+                        }]
+                    }
+                }
+            }
+            if variable.type == MR_TYPE:
+                subreferences = subrefs(variable, alias)
+                payload['body']['derivation']['references'] = {
+                    'subreferences': subreferences
+                }
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
 

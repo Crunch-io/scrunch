@@ -11,10 +11,12 @@ from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import create_dataset
 
+HOST = 'https://alpha.crunch.io'
+
 username = raw_input("Enter email: ")
 password = getpass("Enter password for %s: " % username)
 
-site = connect(username, password, site_url='https://alpha.crunch.io/api/')
+site = connect(username, password, site_url='%s/api/' % HOST)
 
 # Create a dataset for usage
 dataset = create_dataset("Recodes example", NEWS_DATASET)
@@ -85,5 +87,15 @@ over35.edit_combination([
 ])
 print('Fixed combination: %s' % over35.alias)
 
+# Make a copy of a combined MR
+all_ages = dataset.copy_variable(over35, name='All ages', alias='allages')
+# Edit its responses to be all together on the same variable.
+all_ages.edit_combination([
+    {"id": 1, "name": 'all', 'combined_ids': [1, 2, 3, 4, 5]},
+])
+print("Edited combined variable: %s" % all_ages.alias)
+
 # Export some rows
 dataset.download("recodes.csv")
+
+print('Visit on the web: %s' % dataset.web_url(HOST))
