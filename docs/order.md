@@ -89,7 +89,7 @@ Hierarchical Order API
 
 In order to show how **scrunch**'s **Hierarchical Order** API works,
 we'll use an example Dataset with the same **Hierarchical Order**
-structure as the one in the Introduction section. That is:
+structure as the one in the **Introduction** section. That is:
 
 ```
 id
@@ -155,8 +155,8 @@ There are two types of elements contained within the `order` property:
    and other groups in a particular order. `Group` objects have a `name`
    property and a deterministic order in which its elements are arranged.
 
-The `order` object itself encapsulates the **root** `Group`, which contains
-all variables and sub-groups in the hierarchy.
+The `order` Dataset property itself encapsulates the **root** `Group`, which
+contains all variables and sub-groups in the hierarchy.
 
 Element Representation
 ----------------------
@@ -293,13 +293,13 @@ Element Access
 `Group` objects allow access to their elements using python's square
 bracket syntax in two forms:
 
-- With 0-based integer indexes, like python `list` objects. For example:
+- Using 0-based integer indexes, like python `list` objects. For example:
 
 ```python
 user_id = ds.oder[0]
 ```
 
-- With string keys, as with python `dict` objects. In this case, the
+- Using string keys, as with python `dict` objects. In this case, the
   key must refer to either the `alias` of a variable or to the `name`
   of a sub-group. For example:
 
