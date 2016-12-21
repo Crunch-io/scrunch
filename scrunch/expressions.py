@@ -360,8 +360,9 @@ def parse_expr(expr):
 
 
 def get_dataset_variables(ds):
-    table_url = ds.fragments.table
-    table = ds.session.get(table_url, params={'limit': 0}).payload
+    table = ds.follow("table", urlencode({
+        'limit': 0
+    }))
 
     # Build the variables dict, using `alias` as the key.
     variables = dict()
@@ -377,9 +378,6 @@ def get_dataset_variables(ds):
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
                 subvar['categories'] = copy.deepcopy(var['categories'])
-                if 'alias' not in subvar:
-                    print subvar
-                    print var
                 variables[subvar['alias']] = subvar
 
     return variables

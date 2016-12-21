@@ -3,9 +3,28 @@ from unittest import TestCase
 
 import pytest
 from scrunch.datasets import Dataset, Variable
-from scrunch.datasets import validate_category_map, responses_from_map
+from scrunch.datasets import responses_from_map, subvar_alias
 
 from pycrunch.shoji import Entity
+
+
+def _any(self, column):
+    return {
+        'function': 'any',
+        'args': [{
+            'variable': self
+        }, {
+            'column': column
+        }]
+    }
+
+
+def mr_in(mr_self, mr_alias, groups, parent_subvariables):
+    """
+    Similar helper as in examples.py. Has to return an `any` function.
+    """
+    return _any(mr_self, [parent_subvariables[subvar_alias(mr_alias, sv)].id
+                          for sv in groups])
 
 
 dataset_url = 'http://test.crunch.io/api/datasets/123/'
@@ -61,7 +80,7 @@ COMBINE_RESPONSES_PAYLOAD = {
         }
 
 
-class TestRecodes(TestCase):
+class TestCombine(TestCase):
 
     def test_validate_range_expression(self):
         test_map = [{
@@ -207,133 +226,140 @@ class TestRecodes(TestCase):
         ds_resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
 
 
-class TestSpssRecodes(TestCase):
+class TestRecode(TestCase):
 
     @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_categoricals(self, get_dataset_mock):
-        dataset_id = '123'
-        var_res = Entity(mock.MagicMock(), **{
-            'element': 'shoji:entity',
-            'self': ('http://test.crunch.io/api/datasets/%s/variables/0001/'
-                     % dataset_id),
-            'body': {
-                'description': ('Which of the following best describes your '
-                                'sexuality?'),
-                'categories': [
-                    {
-                        'missing': False,
-                        'name': 'Heterosexual',
-                        'numeric_value': 1,
-                        'id': 1
-                    },
-                    {
-                        'missing': False,
-                        'name': 'Gay or lesbian',
-                        'numeric_value': 2,
-                        'id': 2
-                    },
-                    {
-                        'missing': False,
-                        'name': 'Bisexual',
-                        'numeric_value': 3,
-                        'id': 3
-                    },
-                    {
-                        'missing': False,
-                        'name': 'Other',
-                        'numeric_value': 4,
-                        'id': 4
-                    },
-                    {
-                        'missing': False,
-                        'name': 'Prefer not to say',
-                        'numeric_value': 5,
-                        'id': 5
-                    },
-                    {
-                        'missing': True,
-                        'name': 'skipped',
-                        'numeric_value': None,
-                        'id': 8
-                    },
-                    {
-                        'missing': True,
-                        'name': 'not asked',
-                        'numeric_value': None,
-                        'id': 9
-                    }
-                ],
-                'type': 'categorical',
+        categories = [
+            {
+                'missing': False,
+                'name': 'Heterosexual',
+                'numeric_value': 1,
+                'id': 1
+            },
+            {
+                'missing': False,
+                'name': 'Gay or lesbian',
+                'numeric_value': 2,
+                'id': 2
+            },
+            {
+                'missing': False,
+                'name': 'Bisexual',
+                'numeric_value': 3,
+                'id': 3
+            },
+            {
+                'missing': False,
+                'name': 'Other',
+                'numeric_value': 4,
+                'id': 4
+            },
+            {
+                'missing': False,
+                'name': 'Prefer not to say',
+                'numeric_value': 5,
+                'id': 5
+            },
+            {
+                'missing': True,
+                'name': 'skipped',
+                'numeric_value': None,
+                'id': 8
+            },
+            {
+                'missing': True,
+                'name': 'not asked',
+                'numeric_value': None,
+                'id': 9
+            }
+        ]
+        table_mock = mock.MagicMock(metadata={
+            '00001': {
+                'id': '00001',
                 'alias': 'sexuality',
-                'name': 'Sexuality',
-                'dataset_id': dataset_id
+                'type': 'categorical',
+                'categories': categories
             }
         })
-        var = Variable(var_res)
 
-        var.combine(
-            'sexuality2', {1: 1, 2: (2, 3, 4, 5)}, ('Straight', 'LGBT')
-        )
+        ds_res = mock.MagicMock()
+        ds_res.self = dataset_url
+        ds_res.follow.return_value = table_mock
+        dataset = Dataset(ds_res)
+        dataset.recode([
+            {'id': 1, 'name': 'Straight', 'rules': 'sexuality.has_any([1])'},
+            {'id': 2, 'name': 'LGBTQ+', 'rules': 'sexuality.has_any([2, 3, 4, 5])'}
+        ], name='Sexuality 2', alias='sexuality2', multiple=False)
 
-        # Test how the recoded var was created.
-        var_create_mock = get_dataset_mock(dataset_id).variables.create
-        assert len(var_create_mock.call_args_list) == 1
-
-        call = var_create_mock.call_args_list[0]
-        payload = call[0][0]
-
-        assert payload == {
+        ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
+                'name': 'Sexuality 2',
                 'alias': 'sexuality2',
-                'description': 'Which of the following best describes your sexuality?',
+                'description': '',
                 'expr': {
-                    'function': 'combine_categories',
-                    'args': [
-                        {
-                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'
-                        },
-                        {
-                            'value': [
-                                {
-                                    'missing': False,
-                                    'combined_ids': [
-                                        1
-                                    ],
-                                    'id': 1,
-                                    'name': 'Straight'
-                                },
-                                {
-                                    'missing': False,
-                                    'combined_ids': [
-                                        2,
-                                        3,
-                                        4,
-                                        5
-                                    ],
-                                    'id': 2,
-                                    'name': 'LGBT'
-                                },
-                                {
-                                    'missing': True,
-                                    'combined_ids': [
-                                        8,
-                                        9
-                                    ],
-                                    'id': 3,
-                                    'name': 'Missing'
-                                }
-                            ]
+                    'function': 'case',
+                    'args': [{
+                        'column': [1, 2, -1],
+                        'type': {
+                            'value': {
+                                'class': 'categorical',
+                                'categories': [
+                                    {'missing': False, 'id': 1, 'name': 'Straight'},
+                                    {'missing': False, 'id': 2, 'name': 'LGBTQ+'},
+                                    {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+                                ]
+                            }
                         }
-                    ]
-                },
-                'name': 'Sexuality (recoded)'
+                    }, {
+                        'function': 'any',
+                        'args': [
+                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
+                            {'value': [1]}
+                        ]
+                    }, {
+                        'function': 'any',
+                        'args': [
+                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
+                            {'value': [2, 3, 4, 5]}
+                        ]
+                    }]
+                }
             }
-        }
+        })
 
     @mock.patch('scrunch.datasets.get_dataset')
     def test_recode_multiple_responses(self, get_dataset_mock):
         dataset_id = '123'
+        categories = [
+            {
+                'numeric_value': 1,
+                'selected': True,
+                'id': 1,
+                'name': 'selected',
+                'missing': False
+            },
+            {
+                'numeric_value': 2,
+                'selected': False,
+                'id': 2,
+                'name': 'not selected',
+                'missing': False
+            },
+            {
+                'numeric_value': 9,
+                'missing': True,
+                'id': 9,
+                'name': 'not asked'
+            },
+            {
+                'numeric_value': 8,
+                'missing': True,
+                'id': 8,
+                'name': 'skipped'
+            }
+        ]
         var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
@@ -369,82 +395,104 @@ class TestSpssRecodes(TestCase):
                 'dataset_id': dataset_id,
                 'type': 'multiple_response',
                 'id': '0001',
-                'categories': [
-                    {
-                        'numeric_value': 1,
-                        'selected': True,
-                        'id': 1,
-                        'name': 'selected',
-                        'missing': False
-                    },
-                    {
-                        'numeric_value': 2,
-                        'selected': False,
-                        'id': 2,
-                        'name': 'not selected',
-                        'missing': False
-                    },
-                    {
-                        'numeric_value': 9,
-                        'missing': True,
-                        'id': 9,
-                        'name': 'not asked'
-                    },
-                    {
-                        'numeric_value': 8,
-                        'missing': True,
-                        'id': 8,
-                        'name': 'skipped'
-                    }
-                ],
+                'categories': categories,
                 'description': 'Multiple Response Example'
             }
 
         })
         var = Variable(var_res)
+        table_mock = mock.MagicMock(metadata={
+            '00001': {
+                'id': '00001',
+                'alias': 'sexuality',
+                'type': 'categorical',
+                'categories': categories
+            }
+        })
+        ds_res = mock.MagicMock()
+        ds_res.self = dataset_url
+        ds_res.follow.return_value = table_mock
+        dataset = Dataset(ds_res)
+        subvar_mock = mock.MagicMock()
+        subvar_mock.self = var_url
+        subvar_mock.id = 'subvar'
+        subvariables = {
+            'Q1_1': subvar_mock,
+            'Q1_2': subvar_mock,
+            'Q1_3': subvar_mock,
+        }
 
-        var.combine(
-            'Q1_recoded',
-            {'Q1_recoded_1': ('Q1_1', 'Q1_2'), 'Q1_recoded_2': 'Q1_3'}
-        )
+        dataset.recode([
+            {'id': 1, 'name': 'Q1_recoded_1', 'rules': mr_in(var_url, 'Q1', [1, 2], subvariables)},
+            {'id': 2, 'name': 'Q1_recoded_2', 'rules': mr_in(var_url, 'Q1', [3], subvariables)}
+        ], alias='Q1_recoded', name='Q1_recoded', multiple=True)
 
         # Test how the recoded var was created.
-        var_create_mock = get_dataset_mock(dataset_id).variables.create
-        assert len(var_create_mock.call_args_list) == 1
-
-        call = var_create_mock.call_args_list[0]
-        payload = call[0][0]
-
-        assert payload == {
+        ds_res.variables.create.assert_called_with({
+            'element': 'shoji:entity',
             'body': {
+                'name': 'Q1_recoded',
+                'description': '',
                 'alias': 'Q1_recoded',
-                'expr': {
-                    'function': 'combine_responses',
-                    'args': [
-                        {
-                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'
-                        },
-                        {
-                            'value': [
-                                {
-                                    'name': 'Q1_recoded_1',
-                                    'combined_ids': [
-                                        'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/000a/',
-                                        'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/000b/'
-                                    ]
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '0001': {
+                                    'function': 'case',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
+                                                    {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        'function': 'any',
+                                        'args': [
+                                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
+                                            {'column': ['subvar', 'subvar']}
+                                        ]
+                                    }],
+                                    'references': {
+                                        'alias': 'Q1_recoded_1',
+                                        'name': 'Q1_recoded_1'
+                                    }
                                 },
-                                {
-                                    'name': 'Q1_recoded_2',
-                                    'combined_ids': [
-                                        'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/000c/'
-                                    ]
+                                '0002': {
+                                    'function': 'case',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
+                                                    {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        'function': 'any',
+                                        'args': [
+                                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
+                                            {'column': ['subvar']}
+                                        ]
+                                    }],
+                                    'references': {
+                                        'alias': 'Q1_recoded_2',
+                                        'name': 'Q1_recoded_2'
+                                    }
                                 }
-                            ]
-                        }
-                    ]
-                },
-                'description': 'Multiple Response Example',
-                'name': 'Q1 (recoded)'
-            },
-            'element': 'shoji:entity'
-        }
+                            }
+                        }]
+                    }]
+                }
+            }
+        })
