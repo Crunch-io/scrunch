@@ -5,7 +5,7 @@ from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
-from scrunch.datasets import Dataset
+from scrunch.datasets import Dataset, Variable
 from pycrunch.elements import JSONObject
 from pycrunch.shoji import Entity
 from pycrunch.variables import cast
@@ -1154,4 +1154,69 @@ class TestRecode(TestDatasetBase):
                 }
             }
         })
+
+
+class TestEditCombination(TestCase):
+    def test_edit_single_response(self):
+        var_res = mock.MagicMock()
+        var_res.body.derivation = {
+            'function': 'combine_categories',
+            'args': [{'variable': 'parent_url'}]
+        }
+        variable = Variable(var_res)
+        variable.edit_combination([
+            {'id': 1, 'name': 'editing', 'combined_ids': [1, 2, 3], 'missing': False}
+        ])
+        var_res.edit.assert_called_with(derivation={
+            'function': 'combine_categories',
+            'args': [
+                {'variable': 'parent_url'},
+                {'value': [{'combined_ids': [1, 2, 3], 'missing': False, 'id': 1, 'name': 'editing'}]}
+            ]
+        })
+
+    def test_edit_multiple_response(self):
+        var_res = mock.MagicMock()
+        parent_mock = mock.MagicMock()
+        subvar_mock = mock.MagicMock(entity_url='subvar_url')
+        parent_mock.entity.body = {'alias': 'parent_alias'}
+        parent_mock.entity.subvariables.by.return_value = {
+            'parent_alias_1': subvar_mock,
+            'parent_alias_2': subvar_mock,
+        }
+        var_res.parent.by.return_value = {
+            'original_variable': parent_mock
+        }
+        var_res.body.derivation = {
+            'function': 'array',
+            'args': [{
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        '00001': {
+                            'function': 'combine_responses',
+                            'args': [
+                                {'variable': 'original_variable'}
+                            ]
+                        }
+                    }
+                }]
+            }]
+        }
+        variable = Variable(var_res)
+        variable.type = 'multiple_response'
+        variable.alias = 'mr_alias'
+        variable.edit_combination([
+            {'id': 1, 'name': 'editing', 'combined_ids': [1, 2], 'missing': False}
+        ])
+        var_res.edit.assert_called_with(derivation={
+            'function': 'combine_responses',
+            'args': [
+                {'variable': 'original_variable'},
+                {'value': [
+                    {'alias': 'mr_alias_1', 'combined_ids': ['subvar_url', 'subvar_url'], 'name': 'editing'}
+                ]}
+            ]
+        })
+
 
