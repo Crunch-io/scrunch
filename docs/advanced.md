@@ -18,15 +18,20 @@ ds_fork = ds.fork()
 The resulting object is also a `scrunch.datasets.Dataset` instance and 
 you can use it as with any other dataset instance.
 
-The owner of the fork is the user that created it unless it was owned by a 
-Project, in which case the Project ownership will be respected. You can 
-change that behavior by adding the `preserve_owner` parameter as `False`, like so:
-
-[comment]: TODO: Check, is this true that preserve_owner=False will avoid the project ownership?
+The owner of the fork is the user that created it unless `preserve_owner`
+parameter is set to `True`, in which case the fork will be owned by the
+same User as its parent dataset:
 
 ```python
-ds_fork = ds.fork(preserve_owner=False)
+ds_fork = ds.fork(preserve_owner=True)
 ```
+
+The `preserve_owner` parameter is `False` by default.
+
+If the owner of the parent dataset is a Crunch Project (instead of a
+regular Crunch User), then the ownership will be preserved and the fork
+will be part of the same Project as its parent dataset, regardless of
+the `preserve_owner` parameter.
 
 
 ### Delete a fork

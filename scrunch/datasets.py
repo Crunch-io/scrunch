@@ -55,6 +55,23 @@ def get_dataset(dataset, site=None):
     return Dataset(shoji_ds)
 
 
+def change_project(project, site=None):
+    """
+    :param project: name or ID of the project
+    :param site: scrunch session, defaults to global session
+    :return: the project session
+    """
+    if site is None:
+        if pycrunch.session is None:
+            raise AttributeError("Authenticate first with scrunch.connect()")
+        site = pycrunch.session
+    try:
+        ret = site.projects.by('name')[project].entity
+    except KeyError:
+        ret = site.projects.by('id')[project].entity
+    pycrunch.session = ret
+
+
 def create_dataset(name, variables, site=None):
     if site is None:
         if pycrunch.session is None:
@@ -650,22 +667,24 @@ class Dataset(object):
         this includes hidden variables and categories
         as id's.
         """
-        # this is the url to POST the download payload to
-        csv_url = self.resource.export.views.csv
         # the payload should include all hidden variables by default
         payload = {
-            "options": {"use_category_ids": True}
+            "element": "shoji:entity",
+            "body": {
+                "options": {"use_category_ids": True}
+            }
         }
         # add filter to rows if passed
         if filter:
-            payload['filter'] = process_expr(parse_expr(filter), self.resource)
+            payload['body']['filter'] = process_expr(
+                parse_expr(filter), self.resource)
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(variable_to_url(self.resource, var))
             # Now build the payload with selected variables
-            payload['where'] = {
+            payload['body']['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
@@ -676,7 +695,7 @@ class Dataset(object):
         # include_hidden is mutually exclusive with
         #  variables to include in the download
         if include_hidden and not variables:
-            payload['where'] = {
+            payload['body']['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
