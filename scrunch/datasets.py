@@ -991,6 +991,13 @@ class Variable(object):
         if item in self.ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
+    def hide(self):
+        self.resource.edit(discarded=True)
+
+
+    def unhide(self):
+        self.resource.edit(discarded=False)
+
     def combine(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
         # DEPRECATED - USE Dataset.combine*

@@ -1298,3 +1298,13 @@ class TestCopyVariable(TestCase):
             }
         })
 
+
+def test_hide_unhide():
+    var_res = mock.MagicMock()
+    var = Variable(var_res)
+    var.hide()
+    var_res.edit.assert_called_with(discarded=True)
+    var.unhide()
+    var_res.edit.assert_called_with(discarded=False)
+
+
