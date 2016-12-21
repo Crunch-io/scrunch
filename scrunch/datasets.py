@@ -519,7 +519,7 @@ class Dataset(object):
         if variable.resource.body.get('derivation'):
             # We are dealing with a derived variable, we want the derivation
             # to be executed again instead of doing a `copy_variable`
-            derivation = abs_url(variable.resource.body.derivation,
+            derivation = abs_url(variable.resource.body['derivation'],
                         variable.resource.self)
             derivation.pop('references', None)
             payload = {

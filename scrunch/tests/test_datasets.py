@@ -1220,3 +1220,70 @@ class TestEditCombination(TestCase):
         })
 
 
+class TestCopyVariable(TestCase):
+    def test_base_variable(self):
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock(body={'type': 'numeric'})
+        var_res.self = '/variable/url/'
+        ds = Dataset(ds_res)
+        var = Variable(var_res)
+        ds.copy_variable(var, name='copy', alias='copy')
+        ds_res.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'alias': 'copy',
+                'name': 'copy',
+                'derivation': {
+                    'function': 'copy_variable',
+                    'args': [{'variable': '/variable/url/'}]
+                }
+            }
+        })
+
+    def test_derived_variable(self):
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock(body={'type': 'multiple_response', 'derivation': {
+            'function': 'array',
+            'args': [{
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        '00001': {
+                            'function': 'combine_responses',
+                            'args': [
+                                {'variable': '../original_variable'}
+                            ]
+                        }
+                    }
+                }]
+            }]
+        }})
+        var_res.self = '/variable/url/'
+        ds = Dataset(ds_res)
+        var = Variable(var_res)
+        ds.copy_variable(var, name='copy', alias='copy')
+        ds_res.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'alias': 'copy',
+                'name': 'copy',
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '00001': {
+                                    'function': 'combine_responses',
+                                    'args': [
+                                        # Look how the variable url got abs()ed
+                                        {'variable': '/variable/original_variable'}
+                                    ]
+                                }
+                            }
+                        }]
+                    }]
+                }
+            }
+        })
+
