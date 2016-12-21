@@ -994,7 +994,6 @@ class Variable(object):
     def hide(self):
         self.resource.edit(discarded=True)
 
-
     def unhide(self):
         self.resource.edit(discarded=False)
 
