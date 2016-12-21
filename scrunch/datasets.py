@@ -24,11 +24,7 @@ SKELETON = {
     'body': {
         'name': 'name',
         'description': 'description',
-        'alias': 'alias',
-        'expr': {
-            'function': 'function',
-            'args': []
-        }
+        'alias': 'alias'
     }
 }
 
@@ -71,13 +67,18 @@ def subvar_alias(parent_alias, response_id):
 
 def responses_from_map(variable, response_map, alias, parent_alias):
     subvars = variable.resource.subvariables.by('alias')
-    responses = [{
-                     'name': combined['name'],
-                     'alias': subvar_alias(alias, combined['id']),
-                     'combined_ids': [subvars[subvar_alias(parent_alias,
-                         sv_alias)].entity_url for sv_alias in
-                                      combined['combined_ids']]
-                 } for combined in response_map]
+    try:
+        responses = [{
+                         'name': combined['name'],
+                         'alias': subvar_alias(alias, combined['id']),
+                         'combined_ids': [subvars[subvar_alias(parent_alias,
+                             sv_alias)].entity_url for sv_alias in
+                                          combined['combined_ids']]
+                     } for combined in response_map]
+    except KeyError:
+        # This means we tried to combine a subvariable with ~id~ that does not
+        # exist in the subvariables. Treat as bad input.
+        raise ValueError("Unknown subvariables for variable %s" % parent_alias)
     return responses
 
 
@@ -176,7 +177,7 @@ def var_name_to_url(ds, alias):
     :return: the id of the given varname or None
     """
     try:
-        return ds.variables.by('alias')[alias].entity.self
+        return ds.variables.by('alias')[alias].entity_url
     except KeyError:
         raise KeyError(
             'Variable %s does not exist in Dataset %s' % (alias,
@@ -252,6 +253,7 @@ def validate_category_map(map):
     :param map: categories keyed by new category id mapped to existing ones
     :return: a list of dictionary objects that the Crunch API expects
     """
+    raise PendingDeprecationWarning("Does not use the new input format")
     for value in map.values():
         keys = set(list(value.keys()))
         assert keys & REQUIRED_VALUES, (
@@ -1245,6 +1247,7 @@ class Variable(object):
         return self.resource.patch(payload)
 
     def edit_derived(self, variable, mapper):
+        raise NotImplementedError("Use edit_combination")
         # get some initial variables
         ds = get_dataset(self.resource.body.dataset_id)
         variable_url = variable_to_url(ds, variable)

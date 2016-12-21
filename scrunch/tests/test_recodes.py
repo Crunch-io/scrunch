@@ -3,195 +3,124 @@ from unittest import TestCase
 
 import pytest
 from scrunch.datasets import Dataset, Variable
-from scrunch.datasets import validate_category_map
+from scrunch.datasets import validate_category_map, responses_from_map
 
 from pycrunch.shoji import Entity
 
 
-CATEGORY_MAP = {
-    1: {
-        "name": "China",
-        "missing": False,
-        "combined_ids": [2, 3]
-    },
-    2: {
-        "name": "Other",
-        "missing": False,
-        "combined_ids": [1]
-    }
-}
+dataset_url = 'http://test.crunch.io/api/datasets/123/'
+var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
+subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
+subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
 
-RESPONSE_MAP = {
-    'newsubvar': ['sub1', 'sub2']
-}
+
+CATEGORY_MAP = [
+    {'id': 1, 'name': 'China', 'missing': False, 'combined_ids': [2, 3]},
+    {'id': 2, 'name': 'Other', 'missing': False, 'combined_ids': [1]}
+]
+
+RESPONSE_MAP = [
+    {"id": 1, "name": 'online', 'combined_ids': [1, 2]},
+]
 
 RECODES_PAYLOAD = {
-    "element": "shoji:entity",
-    "body": {
-        "name": "name",
-        "description": "",
-        "alias": "alias",
-        "expr": {
-            "function": "combine_categories",
-            "args": [
-                {
-                    "variable": 'http://test.crunch.io/api/datasets/123/variables/0001/'
-                },
-                {
-                    "value": [
-                        {
-                            "name": "China",
-                            "id": 1,
-                            "missing": False,
-                            "combined_ids": [2, 3]
-                        },
-                        {
-                            "name": "Other",
-                            "id": 2,
-                            "missing": False,
-                            "combined_ids": [1]
-                        }
-                    ]
-                }
+    'element': 'shoji:entity',
+    'body': {
+        'alias': 'alias',
+        'derivation': {
+            'function': 'combine_categories',
+            'args': [
+                {'variable': var_url},
+                {'value': [
+                    {'combined_ids': [2, 3], 'missing': False, 'id': 1, 'name': 'China'},
+                    {'combined_ids': [1], 'missing': False, 'id': 2, 'name': 'Other'}
+                ]}
             ]
-        }
+        },
+        'name': 'name',
+        'description': ''
     }
 }
 
 COMBINE_RESPONSES_PAYLOAD = {
-    'element': 'shoji:entity',
-    'body': {
-        'alias': 'alias',
-        'description': '',
-        'name': 'name',
-        'expr': {
-            'function': 'combine_responses',
-            'args': [
-                {
-                    'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'
-                },
-                {
-                    'value': [
-                        {
-                            'name': 'newsubvar',
-                            'combined_ids': [
-                                'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/',
-                                'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-                            ]
-                        }
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'name',
+                'description': '',
+                'alias': 'alias',
+                'derivation': {
+                    'function': 'combine_responses',
+                    'args': [
+                        {'variable': var_url},
+                        {'value': [
+                            {'alias': 'alias_1', 'combined_ids': [subvar1_url, subvar2_url], 'name': 'online'}
+                        ]}
                     ]
                 }
-            ]
+            }
         }
-    }
-}
 
 
 class TestRecodes(TestCase):
 
-    def test_validate_category_map(self):
-        """ Validate we are properly converting the given map of categories """
-        expected_map = [
-            {
-                "id": 1,
-                "name": "China",
-                "missing": False,
-                "combined_ids": [2, 3]
-            },
-            {
-                "id": 2,
-                "name": "Other",
-                "missing": False,
-                "combined_ids": [1]
-            }
-        ]
-        modified_map = validate_category_map(CATEGORY_MAP)
-        assert modified_map == expected_map
-
     def test_validate_range_expression(self):
-        test_map = {
-            1: {
-                "name": "China",
-                "missing": False,
-                "combined_ids": range(1, 5)
-            }
+        test_map = [{
+            "id": 1,
+            "name": "China",
+            "missing": False,
+            "combined_ids": range(1, 5)
+        }]
+        variable_mock = mock.MagicMock()
+        subvar_mock = mock.MagicMock(entity_url=subvar1_url)
+        variable_mock.subvariables.by.return_value = {
+            'parent_1': subvar_mock,
+            'parent_2': subvar_mock,
+            'parent_3': subvar_mock,
+            'parent_4': subvar_mock,
         }
-        modified_map = validate_category_map(test_map)
-        assert modified_map[0]['combined_ids'] == [1, 2, 3, 4]
+        parent_var = Variable(variable_mock)
+        modified_map = responses_from_map(parent_var, test_map, 'test', 'parent')
+        # subvar_url * 4 because we used the same mock for all subvars
+        assert modified_map[0]['combined_ids'] == [subvar1_url] * 4
 
     def test_combine_categories_unknown_alias(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_categories = Dataset.combine_categories
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        resource = mock.MagicMock()
         entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
-        ds.resource.variables.by.return_value = {
+        entity_mock.entity_url = var_url
+        resource.variables.by.return_value = {
             'test': entity_mock
         }
-        with pytest.raises(KeyError) as err:
-            ds.combine_categories(ds, 'unknown', CATEGORY_MAP, 'name', 'alias')
+        ds = Dataset(resource)
+        with pytest.raises(ValueError) as err:
+            ds.combine_categories('unknown', CATEGORY_MAP, 'name', 'alias')
 
-        assert 'Variable unknown does not exist in Dataset' in str(err.value)
+        assert 'Dataset has no variable unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_categories = Dataset.combine_categories
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        resource = mock.MagicMock()
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
-        ds.resource.variables.by.return_value = {
+        resource.variables.by.return_value = {
             'test': entity_mock
         }
-        ds.combine_categories(ds, 'test', CATEGORY_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == RECODES_PAYLOAD
-
-    def test_combine_categories_from_url(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_categories = Dataset.combine_categories
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
-        entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
-        ds.resource.variables.by.return_value = {
-            'test': entity_mock
-        }
-        ds.combine_categories(ds, var_url, CATEGORY_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == RECODES_PAYLOAD
+        ds = Dataset(resource)
+        ds.combine_categories('test', CATEGORY_MAP, 'name', 'alias')
+        ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
 
     def test_combine_categories_from_entity(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_categories = Dataset.combine_categories
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        resource = mock.MagicMock()
         entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
-        ds.resource.variables.by.return_value = {
+        resource.variables.by.return_value = {
             'test': entity_mock
         }
-        entity = Entity(mock.MagicMock(), self=var_url, body={})
-        ds.combine_categories(ds, entity, CATEGORY_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == RECODES_PAYLOAD
+        entity = Variable(Entity(mock.MagicMock(), self=var_url, body={}))
+        ds = Dataset(resource)
+        ds.combine_categories(entity, CATEGORY_MAP, 'name', 'alias')
+        ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
 
     def test_combine_responses_unknown_alias(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_responses = Dataset.combine_responses
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
-        subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        resource = mock.MagicMock()
+        resource.entity.self = dataset_url
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
@@ -205,40 +134,29 @@ class TestRecodes(TestCase):
 
         # add dictionaries return to by functions
         entity_mock.entity.subvariables.by.return_value = {
-            'sub1': subvar_mock,
-            'sub2': subvar2_mock
+            'test_1': subvar_mock,
+            'test_x': subvar2_mock
         }
 
-        ds.resource.variables.by.return_value = {
+        resource.variables.by.return_value = {
             'test': entity_mock
         }
 
-        # mock response from ds.session.get(variable_url)
-        var_response = mock.MagicMock()
-        var_response.payload = entity_mock.entity
-        ds.resource.session.get.return_value = var_response
-        response_map = {
-            'newsubvar': ['unknown', 'sub1', 'sub2']
-        }
-        with pytest.raises(KeyError) as err:
-            ds.combine_responses(ds, 'test', response_map, 'name', 'alias')
+        ds = Dataset(resource)
+        with pytest.raises(ValueError) as err:
+            ds.combine_responses('test', RESPONSE_MAP, name='name', alias='alias')
 
-        assert 'Unexistant variables' in str(err.value)
+        assert 'Unknown subvariables for variable' in str(err.value)
 
     def test_combine_responses_by_alias(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_responses = Dataset.combine_responses
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
-        subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        resource = mock.MagicMock()
+        resource.entity.self = dataset_url
 
         # mock subvariables
         subvar_mock = mock.MagicMock()
-        subvar_mock.entity.self = subvar1_url
+        subvar_mock.entity_url = subvar1_url
         subvar2_mock = mock.MagicMock()
-        subvar2_mock.entity.self = subvar2_url
+        subvar2_mock.entity_url = subvar2_url
 
         # mock parent variable
         entity_mock = mock.MagicMock()
@@ -246,111 +164,47 @@ class TestRecodes(TestCase):
 
         # add dictionaries return to by functions
         entity_mock.entity.subvariables.by.return_value = {
-            'sub1': subvar_mock,
-            'sub2': subvar2_mock
+            'test_1': subvar_mock,
+            'test_2': subvar2_mock
         }
 
-        ds.resource.variables.by.return_value = {
+        resource.variables.by.return_value = {
             'test': entity_mock
         }
 
-        # mock response from ds.session.get(variable_url)
-        var_response = mock.MagicMock()
-        var_response.payload = entity_mock.entity
-        ds.resource.session.get.return_value = var_response
-
         # make the actual response call
-        ds.combine_responses(ds, 'test', RESPONSE_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == COMBINE_RESPONSES_PAYLOAD
-
-    def test_combine_responses_by_url(self):
-        assert False, "Should not support by URL"
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_responses = Dataset.combine_responses
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
-        subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
-
-        # mock subvariables
-        subvar_mock = mock.MagicMock()
-        subvar_mock.entity.self = subvar1_url
-        subvar2_mock = mock.MagicMock()
-        subvar2_mock.entity.self = subvar2_url
-
-        # mock parent variable
-        entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
-
-        # add dictionaries return to by functions
-        entity_mock.entity.subvariables.by.return_value = {
-            'sub1': subvar_mock,
-            'sub2': subvar2_mock
-        }
-
-        ds.resource.variables.by.return_value = {
-            'test': entity_mock
-        }
-
-        # mock response from ds.session.get(variable_url)
-        var_response = mock.MagicMock()
-        var_response.payload = entity_mock.entity
-        ds.resource.session.get.return_value = var_response
-
-        # make the actual response call
-        ds.combine_responses(ds, 'test', RESPONSE_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == COMBINE_RESPONSES_PAYLOAD
+        ds = Dataset(resource)
+        ds.combine_responses('test', RESPONSE_MAP, name='name', alias='alias')
+        resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
 
     def test_combine_responses_by_entity(self):
-        ds = mock.MagicMock()
-        ds.__class__ = Dataset
-        ds.combine_responses = Dataset.combine_responses
-        var_url = 'http://test.crunch.io/api/datasets/123/variables/0001/'
-        subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00001/'
-        subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
-        ds.resource.entity.self = 'http://test.crunch.io/api/datasets/123/'
+        ds_resource = mock.MagicMock()
+        ds_resource.entity.self = dataset_url
 
         # mock subvariables
-        subvar_mock = mock.MagicMock()
-        subvar_mock.entity.self = subvar1_url
-        subvar2_mock = mock.MagicMock()
-        subvar2_mock.entity.self = subvar2_url
+        subvar_mock = mock.MagicMock(entity_url=subvar1_url)
+        subvar2_mock = mock.MagicMock(entity_url=subvar2_url)
 
         # mock parent variable
-        entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
+        parent_variable = mock.MagicMock(body={'alias': 'test'})
+        parent_variable.self = var_url
 
         # add dictionaries return to by functions
-        entity_mock.entity.subvariables.by.return_value = {
-            'sub1': subvar_mock,
-            'sub2': subvar2_mock
+        parent_variable.subvariables.by.return_value = {
+            'test_1': subvar_mock,
+            'test_2': subvar2_mock
         }
 
-        ds.resource.variables.by.return_value = {
-            'test': entity_mock
+        ds_resource.variables.by.return_value = {
+            'test': parent_variable
         }
 
-        # mock response from ds.session.get(variable_url)
-        var_response = mock.MagicMock()
-        var_response.payload = entity_mock.entity
-        ds.resource.session.get.return_value = var_response
-
-        entity = Entity(
-            mock.MagicMock(),
-            self=var_url,
-            body={}
-        )
+        entity = Variable(parent_variable)
 
         # make the actual response call
-        ds.combine_responses(ds, entity, RESPONSE_MAP, 'name', 'alias')
-        call = ds.resource.variables.create.call_args_list[0][0][0]
-
-        assert call == COMBINE_RESPONSES_PAYLOAD
+        ds = Dataset(ds_resource)
+        ds.combine_responses(entity, RESPONSE_MAP, 'name', 'alias')
+        ds_resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
 
 
 class TestSpssRecodes(TestCase):
