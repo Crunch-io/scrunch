@@ -391,11 +391,11 @@ def process_expr(obj, ds):
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
                     if var['type'] in ('categorical_array', 'multiple_response'):
-                        subvariables = [
-                            '%svariables/%s/subvariables/%s/'
-                            % (base_url, var['id'], subvar_id)
-                            for subvar_id in var.get('subvariables', [])
-                        ]
+                        subvariables = [{
+                            'id': subvar_id,
+                            'url': '%svariables/%s/subvariables/%s/'
+                                   % (base_url, var['id'], subvar_id)
+                        } for subvar_id in var.get('subvariables', [])]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
             elif key == 'function':
@@ -430,33 +430,26 @@ def process_expr(obj, ds):
                 if len(values) != 1:
                     raise ValueError
 
-                subvariables = arrays[0]
+                subvariable_mapping = {
+                    subvar['id']: subvar['url'] for subvar in arrays[0]
+                }
                 value = values[0]
 
-                def _extract_id(url):
-                    '''Extracts the id form the given url'''
-                    return [
-                        part for part in url.split('/') if part != ''
-                    ][-1]
-
-                subvariables_dict = {
-                    _extract_id(subvar): subvar
-                    for subvar in subvariables
-                }
-
-                # no expansion is needed if all arguments are subvariables,
-                # instead we should just transform variable references to
-                # their corresponding urls
                 are_subvars = all(
                     subvar in value['value']
-                    for subvar in subvariables_dict.keys()
+                    for subvar in subvariable_mapping.keys()
                 )
 
                 if are_subvars:
+                    # no expansion is needed if all arguments are subvariables,
+                    # instead we should just transform variable references to
+                    # their corresponding urls
                     value['value'] = [
-                        subvariables_dict[v] for v in value['value']
+                        subvariable_mapping[v] for v in value['value']
                     ]
                 else:
+                    subvariables = [subvar['url'] for subvar in arrays[0]]
+
                     if op == 'all':
                         if len(value['value']) != 1:
                             raise ValueError
