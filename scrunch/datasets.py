@@ -982,7 +982,7 @@ class Variable(object):
     """
 
     ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
-                         'type', 'id', 'view', 'notes'}
+                         'type', 'id', 'view', 'notes', 'categories'}
 
     def __init__(self, resource):
         self.resource = resource
