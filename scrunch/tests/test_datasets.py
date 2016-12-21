@@ -984,13 +984,13 @@ class TestRecode(TestDatasetBase):
             {'id': 3, 'name': 'Google+',
              'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        ds.recode(responses, 'cat', 'My cat', multiple=False)
+        ds.recode(responses, alias='cat', name='My cat', multiple=False)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
                 'description': '',
-                'name': 'cat',
-                'alias': 'My cat',
+                'alias': 'cat',
+                'name': 'My cat',
                 'expr': {
                     'function': 'case',
                     'args': [{
@@ -1099,23 +1099,25 @@ class TestRecode(TestDatasetBase):
             {'id': 2, 'name': 'Twitter', 'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        mr = ds.recode(responses, 'mr', 'my mr', multiple=True)
+        mr = ds.recode(responses, alias='mr', name='my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
-                'name': 'mr',
+                'alias': 'mr',
                 'description': '',
-                'alias': 'my mr',
+                'name': 'my mr',
                 'derivation': {
                     'function': 'array',
                     'args': [{
                         'function': 'select',
                         'args': [{
                             'map': {
-                                '1': {
+                                '0001': {
                                     'function': 'case',
-                                    'name': 'Facebook',
-                                    'alias': 'my mr_Facebook',
+                                    'references': {
+                                        'name': 'Facebook',
+                                        'alias': 'mr_1',
+                                    },
                                     'args': [{
                                         'column': [1, 2],
                                         'type': {
@@ -1136,10 +1138,12 @@ class TestRecode(TestDatasetBase):
                                         ]
                                     }]
                                 },
-                                '2': {
+                                '0002': {
                                     'function': 'case',
-                                    'alias': 'my mr_Twitter',
-                                    'name': 'Twitter',
+                                    'references': {
+                                        'alias': 'mr_2',
+                                        'name': 'Twitter',
+                                    },
                                     'args': [{
                                         'column': [1, 2],
                                         'type': {
@@ -1169,10 +1173,12 @@ class TestRecode(TestDatasetBase):
                                         }]
                                     }]
                                 },
-                                '3': {
+                                '0003': {
                                     'function': 'case',
-                                    'alias': 'my mr_Google+',
-                                    'name': 'Google+',
+                                    'references': {
+                                        'alias': 'mr_3',
+                                        'name': 'Google+',
+                                    },
                                     'args': [{
                                         'column': [1, 2],
                                         'type': {
