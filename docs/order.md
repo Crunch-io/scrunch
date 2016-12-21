@@ -58,10 +58,12 @@ address
   city
 hobbies
 music
- Account
+ Other
   registration_time
   last_login_time
   gender
+   Miscellaneous
+    hobbies
  User Information
   first_name
   last_name
@@ -70,15 +72,17 @@ religion
 
 Assuming that the Dataset in question is loaded in a variable named
 `ds`, and that all the variables have the `alias` field equal to the
-`name` field, one would achieve the desired structure using **scrunch**
+`name` field, one would achieve the desired outcome using **scrunch**
 by doing:
 
 ```python
 order = ds.order
-order.insert_after('id', ['zip_code', 'address', 'Location'])
+order.move_after('id', ['zip_code', 'address', 'Location'])
 order.move_up('music')
-order.insert_before('religion', 'User Information')
-order['Account'].insert('gender')
+order.move_before('religion', 'User Information')
+order['Account'].move('gender')
+order['Account'].create('Miscellaneous', elements='hobbies')
+order['Account'].rename('Other')
 ```
 
 Detailed information on the usage of the **Hierarchical Order** API in
@@ -112,7 +116,7 @@ religion
 
 Additionally, every variable in this example Dataset is considered to have
 the same value for both the `alias` and the `name` properties. Therefore,
-the list of aliases in the example Dataset would be: `id`, `hobbies`,
+the list of aliases in the example Dataset are: `id`, `hobbies`,
 `first_name`, `last_name`, `registration_time`, `gender`, `country`,
 `city`, `zip_code`, `address`, `music` and `religion`.
 
@@ -149,7 +153,7 @@ Here's an example of how the `order` property is accessed:
 Elements of the Hierarchical Order
 ----------------------------------
 
-There are two types of elements contained within the `order` property:
+There can be two types of elements contained within the `order` property:
 - `scrunch.datasets.Variable` objects.
 - `scrunch.datasets.Group` objects, which group together variables
    and other groups in a particular order. `Group` objects have a `name`
@@ -245,8 +249,8 @@ the `Group`, like so:
 ]
 ```
 
-As can be expected, the `hierarchy` and `variables` properties are
-accessible for sub-groups:
+It is important to mention that the `hierarchy` and `variables` properties
+are accessible in sub-groups too:
 
 ```
 >>> print(ds.order['Account'].hierarchy)
@@ -346,71 +350,30 @@ of a Dataset with the **scrunch** library, `string` objects are used
 to reference elements in the hierarchy.
 
 We call these strings _element references_. An _element reference_
-can resolve to either the `alias` of a variable or the `name` of a
-group within the hierarchy.
+can be resolved to either the `alias` of a variable or to the `name`
+of a group within the hierarchy.
 
-The majority of methods that manipulate the hierarchical order need
+The majority of methods that manipulate the **Hierarchical Order** need
 to be passed an _element reference_ (or a `list` of _element references_)
-to  perform their jobs.
+to perform their jobs.
 
-### Modifying the position of Elements in a Group
+### Modifying the location of Elements in the Hierarchy
 
-`Group` objects have a `move` method that allows moving an element to
-a target position **within the group**.
+Every _element_ in the hierarchy (`Group` objects included) is subject to
+change its initial location. The essential tool for that purpose is the
+`move` method in `Group` objects.
 
-The first argument is the `element` to move (i.e. an _element reference_).
-
-The second argument is the target `position`, which is expected to be
-a 0-based integer index. If its value is `-1`, then the element is set to
-be moved to the end of the order.
-
-Examples of usage:
-
-```python
-ds.order.move('id', 3)
-ds.order.move(element='Account', position=-1)
-```
-
-The `move_up`, `move_down`, `move_top` and `move_bottom` methods are also
-provided as a convenience for dealing with very common operations. As can be
-inferred, these methods only need a reference to the element to be moved
-about:
-
-```python
-ds.order.move_bottom('id')
-ds.order.move_top(element='Account')
-ds.order['Account'].move_down('registration_time')
-```
-
-Additionally, two useful methods are provided: `move_before` and
-`move_after`. Both of these methods have a first argument named
-`reference` and a second argument named `element`. As can be
-inferred, `element` is moved _before_ or _after_ the `reference`
-element. For instance:
-
-```python
-ds.order.move_before('Account', 'id')
-ds.order.move_after(reference='Account', element='religion')
-ds.order['Account'].move_after('Location', 'registration_time')
-```
-
-### Inserting Elements from other Groups
-
-Sometimes it is needed to _migrate_ one or more elements to a specific
-`Group` within the hierarchy. To that end, `Group` objects provide the
-`insert` method.
-
-In its simplest form, `insert` allows inserting an element at the bottom
-of the group's order, effectively removing it from it previous
-group (**root** included).
+In its simplest form, the `move` method takes care of _inserting_ an
+element at the bottom of the group's order, as well as of removing the
+element from its previous group (which may have been the **root** group).
 
 Using our example dataset (in its initial state), we could do:
 
 ```python
-ds.order['Account'].insert('id')
+ds.order['Account'].move('id')
 ```
 
-which would update the hierarchical order structure like so:
+so that the **Hierarchical Order** structure ends up like this:
 
 ```
 hobbies
@@ -426,40 +389,104 @@ hobbies
     city
     zip_code
     address
-  id
+  id                     <--- new location of the element
 music
 religion
 ```
 
-The first argument of the `insert` method, named `elements`, is the
-list of _element references_ to _migrate_. Passing a single
-_element reference_ (`string`) is also supported.
+The first argument of the `move` method, named `elements`, is the
+list of _element references_ to insert into the group. Passing a
+single _element reference_ (`string`) is also supported.
 
 The second argument, named `position`, is the target position at which
-the element(s) will be inserted. The `position` argument is optional and
-is expected to be a 0-based integer index. Its default value is `-1`,
-which means that the element(s) will be inserted at the end (bottom)
-of the group's order.
+the elements will be inserted. The `position` argument is **optional**
+and is expected to be a 0-based integer index. Its default value is `-1`,
+which means that the elements will be inserted at the end of the
+group's order.
 
-More examples:
+If any of the input `elements` does not exist within the hierarchy, then
+a `ValueError` exception is raised by `move` and its variants.
+
+Examples of usage:
 
 ```python
-ds.order.insert(['address', 'gender'], 1)
-ds.order.insert(elements=['address', 'gender'], position=0)
-ds.order.insert(elements='first_name', position=3)
+ds.order['User Information'].move(['address', 'religion'], 1)
+ds.order.move(elements=['Account', 'gender'], position=0)
+ds.order.move(elements='first_name', position=3)
 ```
 
-Additionally, two useful methods are provided: `insert_before` and
-`insert_after`. Both of these methods have a first argument named
+Naturally, calls to the `move` method can happen with nested
+access to sub-groups:
+
+```python
+ds.order['Account'].move('id', 2)
+```
+
+It is important to note that if all the input `elements` are
+already first-level children of the target group, then the `move`
+method just changes their position in the group. So, with our
+example dataset in its initial state, we could do:
+
+```python
+ds.order.move('id', position=3)
+```
+
+so that the **Hierarchical Order** structure ends up like this:
+
+```
+hobbies
+ Account
+  registration_time
+  last_login_time
+     User Information
+    first_name
+    last_name
+    gender
+     Location
+    country
+    city
+    zip_code
+    address
+music
+id                       <--- new location of the element
+religion
+``` 
+
+In the context of modifying the location of elements, `Group`
+objects also provide the following convenience methods:
+`move_top`, `move_bottom`, `move_before`, `move_after`, `move_up`
+and `move_down`.
+
+The `move_top` and `move_bottom` methods only have one argument:
+the `list` of _element_references_ to move (named `elements`).
+Passing a single _element reference_ (`string`) is also supported.
+These methods are just an easier and more explicit way of doing
+`move(elements, 0)` and `move(elements, -1)`.
+
+The `move_before` and `move_after` methods are really useful because
+they provide an easy way of moving elements around without dealing with
+0-based integer indexes.
+
+Both `move_before` and `move_after` have a first argument named
 `reference` and a second argument named `elements`. As can be
-inferred, The input `elements` are inserted _before_ or _after_
+inferred, the input `elements` are inserted **_before_** or **_after_**
 the `reference` element. For instance:
 
 ```python
-ds.order.insert_before('Account', 'id')
-ds.order.insert_after(reference='Account', elements='religion')
-ds.order.insert_after(reference='Account', elements=['religion', 'gender'])
-ds.order['Account'].insert_after('Location', elements=['id', 'religion'])
+ds.order.move_before('Account', 'id')
+ds.order.move_after(reference='Account', elements='religion')
+ds.order.move_after(reference='Account', elements=['religion', 'gender'])
+ds.order['Account'].move_before('Location', elements=['id', 'religion'])
+```
+
+The `move_up` and `move_down` methods take only one argument
+(named `element`) which is a reference to the element that will
+be moved one slot up or down **from its current location**. For
+example:
+
+```python
+ds.order.move_up('Account')
+ds.order['Account'].move_down(element='registration_time')
 ```
 
 ### Group-level Reordering
@@ -469,13 +496,14 @@ of all first-level child elements with a single call. Naturally, this
 also applies to the **root** group.
 
 For instance, the `set` method could be used to reorder the elements
-of the **root** group in the following manner:
+of the **root** group in our example dataset (in its initial state),
+in the following manner:
 
 ```python
 ds.order.set(['id', 'music', 'religion', 'hobbies', 'Account'])
 ```
 
-which should update the order structure like so:
+The updated order structure would be:
 
 ```
 id
@@ -507,8 +535,8 @@ _element references_, which must obey the following rules:
 A `ValueError` exception is raised if any of the above rules is not
 observed.
 
-Nested calls to the `set` method are possible. For example, the following
-code:
+Naturally, calls to the `set` method can happen with nested
+access to sub-groups. For instance:
 
 ```python
 ds.order['Account'].set(
@@ -520,7 +548,7 @@ would give a new order to the **Account** sub-group in our example dataset.
 
 ### Removing Elements from Groups
 
-`Group` objects provide a `remove` method that allows getting rid of
+`Group` objects provide a `remove` method that gets rid of
 elements within it. Target elements are removed from the group and
 moved to the **root** group (at the end).
 
@@ -540,8 +568,8 @@ Trying to remove elements from the **root** group raises a
 ### Creating new Groups
 
 The **Hierarchical Order** structure always has at least one main group
-which contains the top-level variables in the hierarchy; it can also
-have nested sub-groups with more variables within them. The
+which contains the first-level variables in the hierarchy; it can
+also have nested sub-groups with more variables within them. The
 **scrunch** library terms this main group the **_root_** group.
 
 New groups can be inserted into the hierarchy by means of the `create`
@@ -565,6 +593,23 @@ ds.order.create('new group', 'id')
 ds.order.order['Account'].create(name='my group', elements=['id', 'gender'])
 ```
 
+### Renaming existing Groups
+
+Existing `Group` objects can be renamed using their `rename` method,
+which takes the new `name` as its only argument:
+
+```python
+ds.order.order['Account'].rename('Administration')
+ds.order.order['Administration']['Location'].rename(name='Loc')
+```
+
+Using an invalid `name` argument (e.g. one that already exists in the
+parent group either as a variable or as another group) raises a
+`ValueError` exception.
+
+Trying to `rename` the **root** group raises a `NotImplementedError`
+exception.
+
 ### Deleting existing Groups
 
 The `delete` method in `Group` objects takes care of deleting the group
@@ -583,7 +628,7 @@ ds.order['Account'].delete()
 Miscellaneous Utilities
 -----------------------
 
-`Group` objects provide two very useful methods: `find` and `find_group`.
+`Group` objects also provide two very useful methods: `find` and `find_group`.
 
 The `find` method looks for an `alias` within the group (including nested
 sub-groups) and returns its _container_ `Group` object. If the target
@@ -594,18 +639,19 @@ to look for any `alias` within the whole hierarchical order structure:
 
 ```python
 if ds.order.find('gender'):
-    print('FOUND')
+    print('Found!')
 
 container = ds.order.find('id')
 if container:
+    print(container.name)
     user_id = container['id']
 ```
 
-The `find_group` method works similarly, but it looks for sub-groups by
-`name`. The `Group` object is returned in the case of success. If the
-group is not found, then `None` is returned:
+The `find_group` method works similarly, but it only looks for `Group`
+objects (not variables) by `name`. The `Group` object is returned in
+the case of success. If the group is not found, then `None` is returned:
 
 ```python
 if ds.order.find_group('Account'):
-    print('FOUND')
+    print('Account group exists!')
 ```
