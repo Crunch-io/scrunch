@@ -15,58 +15,26 @@ class TestDatasetBase(object):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
 
     def dataset_mock(self, variables=None):
-        variables = variables or dict(
-            disposition=dict(
+        variables = variables or {
+            '0001': dict(
                 id='0001',
                 alias='disposition',
                 type='numeric',
                 is_subvar=False
             ),
-            exit_status=dict(
+            '0002': dict(
                 id='0002',
                 alias='exit_status',
                 type='numeric',
                 is_subvar=False
-            ),
-        )
-
-        # Mocking setup.
-        def _get(name):
-            def f(*args):
-                return variables[name].get(args[0], args[0])
-            return f
-
-        metadata = {}
-        for alias in variables.keys():
-            v = variables[alias]
-            url = '%svariables/%s/' % (self.ds_url, v['id'])
-            _m = mock.MagicMock()
-            _m.entity.self = url
-            _m.__getitem__.side_effect = _get(alias)
-            _m.get.side_effect = _get(alias)
-            metadata[alias] = _m
-
-        class CrunchPayload(dict):
-            def __getattr__(self, item):
-                if item == 'payload':
-                    return self
-                else:
-                    return self[item]
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return CrunchPayload({
-                    'metadata': metadata
-                })
-            return CrunchPayload()
+            )
+        }
 
         ds = mock.MagicMock()
         ds.self = self.ds_url
         ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.session.get.side_effect = _session_get
+        table_mock = mock.MagicMock(metadata=variables)
+        ds.follow.return_value = table_mock
 
         return Dataset(ds)
 
@@ -84,44 +52,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         var_type = 'numeric'
         var_url = '%svariables/%s/' % (self.ds_url, var_id)
 
-        # Mocking setup.
-        def _get(*args):
-            if args[0] == 'id':
-                return var_id
-            if args[0] == 'alias':
-                return var_alias
-            if args[0] == 'type':
-                return var_type
-            if args[0] == 'is_subvar':
-                return False
-            return args[0]
-
-        _var_mock = mock.MagicMock()
-        _var_mock.entity.self = var_url
-        _var_mock.__getitem__.side_effect = _get
-        _var_mock.get.side_effect = _get
-
-        class CrunchPayload(dict):
-            def __getattr__(self, item):
-                if item == 'payload':
-                    return self
-                else:
-                    return self[item]
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return CrunchPayload({
-                    'metadata': {
-                        var_alias: _var_mock
-                    }
-                })
-            return CrunchPayload()
-
         ds_res = mock.MagicMock()
         ds_res.self = self.ds_url
-        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds_res.fragments.table = '%stable/' % self.ds_url
-        ds_res.session.get.side_effect = _session_get
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'alias': var_alias,
+                'id': var_id,
+                'type': var_type,
+            }
+        })
+        ds_res.follow.return_value = table_mock
         ds = Dataset(ds_res)
 
         # Action!
@@ -940,35 +880,35 @@ class TestForks(TestCase):
 class TestRecode(TestDatasetBase):
     def test_recode_single_categorical(self):
         variables = {
-            'var_a': {
+            '001': {
                 'id': '001',
                 'alias': 'var_a',
                 'name': 'Variable A',
                 'type': 'numeric',
                 'is_subvar': False
             },
-            'var_b': {
+            '002': {
                 'id': '002',
                 'alias': 'var_b',
                 'name': 'Variable B',
                 'type': 'categorical',
                 'is_subvar': False
             },
-            'var_c': {
+            '003': {
                 'id': '003',
                 'alias': 'var_c',
                 'name': 'Variable C',
                 'type': 'categorical',
                 'is_subvar': False
             },
-            'gender': {
+            '004': {
                 'id': '004',
                 'alias': 'gender',
                 'name': 'Gender',
                 'type': 'categorical',
                 'is_subvar': False
             },
-            'age': {
+            '005': {
                 'id': '005',
                 'alias': 'age',
                 'name': 'Age',
