@@ -1157,6 +1157,17 @@ class TestRecode(TestDatasetBase):
 
 
 class TestEditCombination(TestCase):
+    def test_edit_not_derived(self):
+        var_res = mock.MagicMock(body={})
+        variable = Variable(var_res)
+        try:
+            variable.edit_combination([
+                {'id': 1, 'name': 'fail', 'combined_ids': [1, 2, 3], 'missing': False}
+            ])
+            assert False  # Should not hit this line
+        except ValueError as err:
+            assert err.message == 'Cannot edit combination on non derived'
+
     def test_edit_single_response(self):
         var_res = mock.MagicMock()
         var_res.body.derivation = {

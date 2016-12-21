@@ -1192,11 +1192,11 @@ class Variable(object):
         return Variable(ds.variables.create(payload).refresh())
 
     def edit_combination(self, response_map):
-        alias = self.alias
         res = self.resource
-        if not res.body.derivation:
+        if not res.body.get('derivation'):
             raise ValueError('Cannot edit combination on non derived')
 
+        alias = self.alias
         fn_name = res.body.derivation['function']
         if fn_name not in {'combine_categories', 'combine_responses', 'array'}:
             raise ValueError('Only possible to edit combinations on combined variables')
