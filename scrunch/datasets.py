@@ -1,3 +1,5 @@
+import abc
+import collections
 import json
 import requests
 import six
@@ -218,6 +220,577 @@ def download_file(url, filename):
     return filename
 
 
+class OrderUpdateError(Exception):
+    pass
+
+
+class AbstractContainer(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __getitem__(self, item):
+        if not isinstance(item, (int, six.string_types)):
+            raise TypeError('arg 1 must be either int or str')
+        if isinstance(item, int):
+            key, obj = list(self.elements.items())[item]
+        else:
+            key = item
+            obj = self.elements[item]
+        if isinstance(obj, six.string_types):  # it's a variable ID
+            # Swap the variable ID for a Variable object.
+            var = Variable(resource=self.order.vars[obj].entity)
+            obj = self.elements[key] = var
+        return obj
+
+
+class Hierarchy(AbstractContainer):
+    def __init__(self, group):
+        self.group = group
+        self.elements = group.elements
+        self.order = group.order
+
+    def __str__(self):
+        def _get_elements(group):
+            elements = []
+            for name, obj in list(group.elements.items()):
+                if isinstance(obj, Group):
+                    elements.append({name: _get_elements(obj)})
+                else:
+                    elements.append(name)
+            return elements
+
+        str_elements = _get_elements(self.group)
+        return json.dumps(str_elements, indent=4)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class VariableList(AbstractContainer):
+    def __init__(self, group):
+        self.group = group
+        self.order = group.order
+
+    @property
+    def elements(self):
+        class ElementsWrapper(collections.OrderedDict):
+            def __init__(self, container, *args, **kwargs):
+                self.order = container.order
+                super(ElementsWrapper, self).__init__(*args, **kwargs)
+
+            def __setitem__(self, key, value, *args):
+                super(ElementsWrapper, self).__setitem__(key, value, *args)
+                if isinstance(value, Variable):
+                    group = self.order.find(key)
+                    if group and group.elements[key] != value:
+                        group.elements[key] = value
+
+        flattened_elements = ElementsWrapper(self)
+
+        def _get_elements(group):
+            for name, obj in list(group.elements.items()):
+                if isinstance(obj, Group):
+                    _get_elements(obj)
+                else:
+                    flattened_elements[name] = obj
+
+        _get_elements(self.group)
+
+        return flattened_elements
+
+    def __str__(self):
+        return json.dumps(list(self.elements.keys()), indent=4)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class Group(AbstractContainer):
+
+    def __init__(self, obj, order, parent=None):
+        self.name = list(obj.keys())[0]
+        self.order = order
+        self.parent = parent
+        self.elements = collections.OrderedDict()
+
+        # Load all the elements.
+        for element in obj[self.name]:
+            if isinstance(element, six.string_types):
+                _id = element.split('/')[-2]
+                var = self.order.vars.get(_id)
+                if var:
+                    self.elements[var['alias']] = _id
+            elif isinstance(element, Variable):
+                self.elements[element.alias] = element
+            else:
+                subgroup = Group(element, order=self.order, parent=self)
+                self.elements[subgroup.name] = subgroup
+
+        self.hierarchy = Hierarchy(self)
+        self.variables = VariableList(self)
+
+    def __str__(self):
+        str_elements = []
+        for alias, obj in self.elements.items():
+            if isinstance(obj, six.string_types) or isinstance(obj, Variable):
+                str_elements.append(alias)
+            else:
+                str_elements.append('Group(%s)' % obj.name)
+        return json.dumps(str_elements, indent=4)
+
+    def __repr__(self):
+        return self.__str__()
+
+    @staticmethod
+    def _validate_elements_arg(elements):
+        if isinstance(elements, six.string_types):
+            elements = [elements]
+        if not isinstance(elements, collections.Iterable):
+            raise ValueError(
+                'Invalid list of elements to be inserted into the Group.'
+            )
+        if not all(isinstance(e, six.string_types) for e in elements):
+            raise ValueError(
+                'Only string references to aliases/group names are allowed.'
+            )
+        return elements
+
+    def _validate_reference_arg(self, reference):
+        if not isinstance(reference, six.string_types):
+            raise TypeError('Invalid reference. It must be a string.')
+        if reference not in self.elements:
+            raise ValueError(
+                'Invalid reference. It is not part of the current Group.'
+            )
+        return reference
+
+    def find(self, name):
+
+        def _find(group):
+            for _name, obj in group.elements.items():
+                if isinstance(obj, Group):
+                    result = _find(obj)
+                    if result:
+                        return result
+                elif _name == name:
+                    return group
+
+        return _find(self)
+
+    def find_group(self, name):
+
+        def _find(group):
+            if group.name == name:
+                return group
+            for _name, obj in group.elements.items():
+                if isinstance(obj, Group):
+                    result = _find(obj)
+                    if result:
+                        return result
+
+        return _find(self)
+
+    def move(self, elements, position):
+        elements = self._validate_elements_arg(elements)
+
+        if not isinstance(position, int):
+            raise ValueError('Invalid position. It must be an integer.')
+        if position < -1 or position > len(self.elements):
+            raise ValueError('Invalid position %d' % position)
+        if position == -1:
+            position = len(self.elements)
+
+        elements_to_move = collections.OrderedDict()
+        for element_name in elements:
+            if element_name in self.elements:
+                elements_to_move[element_name] = \
+                    (self.elements[element_name], '__move__')
+            else:
+                current_group = self.order.find(element_name)
+                if current_group:
+                    # A variable.
+                    elements_to_move[element_name] = \
+                        (current_group, '__migrate_var__')
+                else:
+                    # Not a variable. A group, maybe?
+                    group_to_move = self.order.find_group(element_name)
+                    if group_to_move:
+                        elements_to_move[element_name] = \
+                            (group_to_move, '__migrate_group__')
+                    else:
+                        raise ValueError(
+                            'Invalid alias/group name \'%s\'' % element_name
+                        )
+
+        # Make all necessary changes to the order structure.
+        _elements = collections.OrderedDict()
+        _pending = collections.OrderedDict()
+
+        i = 0
+        for name in list(self.elements.keys()):
+            if name in elements_to_move:
+                if i < position:
+                    i += 1
+                continue
+            if i < position:
+                _elements[name] = self.elements[name]
+            else:
+                _pending[name] = self.elements[name]
+            i += 1
+
+        for element_name in elements_to_move.keys():
+            obj, operation = elements_to_move[element_name]
+
+            if operation == '__move__':
+                _elements[element_name] = elements_to_move[element_name]
+            elif operation == '__migrate_var__':
+                current_group = obj
+                element = current_group.elements[element_name]
+                del current_group.elements[element_name]
+                _elements[element_name] = element
+            elif operation == '__migrate_group__':
+                group_to_move = obj
+                orig_parent = group_to_move.parent
+                group_to_move.parent = self
+                del orig_parent.elements[element_name]
+                _elements[element_name] = group_to_move
+
+        for name, obj in _pending.items():
+            _elements[name] = obj
+
+        self.elements = _elements
+
+        # Update!
+        self.order.update()
+
+    def move_before(self, reference, elements):
+        reference = self._validate_reference_arg(reference)
+
+        position = 0
+        for i, name in enumerate(self.elements.keys()):
+            if reference == name:
+                position = i
+                break
+
+        self.move(elements, position=position)
+
+    def move_after(self, reference, elements):
+        reference = self._validate_reference_arg(reference)
+
+        position = 0
+        for i, name in enumerate(self.elements.keys()):
+            if reference == name:
+                position = i + 1
+                break
+
+        self.move(elements, position=position)
+
+    def move_up(self, element):
+        element = self._validate_reference_arg(element)
+
+        position = 0
+        for i, name in enumerate(self.elements.keys()):
+            if name == element:
+                position = i - 1
+                break
+
+        if position == 0:
+            # Nothing to do.
+            return
+
+        self.move(element, position=position)
+
+    def move_down(self, element):
+        element = self._validate_reference_arg(element)
+
+        position = 0
+        for i, name in enumerate(self.elements.keys()):
+            if name == element:
+                position = i + 1
+                break
+
+        if position == len(self.elements) - 1:
+            # Nothing to do.
+            return
+
+        self.move(element, position=position)
+
+    def move_top(self, element):
+        self.move(element, position=0)
+
+    def move_bottom(self, element):
+        self.move(element, position=-1)
+
+    def set(self, elements):
+        existing_elements = [name for name in self.elements.keys()]
+        if len(elements) != len(existing_elements) or \
+                not all(e in existing_elements for e in elements):
+            raise ValueError('Invalid list of element references.')
+
+        if elements == existing_elements:
+            # Nothing to do.
+            return
+
+        _elements = collections.OrderedDict()
+        for element in elements:
+            _elements[element] = self.elements[element]
+        self.elements = _elements
+
+        self.order.update()
+
+    def create(self, name, elements=None):
+        if name in self.elements:
+            raise ValueError(
+                'A variable/sub-group named \'%s\' already exists.' % name
+            )
+        if elements is None:
+            elements = []
+        else:
+            elements = self._validate_elements_arg(elements)
+
+        # Locate all elements to move. All of them have to exist.
+        elements_to_move = collections.OrderedDict()
+        for element_name in elements:
+            current_group = self.order.find(element_name)
+            if current_group and element_name in current_group.elements:
+                elements_to_move[element_name] = (current_group,)
+            else:
+                group_to_move = self.order.find_group(element_name)
+                if group_to_move:
+                    elements_to_move[element_name] = group_to_move
+                else:
+                    raise ValueError(
+                        'Invalid alias/group name \'%s\'' % element_name
+                    )
+
+        # Make the modifications to the order structure.
+        new_group = Group({name: []}, order=self.order, parent=self)
+        for element_name, obj in elements_to_move.items():
+            if isinstance(obj, tuple):
+                current_group = obj[0]
+                new_group.elements[element_name] = \
+                    current_group.elements[element_name]
+                del current_group.elements[element_name]
+            else:
+                group_to_move = obj
+                orig_parent = group_to_move.parent
+                group_to_move.parent = new_group
+                new_group.elements[element_name] = group_to_move
+                del orig_parent.elements[element_name]
+        self.elements[name] = new_group
+
+        # Update!
+        self.order.update()
+
+    def rename(self, name):
+        if self.name == '__root__' and self.parent is None:
+            raise NotImplementedError(
+                'Renaming the root Group is not allowed.'
+            )
+        if name == self.name:
+            # Nothing to do.
+            return
+
+        if name in self.parent.elements:
+            raise ValueError(
+                'Parent Group \'%s\' already contains an element named \'%s\'.'
+                % (self.parent.name, name)
+            )
+
+        # Rename!
+        del self.parent.elements[self.name]
+        self.parent.elements[name] = self
+
+        # Update!
+        self.order.update()
+
+    def remove(self, elements):
+        if self.name == '__root__' and self.parent is None:
+            raise NotImplementedError(
+                'Removing elements from the root Group is not allowed.'
+            )
+        if isinstance(elements, six.string_types):
+            elements = [elements]
+        if not isinstance(elements, collections.Iterable):
+            raise ValueError(
+                'Invalid list of elements to remove from Group.'
+            )
+        if not all(isinstance(e, six.string_types) for e in elements):
+            raise ValueError(
+                'Only string references to aliases/group names are allowed.'
+            )
+
+        # Locate all elements to remove. All of them have to be found.
+        elements_to_remove = collections.OrderedDict()
+        for element_name in elements:
+            if element_name not in self.elements:
+                raise ValueError(
+                    'A variable/sub-group named \'%s\' does not exist '
+                    'within the Group.' % element_name
+                )
+            elements_to_remove[element_name] = self.elements[element_name]
+
+        # Make the modifications to the order structure.
+        for element_name, obj in elements_to_remove.items():
+            if isinstance(obj, Group):
+                obj.parent = self.order.graph
+            self.order.graph.elements[element_name] = obj
+            del self.elements[element_name]
+
+        # Update!
+        self.order.update()
+
+    def delete(self):
+        if self.name == '__root__' and self.parent is None:
+            raise NotImplementedError('Deleting the root Group is not allowed.')
+
+        # Before deleting the Group, move all its elements to the root.
+        for element_name, obj in self.elements.items():
+            if isinstance(obj, Group):
+                obj.parent = self.order.graph
+            self.order.graph.elements[element_name] = obj
+            del self.elements[element_name]
+
+        # Delete from parent.
+        del self.parent.elements[self.name]
+
+        # Update!
+        self.order.update()
+
+
+class Order(object):
+
+    def __init__(self, ds):
+        self.ds = ds
+        self._hier = None
+        self._vars = None
+        self._graph = None
+
+    def _load_hier(self):
+        self._hier = self.ds.resource.session.get(
+            self.ds.resource.variables.orders.hier
+        ).payload
+        return self._hier
+
+    def _load_vars(self):
+        self._vars = self.ds.resource.variables.by('id')
+        return self._vars
+
+    def _load_graph(self):
+        self._graph = Group({'__root__': self.hier.graph}, order=self)
+        return self._graph
+
+    @property
+    def hier(self):
+        if self._hier is None:
+            self._load_hier()
+        return self._hier
+
+    @property
+    def vars(self):
+        if self._vars is None:
+            self._load_vars()
+        return self._vars
+
+    @property
+    def graph(self):
+        if self._graph is None:
+            self._load_graph()
+        return self._graph
+
+    def _build_graph_structure(self):
+
+        def _get(group):
+            _elements = []
+            for obj in group.elements.values():
+                if isinstance(obj, Group):
+                    _elements.append({
+                        obj.name: _get(obj)
+                    })
+                else:
+                    if isinstance(obj, Variable):
+                        _id = obj.id
+                    else:
+                        _id = obj
+                    _elements.append('../%s/' % _id)
+            return _elements
+
+        return _get(self.graph)
+
+    def update(self):
+        updated_order = {
+            'element': 'shoji:order',
+            'graph': self._build_graph_structure()
+        }
+        try:
+            self.hier.put(updated_order)
+        except (pycrunch.ClientError, pycrunch.ServerError) as e:
+            # Our update to the Hierarchical Order failed. Better reload.
+            self._hier = self._vars = self._graph = None
+            self._load_graph()
+            raise OrderUpdateError(str(e))
+
+    # Proxy methods for the __root__ Group
+
+    @property
+    def hierarchy(self):
+        return self.graph.hierarchy
+
+    @property
+    def variables(self):
+        return self.graph.variables
+
+    def __str__(self):
+        return str(self.graph)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __getitem__(self, item):
+        return self.graph[item]
+
+    def find(self, *args, **kwargs):
+        return self.graph.find(*args, **kwargs)
+
+    def find_group(self, *args, **kwargs):
+        return self.graph.find_group(*args, **kwargs)
+
+    def move(self, *args, **kwargs):
+        self.graph.move(*args, **kwargs)
+
+    def move_before(self, *args, **kwargs):
+        self.graph.move_before(*args, **kwargs)
+
+    def move_after(self, *args, **kwargs):
+        self.graph.move_after(*args, **kwargs)
+
+    def move_up(self, *args, **kwargs):
+        self.graph.move_up(*args, **kwargs)
+
+    def move_down(self, *args, **kwargs):
+        self.graph.move_down(*args, **kwargs)
+
+    def move_top(self, *args, **kwargs):
+        self.graph.move_top(*args, **kwargs)
+
+    def move_bottom(self, *args, **kwargs):
+        self.graph.move_bottom(*args, **kwargs)
+
+    def set(self, *args, **kwargs):
+        self.graph.set(*args, **kwargs)
+
+    def create(self, *args, **kwargs):
+        self.graph.create(*args, **kwargs)
+
+    def rename(self, *args, **kwargs):
+        self.graph.rename(*args, **kwargs)
+
+    def remove(self, *args, **kwargs):
+        self.graph.remove(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        self.graph.delete(*args, **kwargs)
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -233,6 +806,7 @@ class Dataset(object):
         """
         self.resource = resource
         self.session = self.resource.session
+        self.order = Order(self)
 
     def __getattr__(self, item):
         if item in self.ENTITY_ATTRIBUTES:
