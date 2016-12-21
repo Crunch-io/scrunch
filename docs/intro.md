@@ -182,8 +182,8 @@ For example, if `brandrating` is a variable with categories: `Very favorable`,
 re-coded variable `brandrating2` using the following code:
 
 ```python
-var = ds.brandrating
-new_var = var.combine(
+var = dataset['brandrating']
+new_var = dataset.combine(var,
     alias='brandrating2',
     map={1: (1, 2), 2: 3, 3: (4, 5)},
     names=('Favorable', 'Neutral', 'Unfavorable'),
@@ -196,8 +196,8 @@ Sensible defaults are used whenever possible. For example, we can omit the
 `name` and `description` arguments:
 
 ```python
-var = ds.brandrating
-new_var = var.combine(
+var = dataset['brandrating']
+new_var = dataset.combine(var,
     alias='brandrating2',
     map={1: (1, 2), 2: 3, 3: (4, 5)},
     names=('Favorable', 'Neutral', 'Unfavorable')
@@ -210,8 +210,8 @@ in which case the name of the new variable would be the original name plus the
 The `combine` method also works on `multiple_response` Variables. For example:
 
 ```python
-var = ds.mult_resp
-new_var = var.combine(
+var = ds['mult_resp']
+new_var = ds.combine(var, 
     alias='recoded_mult_resp',
     map={
         'new_subvar_alias1': ('orig_subvar_alias1', 'orig_subvar_alias2'),
