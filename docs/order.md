@@ -300,7 +300,7 @@ bracket syntax in two forms:
 - Using 0-based integer indexes, like python `list` objects. For example:
 
 ```python
-user_id = ds.oder[0]
+user_id = ds.order[0]
 ```
 
 - Using string keys, as with python `dict` objects. In this case, the
@@ -458,7 +458,7 @@ objects also provide the following convenience methods:
 and `move_down`.
 
 The `move_top` and `move_bottom` methods only have one argument:
-the `list` of _element_references_ to move (named `elements`).
+the `list` of _element references_ to move (named `elements`).
 Passing a single _element reference_ (`string`) is also supported.
 These methods are just an easier and more explicit way of doing
 `move(elements, 0)` and `move(elements, -1)`.
