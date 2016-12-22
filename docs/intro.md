@@ -80,8 +80,8 @@ var.edit(categories=var.body.categories)
 
 Step 4: Ordering and organizing variables
 -----------------------------------------
- 
-[comment]: TODO: To be rewritten by Alejandro.
+
+See the [Hierarchical Order API](order.md) documentation for complete details.
 
 
 Step 5: Standard Cleaning Features
