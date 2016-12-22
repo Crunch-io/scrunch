@@ -56,7 +56,6 @@ address
  Location
   country
   city
-hobbies
 music
  Other
   registration_time
@@ -91,8 +90,8 @@ Detailed information on the usage of the **Hierarchical Order** API in
 Hierarchical Order API
 ======================
 
-In order to show how **scrunch**'s **Hierarchical Order** API works,
-we'll use an example Dataset with the same **Hierarchical Order**
+For the purpose of demonstrating how **scrunch**'s **Hierarchical Order**
+API works, we'll use an example Dataset with the same **Hierarchical Order**
 structure as the one in the **Introduction** section. That is:
 
 ```
