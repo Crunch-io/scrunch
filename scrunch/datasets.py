@@ -619,6 +619,7 @@ class Group(AbstractContainer):
             else:
                 _elements[current_name] = obj
         self.name = name
+        self.parent.elements = _elements
 
         # Update!
         self.order.update()
