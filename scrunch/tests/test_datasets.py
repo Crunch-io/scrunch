@@ -1,7 +1,7 @@
 import collections
 import json
 
-from unittest import mock
+import mock
 from unittest import TestCase
 
 import pytest
