@@ -227,6 +227,8 @@ class OrderUpdateError(Exception):
 class AbstractContainer(object):
     __metaclass__ = abc.ABCMeta
 
+    indent_size = 4
+
     def __getitem__(self, item):
         if not isinstance(item, (int, six.string_types)):
             raise TypeError('arg 1 must be either int or str')
@@ -240,6 +242,9 @@ class AbstractContainer(object):
             var = Variable(resource=self.order.vars[obj].entity)
             obj = self.elements[key] = var
         return obj
+
+    def __contains__(self, item):
+        return item in self.elements
 
 
 class Hierarchy(AbstractContainer):
@@ -259,7 +264,7 @@ class Hierarchy(AbstractContainer):
             return elements
 
         str_elements = _get_elements(self.group)
-        return json.dumps(str_elements, indent=4)
+        return json.dumps(str_elements, indent=self.indent_size)
 
     def __repr__(self):
         return self.__str__()
@@ -298,7 +303,7 @@ class VariableList(AbstractContainer):
         return flattened_elements
 
     def __str__(self):
-        return json.dumps(list(self.elements.keys()), indent=4)
+        return json.dumps(list(self.elements.keys()), indent=self.indent_size)
 
     def __repr__(self):
         return self.__str__()
@@ -335,7 +340,7 @@ class Group(AbstractContainer):
                 str_elements.append(alias)
             else:
                 str_elements.append('Group(%s)' % obj.name)
-        return json.dumps(str_elements, indent=4)
+        return json.dumps(str_elements, indent=self.indent_size)
 
     def __repr__(self):
         return self.__str__()
@@ -389,7 +394,7 @@ class Group(AbstractContainer):
 
         return _find(self)
 
-    def move(self, elements, position):
+    def move(self, elements, position=-1):
         elements = self._validate_elements_arg(elements)
 
         if not isinstance(position, int):
@@ -423,39 +428,39 @@ class Group(AbstractContainer):
 
         # Make all necessary changes to the order structure.
         _elements = collections.OrderedDict()
-        _pending = collections.OrderedDict()
+        _non_targeted = list()
 
-        i = 0
         for name in list(self.elements.keys()):
             if name in elements_to_move:
-                if i < position:
-                    i += 1
                 continue
-            if i < position:
-                _elements[name] = self.elements[name]
-            else:
-                _pending[name] = self.elements[name]
+            _non_targeted.append((name, self.elements[name]))
+        _non_targeted = list(reversed(_non_targeted))  # FIFO for .pop()
+
+        total = len(_non_targeted) + len(elements_to_move)
+        i = 0
+        while i <= total:
+            if i == position:
+                for element_name in elements_to_move.keys():
+                    obj, operation = elements_to_move[element_name]
+
+                    if operation == '__move__':
+                        _elements[element_name] = obj
+                    elif operation == '__migrate_var__':
+                        current_group = obj
+                        element = current_group.elements[element_name]
+                        del current_group.elements[element_name]
+                        _elements[element_name] = element
+                    elif operation == '__migrate_group__':
+                        group_to_move = obj
+                        orig_parent = group_to_move.parent
+                        group_to_move.parent = self
+                        del orig_parent.elements[element_name]
+                        _elements[element_name] = group_to_move
+            elif len(_non_targeted):
+                element_name, obj = _non_targeted.pop()
+                _elements[element_name] = obj
+
             i += 1
-
-        for element_name in elements_to_move.keys():
-            obj, operation = elements_to_move[element_name]
-
-            if operation == '__move__':
-                _elements[element_name] = elements_to_move[element_name]
-            elif operation == '__migrate_var__':
-                current_group = obj
-                element = current_group.elements[element_name]
-                del current_group.elements[element_name]
-                _elements[element_name] = element
-            elif operation == '__migrate_group__':
-                group_to_move = obj
-                orig_parent = group_to_move.parent
-                group_to_move.parent = self
-                del orig_parent.elements[element_name]
-                _elements[element_name] = group_to_move
-
-        for name, obj in _pending.items():
-            _elements[name] = obj
 
         self.elements = _elements
 
@@ -464,23 +469,33 @@ class Group(AbstractContainer):
 
     def move_before(self, reference, elements):
         reference = self._validate_reference_arg(reference)
+        elements = self._validate_elements_arg(elements)
 
         position = 0
-        for i, name in enumerate(self.elements.keys()):
+        i = 0
+        for name in self.elements.keys():
+            if name in elements:
+                continue
             if reference == name:
                 position = i
                 break
+            i += 1
 
         self.move(elements, position=position)
 
     def move_after(self, reference, elements):
         reference = self._validate_reference_arg(reference)
+        elements = self._validate_elements_arg(elements)
 
         position = 0
-        for i, name in enumerate(self.elements.keys()):
+        i = 0
+        for name in self.elements.keys():
+            if name in elements:
+                continue
             if reference == name:
                 position = i + 1
                 break
+            i += 1
 
         self.move(elements, position=position)
 
@@ -493,7 +508,7 @@ class Group(AbstractContainer):
                 position = i - 1
                 break
 
-        if position == 0:
+        if position == -1:
             # Nothing to do.
             return
 
@@ -508,7 +523,7 @@ class Group(AbstractContainer):
                 position = i + 1
                 break
 
-        if position == len(self.elements) - 1:
+        if position == len(self.elements):
             # Nothing to do.
             return
 
@@ -597,8 +612,13 @@ class Group(AbstractContainer):
             )
 
         # Rename!
-        del self.parent.elements[self.name]
-        self.parent.elements[name] = self
+        _elements = collections.OrderedDict()
+        for current_name, obj in self.parent.elements.items():
+            if current_name == self.name:
+                _elements[name] = obj
+            else:
+                _elements[current_name] = obj
+        self.name = name
 
         # Update!
         self.order.update()
@@ -747,6 +767,9 @@ class Order(object):
 
     def __getitem__(self, item):
         return self.graph[item]
+
+    def __contains__(self, item):
+        return item in self.graph
 
     def find(self, *args, **kwargs):
         return self.graph.find(*args, **kwargs)

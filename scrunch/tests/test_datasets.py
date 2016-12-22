@@ -1,14 +1,17 @@
+import collections
 import json
 
-import mock
+from unittest import mock
 from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
-from scrunch.datasets import Dataset
 from pycrunch.elements import JSONObject
 from pycrunch.shoji import Entity
 from pycrunch.variables import cast
+
+import scrunch
+from scrunch.datasets import Dataset
 
 
 class TestDatasetBase(object):
@@ -934,3 +937,1630 @@ class TestForks(TestCase):
         df = ds.forks_dataframe()
 
         assert df is None
+
+
+class TestHierarchicalOrder(TestCase):
+
+    ds_url = 'http://test.crunch.local/api/datasets/123/'
+
+    class CrunchPayload(dict):
+        def __init__(self, *args, **kwargs):
+            super(self.__class__, self).__init__(*args, **kwargs)
+            self.put = mock.MagicMock()
+
+        def __getattr__(self, item):
+            if item == 'payload':
+                return self
+            else:
+                return self[item]
+
+    @staticmethod
+    def _build_get_func(var):
+        properties = {}
+        properties.update(var)
+
+        def _get(*args):
+            return properties.get(args[0], args[0])
+
+        return _get
+
+    @staticmethod
+    def _get_update_payload(ds):
+        try:
+            return ds.order.hier.put.call_args_list[-1][0][0]
+        except IndexError:
+            return None
+
+    def setUp(self):
+        variable_defs = [
+            {
+                'id': '000001',
+                'alias': 'id',
+                'name': 'ID',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            {
+                'id': '000002',
+                'alias': 'hobbies',
+                'name': 'Hobbies',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000003',
+                'alias': 'registration_time',
+                'name': 'Registration Time',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            {
+                'id': '000004',
+                'alias': 'last_login_time',
+                'name': 'Last Login Time',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            {
+                'id': '000005',
+                'alias': 'first_name',
+                'name': 'First Name',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000006',
+                'alias': 'last_name',
+                'name': 'Last Name',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000007',
+                'alias': 'gender',
+                'name': 'Gender',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000008',
+                'alias': 'country',
+                'name': 'Country',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000009',
+                'alias': 'city',
+                'name': 'City',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000010',
+                'alias': 'zip_code',
+                'name': 'Zip Code',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000011',
+                'alias': 'address',
+                'name': 'Address',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000012',
+                'alias': 'music',
+                'name': 'Music',
+                'type': 'text',
+                'is_subvar': False
+            },
+            {
+                'id': '000013',
+                'alias': 'religion',
+                'name': 'Religion',
+                'type': 'text',
+                'is_subvar': False
+            }
+        ]
+        table = {
+            'element': 'crunch:table',
+            'self': '%stable/' % self.ds_url,
+            'metadata': collections.OrderedDict()
+        }
+        variables = collections.OrderedDict()
+        hier_order = {
+            'element': 'shoji:order',
+            'self': '%svariables/hier/' % self.ds_url,
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        for var in variable_defs:
+            var_url = '%svariables/%s/' % (self.ds_url, var['id'])
+            _get_func = self._build_get_func(var)
+            _var_mock = mock.MagicMock()
+            _var_mock.__getitem__.side_effect = _get_func
+            _var_mock.get.side_effect = _get_func
+            _var_mock.entity.self = var_url
+            _var_mock.entity.body.__getitem__.side_effect = _get_func
+            _var_mock.entity.body.get.side_effect = _get_func
+            table['metadata'][var['id']] = _var_mock
+            variables[var['id']] = _var_mock
+
+        def _session_get(*args):
+            if args[0] == '{}table/'.format(self.ds_url):
+                return self.CrunchPayload(table)
+            elif args[0] == '{}variables/hier/'.format(self.ds_url):
+                return self.CrunchPayload(hier_order)
+            return self.CrunchPayload()
+
+        ds_resource = mock.MagicMock()
+        ds_resource.self = self.ds_url
+        ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
+        ds_resource.variables.by.return_value = variables
+        ds_resource.session.get.side_effect = _session_get
+        self.ds = Dataset(ds_resource)
+
+    def test_order_property_is_loaded_correctly(self):
+        ds = self.ds
+
+        assert isinstance(ds.order, scrunch.datasets.Order)
+        assert isinstance(ds.order.graph, scrunch.datasets.Group)  # root group
+
+    def test_element_access(self):
+        ds = self.ds
+
+        # Test element access using 0-based integer indexes.
+        var = ds.order[0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'ID'
+        assert var.alias == 'id'
+        assert var.id == '000001'
+
+        group = ds.order[2]
+        assert isinstance(group, scrunch.datasets.Group)
+        assert group.name == 'Account'
+        assert group.parent == ds.order.graph
+
+        # Test element access using "element references".
+        var = ds.order['id']
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'ID'
+        assert var.alias == 'id'
+        assert var.id == '000001'
+
+        group = ds.order['Account']
+        assert isinstance(group, scrunch.datasets.Group)
+        assert group.name == 'Account'
+        assert group.parent == ds.order.graph
+
+        # Test that the `in` operator works.
+        assert all(
+            isinstance(obj, (scrunch.datasets.Variable, scrunch.datasets.Group))
+            for obj in ds.order
+        )
+        assert 'id' in ds.order
+        assert 'Account' in ds.order
+        assert 'invalid_alias' not in ds.order
+
+    def test_nested_element_access(self):
+        ds = self.ds
+
+        # Test nested element access using 0-based integer indexes.
+        var = ds.order[2][0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Registration Time'
+        assert var.alias == 'registration_time'
+        assert var.id == '000003'
+
+        var = ds.order[2][3][0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Country'
+        assert var.alias == 'country'
+        assert var.id == '000008'
+
+        group = ds.order[2][2]
+        assert isinstance(group, scrunch.datasets.Group)
+        assert group.name == 'User Information'
+        assert group.parent == ds.order[2]
+
+        # Test nested element access using "element references".
+        var = ds.order['Account']['registration_time']
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Registration Time'
+        assert var.alias == 'registration_time'
+        assert var.id == '000003'
+
+        var = ds.order['Account']['Location']['country']
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Country'
+        assert var.alias == 'country'
+        assert var.id == '000008'
+
+        group = ds.order['Account']['User Information']
+        assert isinstance(group, scrunch.datasets.Group)
+        assert group.name == 'User Information'
+        assert group.parent == ds.order['Account']
+
+        # Test mixed nested element access
+        var = ds.order['Account'][0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Registration Time'
+        assert var.alias == 'registration_time'
+        assert var.id == '000003'
+
+        var = ds.order[2]['Location'][0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Country'
+        assert var.alias == 'country'
+        assert var.id == '000008'
+
+        group = ds.order[2]['User Information']
+        assert isinstance(group, scrunch.datasets.Group)
+        assert group.name == 'User Information'
+        assert group.parent == ds.order['Account']
+
+        # Test that the `in` operator works with nested access.
+        assert all(
+            isinstance(obj, (scrunch.datasets.Variable, scrunch.datasets.Group))
+            for obj in ds.order['Account']
+        )
+        assert 'registration_time' in ds.order['Account']
+        assert 'User Information' in ds.order[2]
+        assert 'country' in ds.order[2]['Location']
+        assert 'invalid_alias' not in ds.order['Account']
+        assert 'invalid_alias' not in ds.order['Account']['Location']
+
+        # Test element access with the `hierarchy` and `variables` properties.
+        var = ds.order['Account'].hierarchy[0]
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Registration Time'
+        assert var.alias == 'registration_time'
+        assert var.id == '000003'
+
+        var = ds.order.variables['country']
+        assert isinstance(var, scrunch.datasets.Variable)
+        assert var.name == 'Country'
+        assert var.alias == 'country'
+        assert var.id == '000008'
+
+    def test_element_str_representation(self):
+        ds = self.ds
+
+        # Test first-level str representation.
+        assert str(ds.order) == json.dumps(
+            ['id', 'hobbies', 'Group(Account)', 'music', 'religion'],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+        # Test nested str representation.
+        assert str(ds.order['Account']) == json.dumps(
+            [
+                'registration_time',
+                'last_login_time',
+                'Group(User Information)',
+                'Group(Location)'
+            ],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+        # Test the str representation of the `hierarchy`.
+        assert str(ds.order.hierarchy) == json.dumps(
+            [
+                'id',
+                'hobbies',
+                {
+                    'Account': [
+                        'registration_time',
+                        'last_login_time',
+                        {
+                            'User Information': [
+                                'first_name',
+                                'last_name',
+                                'gender'
+                            ]
+                        },
+                        {
+                            'Location': [
+                                'country',
+                                'city',
+                                'zip_code',
+                                'address'
+                            ]
+                        }
+                    ]
+                },
+                'music',
+                'religion'
+            ],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+        # Test the str representation of the `hierarchy` in nested Groups.
+        assert str(ds.order['Account'].hierarchy) == json.dumps(
+            [
+                'registration_time',
+                'last_login_time',
+                {
+                    'User Information': [
+                        'first_name',
+                        'last_name',
+                        'gender'
+                    ]
+                },
+                {
+                    'Location': [
+                        'country',
+                        'city',
+                        'zip_code',
+                        'address'
+                    ]
+                }
+            ],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+        # Test the str representation of the flat list of `variables`.
+        assert str(ds.order.variables) == json.dumps(
+            [
+                'id',
+                'hobbies',
+                'registration_time',
+                'last_login_time',
+                'first_name',
+                'last_name',
+                'gender',
+                'country',
+                'city',
+                'zip_code',
+                'address',
+                'music',
+                'religion'
+            ],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+        # Test the str representation of the flat list of `variables`
+        # in nested groups.
+        assert str(ds.order['Account'].variables) == json.dumps(
+            [
+                'registration_time',
+                'last_login_time',
+                'first_name',
+                'last_name',
+                'gender',
+                'country',
+                'city',
+                'zip_code',
+                'address'
+            ],
+            indent=scrunch.datasets.AbstractContainer.indent_size
+        )
+
+    def test_update_hierarchy_order(self):
+        ds = self.ds
+        ds.order.update()
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+    def test_local_movements(self):
+        ds = self.ds
+
+        ds.order.move('id')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000001/',                       # id
+            ]
+        }
+
+        ds.order.move('music', position=1)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000013/',                       # religion
+                '../000001/',                       # id
+            ]
+        }
+
+        ds.order.move(elements=['id', 'Account'], position=3)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000001/',                       # id
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+            ]
+        }
+
+        ds.order.move_top(['Account', 'id'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order.move_bottom('hobbies')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000001/',                       # id
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000002/',                       # hobbies
+            ]
+        }
+
+        ds.order.move_before('music', ['hobbies', 'religion'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                '../000013/',                       # religion
+                '../000012/',                       # music
+            ]
+        }
+
+        ds.order.move_after('id', 'Account')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000002/',                       # hobbies
+                '../000013/',                       # religion
+                '../000012/',                       # music
+            ]
+        }
+
+        ds.order.move_up('religion')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000013/',                       # religion
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+            ]
+        }
+
+        ds.order.move_down(element='Account')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000013/',                       # religion
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+            ]
+        }
+
+    def test_local_movements_with_nested_access(self):
+        ds = self.ds
+
+        ds.order['Account'].move('registration_time')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account']['User Information'].move('gender', position=1)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account']['Location'].move(['country', 'zip_code'], 2)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000009/',       # city
+                                '../000011/',       # address
+                                '../000008/',       # country
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account']['Location'].move_top('address')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000009/',       # city
+                                '../000008/',       # country
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account'].move_bottom('User Information')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000004/',               # last_login_time
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000009/',       # city
+                                '../000008/',       # country
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account'].move_before('last_login_time', 'Location')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000009/',       # city
+                                '../000008/',       # country
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000004/',               # last_login_time
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account']['Location'].move_after('country', 'city')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000004/',               # last_login_time
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000007/',       # gender
+                                '../000006/',       # last_name
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account']['User Information'].move_up('gender')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000004/',               # last_login_time
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        ds.order['Account'].move_down(element='registration_time')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+    def test_cross_group_movements(self):
+        ds = self.ds
+
+        ds.order.move('gender')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+            ]
+        }
+
+        ds.order.move('address', position=1)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+            ]
+        }
+
+        ds.order.move(elements=['last_login_time', 'Location'], position=3)
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                '../000004/',                       # last_login_time
+                {
+                    'Location': [
+                        '../000008/',               # country
+                        '../000009/',               # city
+                        '../000010/',               # zip_code
+                    ]
+                },
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+            ]
+        }
+
+        ds.order.move_top(['User Information', 'country'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'User Information': [
+                        '../000005/',              # first_name
+                        '../000006/',              # last_name
+                    ]
+                },
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                '../000004/',                       # last_login_time
+                {
+                    'Location': [
+                        '../000009/',               # city
+                        '../000010/',               # zip_code
+                    ]
+                },
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+            ]
+        }
+
+        ds.order.move_bottom('zip_code')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'User Information': [
+                        '../000005/',              # first_name
+                        '../000006/',              # last_name
+                    ]
+                },
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                '../000004/',                       # last_login_time
+                {
+                    'Location': [
+                        '../000009/',               # city
+                    ]
+                },
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+                '../000010/',                       # zip_code
+            ]
+        }
+
+#----
+
+        ds.order['Account'].move('last_login_time')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'User Information': [
+                        '../000005/',              # first_name
+                        '../000006/',              # last_name
+                    ]
+                },
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                {
+                    'Location': [
+                        '../000009/',               # city
+                    ]
+                },
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000007/',                       # gender
+                '../000010/',                       # zip_code
+            ]
+        }
+
+        ds.order['User Information'].move_bottom('gender')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'User Information': [
+                        '../000005/',              # first_name
+                        '../000006/',              # last_name
+                        '../000007/',              # gender
+                    ]
+                },
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                {
+                    'Location': [
+                        '../000009/',               # city
+                    ]
+                },
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000010/',                       # zip_code
+            ]
+        }
+
+        ds.order['Account'].move(['User Information', 'Location'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000011/',                       # address
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000009/',       # city
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000010/',                       # zip_code
+            ]
+        }
+
+        ds.order['Account']['Location'].move_top('address')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000008/',                       # country
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000009/',       # city
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000010/',                       # zip_code
+            ]
+        }
+
+        ds.order['Account']['Location'].move_after('city', 'country')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000011/',       # address
+                                '../000009/',       # city,
+                                '../000008/',       # country
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000010/',                       # zip_code
+            ]
+        }
+
+    def test_group_level_reordering(self):
+        ds = self.ds
+
+        ds.order.set(['id', 'hobbies', 'music', 'religion', 'Account'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+            ]
+        }
+
+        ds.order['Account'].set(
+            ['User Information', 'Location', 'registration_time',
+             'last_login_time']
+        )
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        },
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                    ]
+                },
+            ]
+        }
+
+    def test_element_removal(self):
+        ds = self.ds
+
+        ds.order['Account'].remove('last_login_time')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000004/',                       # last_login_time
+            ]
+        }
+
+        ds.order['Account']['Location'].remove(['country', 'city'])
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000004/',                       # last_login_time
+                '../000008/',                       # country
+                '../000009/',                       # city
+            ]
+        }
+
+        with pytest.raises(NotImplementedError):
+            ds.order.remove('id')
+
+    def test_group_deletion(self):
+        ds = self.ds
+
+        ds.order['Account'].delete()
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                '../000003/',                       # registration_time
+                '../000004/',                       # last_login_time
+                {
+                    'User Information': [
+                        '../000005/',               # first_name
+                        '../000006/',               # last_name
+                        '../000007/',               # gender
+                    ]
+                },
+                {
+                    'Location': [
+                        '../000008/',               # country
+                        '../000009/',               # city
+                        '../000010/',               # zip_code
+                        '../000011/',               # address
+                    ]
+                }
+            ]
+        }
+
+        with pytest.raises(NotImplementedError):
+            ds.order.delete()
+
+    def test_group_creation(self):
+        ds = self.ds
+
+        ds.order['Account'].create(
+            'Login Details', elements=['registration_time', 'last_login_time']
+        )
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/',       # last_login_time
+                            ]
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
+        with pytest.raises(ValueError):
+            ds.order.create('Account')
+
+    def test_group_renaming(self):
+        ds = self.ds
+
+        ds.order['Account']['User Information'].rename('User Info')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Info': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        with pytest.raises(NotImplementedError):
+            ds.order.rename('Root')
+
+        with pytest.raises(ValueError):
+            ds.order['Account'].rename('id')
