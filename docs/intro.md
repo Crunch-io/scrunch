@@ -160,6 +160,12 @@ At the moment *filter expressions* can be composed using the following logical e
 | not in   | not in *list/tuple*   |
 | has_any  | has_any(*list/tuple*) |
 | has_all  | has_all(*list/tuple*) |
+| r        | r(*lower*, *upper*)   |
+
+
+The `r()` helper function declares a range of integers. The expression `[r(1,3), 6, 7]`
+automatically translates to `[1, 2, 3, 6, 7]`. The function needs to be wrapped in a 
+list, i.e; `age in [r(16,24)]` or `q1.has_any([r(1,1000)])`.
 
 [comment]: TODO: document missing/valid
 [comment]: TODO CRUNCH: Accept multiple variable aliases for missing/valid invocations

@@ -555,6 +555,20 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
+    def test_r_in(self):
+        expr = "q1 in [1, 2, r(4,7), r(10, 12)]"
+        expected_expr_obj = {
+            'args':
+                [
+                    {'variable': 'q1'},
+                    {'value': [1, 2, 4, 5, 6, 7, 10, 11, 12]}
+                ],
+            'function': 'in'
+
+        }
+        expr_obj = parse_expr(expr)
+        assert expr_obj == expected_expr_obj
+
     def test_parse_value_not_in_list(self):
         expr = 'country not in [1, 2, 3]'
         expr_obj = parse_expr(expr)
