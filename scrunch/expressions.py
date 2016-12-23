@@ -53,8 +53,8 @@ CRUNCH_FUNC_MAP = {
 }
 
 CRUNCH_METHOD_MAP = {
-    'has_any': 'any',
-    'has_all': 'all',
+    'any': 'any',
+    'all': 'all',
     'duplicates': 'duplicates',
     'has_count': 'has_count',
 }
