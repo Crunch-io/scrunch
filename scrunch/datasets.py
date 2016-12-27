@@ -3,6 +3,7 @@ import collections
 import json
 import requests
 import six
+import os
 
 if six.PY2:  # pragma: no cover
     from urlparse import urlsplit
@@ -37,6 +38,40 @@ REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
 REQUIRES_RESPONSES = {'combined_ids', 'name'}
 
 
+def _get_site():
+    """
+    Utilitarian function that reads credentials from
+    file or from ENV variables
+    """
+    # try to get credentials from enviroment
+    username = os.environ.get('CRUNCH_USERNAME')
+    password = os.environ.get('CRUNCH_PASSWORD')
+    site = os.environ.get('CRUNCH_URL')
+    if username and password and site:
+        print("Found Crunch credentials on Environment")
+        return pycrunch.connect(username, password, site)
+    elif username and password:
+        print("Found Crunch credentials on Environment")
+        return pycrunch.connect(username, password)
+    # try reading from .ini file
+    import configparser
+    config = configparser.ConfigParser()
+    config.read('crunch.ini')
+    username = config['DEFAULT'].get('CRUNCH_USERNAME')
+    password = config['DEFAULT'].get('CRUNCH_PASSWORD')
+    site = config['DEFAULT'].get('CRUNCH_URL')
+    # now try to login with obtained creds
+    if username and password and site:
+        print("Found Crunch credentials on crunch.ini")
+        return pycrunch.connect(username, password, site)
+    elif username and password:
+        print("Found Crunch credentials on crunch.ini")
+        return pycrunch.connect(username, password)
+    else:
+        raise AttributeError('No crunch.ini file found and no '
+                             'environment variables found')
+
+
 def get_dataset(dataset, site=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
@@ -48,8 +83,12 @@ def get_dataset(dataset, site=None):
     """
     if site is None:
         if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+            site = _get_site()
+            if not site:
+                raise AttributeError("Authenticate first with scrunch.connect() or"
+                                     "providing environment variables")
+        else:
+            site = pycrunch.session
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:

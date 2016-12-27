@@ -22,7 +22,28 @@ site = connect_with_token(token="token")
 ds = get_dataset("Example Dataset", site=site)
 ```
 
-Sometimes datasets will live in different project, in this
+Scrunch also allows to provide authentication credentials
+on a `crunch.ini` file or as `environment variables`. In 
+the case of providing credentials as environment variables:
+
+```bash
+export CRUNCH_USERNAME=me@mycompany.com;
+export CRUNCH_PASSWORD=yourpassword;
+```
+
+If the case of `crunch.ini` we need to wrap the credentials
+under a section named `DEFAULT`:
+
+```ini
+[DEFAULT]
+CRUNCH_USERNAME=me@mycompany.com
+CRUNCH_PASSWORD=yourpassword
+```
+
+The method `get_dataset()` will automatically detect the provided
+credentials and create a persistent session from this point on.
+
+Sometimes datasets will live in a different project, in this
 case we need to switch the session environment to work
 with the needed project:
 
