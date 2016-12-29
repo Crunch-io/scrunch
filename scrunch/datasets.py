@@ -1298,7 +1298,7 @@ class Dataset(object):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, filter=None, variables=None, include_hidden=True):
+    def download(self, path, filter=None, variables=None, hidden=True):
         """
         Downloads a dataset as CSV to the given path.
         this includes hidden variables and categories
@@ -1329,9 +1329,9 @@ class Dataset(object):
                         }
                     }]
                 }
-        # include_hidden is mutually exclusive with
-        #  variables to include in the download
-        if include_hidden and not variables:
+        # hidden is mutually exclusive with
+        # variables to include in the download
+        if hidden and not variables:
             payload['body']['where'] = {
                     'function': 'select',
                     'args': [{
