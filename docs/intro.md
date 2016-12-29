@@ -153,7 +153,7 @@ We are also able to produce compound logical expressions, sucha as:
 ds.exclude(where = "disposition != 0 or exit_status != 1")
 ```
 
-Date variables are also supported in exclusion filters as long as they are iso8601 compliant. That means that you may also provide only a _"partial"_ representation of a complete iso8601 datetime string like in the examples below:
+Date expressions are also supported in exclusion filters as long as they are iso8601 compliant. That means that you may also provide only a _"partial"_ representation of a complete iso8601 datetime string like in the examples below:
 
 ```python
 ds.exclude('starttime < "2015-01-01T00:00:00+00:00"') # complete iso8601 datetime string
