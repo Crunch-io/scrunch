@@ -98,8 +98,6 @@ For example, assume that we have `disposition` as the alias of a variable
 in the dataset (assigned to the Python object `ds`). Then apply the exclusion 
 filter:
 
-[comment]: TODO: Allow filters using category labels!
-
 ```python
 ds.exclude("disposition != 'complete'")
 ```
