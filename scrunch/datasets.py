@@ -1674,3 +1674,9 @@ class Variable(object):
             }
         }
         return self.resource.patch(payload)
+
+    def hide(self):
+        return self.resource.edit(discarded=True)
+
+    def unhide(self):
+        return self.resource.edit(discarded=False)
