@@ -151,6 +151,14 @@ You can do this using either brackets [] or parenthesis, so this would be equiva
 ds.exclude("disposition in (0, 2)")
 ds.exclude("disposition in ('incomplete', 'screenout')")
 ```
+
+If you want to exclude all missing or valid values for a given variable you can achieve that with the following examples:
+
+```python
+ds.exclude("missing(income)")
+ds.exclude("valid(income)")
+```
+
 We are also able to produce compound logical expressions, sucha as:
 
 ```python
