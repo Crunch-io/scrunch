@@ -2171,6 +2171,164 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_label_expression_single(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            }
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies == 'mocking'"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+    def test_label_expression_list(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            },
+            {
+                'name': 'coding',
+                'numeric_value': 2
+            },
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies in ['mocking', 'coding']"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1, 2]
+                }
+            ]
+        }
+
+    def test_label_expression_tuple(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            },
+            {
+                'name': 'coding',
+                'numeric_value': 2
+            },
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies in ('mocking', 'coding')"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1, 2]
+                }
+            ]
+        }
+
 
 class TestExpressionPrettify(TestCase):
 

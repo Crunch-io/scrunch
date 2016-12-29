@@ -391,6 +391,49 @@ def process_expr(obj, ds):
     base_url = ds.self
     variables = get_dataset_variables(ds)
 
+    def ensure_category_ids(subitems, variables=variables):
+        var_id = None
+        var_value = None
+        _subitems = []
+
+        def variable_id(variable_url):
+            return variable_url.split('/')[-2]
+
+        def category_ids(var_id, var_value, variables=variables):   
+            value = None
+            if isinstance(var_value, list) or isinstance(var_value, tuple):
+                # {'values': [val1, val2, ...]}
+                value = []
+                for val in var_value:
+                    if str(val).isdigit():
+                        # val1 is an id already
+                        value.append(val)
+                        continue
+                    for var in variables:
+                        if variables[var]['id'] == var_id:
+                            for cat in variables[var].categories:
+                                if cat['name'] == val:
+                                    value.append(cat['numeric_value'])
+
+            elif isinstance(var_value, str):
+                for var in variables:
+                    if variables[var]['id'] == var_id:
+                        for cat in variables[var].categories:
+                            if cat['name'] == var_value:
+                                value = cat['numeric_value']
+            else:
+                return var_value
+            return value
+
+        for item in subitems:
+            if isinstance(item, dict) and 'variable' in item:
+                var_id = variable_id(item['variable'])
+            elif isinstance(item, dict) and 'value' in item:
+                item['value'] = category_ids(var_id, item['value'])
+            _subitems.append(item)
+
+        return _subitems
+
     def _process(obj, variables):
         op = None
         arrays = []
@@ -410,6 +453,14 @@ def process_expr(obj, ds):
                         elif 'value' in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
+
+                has_value = any('value' in item for item in subitems
+                                if not str(item).isdigit())
+
+                has_variable = any('variable' in item for item in subitems
+                                   if not str(item).isdigit())
+                if has_value and has_variable:
+                    subitems = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
                 var = variables.get(val)
