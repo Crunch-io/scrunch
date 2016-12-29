@@ -73,8 +73,7 @@ Step 3: Access and mutate variables
 
 Variables are available as members of the dataset object, like a dictionary. 
 You can change any of the variable's attributes by providing them as keyword
-arguments to the *edit* method. You can also add a description, and hide a 
-variable for example:
+arguments to the *edit* method, i.e. changing the `name` or `description`:
 
 
 ```python
@@ -83,8 +82,13 @@ var = ds['gender']
 var.edit(name='my new name', alias='gender_ng')
 # Add a description
 var.edit(description='My awesome description')
-# Hide the variable
-var.edit(discarded=True)
+```
+
+`hide` and `unhide` variables with corresponding methods:
+
+```python
+var.hide()
+var.unhide()
 ```
 
 You can also access and edit categories for categorical variables. Either 
