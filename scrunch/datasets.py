@@ -1680,3 +1680,6 @@ class Variable(object):
 
     def unhide(self):
         return self.resource.edit(discarded=False)
+
+    def edit(self, **kwargs):
+        return self.resource.edit(**kwargs)
