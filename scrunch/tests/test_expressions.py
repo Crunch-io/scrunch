@@ -3058,3 +3058,117 @@ class TestExpressionPrettify(TestCase):
 
         assert str(err.value) == 'Unknown function ">>"'
 
+
+class TestDatetimeStrings(TestCase):
+
+    def test_iso8601_complete(self):
+        expr = "starttime < '2016-12-21T12:00:00+00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00+00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_wo_tzinfo(self):
+        expr = "starttime < '2016-12-21T12:00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour_minute_sec(self):
+        expr = "starttime < '2016-12-21T12:00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour_minute(self):
+        expr = "starttime < '2016-12-21T12:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour(self):
+        expr = "starttime < '2016-12-21T12'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12"
+                }
+            ]
+        }
+
+    def test_iso8601_day(self):
+        expr = "starttime < '2016-12-21'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21"
+                }
+            ]
+        }
+
+    def test_iso8601_month(self):
+        expr = "starttime < '2016-12'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12"
+                }
+            ]
+        }
+
+    def test_iso8601_year(self):
+        expr = "starttime < '2016'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016"
+                }
+            ]
+        }
