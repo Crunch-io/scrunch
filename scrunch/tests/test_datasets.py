@@ -252,8 +252,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_any(self):
-        data = self._exclude_payload('exit_status.has_any([32766])')
+    def test_any(self):
+        data = self._exclude_payload('exit_status.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
@@ -272,8 +272,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_any(self):
-        data = self._exclude_payload('not exit_status.has_any([32766])')
+    def test_not_any(self):
+        data = self._exclude_payload('not exit_status.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -297,8 +297,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_any_multiple(self):
-        data = self._exclude_payload('exit_status.has_any([32766, 32767])')
+    def test_any_multiple(self):
+        data = self._exclude_payload('exit_status.any([32766, 32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
@@ -318,8 +318,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_all(self):
-        data = self._exclude_payload('exit_status.has_all([32767])')
+    def test_all(self):
+        data = self._exclude_payload('exit_status.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "args": [
@@ -338,8 +338,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_all(self):
-        data = self._exclude_payload('not exit_status.has_all([32767])')
+    def test_not_all(self):
+        data = self._exclude_payload('not exit_status.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -363,8 +363,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_all_or_has_all(self):
-        data = self._exclude_payload('exit_status.has_all([1]) or exit_status.has_all([2])')
+    def test_all_or_all(self):
+        data = self._exclude_payload('exit_status.all([1]) or exit_status.all([2])')
         expected_expr_obj = {
             "expression": {
                 "args": [
@@ -401,8 +401,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_all_or_has_all(self):
-        data = self._exclude_payload('not(exit_status.has_all([1]) or exit_status.has_all([2]))')
+    def test_not_all_or_all(self):
+        data = self._exclude_payload('not(exit_status.all([1]) or exit_status.all([2]))')
         expected_expr_obj = {
             "expression": {
                 "function": "not",

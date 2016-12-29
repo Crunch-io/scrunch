@@ -53,8 +53,8 @@ CRUNCH_FUNC_MAP = {
 }
 
 CRUNCH_METHOD_MAP = {
-    'has_any': 'any',
-    'has_all': 'all',
+    'any': 'any',
+    'all': 'all',
     'duplicates': 'duplicates',
     'has_count': 'has_count',
 }
@@ -253,7 +253,7 @@ def parse_expr(expr):
                         args.append(right)
                     elif _name == 'func' and isinstance(_val, ast.Attribute):
                         # Method-like call. Example:
-                        #       variable.has_any([1,2])
+                        #       variable.any([1,2])
                         func_type = 'method'
                         setattr(_val, '_func_type', func_type)
                         left, op = _parse(_val, parent=node)

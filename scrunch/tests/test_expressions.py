@@ -27,8 +27,8 @@ class TestExpressionParsing(TestCase):
         with pytest.raises(ValueError) as err:
             parse_expr(expr)
 
-    def test_has_any_value_error(self):
-        expr = "age.has_any(1,2)"
+    def test_any_value_error(self):
+        expr = "age.any(1,2)"
         with pytest.raises(ValueError) as err:
             parse_expr(expr)
 
@@ -643,8 +643,8 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-    def test_parse_has_any(self):
-        expr = 'Q2.has_any([1, 2, 3])'
+    def test_parse_any(self):
+        expr = 'Q2.any([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -658,7 +658,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_any((1, 2, 3))'
+        expr = 'Q2.any((1, 2, 3))'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -672,16 +672,16 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_any(1)'
+        expr = 'Q2.any(1)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-        expr = 'Q2.has_any(Q3)'
+        expr = 'Q2.any(Q3)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-    def test_parse_has_all(self):
-        expr = 'Q2.has_all([1, 2, 3])'
+    def test_parse_all(self):
+        expr = 'Q2.all([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'all',
@@ -695,7 +695,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_all((1, 2, 3))'
+        expr = 'Q2.all((1, 2, 3))'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'all',
@@ -709,11 +709,11 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_all(1)'
+        expr = 'Q2.all(1)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-        expr = 'Q2.has_all(Q3)'
+        expr = 'Q2.all(Q3)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
@@ -806,13 +806,13 @@ class TestExpressionParsing(TestCase):
                 }
             ]}
 
-    def test_parse_sample_has_any(self):
+    def test_parse_sample_any(self):
         # 'text': 'CompanyTurnover is NA',
-        # 'index_mapper': {'CompanyTurnover': has_any([99])}},
+        # 'index_mapper': {'CompanyTurnover': any([99])}},
 
         # 'text': 'Not Private Sector',
-        # 'index_mapper': {'sector': has_any([2, 3, 98, 99])}},
-        expr = "CompanyTurnover.has_any([99])"
+        # 'index_mapper': {'sector': any([2, 3, 98, 99])}},
+        expr = "CompanyTurnover.any([99])"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -826,7 +826,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = "sector.has_any([2, 3, 98, 99])"
+        expr = "sector.any([2, 3, 98, 99])"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -861,7 +861,7 @@ class TestExpressionParsing(TestCase):
         }
 
     def test_parse_negated_method_call(self):
-        expr = 'not Q2.has_any([1, 2, 3])'
+        expr = 'not Q2.any([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'not',
@@ -880,7 +880,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'not Q2.has_all([1, 2, 3])'
+        expr = 'not Q2.all([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'not',
@@ -1329,7 +1329,7 @@ class TestExpressionParsing(TestCase):
 
 
 # 'text': 'sta: nicht aus Deutschland',
-# 'index_mapper': {'sta': has_any([17])}},
+# 'index_mapper': {'sta': any([17])}},
 
 # 'text': '(age >= 18) & profile_julesage is NaN',
 #             'index_mapper': intersection(
@@ -1538,7 +1538,7 @@ class TestExpressionProcessing(TestCase):
         ds.session.get.side_effect = _session_get
 
         # Single value.
-        expr_obj = process_expr(parse_expr('hobbies.has_any([32766])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.any([32766])'), ds)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1551,7 +1551,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr_obj = process_expr(parse_expr('hobbies.has_all([32766])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': '==',
             'args': [
@@ -1565,7 +1565,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Negated.
-        expr_obj = process_expr(parse_expr('not hobbies.has_any([32766])'), ds)
+        expr_obj = process_expr(parse_expr('not hobbies.any([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
             'args': [
@@ -1584,7 +1584,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr_obj = process_expr(parse_expr('not hobbies.has_all([32766])'), ds)
+        expr_obj = process_expr(parse_expr('not hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
             'args': [
@@ -1604,7 +1604,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values.
-        expr_obj = process_expr(parse_expr('hobbies.has_any([32766, 32767])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.any([32766, 32767])'), ds)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1618,7 +1618,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         with pytest.raises(ValueError):
-            process_expr(parse_expr('hobbies.has_all([32766, 32767])'), ds)
+            process_expr(parse_expr('hobbies.all([32766, 32767])'), ds)
 
     def test_array_expansion_multiple_subvariables(self):
         var_id = '0001'
@@ -1674,7 +1674,7 @@ class TestExpressionProcessing(TestCase):
         ds.session.get.side_effect = _session_get
 
         # Single values.
-        expr = 'hobbies.has_any([32766])'
+        expr = 'hobbies.any([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'or',
@@ -1736,7 +1736,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr = 'hobbies.has_all([32766])'
+        expr = 'hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'and',
@@ -1799,7 +1799,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Negated.
-        expr = 'not hobbies.has_any([32766])'
+        expr = 'not hobbies.any([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -1866,7 +1866,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr = 'not hobbies.has_all([32766])'
+        expr = 'not hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -1934,7 +1934,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values.
-        expr = 'hobbies.has_any([32766, 32767])'
+        expr = 'hobbies.any([32766, 32767])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'or',
@@ -1997,7 +1997,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values, negated
-        expr = 'not hobbies.has_any([32766, 32767])'
+        expr = 'not hobbies.any([32766, 32767])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -2975,7 +2975,7 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert cel == "disposition == 0 and exit_status == 0"
 
-    def test_parse_has_any(self):
+    def test_parse_any(self):
         expr = {
             'function': 'any',
             'args': [
@@ -2988,9 +2988,9 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.has_any([1, 2, 3])'
+        assert cel =='Q2.any([1, 2, 3])'
 
-    def test_parse_has_all(self):
+    def test_parse_all(self):
         expr = {
             'function': 'all',
             'args': [
@@ -3003,7 +3003,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.has_all([1, 2, 3])'
+        assert cel =='Q2.all([1, 2, 3])'
 
     def test_parse_has_count(self):
         expr = {
@@ -3082,7 +3082,7 @@ class TestExpressionPrettify(TestCase):
         assert cel == "(disposition == 0 and exit_status == 1) or " \
                "(disposition == 0 and exit_status == 0)"
 
-    def test_parse_sample_has_any(self):
+    def test_parse_sample_any(self):
         expr = {
             'function': 'any',
             'args': [
@@ -3095,7 +3095,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel == "CompanyTurnover.has_any([99])"
+        assert cel == "CompanyTurnover.any([99])"
 
         expr = {
             'function': 'any',
@@ -3109,7 +3109,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel == "sector.has_any([2, 3, 98, 99])"
+        assert cel == "sector.any([2, 3, 98, 99])"
 
     def test_parse_negated_expr(self):
         expr = {
@@ -3149,7 +3149,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.has_any([1, 2, 3])'
+        assert cel =='not Q2.any([1, 2, 3])'
 
         expr = {
             'function': 'not',
@@ -3168,7 +3168,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.has_all([1, 2, 3])'
+        assert cel =='not Q2.all([1, 2, 3])'
 
     def test_parse_duplicates_method(self):
         expr = {

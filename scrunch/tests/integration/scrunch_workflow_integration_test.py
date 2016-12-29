@@ -401,9 +401,9 @@ def main():
                     'I speak both Spanish and English equally')
             assert row['operating_system'] == 'Linux'
 
-        # 1.3 Exclusion filters with `has_any`.
+        # 1.3 Exclusion filters with `any`.
 
-        expr = 'hobbies.has_any([32766])'
+        expr = 'hobbies.any([32766])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -415,7 +415,7 @@ def main():
             assert row['identity'] in valid_ids
             assert {'?': 32766} not in row['hobbies']
 
-        expr = 'not hobbies.has_any([32766])'
+        expr = 'not hobbies.any([32766])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -427,7 +427,7 @@ def main():
             assert row['identity'] in valid_ids
             assert {'?': 32766} in row['hobbies']
 
-        expr = 'hobbies.has_any([32766, 32767])'
+        expr = 'hobbies.any([32766, 32767])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -441,7 +441,7 @@ def main():
             assert {'?': 32766} not in row['hobbies'] and \
                    {'?': 32767} not in row['hobbies']
 
-        expr = 'music.has_any([32766])'
+        expr = 'music.any([32766])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -453,7 +453,7 @@ def main():
             assert row['identity'] in valid_ids
             assert {'?': 32766} not in row['music']
 
-        expr = 'music.has_any([1])'
+        expr = 'music.any([1])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -465,7 +465,7 @@ def main():
             assert row['identity'] in valid_ids
             assert 1 not in row['music']
 
-        expr = 'music.has_any([1, 2])'
+        expr = 'music.any([1, 2])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -478,9 +478,9 @@ def main():
             assert row['identity'] in valid_ids
             assert 1 not in row['music'] and 2 not in row['music']
 
-        # 1.4 Exclusion filters with `has_all`.
+        # 1.4 Exclusion filters with `all`.
 
-        expr = 'hobbies.has_all([32767])'
+        expr = 'hobbies.all([32767])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -493,7 +493,7 @@ def main():
             assert row['hobbies'] != [{'?': 32767}, {'?': 32767},
                                       {'?': 32767}, {'?': 32767}]
 
-        expr = 'not hobbies.has_all([32767])'
+        expr = 'not hobbies.all([32767])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -506,7 +506,7 @@ def main():
             assert row['hobbies'] == [{'?': 32767}, {'?': 32767},
                                       {'?': 32767}, {'?': 32767}]
 
-        expr = 'music.has_all([1])'
+        expr = 'music.all([1])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -518,7 +518,7 @@ def main():
             assert row['identity'] in valid_ids
             assert row['music'] != [1, 1, 1, 1, 1]
 
-        expr = 'music.has_all([1]) or music.has_all([2])'
+        expr = 'music.all([1]) or music.all([2])'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -532,7 +532,7 @@ def main():
             assert row['music'] != [1, 1, 1, 1, 1] and \
                    row['music'] != [2, 2, 2, 2, 2]
 
-        expr = 'not ( music.has_all([1]) or music.has_all([2]) )'
+        expr = 'not ( music.all([1]) or music.all([2]) )'
         dataset.exclude(expr)
         df = pandaslib.dataframe(dataset.resource)
         valid_ids = [
@@ -808,6 +808,7 @@ def main():
         new_var = dataset.combine_categories(
             'speak_spanish', cat_map, 'Bilingual Person', 'bilingual'
         )
+        import pdb; pdb.set_trace()
         assert isinstance(new_var, pycrunch.shoji.Entity)
         new_var.refresh()
         assert new_var.body.type == 'categorical'
