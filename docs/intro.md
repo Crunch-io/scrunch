@@ -99,8 +99,8 @@ of a category you can achieve that with:
  
 
 ```python
-var.body.categories[0]['name'] = 'My new category'
-var.edit(categories=var.body.categories)
+var.resource.body.categories[0]['name'] = 'My new category'
+var.edit(categories=var.resource.body.categories)
 ```
 
 Step 4: Ordering and organizing variables
