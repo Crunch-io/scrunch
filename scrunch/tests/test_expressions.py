@@ -717,29 +717,6 @@ class TestExpressionParsing(TestCase):
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-    def test_parse_has_count(self):
-        expr = 'Q2.has_count(1)'
-        expr_obj = parse_expr(expr)
-        assert expr_obj == {
-            'function': 'has_count',
-            'args': [
-                {
-                    'variable': 'Q2'
-                },
-                {
-                    'value': 1
-                }
-            ]
-        }
-
-        expr = 'Q2.has_count(1, 2)'
-        with pytest.raises(ValueError):
-            parse_expr(expr)
-
-        expr = 'Q2.has_count([1,2])'
-        with pytest.raises(ValueError):
-            parse_expr(expr)
-
     def test_parse_sample_rule_2_complex(self):
         # Lets combine this with the previous one:
         # 'text': 'diposition code 0 (quotafull)',
@@ -1317,6 +1294,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
+
 # 'diposition code 0 (incompletes)':
 # intersection(
 #     [{'disposition': not_any([1])},
@@ -1324,9 +1302,6 @@ class TestExpressionParsing(TestCase):
 #             {'exit_status': is_ge(1)}])
 #      ]
 # )
-
-
-
 
 # 'text': 'sta: nicht aus Deutschland',
 # 'index_mapper': {'sta': any([17])}},
@@ -3004,21 +2979,6 @@ class TestExpressionPrettify(TestCase):
         }
         cel = prettify(expr)
         assert cel =='Q2.all([1, 2, 3])'
-
-    def test_parse_has_count(self):
-        expr = {
-            'function': 'has_count',
-            'args': [
-                {
-                    'variable': 'Q2'
-                },
-                {
-                    'value': 1
-                }
-            ]
-        }
-        cel = prettify(expr)
-        assert cel =='Q2.has_count(1)'
 
     def test_parse_sample_rule_2_complex(self):
         expr = {

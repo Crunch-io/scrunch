@@ -55,8 +55,7 @@ CRUNCH_FUNC_MAP = {
 CRUNCH_METHOD_MAP = {
     'any': 'any',
     'all': 'all',
-    'duplicates': 'duplicates',
-    'has_count': 'has_count',
+    'duplicates': 'duplicates'
 }
 
 # according to http://docs.crunch.io/#function-terms
@@ -288,17 +287,12 @@ def parse_expr(expr):
 
                             # For method calls, we only allow list-of-int
                             # parameters.
-                            if _name == 'args' and func_type == 'method' \
-                                    and op != 'has_count':
+                            if _name == 'args' and func_type == 'method':
                                 if 'value' not in right \
                                         or not isinstance(right['value'], list):
                                     raise ValueError
 
                             args.append(right)
-
-                        if op == 'has_count':
-                            if not isinstance(args[-1].get('value'), int):
-                                raise ValueError
 
                     elif _name in ('keywords', 'starargs', 'kwargs') and _val:
                         # We don't support these in function/method calls.
