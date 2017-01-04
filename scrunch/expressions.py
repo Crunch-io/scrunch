@@ -170,6 +170,13 @@ def parse_expr(expr):
                     'variable': _id
                 }
             elif isinstance(node, ast.Num) or isinstance(node, ast.Str):
+                if isinstance(parent, ast.Call) \
+                        and 'func' in parent._fields:
+                    _id = fields[0][1]
+                    return {
+                        'variable': _id
+                    }
+
                 _val = fields[0][1]
                 return {
                     'value': _val
