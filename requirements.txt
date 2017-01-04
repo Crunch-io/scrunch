@@ -1,0 +1,5 @@
+# Use pycrunch's latest code
+git+https://github.com/Crunch-io/pycrunch#pycrunch
+
+# Install scrunch
+.
