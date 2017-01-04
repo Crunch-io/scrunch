@@ -11,7 +11,7 @@ from pycrunch.shoji import Entity
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Dataset
+from scrunch.datasets import Dataset, Variable
 
 
 class TestDatasetBase(object):
@@ -680,7 +680,10 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
-class TestVariables(TestCase):
+class TestVariables(TestDatasetBase, TestCase):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+    user_url = 'https://test.crunch.io/api/users/12345/'
+
     def test_variable_as_attribute(self):
         session = mock.MagicMock()
         dataset_resource = mock.MagicMock()
@@ -720,6 +723,21 @@ class TestVariables(TestCase):
             'offset': 'offset',
             'format': 'format'
         }
+
+    def test_hide_unhide_variables(self):
+        body = {
+            'self': self.ds_url,
+            'name': 'Dataset Name'
+        }
+        sess = mock.MagicMock()
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds = Dataset(ds_res)
+        v = ds['test']
+
+        v.hide()
+        v.resource.patch.assert_called_with(dict(discarded=True))
+        v.unhide()
+        v.resource.patch.assert_called_with(dict(discarded=False))
 
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
