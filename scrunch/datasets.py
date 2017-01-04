@@ -1084,13 +1084,11 @@ class Dataset(object):
 
         Parameters
         ----------
-        user : str
+        :param user:
             The email address or the crunch url of the user who should be set
             as the new current editor of the given dataset.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
 
         def _host_from_url(url):
@@ -1125,16 +1123,12 @@ class Dataset(object):
         """
         Creates a savepoint on the dataset.
 
-        Parameters
-        ----------
-        description : str
+        :param description:
             The description that should be given to the new savepoint. This
             function will not let you create a new savepoint with the same
             description as any other savepoint.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
         if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes('description'):
@@ -1152,16 +1146,12 @@ class Dataset(object):
         """
         Load a savepoint on the dataset.
 
-        Parameters
-        ----------
-        description : str, default=None
+        :param description: default=None
             The description that identifies which savepoint to be loaded.
             When loading a savepoint, all savepoints that were saved after
             the loaded savepoint will be destroyed permanently.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
 
         if description is None:
@@ -1179,9 +1169,7 @@ class Dataset(object):
         """
         Return list of attributes from the given dataset's savepoints.
 
-        Parameters
-        ----------
-        attrib : str
+        :param attrib:
             The attribute to be returned for each savepoint in the given
             dataset. Available attributes are:
                 'creation_time'
@@ -1207,26 +1195,22 @@ class Dataset(object):
         """
         Create a fork of ds and add virgin savepoint.
 
-        Parameters
-        ----------
-        description : str, default=None
+        :param description: str, default=None
             If given, the description to be applied to the fork. If not
             given the description will be copied from ds.
-        name : str, default=None
+        :param name: str, default=None
             If given, the name to be applied to the fork. If not given a
             default name will be created which numbers the fork based on
             how many other forks there are on ds.
-        is_published : bool, default=False
+        :param is_published: bool, default=False
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
-        preserve_owner : bool, default=False
+        :param preserve_owner: bool, default=False
             If True, the owner of the fork will be the same as the parent
             dataset. If the owner of the parent dataset is a Crunch project,
             then it will be preserved regardless of this parameter.
 
-        Returns
-        -------
-        _fork : scrunch.datasets.Dataset
+        :returns _fork: scrunch.datasets.Dataset
             The forked dataset.
         """
 
@@ -1262,9 +1246,7 @@ class Dataset(object):
         """
         Return a dataframe summarizing the forks on the dataset.
 
-        Returns
-        -------
-        _forks : pandas.DataFrame
+        :returns _forks : pandas.DataFrame
             A DataFrame representation of all attributes from all forks
             on the given dataset.
         """
