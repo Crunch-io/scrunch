@@ -7,8 +7,10 @@ import os
 
 if six.PY2:  # pragma: no cover
     from urlparse import urlsplit
+    import ConfigParser as configparser
 else:
     from urllib.parse import urlsplit
+    import configparser
 
 import pandas as pd
 
@@ -54,7 +56,6 @@ def _get_site():
         print("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password)
     # try reading from .ini file
-    import configparser
     config = configparser.ConfigParser()
     config.read('crunch.ini')
     username = config['DEFAULT'].get('CRUNCH_USERNAME')
