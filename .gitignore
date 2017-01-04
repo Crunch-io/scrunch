@@ -82,6 +82,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# crunch.ini
+crunch.ini
+
 # Spyder project settings
 .spyderproject
 
