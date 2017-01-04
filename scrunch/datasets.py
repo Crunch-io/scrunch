@@ -705,7 +705,8 @@ class Group(AbstractContainer):
             raise NotImplementedError('Deleting the root Group is not allowed.')
 
         # Before deleting the Group, move all its elements to the root.
-        for element_name, obj in self.elements.items():
+        elements = self.elements.copy()
+        for element_name, obj in elements.items():
             if isinstance(obj, Group):
                 obj.parent = self.order.graph
             self.order.graph.elements[element_name] = obj
