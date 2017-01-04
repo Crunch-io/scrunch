@@ -733,6 +733,7 @@ class TestVariables(TestDatasetBase, TestCase):
         ds_res = mock.MagicMock(session=sess, body=body)
         ds = Dataset(ds_res)
         v = ds['test']
+        assert isinstance(v, Variable)
 
         v.hide()
         v.resource.patch.assert_called_with(dict(discarded=True))
