@@ -1,2 +1,2 @@
-from pycrunch import connect, connect_with_token
+from pycrunch import connect
 from .datasets import get_dataset

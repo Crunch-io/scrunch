@@ -58,9 +58,15 @@ def _get_site():
     # try reading from .ini file
     config = configparser.ConfigParser()
     config.read('crunch.ini')
-    username = config['DEFAULT'].get('CRUNCH_USERNAME')
-    password = config['DEFAULT'].get('CRUNCH_PASSWORD')
-    site = config['DEFAULT'].get('CRUNCH_URL')
+    try:
+        username = config.get('DEFAULT', 'CRUNCH_USERNAME')
+        password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
+    except:
+        username = password = None
+    try:
+        site = config.get('DEFAULT', 'CRUNCH_URL')
+    except:
+        site = None
     # now try to login with obtained creds
     if username and password and site:
         print("Found Crunch credentials on crunch.ini")
