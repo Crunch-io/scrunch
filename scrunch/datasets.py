@@ -1824,36 +1824,6 @@ class Variable(object):
         ds = get_dataset(self.resource.body.dataset_id)
         return Variable(ds.variables.create(payload).refresh())
 
-    def edit_combination(self, response_map):
-        res = self.resource
-        if not res.body.get('derivation'):
-            raise ValueError('Cannot edit combination on non derived')
-
-        alias = self.alias
-        fn_name = res.body.derivation['function']
-        if fn_name not in {'combine_categories', 'combine_responses', 'array'}:
-            raise ValueError('Only possible to edit combinations on combined variables')
-
-        # Update the derivation sending the same original variable
-        if fn_name in {'combine_categories', 'combine_responses'}:
-            parent = res.body.derivation['args'][0]['variable']
-        else:
-            # Hack because Crunch API does not tell us clearly which is the
-            # original expression used for `combine_responses`, instead we have
-            # to dig through its array/select/combine derivation hierarchy.
-            parent = res.body.derivation['args'][0]['args'][0]['map'].values()[0]['args'][0]['variable']
-            parent = parent.split('.', 1)[0] if '.' in parent else parent
-
-        if self.type == MR_TYPE:
-            parent_var = Variable(self.resource.parent.by('id')[parent].entity)
-            responses = responses_from_map(parent_var, response_map, alias,
-                parent_var.alias)
-            derivation = combine_responses_expr(parent, responses)
-        else:
-            combinations = combinations_from_map(response_map)
-            derivation = combine_categories_expr(parent, combinations)
-        self.resource.edit(derivation=derivation)
-
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
         validate_category_rules(categories, rules)

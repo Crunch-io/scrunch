@@ -60,40 +60,18 @@ origintype_copy = dataset.copy_variable(origintype, name='Copy of origintype',
 print("Variable %s created" % origintype_copy.alias)
 
 
-# Combine responses from origintype_copy, 4 is in the wrong place
 onlinenewssource = dataset.combine(origintype_copy, [
-    {"id": 1, "name": 'online', 'combined_ids': [1, 4]},
-    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3]}
+    {"id": 1, "name": 'online', 'combined_ids': [1]},
+    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
 ], name='Online or not', alias='onlinenewssource')
 print('Created combination: %s' % onlinenewssource.alias)
 
-onlinenewssource.edit_combination([
-    {"id": 1, "name": 'online', 'combined_ids': [1]},
-    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
-])
-print('Fixed combination: %s' % onlinenewssource.alias)
-
 # Combine a single categorical - Combine with subvar 3 on the wrong place
 over35 = dataset.combine(agerange, [
-    {"id": 1, "name": 'under35', 'combined_ids': [1, 2], 'missing': False},
-    {"id": 2, "name": 'over35', 'combined_ids': [3, 4, 5], 'missing': False}
+    {"id": 1, "name": 'under35', 'combined_ids': [1, 2, 3], 'missing': False},
+    {"id": 2, "name": 'over35', 'combined_ids': [4, 5], 'missing': False}
 ], name='over 35?', alias='over35')
 print('Created combination: %s' % over35.alias)
-
-# Edit combination placing subvar 3 on the right group
-over35.edit_combination([
-    {"id": 1, "name": 'Under 35', 'combined_ids': [1, 2, 3], 'missing': False},
-    {"id": 2, "name": 'Over 35', 'combined_ids': [4, 5], 'missing': False}
-])
-print('Fixed combination: %s' % over35.alias)
-
-# Make a copy of a combined MR
-all_ages = dataset.copy_variable(over35, name='All ages', alias='allages')
-# Edit its responses to be all together on the same variable.
-all_ages.edit_combination([
-    {"id": 1, "name": 'all', 'combined_ids': [1, 2, 3, 4, 5]},
-])
-print("Edited combined variable: %s" % all_ages.alias)
 
 # Export some rows
 dataset.download("recodes.csv")
