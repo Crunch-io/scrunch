@@ -73,11 +73,13 @@ def _get_site():
                              'environment variables found')
 
 
-def get_dataset(dataset, site=None):
+def get_dataset(dataset, site=None, editor=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
     This method uses the library singleton session if the optional "site"
     parameter is not provided.
+
+    Also able to change editor while getting the dataset with the optional .
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
@@ -94,7 +96,13 @@ def get_dataset(dataset, site=None):
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
         shoji_ds = site.datasets.by('id')[dataset].entity
-    return Dataset(shoji_ds)
+
+    ds = Dataset(shoji_ds)
+
+    if editor:
+        ds.change_editor(editor)
+
+    return ds
 
 
 def change_project(project, site=None):
@@ -1107,7 +1115,7 @@ class Dataset(object):
             for url, user in six.iteritems(users):
                 if user['email'] == email:
                     user_url = url
-                    self.patch({'current_editor': url})
+                    self.resource.patch({'current_editor': url})
                     break
             assert user_url is not None, 'Unable to resolve user url'
 
