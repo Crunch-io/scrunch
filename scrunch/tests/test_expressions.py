@@ -27,8 +27,8 @@ class TestExpressionParsing(TestCase):
         with pytest.raises(ValueError) as err:
             parse_expr(expr)
 
-    def test_has_any_value_error(self):
-        expr = "age.has_any(1,2)"
+    def test_any_value_error(self):
+        expr = "age.any(1,2)"
         with pytest.raises(ValueError) as err:
             parse_expr(expr)
 
@@ -636,8 +636,8 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-    def test_parse_has_any(self):
-        expr = 'Q2.has_any([1, 2, 3])'
+    def test_parse_any(self):
+        expr = 'Q2.any([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -651,7 +651,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_any((1, 2, 3))'
+        expr = 'Q2.any((1, 2, 3))'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -665,16 +665,16 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_any(1)'
+        expr = 'Q2.any(1)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-        expr = 'Q2.has_any(Q3)'
+        expr = 'Q2.any(Q3)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-    def test_parse_has_all(self):
-        expr = 'Q2.has_all([1, 2, 3])'
+    def test_parse_all(self):
+        expr = 'Q2.all([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'all',
@@ -688,7 +688,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_all((1, 2, 3))'
+        expr = 'Q2.all((1, 2, 3))'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'all',
@@ -702,34 +702,11 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'Q2.has_all(1)'
+        expr = 'Q2.all(1)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
-        expr = 'Q2.has_all(Q3)'
-        with pytest.raises(ValueError):
-            parse_expr(expr)
-
-    def test_parse_has_count(self):
-        expr = 'Q2.has_count(1)'
-        expr_obj = parse_expr(expr)
-        assert expr_obj == {
-            'function': 'has_count',
-            'args': [
-                {
-                    'variable': 'Q2'
-                },
-                {
-                    'value': 1
-                }
-            ]
-        }
-
-        expr = 'Q2.has_count(1, 2)'
-        with pytest.raises(ValueError):
-            parse_expr(expr)
-
-        expr = 'Q2.has_count([1,2])'
+        expr = 'Q2.all(Q3)'
         with pytest.raises(ValueError):
             parse_expr(expr)
 
@@ -799,13 +776,13 @@ class TestExpressionParsing(TestCase):
                 }
             ]}
 
-    def test_parse_sample_has_any(self):
+    def test_parse_sample_any(self):
         # 'text': 'CompanyTurnover is NA',
-        # 'index_mapper': {'CompanyTurnover': has_any([99])}},
+        # 'index_mapper': {'CompanyTurnover': any([99])}},
 
         # 'text': 'Not Private Sector',
-        # 'index_mapper': {'sector': has_any([2, 3, 98, 99])}},
-        expr = "CompanyTurnover.has_any([99])"
+        # 'index_mapper': {'sector': any([2, 3, 98, 99])}},
+        expr = "CompanyTurnover.any([99])"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -819,7 +796,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = "sector.has_any([2, 3, 98, 99])"
+        expr = "sector.any([2, 3, 98, 99])"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'any',
@@ -854,7 +831,7 @@ class TestExpressionParsing(TestCase):
         }
 
     def test_parse_negated_method_call(self):
-        expr = 'not Q2.has_any([1, 2, 3])'
+        expr = 'not Q2.any([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'not',
@@ -873,7 +850,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
-        expr = 'not Q2.has_all([1, 2, 3])'
+        expr = 'not Q2.all([1, 2, 3])'
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'not',
@@ -1310,6 +1287,7 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
+
 # 'diposition code 0 (incompletes)':
 # intersection(
 #     [{'disposition': not_any([1])},
@@ -1318,11 +1296,8 @@ class TestExpressionParsing(TestCase):
 #      ]
 # )
 
-
-
-
 # 'text': 'sta: nicht aus Deutschland',
-# 'index_mapper': {'sta': has_any([17])}},
+# 'index_mapper': {'sta': any([17])}},
 
 # 'text': '(age >= 18) & profile_julesage is NaN',
 #             'index_mapper': intersection(
@@ -1493,7 +1468,7 @@ class TestExpressionProcessing(TestCase):
         ds.follow.return_value = table_mock
 
         # Single value.
-        expr_obj = process_expr(parse_expr('hobbies.has_any([32766])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.any([32766])'), ds)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1506,7 +1481,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr_obj = process_expr(parse_expr('hobbies.has_all([32766])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': '==',
             'args': [
@@ -1520,7 +1495,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Negated.
-        expr_obj = process_expr(parse_expr('not hobbies.has_any([32766])'), ds)
+        expr_obj = process_expr(parse_expr('not hobbies.any([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
             'args': [
@@ -1539,7 +1514,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr_obj = process_expr(parse_expr('not hobbies.has_all([32766])'), ds)
+        expr_obj = process_expr(parse_expr('not hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
             'args': [
@@ -1559,7 +1534,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values.
-        expr_obj = process_expr(parse_expr('hobbies.has_any([32766, 32767])'), ds)
+        expr_obj = process_expr(parse_expr('hobbies.any([32766, 32767])'), ds)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1573,7 +1548,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         with pytest.raises(ValueError):
-            process_expr(parse_expr('hobbies.has_all([32766, 32767])'), ds)
+            process_expr(parse_expr('hobbies.all([32766, 32767])'), ds)
 
     def test_array_expansion_multiple_subvariables(self):
         var_id = '0001'
@@ -1616,7 +1591,7 @@ class TestExpressionProcessing(TestCase):
         ds.follow.return_value = table_mock
 
         # Single values.
-        expr = 'hobbies.has_any([32766])'
+        expr = 'hobbies.any([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'or',
@@ -1678,7 +1653,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr = 'hobbies.has_all([32766])'
+        expr = 'hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'and',
@@ -1741,7 +1716,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Negated.
-        expr = 'not hobbies.has_any([32766])'
+        expr = 'not hobbies.any([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -1808,7 +1783,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-        expr = 'not hobbies.has_all([32766])'
+        expr = 'not hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -1876,7 +1851,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values.
-        expr = 'hobbies.has_any([32766, 32767])'
+        expr = 'hobbies.any([32766, 32767])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'or',
@@ -1939,7 +1914,7 @@ class TestExpressionProcessing(TestCase):
         }
 
         # Multiple values, negated
-        expr = 'not hobbies.has_any([32766, 32767])'
+        expr = 'not hobbies.any([32766, 32767])'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': 'not',
@@ -2096,6 +2071,164 @@ class TestExpressionProcessing(TestCase):
                             'variable': var_url
                         }
                     ]
+                }
+            ]
+        }
+
+    def test_label_expression_single(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            }
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies == 'mocking'"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+    def test_label_expression_list(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            },
+            {
+                'name': 'coding',
+                'numeric_value': 2
+            },
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies in ['mocking', 'coding']"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1, 2]
+                }
+            ]
+        }
+
+    def test_label_expression_tuple(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'numeric_value': 1
+            },
+            {
+                'name': 'coding',
+                'numeric_value': 2
+            },
+        ]
+
+        # Mock the dataset.
+        _get_func = self._build_get_func(
+            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
+
+        _var_mock = mock.MagicMock()
+        _var_mock.entity.self = var_url
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.categories = categories
+
+        def _session_get(*args, **kwargs):
+            if args[0] == '%stable/' % self.ds_url:
+                return self.CrunchPayload({
+                    'metadata': {
+                        var_id: _var_mock
+                    }
+                })
+            return self.CrunchPayload()
+
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.fragments.table = '%stable/' % self.ds_url
+        ds.session.get.side_effect = _session_get
+
+        expr = "hobbies in ('mocking', 'coding')"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1, 2]
                 }
             ]
         }
@@ -2746,7 +2879,7 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert cel == "disposition == 0 and exit_status == 0"
 
-    def test_parse_has_any(self):
+    def test_parse_any(self):
         expr = {
             'function': 'any',
             'args': [
@@ -2759,9 +2892,9 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.has_any([1, 2, 3])'
+        assert cel =='Q2.any([1, 2, 3])'
 
-    def test_parse_has_all(self):
+    def test_parse_all(self):
         expr = {
             'function': 'all',
             'args': [
@@ -2774,22 +2907,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.has_all([1, 2, 3])'
-
-    def test_parse_has_count(self):
-        expr = {
-            'function': 'has_count',
-            'args': [
-                {
-                    'variable': 'Q2'
-                },
-                {
-                    'value': 1
-                }
-            ]
-        }
-        cel = prettify(expr)
-        assert cel =='Q2.has_count(1)'
+        assert cel =='Q2.all([1, 2, 3])'
 
     def test_parse_sample_rule_2_complex(self):
         expr = {
@@ -2853,7 +2971,7 @@ class TestExpressionPrettify(TestCase):
         assert cel == "(disposition == 0 and exit_status == 1) or " \
                "(disposition == 0 and exit_status == 0)"
 
-    def test_parse_sample_has_any(self):
+    def test_parse_sample_any(self):
         expr = {
             'function': 'any',
             'args': [
@@ -2866,7 +2984,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel == "CompanyTurnover.has_any([99])"
+        assert cel == "CompanyTurnover.any([99])"
 
         expr = {
             'function': 'any',
@@ -2880,7 +2998,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel == "sector.has_any([2, 3, 98, 99])"
+        assert cel == "sector.any([2, 3, 98, 99])"
 
     def test_parse_negated_expr(self):
         expr = {
@@ -2920,7 +3038,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.has_any([1, 2, 3])'
+        assert cel =='not Q2.any([1, 2, 3])'
 
         expr = {
             'function': 'not',
@@ -2939,7 +3057,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.has_all([1, 2, 3])'
+        assert cel =='not Q2.all([1, 2, 3])'
 
     def test_parse_duplicates_method(self):
         expr = {
@@ -2987,3 +3105,117 @@ class TestExpressionPrettify(TestCase):
 
         assert str(err.value) == 'Unknown function ">>"'
 
+
+class TestDatetimeStrings(TestCase):
+
+    def test_iso8601_complete(self):
+        expr = "starttime < '2016-12-21T12:00:00+00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00+00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_wo_tzinfo(self):
+        expr = "starttime < '2016-12-21T12:00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour_minute_sec(self):
+        expr = "starttime < '2016-12-21T12:00:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour_minute(self):
+        expr = "starttime < '2016-12-21T12:00'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12:00"
+                }
+            ]
+        }
+
+    def test_iso8601_day_hour(self):
+        expr = "starttime < '2016-12-21T12'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21T12"
+                }
+            ]
+        }
+
+    def test_iso8601_day(self):
+        expr = "starttime < '2016-12-21'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12-21"
+                }
+            ]
+        }
+
+    def test_iso8601_month(self):
+        expr = "starttime < '2016-12'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016-12"
+                }
+            ]
+        }
+
+    def test_iso8601_year(self):
+        expr = "starttime < '2016'"
+        assert parse_expr(expr) == {
+            "function": "<",
+            "args": [
+                {
+                    "variable": "starttime"
+                },
+                {
+                    "value": "2016"
+                }
+            ]
+        }

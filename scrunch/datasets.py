@@ -4,10 +4,13 @@ import json
 import requests
 import re
 import six
+import os
 
 if six.PY2:  # pragma: no cover
+    import ConfigParser as configparser
     from urlparse import urlsplit, urljoin
 else:
+    import configparser
     from urllib.parse import urlsplit, urljoin
 
 import pandas as pd
@@ -116,6 +119,45 @@ def combine_categories_expr(variable_url, combinations):
     }
 
 
+def _get_site():
+    """
+    Utilitarian function that reads credentials from
+    file or from ENV variables
+    """
+    # try to get credentials from enviroment
+    username = os.environ.get('CRUNCH_USERNAME')
+    password = os.environ.get('CRUNCH_PASSWORD')
+    site = os.environ.get('CRUNCH_URL')
+    if username and password and site:
+        print("Found Crunch credentials on Environment")
+        return pycrunch.connect(username, password, site)
+    elif username and password:
+        print("Found Crunch credentials on Environment")
+        return pycrunch.connect(username, password)
+    # try reading from .ini file
+    config = configparser.ConfigParser()
+    config.read('crunch.ini')
+    try:
+        username = config.get('DEFAULT', 'CRUNCH_USERNAME')
+        password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
+    except:
+        username = password = None
+    try:
+        site = config.get('DEFAULT', 'CRUNCH_URL')
+    except:
+        site = None
+    # now try to login with obtained creds
+    if username and password and site:
+        print("Found Crunch credentials on crunch.ini")
+        return pycrunch.connect(username, password, site)
+    elif username and password:
+        print("Found Crunch credentials on crunch.ini")
+        return pycrunch.connect(username, password)
+    else:
+        raise AttributeError('No crunch.ini file found and no '
+                             'environment variables found')
+
+
 def get_dataset(dataset, site=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
@@ -127,8 +169,12 @@ def get_dataset(dataset, site=None):
     """
     if site is None:
         if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+            site = _get_site()
+            if not site:
+                raise AttributeError("Authenticate first with scrunch.connect() or"
+                                     "providing environment variables")
+        else:
+            site = pycrunch.session
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
@@ -745,7 +791,8 @@ class Group(AbstractContainer):
             raise NotImplementedError('Deleting the root Group is not allowed.')
 
         # Before deleting the Group, move all its elements to the root.
-        for element_name, obj in self.elements.items():
+        elements = self.elements.copy()
+        for element_name, obj in elements.items():
             if isinstance(obj, Group):
                 obj.parent = self.order.graph
             self.order.graph.elements[element_name] = obj
@@ -1237,13 +1284,11 @@ class Dataset(object):
 
         Parameters
         ----------
-        user : str
+        :param user:
             The email address or the crunch url of the user who should be set
             as the new current editor of the given dataset.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
 
         def _host_from_url(url):
@@ -1278,16 +1323,12 @@ class Dataset(object):
         """
         Creates a savepoint on the dataset.
 
-        Parameters
-        ----------
-        description : str
+        :param description:
             The description that should be given to the new savepoint. This
             function will not let you create a new savepoint with the same
             description as any other savepoint.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
         if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes('description'):
@@ -1305,16 +1346,12 @@ class Dataset(object):
         """
         Load a savepoint on the dataset.
 
-        Parameters
-        ----------
-        description : str, default=None
+        :param description: default=None
             The description that identifies which savepoint to be loaded.
             When loading a savepoint, all savepoints that were saved after
             the loaded savepoint will be destroyed permanently.
 
-        Returns
-        -------
-        None
+        :returns: None
         """
 
         if description is None:
@@ -1332,9 +1369,7 @@ class Dataset(object):
         """
         Return list of attributes from the given dataset's savepoints.
 
-        Parameters
-        ----------
-        attrib : str
+        :param attrib:
             The attribute to be returned for each savepoint in the given
             dataset. Available attributes are:
                 'creation_time'
@@ -1360,26 +1395,22 @@ class Dataset(object):
         """
         Create a fork of ds and add virgin savepoint.
 
-        Parameters
-        ----------
-        description : str, default=None
+        :param description: str, default=None
             If given, the description to be applied to the fork. If not
             given the description will be copied from ds.
-        name : str, default=None
+        :param name: str, default=None
             If given, the name to be applied to the fork. If not given a
             default name will be created which numbers the fork based on
             how many other forks there are on ds.
-        is_published : bool, default=False
+        :param is_published: bool, default=False
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
-        preserve_owner : bool, default=False
+        :param preserve_owner: bool, default=False
             If True, the owner of the fork will be the same as the parent
             dataset. If the owner of the parent dataset is a Crunch project,
             then it will be preserved regardless of this parameter.
 
-        Returns
-        -------
-        _fork : scrunch.datasets.Dataset
+        :returns _fork: scrunch.datasets.Dataset
             The forked dataset.
         """
 
@@ -1415,9 +1446,7 @@ class Dataset(object):
         """
         Return a dataframe summarizing the forks on the dataset.
 
-        Returns
-        -------
-        _forks : pandas.DataFrame
+        :returns _forks : pandas.DataFrame
             A DataFrame representation of all attributes from all forks
             on the given dataset.
         """
@@ -1452,7 +1481,7 @@ class Dataset(object):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, filter=None, variables=None, include_hidden=True):
+    def download(self, path, filter=None, variables=None, hidden=True):
         """
         Downloads a dataset as CSV to the given path.
         this includes hidden variables and categories
@@ -1483,9 +1512,9 @@ class Dataset(object):
                         }
                     }]
                 }
-        # include_hidden is mutually exclusive with
-        #  variables to include in the download
-        if include_hidden and not variables:
+        # hidden is mutually exclusive with
+        # variables to include in the download
+        if hidden and not variables:
             payload['body']['where'] = {
                     'function': 'select',
                     'args': [{
@@ -1887,3 +1916,12 @@ class Variable(object):
             }
         }
         return self.resource.patch(payload)
+
+    def hide(self):
+        return self.resource.patch(dict(discarded=True))
+
+    def unhide(self):
+        return self.resource.patch(dict(discarded=False))
+
+    def edit(self, **kwargs):
+        return self.resource.edit(**kwargs)

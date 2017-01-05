@@ -12,7 +12,7 @@ from pycrunch.shoji import Entity
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Dataset
+from scrunch.datasets import Dataset, Variable
 
 
 class TestDatasetBase(object):
@@ -194,8 +194,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_any(self):
-        data = self._exclude_payload('exit_status.has_any([32766])')
+    def test_any(self):
+        data = self._exclude_payload('exit_status.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
@@ -214,8 +214,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_any(self):
-        data = self._exclude_payload('not exit_status.has_any([32766])')
+    def test_not_any(self):
+        data = self._exclude_payload('not exit_status.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -239,8 +239,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_any_multiple(self):
-        data = self._exclude_payload('exit_status.has_any([32766, 32767])')
+    def test_any_multiple(self):
+        data = self._exclude_payload('exit_status.any([32766, 32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
@@ -260,8 +260,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_all(self):
-        data = self._exclude_payload('exit_status.has_all([32767])')
+    def test_all(self):
+        data = self._exclude_payload('exit_status.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "args": [
@@ -280,8 +280,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_all(self):
-        data = self._exclude_payload('not exit_status.has_all([32767])')
+    def test_not_all(self):
+        data = self._exclude_payload('not exit_status.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -305,8 +305,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_has_all_or_has_all(self):
-        data = self._exclude_payload('exit_status.has_all([1]) or exit_status.has_all([2])')
+    def test_all_or_all(self):
+        data = self._exclude_payload('exit_status.all([1]) or exit_status.all([2])')
         expected_expr_obj = {
             "expression": {
                 "args": [
@@ -343,8 +343,8 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         assert data == expected_expr_obj
 
-    def test_not_has_all_or_has_all(self):
-        data = self._exclude_payload('not(exit_status.has_all([1]) or exit_status.has_all([2]))')
+    def test_not_all_or_all(self):
+        data = self._exclude_payload('not(exit_status.all([1]) or exit_status.all([2]))')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -622,7 +622,10 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
-class TestVariables(TestCase):
+class TestVariables(TestDatasetBase, TestCase):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+    user_url = 'https://test.crunch.io/api/users/12345/'
+
     def test_variable_as_attribute(self):
         session = mock.MagicMock()
         dataset_resource = mock.MagicMock()
@@ -662,6 +665,22 @@ class TestVariables(TestCase):
             'offset': 'offset',
             'format': 'format'
         }
+
+    def test_hide_unhide_variables(self):
+        body = {
+            'self': self.ds_url,
+            'name': 'Dataset Name'
+        }
+        sess = mock.MagicMock()
+        ds_res = mock.MagicMock(session=sess, body=body)
+        ds = Dataset(ds_res)
+        v = ds['test']
+        assert isinstance(v, Variable)
+
+        v.hide()
+        v.resource.patch.assert_called_with(dict(discarded=True))
+        v.unhide()
+        v.resource.patch.assert_called_with(dict(discarded=False))
 
 
 class TestCurrentEditor(TestDatasetBase, TestCase):

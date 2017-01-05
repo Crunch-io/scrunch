@@ -54,10 +54,9 @@ CRUNCH_FUNC_MAP = {
 }
 
 CRUNCH_METHOD_MAP = {
-    'has_any': 'any',
-    'has_all': 'all',
-    'duplicates': 'duplicates',
-    'has_count': 'has_count',
+    'any': 'any',
+    'all': 'all',
+    'duplicates': 'duplicates'
 }
 
 # according to http://docs.crunch.io/#function-terms
@@ -172,6 +171,13 @@ def parse_expr(expr):
                     'variable': _id
                 }
             elif isinstance(node, ast.Num) or isinstance(node, ast.Str):
+                if isinstance(parent, ast.Call) \
+                        and 'func' in parent._fields:
+                    _id = fields[0][1]
+                    return {
+                        'variable': _id
+                    }
+
                 _val = fields[0][1]
                 return {
                     'value': _val
@@ -254,7 +260,7 @@ def parse_expr(expr):
                         args.append(right)
                     elif _name == 'func' and isinstance(_val, ast.Attribute):
                         # Method-like call. Example:
-                        #       variable.has_any([1,2])
+                        #       variable.any([1,2])
                         func_type = 'method'
                         setattr(_val, '_func_type', func_type)
                         left, op = _parse(_val, parent=node)
@@ -289,17 +295,12 @@ def parse_expr(expr):
 
                             # For method calls, we only allow list-of-int
                             # parameters.
-                            if _name == 'args' and func_type == 'method' \
-                                    and op != 'has_count':
+                            if _name == 'args' and func_type == 'method':
                                 if 'value' not in right \
                                         or not isinstance(right['value'], list):
                                     raise ValueError
 
                             args.append(right)
-
-                        if op == 'has_count':
-                            if not isinstance(args[-1].get('value'), int):
-                                raise ValueError
 
                     elif _name in ('keywords', 'starargs', 'kwargs') and _val:
                         # We don't support these in function/method calls.
@@ -393,6 +394,49 @@ def process_expr(obj, ds):
     base_url = ds.self
     variables = get_dataset_variables(ds)
 
+    def ensure_category_ids(subitems, variables=variables):
+        var_id = None
+        var_value = None
+        _subitems = []
+
+        def variable_id(variable_url):
+            return variable_url.split('/')[-2]
+
+        def category_ids(var_id, var_value, variables=variables):   
+            value = None
+            if isinstance(var_value, list) or isinstance(var_value, tuple):
+                # {'values': [val1, val2, ...]}
+                value = []
+                for val in var_value:
+                    if str(val).isdigit():
+                        # val1 is an id already
+                        value.append(val)
+                        continue
+                    for var in variables:
+                        if variables[var]['id'] == var_id:
+                            for cat in variables[var].categories:
+                                if cat['name'] == val:
+                                    value.append(cat['numeric_value'])
+
+            elif isinstance(var_value, str):
+                for var in variables:
+                    if variables[var]['id'] == var_id:
+                        for cat in variables[var].categories:
+                            if cat['name'] == var_value:
+                                value = cat['numeric_value']
+            else:
+                return var_value
+            return value
+
+        for item in subitems:
+            if isinstance(item, dict) and 'variable' in item:
+                var_id = variable_id(item['variable'])
+            elif isinstance(item, dict) and 'value' in item:
+                item['value'] = category_ids(var_id, item['value'])
+            _subitems.append(item)
+
+        return _subitems
+
     def _process(obj, variables):
         op = None
         arrays = []
@@ -412,6 +456,14 @@ def process_expr(obj, ds):
                         elif 'value' in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
+
+                has_value = any('value' in item for item in subitems
+                                if not str(item).isdigit())
+
+                has_variable = any('variable' in item for item in subitems
+                                   if not str(item).isdigit())
+                if has_value and has_variable:
+                    subitems = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
                 var = variables.get(val)
