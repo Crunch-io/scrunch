@@ -287,7 +287,7 @@ class TestRecode(TestCase):
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
         dataset = Dataset(ds_res)
-        dataset.recode([
+        dataset.create_categorical([
             {'id': 1, 'name': 'Straight', 'rules': 'sexuality.has_any([1])'},
             {'id': 2, 'name': 'LGBTQ+', 'rules': 'sexuality.has_any([2, 3, 4, 5])'}
         ], name='Sexuality 2', alias='sexuality2', multiple=False)
@@ -422,7 +422,7 @@ class TestRecode(TestCase):
             'Q1_3': subvar_mock,
         }
 
-        dataset.recode([
+        dataset.create_categorical([
             {'id': 1, 'name': 'Q1_recoded_1', 'rules': mr_in(var_url, 'Q1', [1, 2], subvariables)},
             {'id': 2, 'name': 'Q1_recoded_2', 'rules': mr_in(var_url, 'Q1', [3], subvariables)}
         ], alias='Q1_recoded', name='Q1_recoded', multiple=True)

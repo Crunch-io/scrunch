@@ -947,7 +947,7 @@ class TestRecode(TestDatasetBase):
             {'id': 3, 'name': 'Google+',
              'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        ds.recode(responses, alias='cat', name='My cat', multiple=False)
+        ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1062,7 +1062,7 @@ class TestRecode(TestDatasetBase):
             {'id': 2, 'name': 'Twitter', 'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        mr = ds.recode(responses, alias='mr', name='my mr', multiple=True)
+        mr = ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {

@@ -27,7 +27,7 @@ total = dataset.stream_rows(NEWS_DATASET_ROWS)
 dataset.push_rows(total)
 
 # Recode a new single response variable
-agerange = dataset.recode([
+agerange = dataset.create_categorical([
     {'id': 1, 'name': 'Underage', 'rules': 'age < 18'},
     {'id': 2, 'name': 'Millenials', 'rules': 'age > 18 and age < 25'},
     {'id': 3, 'name': 'Gen X', 'rules': 'age < 35 and age >= 25'},
@@ -38,7 +38,7 @@ agerange = dataset.recode([
 print("Variable %s created" % agerange.alias)
 
 # Recode a new multiple response variable from an existing multiple response variable
-origintype = dataset.recode([
+origintype = dataset.create_categorical([
     {'id': 1, 'name': "Online",
      # Mixed support for using "category"(subvariables really) IDs
      'rules': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper

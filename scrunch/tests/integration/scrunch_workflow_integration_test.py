@@ -750,7 +750,7 @@ def main():
             'missing(operating_system)'
         ]
 
-        new_var = dataset.create_categorical(
+        new_var = dataset.create_single_response(
             categories=categories,
             rules=rules,
             name='Operating System Users',

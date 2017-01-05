@@ -1063,7 +1063,7 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
-    def create_categorical(self, categories,
+    def create_single_response(self, categories,
                            name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
@@ -1588,7 +1588,7 @@ class Dataset(object):
             return wait_progress(r=progress, session=self.session, entity=self)
         return progress.json()['value']
 
-    def recode(self, categories, alias, name, multiple, description=''):
+    def create_categorical(self, categories, alias, name, multiple, description=''):
         """
         Used to create new categorical variables using Crunchs's `case` function.
 
@@ -1599,7 +1599,7 @@ class Dataset(object):
             return self.create_multiple_response(categories, alias=alias,
                 name=name, description=description)
         else:
-            return self.create_categorical(categories, alias=alias, name=name,
+            return self.create_single_response(categories, alias=alias, name=name,
                 description=description)
 
 
