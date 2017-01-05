@@ -28,11 +28,11 @@ dataset.push_rows(total)
 
 # Recode a new single response variable
 agerange = dataset.create_categorical([
-    {'id': 1, 'name': 'Underage', 'rules': 'age < 18'},
-    {'id': 2, 'name': 'Millenials', 'rules': 'age > 18 and age < 25'},
-    {'id': 3, 'name': 'Gen X', 'rules': 'age < 35 and age >= 25'},
-    {'id': 4, 'name': 'Grown ups', 'rules': 'age < 60 and age >= 35'},
-    {'id': 5, 'name': '60+', 'rules': 'age >= 60'}
+    {'id': 1, 'name': 'Underage', 'case': 'age < 18'},
+    {'id': 2, 'name': 'Millenials', 'case': 'age > 18 and age < 25'},
+    {'id': 3, 'name': 'Gen X', 'case': 'age < 35 and age >= 25'},
+    {'id': 4, 'name': 'Grown ups', 'case': 'age < 60 and age >= 35'},
+    {'id': 5, 'name': '60+', 'case': 'age >= 60'}
 ], alias='agerange', name='Age range', multiple=False)
 
 print("Variable %s created" % agerange.alias)
@@ -41,10 +41,10 @@ print("Variable %s created" % agerange.alias)
 origintype = dataset.create_categorical([
     {'id': 1, 'name': "Online",
      # Mixed support for using "category"(subvariables really) IDs
-     'rules': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper
-    {'id': 2, 'name': "Print", 'rules': mr_in(dataset, 'newssource', [5, 6])},
-    {'id': 3, 'name': "Tv", 'rules': mr_in(dataset, 'newssource', [7, 9])},
-    {'id': 4, 'name': "Radio", 'rules': mr_in(dataset, 'newssource', [8, 10])},
+     'case': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper
+    {'id': 2, 'name': "Print", 'case': mr_in(dataset, 'newssource', [5, 6])},
+    {'id': 3, 'name': "Tv", 'case': mr_in(dataset, 'newssource', [7, 9])},
+    {'id': 4, 'name': "Radio", 'case': mr_in(dataset, 'newssource', [8, 10])},
 ], alias='origintype', name="News source by type", multiple=True)
 
 print("Variable %s created" % origintype.alias)

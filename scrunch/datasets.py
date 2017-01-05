@@ -1069,9 +1069,9 @@ class Dataset(object):
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
         """
-        rules = []
+        cases = []
         for cat in categories:
-            rules.append(cat.pop('rules'))
+            cases.append(cat.pop('case'))
 
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
@@ -1095,8 +1095,8 @@ class Dataset(object):
                 missing=True))
 
         more_args = []
-        for rule in rules:
-            more_args.append(parse_expr(rule))
+        for case in cases:
+            more_args.append(parse_expr(case))
 
         more_args = process_expr(more_args, self.resource)
 
@@ -1117,10 +1117,10 @@ class Dataset(object):
         """
         responses_map = {}
         for resp in responses:
-            rules = resp['rules']
-            if isinstance(rules, basestring):
-                rules = process_expr(parse_expr(rules), self.resource)
-            responses_map['%04d' % resp['id']] = case_expr(rules, name=resp['name'],
+            case = resp['case']
+            if isinstance(case, basestring):
+                case = process_expr(parse_expr(case), self.resource)
+            responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
                 alias='%s_%d' % (alias, resp['id']))
 
         payload = {
