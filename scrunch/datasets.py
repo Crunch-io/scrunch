@@ -1,9 +1,19 @@
 import abc
 import collections
 import json
+import os
+
+import pycrunch
 import requests
 import six
-import os
+
+from pycrunch.exporting import export_dataset
+from pycrunch.importing import Importer
+from pycrunch.shoji import Entity, wait_progress
+from scrunch.expressions import parse_expr, process_expr
+from scrunch.variables import validate_variable_url
+
+import pandas as pd
 
 if six.PY2:  # pragma: no cover
     from urlparse import urlsplit
@@ -11,16 +21,6 @@ if six.PY2:  # pragma: no cover
 else:
     from urllib.parse import urlsplit
     import configparser
-
-import pandas as pd
-
-import pycrunch
-from pycrunch.importing import Importer
-from pycrunch.shoji import Entity, wait_progress
-from pycrunch.exporting import export_dataset
-
-from scrunch.expressions import parse_expr, process_expr
-from scrunch.variables import validate_variable_url
 
 
 SKELETON = {

@@ -43,8 +43,9 @@ ready for the crunch API.
 import ast
 import copy
 
-import six
 import scrunch
+import six
+
 from scrunch.variables import validate_variable_url
 
 CRUNCH_FUNC_MAP = {
