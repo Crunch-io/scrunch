@@ -23,7 +23,7 @@ from scrunch.expressions import parse_expr, process_expr
 from scrunch.variables import validate_variable_url
 
 
-SKELETON = {
+_VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
     'body': {
         'name': 'name',
@@ -35,10 +35,6 @@ SKELETON = {
         }
     }
 }
-
-REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
-REQUIRES_RESPONSES = {'combined_ids', 'name'}
-
 
 def _get_site():
     """
@@ -222,6 +218,7 @@ def validate_category_map(map):
     :param map: categories keyed by new category id mapped to existing ones
     :return: a list of dictionary objects that the Crunch API expects
     """
+    REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
     for value in map.values():
         keys = set(list(value.keys()))
         assert keys & REQUIRED_VALUES, (
@@ -1040,7 +1037,7 @@ class Dataset(object):
         """
         variable_url = variable_to_url(self.resource, variable)
         categories = validate_category_map(category_map)
-        payload = SKELETON.copy()
+        payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
@@ -1070,7 +1067,7 @@ class Dataset(object):
         variable_url = variable_to_url(self.resource, variable)
         trans_responses = aliases_to_urls(self.resource, variable_url, response_map)
         responses = validate_response_map(trans_responses)
-        payload = SKELETON.copy()
+        payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
@@ -1539,7 +1536,7 @@ class Variable(object):
                 category_defs.append(missing_category)
 
             # 4. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
@@ -1586,7 +1583,7 @@ class Variable(object):
                     )
 
             # 3. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
