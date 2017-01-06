@@ -78,8 +78,7 @@ def _get_site():
         raise AttributeError('No crunch.ini file found and no '
                              'environment variables found')
 
-
-def get_dataset(dataset, site=None, editor=None):
+def get_dataset(dataset, site=None, editor=False):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
     This method uses the library singleton session if the optional "site"
@@ -105,8 +104,8 @@ def get_dataset(dataset, site=None, editor=None):
 
     ds = Dataset(shoji_ds)
 
-    if editor:
-        ds.change_editor(editor)
+    if editor is True:
+        ds.change_editor(site.user_url.body.email)
 
     return ds
 
