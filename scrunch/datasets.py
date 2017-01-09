@@ -24,7 +24,7 @@ from scrunch.expressions import parse_expr, process_expr
 from scrunch.variables import validate_variable_url
 
 
-SKELETON = {
+_VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
     'body': {
         'name': 'name',
@@ -158,12 +158,13 @@ def _get_site():
         raise AttributeError('No crunch.ini file found and no '
                              'environment variables found')
 
-
-def get_dataset(dataset, site=None):
+def get_dataset(dataset, site=None, editor=False):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
     This method uses the library singleton session if the optional "site"
     parameter is not provided.
+
+    Also able to change editor while getting the dataset with the optional .
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
@@ -180,7 +181,13 @@ def get_dataset(dataset, site=None):
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
         shoji_ds = site.datasets.by('id')[dataset].entity
-    return Dataset(shoji_ds)
+
+    ds = Dataset(shoji_ds)
+
+    if editor is True:
+        ds.change_editor(site.user_url.body.email)
+
+    return ds
 
 
 def change_project(project, site=None):
@@ -302,6 +309,7 @@ def validate_category_map(map):
     :param map: categories keyed by new category id mapped to existing ones
     :return: a list of dictionary objects that the Crunch API expects
     """
+    REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
     raise PendingDeprecationWarning("Does not use the new input format")
     for value in map.values():
         keys = set(list(value.keys()))
@@ -1317,7 +1325,7 @@ class Dataset(object):
             for url, user in six.iteritems(users):
                 if user['email'] == email:
                     user_url = url
-                    self.patch({'current_editor': url})
+                    self.resource.patch({'current_editor': url})
                     break
             assert user_url is not None, 'Unable to resolve user url'
 
@@ -1770,7 +1778,7 @@ class Variable(object):
                 category_defs.append(missing_category)
 
             # 4. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
@@ -1818,7 +1826,7 @@ class Variable(object):
                     )
 
             # 3. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
