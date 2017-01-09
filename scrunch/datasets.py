@@ -24,7 +24,7 @@ from scrunch.expressions import parse_expr, process_expr
 from scrunch.variables import validate_variable_url
 
 
-SKELETON = {
+_VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
     'body': {
         'name': 'name',
@@ -70,16 +70,16 @@ def subvar_alias(parent_alias, response_id):
     return '%s_%d' % (parent_alias, response_id)
 
 
-def responses_from_map(variable, response_map, alias, parent_alias):
+def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
     subvars = variable.resource.subvariables.by('alias')
     try:
         responses = [{
-                         'name': combined['name'],
-                         'alias': subvar_alias(alias, combined['id']),
+                         'name': cat_names.get(response_id, "Response %s"  % response_id),
+                         'alias': subvar_alias(alias, response_id),
                          'combined_ids': [subvars[subvar_alias(parent_alias,
                              sv_alias)].entity_url for sv_alias in
-                                          combined['combined_ids']]
-                     } for combined in response_map]
+                                          combined_ids]
+                     } for response_id, combined_ids in sorted(response_map.iteritems())]
     except KeyError:
         # This means we tried to combine a subvariable with ~id~ that does not
         # exist in the subvariables. Treat as bad input.
@@ -87,13 +87,14 @@ def responses_from_map(variable, response_map, alias, parent_alias):
     return responses
 
 
-def combinations_from_map(category_map):
+def combinations_from_map(map, categories, missing):
+    missing = missing if isinstance(missing, list) else [missing]
     combinations = [{
-                        'id': combined['id'],
-                        'name': combined['name'],
-                        'missing': combined.get('missing', False),
-                        'combined_ids': combined['combined_ids']
-                    } for combined in category_map]
+        'id': cat_id,
+        'name': categories.get(cat_id, "Category %s" % cat_id),
+        'missing': cat_id in missing,
+        'combined_ids': combined_ids if isinstance(combined_ids, (list, tuple)) else [combined_ids]
+    } for cat_id, combined_ids in sorted(map.iteritems())]
     return combinations
 
 
@@ -157,12 +158,13 @@ def _get_site():
         raise AttributeError('No crunch.ini file found and no '
                              'environment variables found')
 
-
-def get_dataset(dataset, site=None):
+def get_dataset(dataset, site=None, editor=False):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists.
     This method uses the library singleton session if the optional "site"
     parameter is not provided.
+
+    Also able to change editor while getting the dataset with the optional .
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
@@ -179,7 +181,13 @@ def get_dataset(dataset, site=None):
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
         shoji_ds = site.datasets.by('id')[dataset].entity
-    return Dataset(shoji_ds)
+
+    ds = Dataset(shoji_ds)
+
+    if editor is True:
+        ds.change_editor(site.user_url.body.email)
+
+    return ds
 
 
 def change_project(project, site=None):
@@ -301,6 +309,7 @@ def validate_category_map(map):
     :param map: categories keyed by new category id mapped to existing ones
     :return: a list of dictionary objects that the Crunch API expects
     """
+    REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
     raise PendingDeprecationWarning("Does not use the new input format")
     for value in map.values():
         keys = set(list(value.keys()))
@@ -1211,37 +1220,42 @@ class Dataset(object):
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
 
-    def combine(self, variable, category_map, name, alias, description=''):
+    def combine_categories(self, variable, map, categories, missing=None, default=None,
+            name='', alias='', description=''):
+        if not alias or not name:
+            raise ValueError("Name and alias are required")
         if variable.type in MR_TYPE:
-            return self.combine_responses(variable, category_map, name=name,
-                alias=alias, description=description)
+            return self.combine_multiple_response(variable, map, categories, name=name,
+                                                  alias=alias, description=description)
         else:
-            return self.combine_categories(variable, category_map, name=name,
-                alias=alias, description=description)
+            return self.combine_categorical(variable, map, categories, missing, default,
+                                            name=name, alias=alias, description=description)
 
-    def combine_categories(self, variable, category_map,
-                           name, alias, description=''):
+    def combine_categorical(self, variable, map, categories=None, missing=None,
+            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
-        category_map = {
-            1: {
-                "name": "Favorable",
-                "missing": True,
-                "combined_ids": [1,2]
+            map={
+                1: (1, 2),
+                2: 3,
+                3: (4, 5)
             },
-        }
-        :param variable: alias of the variable to recode
-        :param name: name for the new variable
-        :param alias: alias for the new variable
-        :param description: description for the new variable
-        :param category_map: map to combine categories
-        :return: the new created variable
+            default=9,
+            missing=[-1, 9],
+            categories={
+                1: "low",
+                2: "medium",
+                3: "high",
+                9: "no answer"
+            },
+            missing=9
         """
         if isinstance(variable, basestring):
             variable = self[variable]
 
-        combinations = combinations_from_map(category_map)
+        # TODO: Implement `default` parameter in Crunch API
+        combinations = combinations_from_map(map, categories or {}, missing or [])
         payload = SKELETON.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
@@ -1250,17 +1264,21 @@ class Dataset(object):
             variable.resource.self, combinations)
         return Variable(self.resource.variables.create(payload).refresh())
 
-    def combine_responses(self, variable, response_map,
-                          name, alias, description=''):
+    def combine_multiple_response(self, variable, map, categories=None, default=None,
+                          name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
 
-        response_map = [
-            {"id": 1, "name": 'online', 'combined_ids': [1]},
-            {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
-        ]
-        :return: newly created variable
+            map={
+                1: 1,
+                2: [2, 3, 4]
+            },
+            categories={
+                1: "online",
+                2: "notonline"
+            }
+
         """
         if isinstance(variable, basestring):
             parent_alias = variable
@@ -1268,7 +1286,8 @@ class Dataset(object):
         else:
             parent_alias = variable.alias
 
-        responses = responses_from_map(variable, response_map, alias,
+        # TODO: Implement `default` parameter in Crunch API
+        responses = responses_from_map(variable, map, categories or {}, alias,
             parent_alias)
         payload = SKELETON.copy()
         payload['body']['name'] = name
@@ -1306,7 +1325,7 @@ class Dataset(object):
             for url, user in six.iteritems(users):
                 if user['email'] == email:
                     user_url = url
-                    self.patch({'current_editor': url})
+                    self.resource.patch({'current_editor': url})
                     break
             assert user_url is not None, 'Unable to resolve user url'
 
@@ -1759,7 +1778,7 @@ class Variable(object):
                 category_defs.append(missing_category)
 
             # 4. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
@@ -1807,7 +1826,7 @@ class Variable(object):
                     )
 
             # 3. Create the recoded variable.
-            payload = SKELETON.copy()
+            payload = _VARIABLE_PAYLOAD_TMPL.copy()
             payload['body']['name'] = name
             payload['body']['alias'] = alias
             payload['body']['description'] = description
