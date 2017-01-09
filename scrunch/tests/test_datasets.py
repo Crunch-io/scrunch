@@ -941,11 +941,11 @@ class TestRecode(TestDatasetBase):
         }
         ds = self.dataset_mock(variables=variables)
         responses = [
-            {'id': 1, 'name': 'Facebook', 'rules': 'var_a > 5'},
+            {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
             {'id': 2, 'name': 'Twitter',
-             'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
+             'case': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+',
-             'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
+             'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
         ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
         ds.resource.variables.create.assert_called_with({
@@ -1058,9 +1058,9 @@ class TestRecode(TestDatasetBase):
         }
         ds = self.dataset_mock(variables=variables)
         responses = [
-            {'id': 1, 'name': 'Facebook', 'rules': 'var_a > 5'},
-            {'id': 2, 'name': 'Twitter', 'rules': 'var_b < 10 and var_c in (1, 2, 3)'},
-            {'id': 3, 'name': 'Google+', 'rules': '(gender == 1) and (age >= 16 and age <= 24)'},
+            {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
+            {'id': 2, 'name': 'Twitter', 'case': 'var_b < 10 and var_c in (1, 2, 3)'},
+            {'id': 3, 'name': 'Google+', 'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
         mr = ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
