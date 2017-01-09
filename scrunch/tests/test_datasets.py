@@ -666,22 +666,6 @@ class TestVariables(TestDatasetBase, TestCase):
             'format': 'format'
         }
 
-    def test_hide_unhide_variables(self):
-        body = {
-            'self': self.ds_url,
-            'name': 'Dataset Name'
-        }
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds = Dataset(ds_res)
-        v = ds['test']
-        assert isinstance(v, Variable)
-
-        v.hide()
-        v.resource.patch.assert_called_with(dict(discarded=True))
-        v.unhide()
-        v.resource.patch.assert_called_with(dict(discarded=False))
-
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
@@ -1254,9 +1238,6 @@ def test_hide_unhide():
     var_res.edit.assert_called_with(discarded=True)
     var.unhide()
     var_res.edit.assert_called_with(discarded=False)
-
-
-
 
 
 class TestHierarchicalOrder(TestCase):

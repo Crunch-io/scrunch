@@ -39,7 +39,7 @@ CATEGORY_MAP = {
 }
 CATEGORY_NAMES = {
     1: 'China',
-    2: 'Odher'
+    2: 'Other'
 }
 
 RESPONSE_MAP = {
@@ -90,12 +90,12 @@ COMBINE_RESPONSES_PAYLOAD = {
 class TestCombine(TestCase):
 
     def test_validate_range_expression(self):
-        test_map = [{
-            "id": 1,
-            "name": "China",
-            "missing": False,
-            "combined_ids": range(1, 5)
-        }]
+        test_map = {
+            1: range(1, 5)
+        }
+        test_cats = {
+            1: "China"
+        }
         variable_mock = mock.MagicMock()
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
         variable_mock.subvariables.by.return_value = {
@@ -105,7 +105,7 @@ class TestCombine(TestCase):
             'parent_4': subvar_mock,
         }
         parent_var = Variable(variable_mock)
-        modified_map = responses_from_map(parent_var, test_map, 'test', 'parent')
+        modified_map = responses_from_map(parent_var, test_map, test_cats, 'test', 'parent')
         # subvar_url * 4 because we used the same mock for all subvars
         assert modified_map[0]['combined_ids'] == [subvar1_url] * 4
 
@@ -295,8 +295,8 @@ class TestRecode(TestCase):
         ds_res.follow.return_value = table_mock
         dataset = Dataset(ds_res)
         dataset.create_categorical([
-            {'id': 1, 'name': 'Straight', 'rules': 'sexuality.has_any([1])'},
-            {'id': 2, 'name': 'LGBTQ+', 'rules': 'sexuality.has_any([2, 3, 4, 5])'}
+            {'id': 1, 'name': 'Straight', 'case': 'sexuality.any([1])'},
+            {'id': 2, 'name': 'LGBTQ+', 'case': 'sexuality.any([2, 3, 4, 5])'}
         ], name='Sexuality 2', alias='sexuality2', multiple=False)
 
         ds_res.variables.create.assert_called_with({
@@ -430,8 +430,8 @@ class TestRecode(TestCase):
         }
 
         dataset.create_categorical([
-            {'id': 1, 'name': 'Q1_recoded_1', 'rules': mr_in(var_url, 'Q1', [1, 2], subvariables)},
-            {'id': 2, 'name': 'Q1_recoded_2', 'rules': mr_in(var_url, 'Q1', [3], subvariables)}
+            {'id': 1, 'name': 'Q1_recoded_1', 'case': mr_in(var_url, 'Q1', [1, 2], subvariables)},
+            {'id': 2, 'name': 'Q1_recoded_2', 'case': mr_in(var_url, 'Q1', [3], subvariables)}
         ], alias='Q1_recoded', name='Q1_recoded', multiple=True)
 
         # Test how the recoded var was created.

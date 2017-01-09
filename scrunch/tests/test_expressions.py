@@ -2087,29 +2087,17 @@ class TestExpressionProcessing(TestCase):
             }
         ]
 
-        # Mock the dataset.
-        _get_func = self._build_get_func(
-            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
-
-        _var_mock = mock.MagicMock()
-        _var_mock.entity.self = var_url
-        _var_mock.__getitem__.side_effect = _get_func
-        _var_mock.get.side_effect = _get_func
-        _var_mock.categories = categories
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return self.CrunchPayload({
-                    'metadata': {
-                        var_id: _var_mock
-                    }
-                })
-            return self.CrunchPayload()
-
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.session.get.side_effect = _session_get
+        ds.follow.return_value = table_mock
 
         expr = "hobbies == 'mocking'"
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2141,29 +2129,17 @@ class TestExpressionProcessing(TestCase):
             },
         ]
 
-        # Mock the dataset.
-        _get_func = self._build_get_func(
-            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
-
-        _var_mock = mock.MagicMock()
-        _var_mock.entity.self = var_url
-        _var_mock.__getitem__.side_effect = _get_func
-        _var_mock.get.side_effect = _get_func
-        _var_mock.categories = categories
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return self.CrunchPayload({
-                    'metadata': {
-                        var_id: _var_mock
-                    }
-                })
-            return self.CrunchPayload()
-
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.session.get.side_effect = _session_get
+        ds.follow.return_value = table_mock
 
         expr = "hobbies in ['mocking', 'coding']"
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2195,29 +2171,18 @@ class TestExpressionProcessing(TestCase):
             },
         ]
 
-        # Mock the dataset.
-        _get_func = self._build_get_func(
-            id=var_id, type=var_type, alias=var_alias, is_subvar=False)
 
-        _var_mock = mock.MagicMock()
-        _var_mock.entity.self = var_url
-        _var_mock.__getitem__.side_effect = _get_func
-        _var_mock.get.side_effect = _get_func
-        _var_mock.categories = categories
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return self.CrunchPayload({
-                    'metadata': {
-                        var_id: _var_mock
-                    }
-                })
-            return self.CrunchPayload()
-
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.session.get.side_effect = _session_get
+        ds.follow.return_value = table_mock
 
         expr = "hobbies in ('mocking', 'coding')"
         expr_obj = process_expr(parse_expr(expr), ds)

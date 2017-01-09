@@ -414,14 +414,14 @@ def process_expr(obj, ds):
                         continue
                     for var in variables:
                         if variables[var]['id'] == var_id:
-                            for cat in variables[var].categories:
+                            for cat in variables[var]['categories']:
                                 if cat['name'] == val:
                                     value.append(cat['numeric_value'])
 
             elif isinstance(var_value, str):
                 for var in variables:
                     if variables[var]['id'] == var_id:
-                        for cat in variables[var].categories:
+                        for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
                                 value = cat['numeric_value']
             else:

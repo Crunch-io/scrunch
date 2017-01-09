@@ -1256,7 +1256,7 @@ class Dataset(object):
 
         # TODO: Implement `default` parameter in Crunch API
         combinations = combinations_from_map(map, categories or {}, missing or [])
-        payload = SKELETON.copy()
+        payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
@@ -1289,7 +1289,7 @@ class Dataset(object):
         # TODO: Implement `default` parameter in Crunch API
         responses = responses_from_map(variable, map, categories or {}, alias,
             parent_alias)
-        payload = SKELETON.copy()
+        payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
@@ -1638,9 +1638,11 @@ class Variable(object):
             return self.resource.body[item]  # Has to exist
 
     def hide(self):
+        print("HIDING")
         self.resource.edit(discarded=True)
 
     def unhide(self):
+        print("UNHIDING")
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
@@ -1905,12 +1907,6 @@ class Variable(object):
             }
         }
         return self.resource.patch(payload)
-
-    def hide(self):
-        return self.resource.patch(dict(discarded=True))
-
-    def unhide(self):
-        return self.resource.patch(dict(discarded=False))
 
     def edit(self, **kwargs):
         return self.resource.edit(**kwargs)
