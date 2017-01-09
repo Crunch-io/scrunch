@@ -59,18 +59,30 @@ origintype_copy = dataset.copy_variable(origintype, name='Copy of origintype',
     alias='origintype_copy')
 print("Variable %s created" % origintype_copy.alias)
 
-
-onlinenewssource = dataset.combine(origintype_copy, [
-    {"id": 1, "name": 'online', 'combined_ids': [1]},
-    {"id": 2, "name": 'notonline', 'combined_ids': [2, 3, 4]}
-], name='Online or not', alias='onlinenewssource')
+onlinenewssource = dataset.combine(origintype_copy,
+    map={
+        1: 1,
+        2: [2, 3, 4]
+    },
+    categories={
+        1: "online",
+        2: "notonline",
+    },
+    alias="onlinenewssource",
+    name='Online or not',
+)
 print('Created combination: %s' % onlinenewssource.alias)
 
 # Combine a single categorical - Combine with subvar 3 on the wrong place
-over35 = dataset.combine(agerange, [
-    {"id": 1, "name": 'under35', 'combined_ids': [1, 2, 3], 'missing': False},
-    {"id": 2, "name": 'over35', 'combined_ids': [4, 5], 'missing': False}
-], name='over 35?', alias='over35')
+over35 = dataset.combine(agerange,
+    map={
+        1: [1, 2, 3],
+        2: [4, 5]
+    },
+    categories={
+     1: 'under35',
+     2: 'over35'
+    }, name='over 35?', alias='over35')
 print('Created combination: %s' % over35.alias)
 
 # Export some rows

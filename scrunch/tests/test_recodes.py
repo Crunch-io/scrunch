@@ -33,14 +33,21 @@ subvar1_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariable
 subvar2_url = 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/00002/'
 
 
-CATEGORY_MAP = [
-    {'id': 1, 'name': 'China', 'missing': False, 'combined_ids': [2, 3]},
-    {'id': 2, 'name': 'Other', 'missing': False, 'combined_ids': [1]}
-]
+CATEGORY_MAP = {
+    1: [2, 3],
+    2: 1
+}
+CATEGORY_NAMES = {
+    1: 'China',
+    2: 'Odher'
+}
 
-RESPONSE_MAP = [
-    {"id": 1, "name": 'online', 'combined_ids': [1, 2]},
-]
+RESPONSE_MAP = {
+    1: [1, 2]
+}
+RESPONSE_NAMES = {
+    1: 'online'
+}
 
 RECODES_PAYLOAD = {
     'element': 'shoji:entity',
@@ -111,7 +118,7 @@ class TestCombine(TestCase):
         }
         ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
-            ds.combine_categories('unknown', CATEGORY_MAP, 'name', 'alias')
+            ds.combine_categories('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
         assert 'Dataset has no variable unknown' in str(err.value)
 
@@ -123,7 +130,7 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
         ds = Dataset(resource)
-        ds.combine_categories('test', CATEGORY_MAP, 'name', 'alias')
+        ds.combine_categories('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
 
     def test_combine_categories_from_entity(self):
@@ -134,7 +141,7 @@ class TestCombine(TestCase):
         }
         entity = Variable(Entity(mock.MagicMock(), self=var_url, body={}))
         ds = Dataset(resource)
-        ds.combine_categories(entity, CATEGORY_MAP, 'name', 'alias')
+        ds.combine_categories(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
 
     def test_combine_responses_unknown_alias(self):
@@ -163,7 +170,7 @@ class TestCombine(TestCase):
 
         ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
-            ds.combine_responses('test', RESPONSE_MAP, name='name', alias='alias')
+            ds.combine_responses('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
 
         assert 'Unknown subvariables for variable' in str(err.value)
 
@@ -193,7 +200,7 @@ class TestCombine(TestCase):
 
         # make the actual response call
         ds = Dataset(resource)
-        ds.combine_responses('test', RESPONSE_MAP, name='name', alias='alias')
+        ds.combine_responses('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
 
     def test_combine_responses_by_entity(self):
@@ -222,7 +229,7 @@ class TestCombine(TestCase):
 
         # make the actual response call
         ds = Dataset(ds_resource)
-        ds.combine_responses(entity, RESPONSE_MAP, 'name', 'alias')
+        ds.combine_responses(entity, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         ds_resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
 
 
