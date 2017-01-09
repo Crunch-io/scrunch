@@ -79,7 +79,7 @@ def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
                          'combined_ids': [subvars[subvar_alias(parent_alias,
                              sv_alias)].entity_url for sv_alias in
                                           combined_ids]
-                     } for response_id, combined_ids in response_map.iteritems()]
+                     } for response_id, combined_ids in sorted(response_map.iteritems())]
     except KeyError:
         # This means we tried to combine a subvariable with ~id~ that does not
         # exist in the subvariables. Treat as bad input.
@@ -94,7 +94,7 @@ def combinations_from_map(map, categories, missing):
         'name': categories.get(cat_id, "Category %s" % cat_id),
         'missing': cat_id in missing,
         'combined_ids': combined_ids if isinstance(combined_ids, (list, tuple)) else [combined_ids]
-    } for cat_id, combined_ids in map.iteritems()]
+    } for cat_id, combined_ids in sorted(map.iteritems())]
     return combinations
 
 
