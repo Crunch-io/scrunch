@@ -805,7 +805,7 @@ def main():
                 'combined_ids': [32766, 32767]
             }
         }
-        new_var = dataset.combine_categories(
+        new_var = dataset.combine_categorical(
             'speak_spanish', cat_map, 'Bilingual Person', 'bilingual'
         )
         import pdb; pdb.set_trace()
@@ -862,7 +862,7 @@ def main():
                 'combined_ids': [32766, 32767]
             }
         }
-        new_var = dataset.combine_categories(
+        new_var = dataset.combine_categorical(
             'hobbies', cat_map, 'Hobbies (recoded)', 'hobbies_recoded'
         )
         assert isinstance(new_var, pycrunch.shoji.Entity)
@@ -893,7 +893,7 @@ def main():
             'music_recoded_2': ['music_97'],
             'music_recoded_3': ['music_98', 'music_99']
         }
-        new_var = dataset.combine_responses(
+        new_var = dataset.combine_multiple_response(
             'music', response_map, 'Music (alt)', 'music_recoded'
         )
         assert isinstance(new_var, pycrunch.shoji.Entity)

@@ -1220,18 +1220,18 @@ class Dataset(object):
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
 
-    def combine(self, variable, map, categories, missing=None, default=None,
+    def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in MR_TYPE:
-            return self.combine_responses(variable, map, categories, name=name,
-                alias=alias, description=description)
+            return self.combine_multiple_response(variable, map, categories, name=name,
+                                                  alias=alias, description=description)
         else:
-            return self.combine_categories(variable, map, categories, missing, default,
-                name=name, alias=alias, description=description)
+            return self.combine_categorical(variable, map, categories, missing, default,
+                                            name=name, alias=alias, description=description)
 
-    def combine_categories(self, variable, map, categories=None, missing=None,
+    def combine_categorical(self, variable, map, categories=None, missing=None,
             default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
@@ -1264,7 +1264,7 @@ class Dataset(object):
             variable.resource.self, combinations)
         return Variable(self.resource.variables.create(payload).refresh())
 
-    def combine_responses(self, variable, map, categories=None, default=None,
+    def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
