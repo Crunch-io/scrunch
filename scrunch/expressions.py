@@ -132,7 +132,8 @@ def unfold_list(_list):
                         for elem in r_list:
                             new_list.append(ast.Num(elem))
                     except:
-                        raise AttributeError("function 'r' needs 2 integer arguments")
+                        raise AttributeError(
+                            "function 'r' needs 2 integer arguments")
                 else:
                     return _list
             else:
@@ -146,7 +147,7 @@ def r(lower, upper):
     return list(range(lower, upper + 1))
 
 
-def parse_expr(expr):
+def parse_expr(expr):  # noqa: C901
 
     def _parse(node, parent=None):
         obj = {}
@@ -296,8 +297,8 @@ def parse_expr(expr):
                             # For method calls, we only allow list-of-int
                             # parameters.
                             if _name == 'args' and func_type == 'method':
-                                if 'value' not in right \
-                                        or not isinstance(right['value'], list):
+                                if 'value' not in right or\
+                                        not isinstance(right['value'], list):
                                     raise ValueError
 
                             args.append(right)
@@ -383,7 +384,7 @@ def get_dataset_variables(ds):
     return variables
 
 
-def process_expr(obj, ds):
+def process_expr(obj, ds):  # noqa: C901
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
     (i.e. a Shoji entity), this function returns a new expression object
@@ -395,13 +396,13 @@ def process_expr(obj, ds):
 
     def ensure_category_ids(subitems, variables=variables):
         var_id = None
-        var_value = None
+        var_value = None  # noqa: F841
         _subitems = []
 
         def variable_id(variable_url):
             return variable_url.split('/')[-2]
 
-        def category_ids(var_id, var_value, variables=variables):   
+        def category_ids(var_id, var_value, variables=variables):
             value = None
             if isinstance(var_value, list) or isinstance(var_value, tuple):
                 # {'values': [val1, val2, ...]}
@@ -473,7 +474,8 @@ def process_expr(obj, ds):
                     else:
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
-                    if var['type'] in ('categorical_array', 'multiple_response'):
+                    VALID_TYPES = ('categorical_array', 'multiple_response')
+                    if var['type'] in VALID_TYPES:
                         subvariables = [
                             '%svariables/%s/subvariables/%s/'
                             % (base_url, var['id'], subvar_id)
@@ -557,7 +559,7 @@ def process_expr(obj, ds):
         return _process(copy.deepcopy(obj), variables)
 
 
-def prettify(expr, ds=None):
+def prettify(expr, ds=None):  # noqa: C901
     """
     Translate the crunch expression dictionary to the string representation.
 

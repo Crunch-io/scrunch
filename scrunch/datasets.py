@@ -75,9 +75,9 @@ def _get_site():
 
 def get_dataset(dataset, site=None):
     """
-    Retrieve a reference to a given dataset (either by name, or ID) if it exists.
-    This method uses the library singleton session if the optional "site"
-    parameter is not provided.
+    Retrieve a reference to a given dataset (either by name, or ID) if
+    it exists. This method uses the library singleton session if the
+    optional "site" parameter is not provided.
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
@@ -86,8 +86,9 @@ def get_dataset(dataset, site=None):
         if pycrunch.session is None:
             site = _get_site()
             if not site:
-                raise AttributeError("Authenticate first with scrunch.connect() or"
-                                     "providing environment variables")
+                raise AttributeError(
+                    "Authenticate first with scrunch.connect() or"
+                    "providing environment variables")
         else:
             site = pycrunch.session
     try:
@@ -434,7 +435,7 @@ class Group(AbstractContainer):
 
         return _find(self)
 
-    def move(self, elements, position=-1):
+    def move(self, elements, position=-1):  # noqa: C901
         elements = self._validate_elements_arg(elements)
 
         if not isinstance(position, int):
@@ -702,7 +703,8 @@ class Group(AbstractContainer):
 
     def delete(self):
         if self.name == '__root__' and self.parent is None:
-            raise NotImplementedError('Deleting the root Group is not allowed.')
+            raise NotImplementedError(
+                'Deleting the root Group is not allowed.')
 
         # Before deleting the Group, move all its elements to the root.
         elements = self.elements.copy()
@@ -910,7 +912,8 @@ class Dataset(object):
         importer = Importer()
         count = len(columns.values()[0])
         for x in range(count):
-            importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
+            importer.stream_rows(self.resource, {a: columns[a][x]
+                                                 for a in columns})
         return count
 
     def push_rows(self, count):
@@ -936,7 +939,7 @@ class Dataset(object):
         """
         if isinstance(expr, six.string_types):
             expr_obj = parse_expr(expr)
-            expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
+            expr_obj = process_expr(expr_obj, self.resource)  # we need URLs
         elif expr is None:
             expr_obj = {}
         else:
@@ -989,7 +992,8 @@ class Dataset(object):
 
         return self.resource.variables.create(payload)
 
-    def create_multiple_response(self, responses, rules, name, alias, description=''):
+    def create_multiple_response(self, responses, rules, name, alias,
+                                 description=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
@@ -1062,7 +1066,8 @@ class Dataset(object):
         :return: newly created variable
         """
         variable_url = variable_to_url(self.resource, variable)
-        trans_responses = aliases_to_urls(self.resource, variable_url, response_map)
+        trans_responses = aliases_to_urls(
+            self.resource, variable_url, response_map)
         responses = validate_response_map(trans_responses)
         payload = SKELETON.copy()
         payload['body']['name'] = name
@@ -1163,7 +1168,8 @@ class Dataset(object):
                 " exists.".format(description)
             )
 
-        revert = self.resource.savepoints.by('description').get(description).revert
+        revert = self.resource.savepoints.by('description')\
+            .get(description).revert
         self.resource.session.post(revert)
 
     def savepoint_attributes(self, attrib):
@@ -1269,7 +1275,8 @@ class Dataset(object):
                 'id'
             ]]
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
-            _forks['modification_time'] = pd.to_datetime(_forks['modification_time'])
+            _forks['modification_time'] = pd.to_datetime(
+                                            _forks['modification_time'])
             _forks.sort(columns='creation_time', inplace=True)
 
             return _forks
@@ -1320,7 +1327,8 @@ class Dataset(object):
                     'function': 'select',
                     'args': [{
                         'map': {
-                            x: {'variable': x} for x in self.resource.variables.index.keys()
+                            x: {'variable': x}
+                            for x in self.resource.variables.index.keys()
                         }
                     }]
                 }
@@ -1375,7 +1383,9 @@ class Dataset(object):
             # add the individual variable columns to the payload
             for var in columns:
                 var_url = var_name_to_url(right_ds, var)
-                payload['body']['args'][0]['map'][var_url] = {'variable': var_url}
+                payload['body']['args'][0]['map'][var_url] = {
+                    'variable': var_url
+                }
 
         if filter:
             # in the case of a filter, convert it to crunch
@@ -1405,8 +1415,8 @@ class Variable(object):
         if item in self.ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
-    def recode(self, alias=None, map=None, names=None, default='missing',
-               name=None, description=None):
+    def recode(self, alias=None, map=None, names=None,  # noqa: C901
+               default='missing', name=None, description=None):
         """
         Implements SPSS-like recode functionality for Crunch variables.
         """
