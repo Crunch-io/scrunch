@@ -45,6 +45,7 @@ import copy
 
 import six
 import scrunch
+from urllib import urlencode
 from scrunch.variables import validate_variable_url
 
 CRUNCH_FUNC_MAP = {
@@ -360,8 +361,9 @@ def parse_expr(expr):
 
 
 def get_dataset_variables(ds):
-    table_url = ds.fragments.table
-    table = ds.session.get(table_url, params={'limit': 0}).payload
+    table = ds.follow("table", urlencode({
+        'limit': 0
+    }))
 
     # Build the variables dict, using `alias` as the key.
     variables = dict()
@@ -412,14 +414,14 @@ def process_expr(obj, ds):
                         continue
                     for var in variables:
                         if variables[var]['id'] == var_id:
-                            for cat in variables[var].categories:
+                            for cat in variables[var]['categories']:
                                 if cat['name'] == val:
                                     value.append(cat['numeric_value'])
 
             elif isinstance(var_value, str):
                 for var in variables:
                     if variables[var]['id'] == var_id:
-                        for cat in variables[var].categories:
+                        for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
                                 value = cat['numeric_value']
             else:
@@ -466,6 +468,7 @@ def process_expr(obj, ds):
             elif key == 'variable':
                 var = variables.get(val)
                 if var:
+                    # TODO: We shouldn't be stitching URLs together, use the API
                     if var.get('is_subvar'):
                         obj[key] = '%svariables/%s/subvariables/%s/' \
                                    % (base_url, var['parent_id'], var['id'])

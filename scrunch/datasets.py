@@ -2,21 +2,22 @@ import abc
 import collections
 import json
 import requests
+import re
 import six
 import os
 
 if six.PY2:  # pragma: no cover
-    from urlparse import urlsplit
     import ConfigParser as configparser
+    from urlparse import urlsplit, urljoin
 else:
-    from urllib.parse import urlsplit
     import configparser
+    from urllib.parse import urlsplit, urljoin
 
 import pandas as pd
 
 import pycrunch
 from pycrunch.importing import Importer
-from pycrunch.shoji import Entity, wait_progress
+from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
@@ -28,13 +29,96 @@ _VARIABLE_PAYLOAD_TMPL = {
     'body': {
         'name': 'name',
         'description': 'description',
-        'alias': 'alias',
-        'expr': {
-            'function': 'function',
-            'args': []
-        }
+        'alias': 'alias'
     }
 }
+
+MR_TYPE = 'multiple_response'
+REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
+REQUIRES_RESPONSES = {'combined_ids', 'name'}
+SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
+WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
+
+
+def is_relative_url(url):
+    return url.startswith(('.', '/'))
+
+
+def abs_url(expr, base_url):
+    """
+    Converts an expression that may contain relative references to variable
+     URLs into absolute URLs.
+
+    This is necessary when using the derivation expression from a variable
+    entity endpoint and sending it back to the variable catalog endpoint.
+    """
+    if isinstance(expr, dict):
+        for k in expr:
+            if k == 'variable':
+                if is_relative_url(expr[k]):
+                    expr[k] = urljoin(base_url, expr[k])
+            elif isinstance(expr[k], dict):
+                expr[k] = abs_url(expr[k], base_url)
+            elif isinstance(expr[k], list):
+                expr[k] = [abs_url(xpr, base_url) for xpr in expr[k]]
+    elif isinstance(expr, list):
+        expr = [abs_url(xpr, base_url) for xpr in expr]
+    return expr
+
+
+def subvar_alias(parent_alias, response_id):
+    return '%s_%d' % (parent_alias, response_id)
+
+
+def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
+    subvars = variable.resource.subvariables.by('alias')
+    try:
+        responses = [{
+                         'name': cat_names.get(response_id, "Response %s"  % response_id),
+                         'alias': subvar_alias(alias, response_id),
+                         'combined_ids': [subvars[subvar_alias(parent_alias,
+                             sv_alias)].entity_url for sv_alias in
+                                          combined_ids]
+                     } for response_id, combined_ids in sorted(response_map.iteritems())]
+    except KeyError:
+        # This means we tried to combine a subvariable with ~id~ that does not
+        # exist in the subvariables. Treat as bad input.
+        raise ValueError("Unknown subvariables for variable %s" % parent_alias)
+    return responses
+
+
+def combinations_from_map(map, categories, missing):
+    missing = missing if isinstance(missing, list) else [missing]
+    combinations = [{
+        'id': cat_id,
+        'name': categories.get(cat_id, "Category %s" % cat_id),
+        'missing': cat_id in missing,
+        'combined_ids': combined_ids if isinstance(combined_ids, (list, tuple)) else [combined_ids]
+    } for cat_id, combined_ids in sorted(map.iteritems())]
+    return combinations
+
+
+def combine_responses_expr(variable_url, responses):
+    return {
+        'function': 'combine_responses',
+        'args': [{
+            'variable': variable_url
+        }, {
+            'value': responses
+        }]
+    }
+
+
+def combine_categories_expr(variable_url, combinations):
+    return {
+        'function': 'combine_categories',
+        'args': [{
+            'variable': variable_url
+        }, {
+            'value': combinations
+        }]
+    }
+
 
 def _get_site():
     """
@@ -149,7 +233,7 @@ def var_name_to_url(ds, alias):
     :return: the id of the given varname or None
     """
     try:
-        return ds.variables.by('alias')[alias].entity.self
+        return ds.variables.by('alias')[alias].entity_url
     except KeyError:
         raise KeyError(
             'Variable %s does not exist in Dataset %s' % (alias,
@@ -179,10 +263,10 @@ def variable_to_url(ds, variable):
                      or alias.
     :return: The variable url
     """
-    assert isinstance(variable, (six.string_types, Entity))
+    assert isinstance(variable, (six.string_types, Variable))
 
-    if isinstance(variable, Entity):
-        return variable.self
+    if isinstance(variable, Variable):
+        return variable.resource.self
 
     elif validate_variable_url(variable):
         return variable
@@ -201,14 +285,14 @@ def aliases_to_urls(ds, variable_url, response_map):
     :param response_map: mapping of new subvariables
     :return:
     """
-    suvars = ds.session.get(variable_url).payload.subvariables.by('alias')
+    suvars = ds.variables.index(variable_url).entity.subvariables.by('alias')
     mapped_urls = {}
     for key, values in response_map.items():
         try:
-            mapped_urls[key] = [suvars[x].entity.self for x in values]
+            mapped_urls[key] = [suvars[x].entity_url for x in values]
         except KeyError:
             raise KeyError(
-                'Unexistant variables %s in Dataset %s' % (
+                'Unexistent variables %s in Dataset %s' % (
                     values, ds['body']['alias']))
     return mapped_urls
 
@@ -226,6 +310,7 @@ def validate_category_map(map):
     :return: a list of dictionary objects that the Crunch API expects
     """
     REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
+    raise PendingDeprecationWarning("Does not use the new input format")
     for value in map.values():
         keys = set(list(value.keys()))
         assert keys & REQUIRED_VALUES, (
@@ -866,6 +951,34 @@ class Order(object):
         self.graph.delete(*args, **kwargs)
 
 
+def case_expr(rules, name, alias):
+    """
+    Given a set of rules, return a `case` function expression to create a
+     variable.
+    """
+    expression = {
+        'references': {
+            'name': name,
+            'alias': alias,
+        },
+        'function': 'case',
+        'args': [{
+            'column': [1, 2],
+            'type': {
+                'value': {
+                    'class': 'categorical',
+                    'categories': [
+                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
+                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
+                    ]
+                }
+            }
+        }]
+    }
+    expression['args'].append(rules)
+    return expression
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -906,6 +1019,9 @@ class Dataset(object):
 
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
+
+    def web_url(self, host):
+        return urljoin(host, WEB_URL % self.id)
 
     def rename(self, new_name):
         self.resource.edit(name=new_name)
@@ -956,12 +1072,16 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
-    def create_categorical(self, categories, rules,
+    def create_single_response(self, categories,
                            name, alias, description='', missing=True):
         """
-        creates a categorical variable deriving from other variables
+        Creates a categorical variable deriving from other variables.
+        Uses Crunch's `case` function.
         """
-        validate_category_rules(categories, rules)
+        cases = []
+        for cat in categories:
+            cases.append(cat.pop('case'))
+
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
 
@@ -984,8 +1104,8 @@ class Dataset(object):
                 missing=True))
 
         more_args = []
-        for rule in rules:
-            more_args.append(parse_expr(rule))
+        for case in cases:
+            more_args.append(parse_expr(case))
 
         more_args = process_expr(more_args, self.resource)
 
@@ -997,97 +1117,185 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return self.resource.variables.create(payload)
+        return Variable(self.resource.variables.create(payload).refresh())
 
-    def create_multiple_response(self, responses, rules, name, alias, description=''):
+    def create_multiple_response(self, responses, name, alias, description=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        raise NotImplementedError()
+        responses_map = {}
+        for resp in responses:
+            case = resp['case']
+            if isinstance(case, basestring):
+                case = process_expr(parse_expr(case), self.resource)
+            responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
+                alias='%s_%d' % (alias, resp['id']))
 
-    def copy_variable(self, variable, name, alias):
         payload = {
             'element': 'shoji:entity',
             'body': {
                 'name': name,
                 'alias': alias,
+                'description': description,
                 'derivation': {
-                    'function': 'copy_variable',
+                    'function': 'array',
                     'args': [{
-                        'variable': variable.resource.self
+                        'function': 'select',
+                        'args': [{
+                            'map': responses_map
+                        }]
                     }]
                 }
             }
         }
+        return Variable(self.resource.variables.create(payload).refresh())
+
+    def copy_variable(self, variable, name, alias):
+        def subrefs(_variable, _alias):
+            # In the case of MR variables, we want the copies' subvariables
+            # to have their aliases in the same pattern and order that the
+            # parent's are, that is `parent_alias_#`.
+            _subreferences = []
+            for subvar in _variable.resource.subvariables.index.values():
+                sv_alias = subvar['alias']
+                match = SUBVAR_ALIAS.match(sv_alias)
+                if match:  # Does this var have the subvar pattern?
+                    suffix = int(match.groups()[0], 10)  # Keep the position
+                    sv_alias = subvar_alias(_alias, suffix)
+
+                _subreferences.append({
+                    'name': subvar['name'],
+                    'alias': sv_alias
+                })
+            return _subreferences
+
+        if variable.resource.body.get('derivation'):
+            # We are dealing with a derived variable, we want the derivation
+            # to be executed again instead of doing a `copy_variable`
+            derivation = abs_url(variable.resource.body['derivation'],
+                        variable.resource.self)
+            derivation.pop('references', None)
+            payload = {
+                'element': 'shoji:entity',
+                'body': {
+                    'name': name,
+                    'alias': alias,
+                    'derivation': derivation
+                }
+            }
+
+            if variable.type == MR_TYPE:
+                # We are re-executing a multiple_response derivation.
+                # We need to update the complex `array` function expression
+                # to contain the new suffixed aliases. Given that the map is
+                # unordered, we have to iterated and find a name match.
+                subvars = payload['body']['derivation']['args'][0]['args'][0]['map']
+                subreferences = subrefs(variable, alias)
+                for subref in subreferences:
+                    for subvar_pos in subvars:
+                        subvar = subvars[subvar_pos]
+                        if subvar['references']['name'] == subref['name']:
+                            subvar['references']['alias'] = subref['alias']
+                            break
+        else:
+            payload = {
+                'element': 'shoji:entity',
+                'body': {
+                    'name': name,
+                    'alias': alias,
+                    'derivation': {
+                        'function': 'copy_variable',
+                        'args': [{
+                            'variable': variable.resource.self
+                        }]
+                    }
+                }
+            }
+            if variable.type == MR_TYPE:
+                subreferences = subrefs(variable, alias)
+                payload['body']['derivation']['references'] = {
+                    'subreferences': subreferences
+                }
         shoji_var = self.resource.variables.create(payload).refresh()
         return Variable(shoji_var)
 
-    def combine_categories(self, variable, category_map,
-                           name, alias, description=''):
+    def combine_categories(self, variable, map, categories, missing=None, default=None,
+            name='', alias='', description=''):
+        if not alias or not name:
+            raise ValueError("Name and alias are required")
+        if variable.type in MR_TYPE:
+            return self.combine_multiple_response(variable, map, categories, name=name,
+                                                  alias=alias, description=description)
+        else:
+            return self.combine_categorical(variable, map, categories, missing, default,
+                                            name=name, alias=alias, description=description)
+
+    def combine_categorical(self, variable, map, categories=None, missing=None,
+            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
-        category_map = {
-            1: {
-                "name": "Favorable",
-                "missing": True,
-                "combined_ids": [1,2]
+            map={
+                1: (1, 2),
+                2: 3,
+                3: (4, 5)
             },
-        }
-        :param variable: alias of the variable to recode
-        :param name: name for the new variable
-        :param alias: alias for the new variable
-        :param description: description for the new variable
-        :param category_map: map to combine categories
-        :return: the new created variable
+            default=9,
+            missing=[-1, 9],
+            categories={
+                1: "low",
+                2: "medium",
+                3: "high",
+                9: "no answer"
+            },
+            missing=9
         """
-        variable_url = variable_to_url(self.resource, variable)
-        categories = validate_category_map(category_map)
+        if isinstance(variable, basestring):
+            variable = self[variable]
+
+        # TODO: Implement `default` parameter in Crunch API
+        combinations = combinations_from_map(map, categories or {}, missing or [])
         payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['expr']['function'] = 'combine_categories'
-        payload['body']['expr']['args'] = [
-            {
-                'variable': variable_url
-            },
-            {
-                'value': categories
-            }
-        ]
+        payload['body']['derivation'] = combine_categories_expr(
+            variable.resource.self, combinations)
         return Variable(self.resource.variables.create(payload).refresh())
 
-    def combine_responses(self, variable, response_map,
-                          name, alias, description=''):
+    def combine_multiple_response(self, variable, map, categories=None, default=None,
+                          name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
 
-        response_map = {
-            new_subvar_name1:[old_subvar_alias1, old_subvar_alias2],
-            new_subvar_name2: [old_subvar_alias3, old_subvar_alias4]
-        }
-        :return: newly created variable
+            map={
+                1: 1,
+                2: [2, 3, 4]
+            },
+            categories={
+                1: "online",
+                2: "notonline"
+            }
+
         """
-        variable_url = variable_to_url(self.resource, variable)
-        trans_responses = aliases_to_urls(self.resource, variable_url, response_map)
-        responses = validate_response_map(trans_responses)
+        if isinstance(variable, basestring):
+            parent_alias = variable
+            variable = self[variable]
+        else:
+            parent_alias = variable.alias
+
+        # TODO: Implement `default` parameter in Crunch API
+        responses = responses_from_map(variable, map, categories or {}, alias,
+            parent_alias)
         payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
-        payload['body']['expr']['function'] = 'combine_responses'
-        payload['body']['expr']['args'] = [
-            {
-                'variable': variable_url
-            },
-            {
-                'value': responses
-            }
-        ]
-        return self.resource.variables.create(payload)
+        payload['body']['derivation'] = combine_responses_expr(
+            variable.resource.self, responses)
+        return Variable(self.resource.variables.create(payload).refresh())
 
     def change_editor(self, user):
         """
@@ -1399,6 +1607,20 @@ class Dataset(object):
             return wait_progress(r=progress, session=self.session, entity=self)
         return progress.json()['value']
 
+    def create_categorical(self, categories, alias, name, multiple, description=''):
+        """
+        Used to create new categorical variables using Crunchs's `case` function.
+
+         Will create either categorical variables or multiple response depending
+         on the `multiple` parameter.
+        """
+        if multiple:
+            return self.create_multiple_response(categories, alias=alias,
+                name=name, description=description)
+        else:
+            return self.create_single_response(categories, alias=alias, name=name,
+                description=description)
+
 
 class Variable(object):
     """
@@ -1406,7 +1628,7 @@ class Variable(object):
     """
 
     ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
-                         'type', 'id', 'view', 'notes'}
+                         'type', 'id', 'view', 'notes', 'categories'}
 
     def __init__(self, resource):
         self.resource = resource
@@ -1415,10 +1637,23 @@ class Variable(object):
         if item in self.ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
-    def recode(self, alias=None, map=None, names=None, default='missing',
+    def hide(self):
+        print("HIDING")
+        self.resource.edit(discarded=True)
+
+    def unhide(self):
+        print("UNHIDING")
+        self.resource.edit(discarded=False)
+
+    def combine(self, alias=None, map=None, names=None, default='missing',
                name=None, description=None):
+        # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.
+
+        This method combines Crunch's `combine_categories` and
+        `combine_responses` in a single method when applied to a variable
+        that is deemed as ~categorical~ by the user.
         """
         if alias is None:
             raise TypeError('Missing alias for the recoded variable')
@@ -1435,7 +1670,7 @@ class Variable(object):
             self.resource.refresh()
 
         if self.resource.body.type not in ('categorical', 'categorical_array',
-                                           'multiple_response'):
+                                           MR_TYPE):
             raise TypeError(
                 'Only categorical, categorical_array and multiple_response '
                 'variables are supported'
@@ -1448,6 +1683,8 @@ class Variable(object):
             description = self.resource.body.description
 
         if self.resource.body.type in ('categorical', 'categorical_array'):
+            # On this case perform a `combine_categories` operation
+
             if names is None:
                 raise TypeError('Missing category names')
 
@@ -1557,6 +1794,7 @@ class Variable(object):
                 }
             ]
         else:  # multiple_response
+            # Perform a `combine_responses` derivation
             subreferences = self.resource.body.get('subreferences', [])
             subvariables = self.resource.body.get('subvariables', [])
             assert len(subreferences) == len(subvariables)
@@ -1605,7 +1843,7 @@ class Variable(object):
             ]
 
         ds = get_dataset(self.resource.body.dataset_id)
-        return ds.variables.create(payload).refresh()
+        return Variable(ds.variables.create(payload).refresh())
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1633,6 +1871,7 @@ class Variable(object):
         return self.resource.patch(payload)
 
     def edit_derived(self, variable, mapper):
+        raise NotImplementedError("Use edit_combination")
         # get some initial variables
         ds = get_dataset(self.resource.body.dataset_id)
         variable_url = variable_to_url(ds, variable)
@@ -1668,12 +1907,6 @@ class Variable(object):
             }
         }
         return self.resource.patch(payload)
-
-    def hide(self):
-        return self.resource.patch(dict(discarded=True))
-
-    def unhide(self):
-        return self.resource.patch(dict(discarded=False))
 
     def edit(self, **kwargs):
         return self.resource.edit(**kwargs)
