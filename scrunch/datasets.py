@@ -33,11 +33,7 @@ _VARIABLE_PAYLOAD_TMPL = {
     }
 }
 
-MR_TYPE = 'multiple_response'
-REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
-REQUIRES_RESPONSES = {'combined_ids', 'name'}
-SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
-WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
+_MR_TYPE = 'multiple_response'
 
 
 def is_relative_url(url):
@@ -1021,6 +1017,7 @@ class Dataset(object):
         return Variable(variable.entity)
 
     def web_url(self, host):
+        WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
         return urljoin(host, WEB_URL % self.id)
 
     def rename(self, new_name):
@@ -1152,6 +1149,7 @@ class Dataset(object):
         return Variable(self.resource.variables.create(payload).refresh())
 
     def copy_variable(self, variable, name, alias):
+        SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
             # to have their aliases in the same pattern and order that the
@@ -1185,7 +1183,7 @@ class Dataset(object):
                 }
             }
 
-            if variable.type == MR_TYPE:
+            if variable.type == _MR_TYPE:
                 # We are re-executing a multiple_response derivation.
                 # We need to update the complex `array` function expression
                 # to contain the new suffixed aliases. Given that the map is
@@ -1212,7 +1210,7 @@ class Dataset(object):
                     }
                 }
             }
-            if variable.type == MR_TYPE:
+            if variable.type == _MR_TYPE:
                 subreferences = subrefs(variable, alias)
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
@@ -1224,7 +1222,7 @@ class Dataset(object):
             name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
-        if variable.type in MR_TYPE:
+        if variable.type in _MR_TYPE:
             return self.combine_multiple_response(variable, map, categories, name=name,
                                                   alias=alias, description=description)
         else:
@@ -1670,7 +1668,7 @@ class Variable(object):
             self.resource.refresh()
 
         if self.resource.body.type not in ('categorical', 'categorical_array',
-                                           MR_TYPE):
+                                           _MR_TYPE):
             raise TypeError(
                 'Only categorical, categorical_array and multiple_response '
                 'variables are supported'
