@@ -20,7 +20,7 @@ from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
-from scrunch.expressions import parse_expr, process_expr
+from scrunch.expressions import parse_expr, process_expr, prettify
 from scrunch.variables import validate_variable_url
 
 
@@ -1051,15 +1051,33 @@ class Dataset(object):
             }
         })
 
-    def exclude(self, expr=None):
+    def exclude(self, expr=None, extend=None):
         """
         Given a dataset object, apply an exclusion filter to it (defined as an
         expression string).
+
+        Extend and existing exclusion filter by providing 'and' or 'or' as the
+        extend keyword argument
 
         If the `expr` parameter is None, an empty expression object is sent
         as part of the PATCH request, which effectively removes the exclusion
         filter (if any).
         """
+        if extend:
+            assert extend.lower() in ('and', 'or'),\
+                "extend parameter must be 'and' or 'or'"
+            # GET the current exclusion filter obj
+            _filter = self.resource.session.get(
+                self.resource.fragments.exclusion).payload.body.expression
+            # resolve the variable URLs and prettify
+            _filter = prettify(_filter, self)
+            # merge the filter expressions but conduct a parse->prettify round
+            # on the expr to get rid of eventually unneeded parantheses
+            fmt = '({}) {} ({})'
+            expr = prettify(parse_expr(
+                fmt.format(_filter, extend,
+                           prettify(parse_expr(expr)))))
+
         if isinstance(expr, six.string_types):
             expr_obj = parse_expr(expr)
             expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
