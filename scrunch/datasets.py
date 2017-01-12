@@ -75,7 +75,7 @@ def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
                          'combined_ids': [subvars[subvar_alias(parent_alias,
                              sv_alias)].entity_url for sv_alias in
                                           combined_ids]
-                     } for response_id, combined_ids in sorted(response_map.iteritems())]
+                     } for response_id, combined_ids in sorted(six.iteritems(response_map))]
     except KeyError:
         # This means we tried to combine a subvariable with ~id~ that does not
         # exist in the subvariables. Treat as bad input.
@@ -90,7 +90,7 @@ def combinations_from_map(map, categories, missing):
         'name': categories.get(cat_id, "Category %s" % cat_id),
         'missing': cat_id in missing,
         'combined_ids': combined_ids if isinstance(combined_ids, (list, tuple)) else [combined_ids]
-    } for cat_id, combined_ids in sorted(map.iteritems())]
+    } for cat_id, combined_ids in sorted(six.iteritems(map))]
     return combinations
 
 
@@ -1124,7 +1124,7 @@ class Dataset(object):
         responses_map = {}
         for resp in responses:
             case = resp['case']
-            if isinstance(case, basestring):
+            if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
             responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
                 alias='%s_%d' % (alias, resp['id']))
@@ -1249,7 +1249,7 @@ class Dataset(object):
             },
             missing=9
         """
-        if isinstance(variable, basestring):
+        if isinstance(variable, six.string_types):
             variable = self[variable]
 
         # TODO: Implement `default` parameter in Crunch API
@@ -1278,7 +1278,7 @@ class Dataset(object):
             }
 
         """
-        if isinstance(variable, basestring):
+        if isinstance(variable, six.string_types):
             parent_alias = variable
             variable = self[variable]
         else:

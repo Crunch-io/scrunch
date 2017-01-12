@@ -45,8 +45,12 @@ import copy
 
 import six
 import scrunch
-from urllib import urlencode
 from scrunch.variables import validate_variable_url
+
+if six.PY2:
+    from urllib import urlencode
+else:
+    from urllib.parse import urlencode
 
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
