@@ -1075,7 +1075,7 @@ class Dataset(object):
             # on the expr to get rid of eventually unneeded parantheses
             fmt = '({}) {} ({})'
             expr = prettify(parse_expr(
-                fmt.format(_filter, extend,
+                fmt.format(_filter, extend.lower(),
                            prettify(parse_expr(expr)))))
 
         if isinstance(expr, six.string_types):
