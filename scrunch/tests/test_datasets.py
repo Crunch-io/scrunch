@@ -104,6 +104,67 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             data=json.dumps({'expression': {}})
         )
 
+    def test_extend_exclusion(self):
+        """
+        Tests that the proper PATCH request is sent to Crunch in order to
+        extend an exclusion filter to a dataset.
+        """
+        var_id = '0001'
+        var_alias = 'disposition'
+        var_type = 'numeric'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        # TODO: var_alias should be var_url. Works in prod
+        expression = {
+            "function": "==",
+            "args": [
+                {"variable": var_alias},
+                {"value": 0}
+            ]
+        }
+        payload = {'payload.body.expression': expression}
+        ds_mock_conf = {
+            'fragments.exclusion': '%sexclusion/' % self.ds_url,
+            'session.get.return_value': mock.MagicMock(**payload)
+        }
+        table_mock_conf = {
+            'metadata': {
+                var_id: {
+                    'alias': var_alias,
+                    'id': var_id,
+                    'type': var_type
+                }
+            }
+        }
+        ds_res = mock.MagicMock(**ds_mock_conf)
+        ds_res.self = self.ds_url
+        ds_res.follow.return_value = mock.MagicMock(**table_mock_conf)
+
+        ds = Dataset(ds_res)
+        ds.exclude('disposition != 0', 'or')
+        expected_expr_obj = {
+            "expression": {
+                "function": "or",
+                "args": [{
+                    "function": "==",
+                    "args": [
+                        {"variable": var_url},
+                        {"value": 0}
+                    ]}, {
+                    "function": "!=",
+                    "args": [
+                        {"variable": var_url},
+                        {"value": 0}
+                    ]}
+                ]
+            }
+        }
+
+        ds.resource.session.patch.assert_called_once_with(
+            ds.resource.fragments.exclusion,
+            data=(json.dumps(expected_expr_obj))
+        )
+
     def _exclude_payload(self, expr):
         dataset = self.dataset_mock()
         dataset.exclude(expr)
