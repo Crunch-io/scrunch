@@ -7,7 +7,7 @@ import re
 import requests
 import six
 
-from scrunch.helpers import abs_url
+from scrunch.helpers import abs_url, subvar_alias
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -39,10 +39,6 @@ _VARIABLE_PAYLOAD_TMPL = {
 _MR_TYPE = 'multiple_response'
 
 
-def subvar_alias(parent_alias, response_id):
-    return '%s_%d' % (parent_alias, response_id)
-
-
 def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
     subvars = variable.resource.subvariables.by('alias')
     try:
@@ -50,7 +46,7 @@ def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
                          'name': cat_names.get(response_id, "Response %s"  % response_id),
                          'alias': subvar_alias(alias, response_id),
                          'combined_ids': [subvars[subvar_alias(parent_alias,
-                             sv_alias)].entity_url for sv_alias in
+                                                               sv_alias)].entity_url for sv_alias in
                                           combined_ids]
                      } for response_id, combined_ids in sorted(six.iteritems(response_map))]
     except KeyError:

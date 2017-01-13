@@ -1,3 +1,5 @@
+import six
+
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
 else:
@@ -27,3 +29,7 @@ def abs_url(expr, base_url):
     elif isinstance(expr, list):
         expr = [abs_url(xpr, base_url) for xpr in expr]
     return expr
+
+
+def subvar_alias(parent_alias, response_id):
+    return '%s_%d' % (parent_alias, response_id)
