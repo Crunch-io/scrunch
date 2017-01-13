@@ -97,7 +97,7 @@ print "Created savepoint"
 
 catvar = dataset['catvar']
 
-combined = dataset.combine_categories(catvar, {
+combined = dataset.combine_categorical(catvar, {
     1: {
         'name': 'valid',
         'missing': False,

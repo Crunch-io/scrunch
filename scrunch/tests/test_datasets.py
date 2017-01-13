@@ -1,11 +1,12 @@
 import collections
 import json
 
-from unittest import mock
+import mock
 from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
+from scrunch.datasets import Dataset, Variable
 from pycrunch.elements import JSONObject
 from pycrunch.shoji import Entity
 from pycrunch.variables import cast
@@ -15,60 +16,29 @@ from scrunch.datasets import Dataset, Variable
 
 
 class TestDatasetBase(object):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
 
-    def dataset_mock(self):
-        variables = dict(
-            disposition=dict(
+    def dataset_mock(self, variables=None):
+        variables = variables or {
+            '0001': dict(
                 id='0001',
                 alias='disposition',
                 type='numeric',
                 is_subvar=False
             ),
-            exit_status=dict(
+            '0002': dict(
                 id='0002',
                 alias='exit_status',
                 type='numeric',
                 is_subvar=False
-            ),
-        )
-
-        # Mocking setup.
-        def _get(name):
-            def f(*args):
-                return variables[name].get(args[0], args[0])
-            return f
-
-        metadata = {}
-        for alias in variables.keys():
-            v = variables[alias]
-            url = '%svariables/%s/' % (self.ds_url, v['id'])
-            _m = mock.MagicMock()
-            _m.entity.self = url
-            _m.__getitem__.side_effect = _get(alias)
-            _m.get.side_effect = _get(alias)
-            metadata[alias] = _m
-
-        class CrunchPayload(dict):
-            def __getattr__(self, item):
-                if item == 'payload':
-                    return self
-                else:
-                    return self[item]
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return CrunchPayload({
-                    'metadata': metadata
-                })
-            return CrunchPayload()
+            )
+        }
 
         ds = mock.MagicMock()
         ds.self = self.ds_url
         ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds.fragments.table = '%stable/' % self.ds_url
-        ds.__class__ = Dataset
-        ds.exclude = Dataset.exclude
-        ds.session.get.side_effect = _session_get
+        table_mock = mock.MagicMock(metadata=variables)
+        ds.follow.return_value = table_mock
 
         return Dataset(ds)
 
@@ -86,44 +56,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         var_type = 'numeric'
         var_url = '%svariables/%s/' % (self.ds_url, var_id)
 
-        # Mocking setup.
-        def _get(*args):
-            if args[0] == 'id':
-                return var_id
-            if args[0] == 'alias':
-                return var_alias
-            if args[0] == 'type':
-                return var_type
-            if args[0] == 'is_subvar':
-                return False
-            return args[0]
-
-        _var_mock = mock.MagicMock()
-        _var_mock.entity.self = var_url
-        _var_mock.__getitem__.side_effect = _get
-        _var_mock.get.side_effect = _get
-
-        class CrunchPayload(dict):
-            def __getattr__(self, item):
-                if item == 'payload':
-                    return self
-                else:
-                    return self[item]
-
-        def _session_get(*args, **kwargs):
-            if args[0] == '%stable/' % self.ds_url:
-                return CrunchPayload({
-                    'metadata': {
-                        var_alias: _var_mock
-                    }
-                })
-            return CrunchPayload()
-
         ds_res = mock.MagicMock()
         ds_res.self = self.ds_url
-        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
-        ds_res.fragments.table = '%stable/' % self.ds_url
-        ds_res.session.get.side_effect = _session_get
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'alias': var_alias,
+                'id': var_id,
+                'type': var_type,
+            }
+        })
+        ds_res.follow.return_value = table_mock
         ds = Dataset(ds_res)
 
         # Action!
@@ -724,22 +666,6 @@ class TestVariables(TestDatasetBase, TestCase):
             'format': 'format'
         }
 
-    def test_hide_unhide_variables(self):
-        body = {
-            'self': self.ds_url,
-            'name': 'Dataset Name'
-        }
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds = Dataset(ds_res)
-        v = ds['test']
-        assert isinstance(v, Variable)
-
-        v.hide()
-        v.resource.patch.assert_called_with(dict(discarded=True))
-        v.unhide()
-        v.resource.patch.assert_called_with(dict(discarded=False))
-
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
@@ -956,6 +882,362 @@ class TestForks(TestCase):
         df = ds.forks_dataframe()
 
         assert df is None
+
+
+class TestRecode(TestDatasetBase):
+    def test_recode_single_categorical(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            '002': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            '003': {
+                'id': '003',
+                'alias': 'var_c',
+                'name': 'Variable C',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            '004': {
+                'id': '004',
+                'alias': 'gender',
+                'name': 'Gender',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            '005': {
+                'id': '005',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+        }
+        ds = self.dataset_mock(variables=variables)
+        responses = [
+            {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
+            {'id': 2, 'name': 'Twitter',
+             'case': 'var_b < 10 and var_c in (1, 2, 3)'},
+            {'id': 3, 'name': 'Google+',
+             'case': '(gender == 1) and (age >= 16 and age <= 24)'},
+        ]
+        ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
+        ds.resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'description': '',
+                'alias': 'cat',
+                'name': 'My cat',
+                'expr': {
+                    'function': 'case',
+                    'args': [{
+                        'column': [1, 2, 3, -1],
+                        'type': {
+                            'value': {
+                                'class': 'categorical',
+                                'categories': [
+                                    {'missing': False, 'id': 1, 'name': 'Facebook'},
+                                    {'missing': False, 'id': 2, 'name': 'Twitter'},
+                                    {'missing': False, 'id': 3, 'name': 'Google+'},
+                                    {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+                                ]
+                            }
+                        }
+                    }, {
+                        'function': '>',
+                        'args': [
+                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'value': 5}
+                        ]
+                    }, {
+                        'function': 'and',
+                        'args': [{
+                            'function': '<',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/002/'},
+                                {'value': 10}
+                            ]}, {
+                            'function': 'in',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/003/'},
+                                {'value': [1, 2, 3]}
+                            ]
+                        }]
+                    }, {
+                        'function': 'and',
+                        'args': [{
+                            'function': '==',
+                            'args': [
+                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/004/'},
+                                {'value': 1}
+                            ]
+                        }, {
+                            'function': 'and',
+                            'args': [{
+                                'function': '>=',
+                                'args': [
+                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'value': 16}
+                                ]
+                            }, {
+                                'function': '<=',
+                                'args': [
+                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'value': 24}
+                                ]
+                            }]
+                        }]
+                    }]
+                }
+            },
+        })
+
+    def test_recode_multiple_response(self):
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'var_c': {
+                'id': '003',
+                'alias': 'var_c',
+                'name': 'Variable C',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'gender': {
+                'id': '004',
+                'alias': 'gender',
+                'name': 'Gender',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'age': {
+                'id': '005',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+        }
+        ds = self.dataset_mock(variables=variables)
+        responses = [
+            {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
+            {'id': 2, 'name': 'Twitter', 'case': 'var_b < 10 and var_c in (1, 2, 3)'},
+            {'id': 3, 'name': 'Google+', 'case': '(gender == 1) and (age >= 16 and age <= 24)'},
+        ]
+        mr = ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
+        ds.resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'alias': 'mr',
+                'description': '',
+                'name': 'my mr',
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '0001': {
+                                    'function': 'case',
+                                    'references': {
+                                        'name': 'Facebook',
+                                        'alias': 'mr_1',
+                                    },
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # 'var_a > 5'
+                                        'function': '>',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                            {'value': 5}
+                                        ]
+                                    }]
+                                },
+                                '0002': {
+                                    'function': 'case',
+                                    'references': {
+                                        'alias': 'mr_2',
+                                        'name': 'Twitter',
+                                    },
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # 'var_b < 10 and var_c in (1, 2, 3)'}
+                                        'function': 'and',
+                                        'args': [{
+                                            'function': '<',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'value': 10}
+                                            ]
+                                        }, {
+                                            'function': 'in',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'value': [1, 2, 3]}
+                                            ]
+                                        }]
+                                    }]
+                                },
+                                '0003': {
+                                    'function': 'case',
+                                    'references': {
+                                        'alias': 'mr_3',
+                                        'name': 'Google+',
+                                    },
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                                                    {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                                                ]
+                                            }
+                                        }
+                                    }, {
+                                        # '(gender == 1) and (age >= 16 and age <= 24)'
+                                        'function': 'and',
+                                        'args': [{
+                                            'function': '==',
+                                            'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['gender']['id']}, {'value': 1}]
+                                        }, {
+                                            'function': 'and',
+                                            'args': [{
+                                                'function': '>=',
+                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 16}]
+                                            }, {
+                                                'function': '<=',
+                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 24}]
+                                            }]
+                                        }]
+                                    }]
+                                }
+                            }
+                        }]
+                    }]
+                }
+            }
+        })
+
+
+class TestCopyVariable(TestCase):
+    def test_base_variable(self):
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock(body={'type': 'numeric'})
+        var_res.self = '/variable/url/'
+        ds = Dataset(ds_res)
+        var = Variable(var_res)
+        ds.copy_variable(var, name='copy', alias='copy')
+        ds_res.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'alias': 'copy',
+                'name': 'copy',
+                'derivation': {
+                    'function': 'copy_variable',
+                    'args': [{'variable': '/variable/url/'}]
+                }
+            }
+        })
+
+    def test_derived_variable(self):
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock(body={'type': 'multiple_response', 'derivation': {
+            'function': 'array',
+            'args': [{
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        '00001': {
+                            'function': 'combine_responses',
+                            'args': [
+                                {'variable': '../original_variable'}
+                            ]
+                        }
+                    }
+                }]
+            }]
+        }})
+        var_res.self = '/variable/url/'
+        ds = Dataset(ds_res)
+        var = Variable(var_res)
+        ds.copy_variable(var, name='copy', alias='copy')
+        ds_res.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'alias': 'copy',
+                'name': 'copy',
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '00001': {
+                                    'function': 'combine_responses',
+                                    'args': [
+                                        # Look how the variable url got abs()ed
+                                        {'variable': '/variable/original_variable'}
+                                    ]
+                                }
+                            }
+                        }]
+                    }]
+                }
+            }
+        })
+
+
+def test_hide_unhide():
+    var_res = mock.MagicMock()
+    var = Variable(var_res)
+    var.hide()
+    var_res.edit.assert_called_with(discarded=True)
+    var.unhide()
+    var_res.edit.assert_called_with(discarded=False)
 
 
 class TestHierarchicalOrder(TestCase):

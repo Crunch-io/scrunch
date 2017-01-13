@@ -48,6 +48,11 @@ import six
 
 from scrunch.variables import validate_variable_url
 
+if six.PY2:
+    from urllib import urlencode
+else:
+    from urllib.parse import urlencode
+
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
     'missing': 'is_missing',
@@ -147,7 +152,7 @@ def r(lower, upper):
     return list(range(lower, upper + 1))
 
 
-def parse_expr(expr):  # noqa: C901
+def parse_expr(expr):
 
     def _parse(node, parent=None):
         obj = {}
@@ -233,10 +238,10 @@ def parse_expr(expr):  # noqa: C901
             else:
                 for _name, _val in fields:
                     if not isinstance(node, ast.UnaryOp) and (
-                            isinstance(_val, ast.BoolOp)
-                            or isinstance(_val, ast.UnaryOp)
-                            or isinstance(_val, ast.Compare)
-                            or isinstance(_val, ast.Call)):
+                            isinstance(_val, ast.BoolOp) or
+                            isinstance(_val, ast.UnaryOp) or
+                            isinstance(_val, ast.Compare) or
+                            isinstance(_val, ast.Call)):
                         # Descend.
                         obj.update(_parse(_val, parent=node))
                     elif isinstance(_val, ast.And):
@@ -362,8 +367,9 @@ def parse_expr(expr):  # noqa: C901
 
 
 def get_dataset_variables(ds):
-    table_url = ds.fragments.table
-    table = ds.session.get(table_url, params={'limit': 0}).payload
+    table = ds.follow("table", urlencode({
+        'limit': 0
+    }))
 
     # Build the variables dict, using `alias` as the key.
     variables = dict()
@@ -384,7 +390,7 @@ def get_dataset_variables(ds):
     return variables
 
 
-def process_expr(obj, ds):  # noqa: C901
+def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
     (i.e. a Shoji entity), this function returns a new expression object
@@ -414,14 +420,14 @@ def process_expr(obj, ds):  # noqa: C901
                         continue
                     for var in variables:
                         if variables[var]['id'] == var_id:
-                            for cat in variables[var].categories:
+                            for cat in variables[var]['categories']:
                                 if cat['name'] == val:
                                     value.append(cat['numeric_value'])
 
             elif isinstance(var_value, str):
                 for var in variables:
                     if variables[var]['id'] == var_id:
-                        for cat in variables[var].categories:
+                        for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
                                 value = cat['numeric_value']
             else:
@@ -468,6 +474,7 @@ def process_expr(obj, ds):  # noqa: C901
             elif key == 'variable':
                 var = variables.get(val)
                 if var:
+                    # TODO: We shouldn't stitch URLs together, use the API
                     if var.get('is_subvar'):
                         obj[key] = '%svariables/%s/subvariables/%s/' \
                                    % (base_url, var['parent_id'], var['id'])
@@ -559,7 +566,7 @@ def process_expr(obj, ds):  # noqa: C901
         return _process(copy.deepcopy(obj), variables)
 
 
-def prettify(expr, ds=None):  # noqa: C901
+def prettify(expr, ds=None):
     """
     Translate the crunch expression dictionary to the string representation.
 
@@ -654,9 +661,9 @@ def prettify(expr, ds=None):  # noqa: C901
         ]
         has_child_and_or = 'or' in child_functions
         nest = parent is not None and (
-            has_child_and_or
-            or (parent == 'or' and len(child_functions) > 1)
-            or _func == 'or'
+            has_child_and_or or
+            (parent == 'or' and len(child_functions) > 1) or
+            _func == 'or'
         )
         return _transform(_func, args, nest=nest)
 
