@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import pytest
 from scrunch.datasets import Dataset, Variable
-from scrunch.datasets import responses_from_map
+from scrunch.variables import responses_from_map
 from scrunch.helpers import subvar_alias
 
 from pycrunch.shoji import Entity
