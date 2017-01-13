@@ -1,10 +1,13 @@
 import abc
 import collections
 import json
-import requests
-import re
-import six
 import os
+import re
+
+import requests
+import six
+
+from scrunch.helpers import abs_url
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -34,32 +37,6 @@ _VARIABLE_PAYLOAD_TMPL = {
 }
 
 _MR_TYPE = 'multiple_response'
-
-
-def is_relative_url(url):
-    return url.startswith(('.', '/'))
-
-
-def abs_url(expr, base_url):
-    """
-    Converts an expression that may contain relative references to variable
-     URLs into absolute URLs.
-
-    This is necessary when using the derivation expression from a variable
-    entity endpoint and sending it back to the variable catalog endpoint.
-    """
-    if isinstance(expr, dict):
-        for k in expr:
-            if k == 'variable':
-                if is_relative_url(expr[k]):
-                    expr[k] = urljoin(base_url, expr[k])
-            elif isinstance(expr[k], dict):
-                expr[k] = abs_url(expr[k], base_url)
-            elif isinstance(expr[k], list):
-                expr[k] = [abs_url(xpr, base_url) for xpr in expr[k]]
-    elif isinstance(expr, list):
-        expr = [abs_url(xpr, base_url) for xpr in expr]
-    return expr
 
 
 def subvar_alias(parent_alias, response_id):
@@ -1172,7 +1149,7 @@ class Dataset(object):
             # We are dealing with a derived variable, we want the derivation
             # to be executed again instead of doing a `copy_variable`
             derivation = abs_url(variable.resource.body['derivation'],
-                        variable.resource.self)
+                                 variable.resource.self)
             derivation.pop('references', None)
             payload = {
                 'element': 'shoji:entity',
