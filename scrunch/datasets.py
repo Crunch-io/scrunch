@@ -2,17 +2,20 @@ import abc
 import collections
 import json
 import os
+import re
 
 import pycrunch
 import requests
-import re
 import six
 
 from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.variables import validate_variable_url
+from scrunch.helpers import abs_url, subvar_alias
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map,
+                               validate_variable_url)
 
 import pandas as pd
 
@@ -22,6 +25,7 @@ if six.PY2:  # pragma: no cover
 else:
     import configparser
     from urllib.parse import urlsplit, urljoin
+
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -37,85 +41,6 @@ _MR_TYPE = 'multiple_response'
 
 def is_relative_url(url):
     return url.startswith(('.', '/'))
-
-
-def abs_url(expr, base_url):
-    """
-    Converts an expression that may contain relative references to variable
-     URLs into absolute URLs.
-
-    This is necessary when using the derivation expression from a variable
-    entity endpoint and sending it back to the variable catalog endpoint.
-    """
-    if isinstance(expr, dict):
-        for k in expr:
-            if k == 'variable':
-                if is_relative_url(expr[k]):
-                    expr[k] = urljoin(base_url, expr[k])
-            elif isinstance(expr[k], dict):
-                expr[k] = abs_url(expr[k], base_url)
-            elif isinstance(expr[k], list):
-                expr[k] = [abs_url(xpr, base_url) for xpr in expr[k]]
-    elif isinstance(expr, list):
-        expr = [abs_url(xpr, base_url) for xpr in expr]
-    return expr
-
-
-def subvar_alias(parent_alias, response_id):
-    return '%s_%d' % (parent_alias, response_id)
-
-
-def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
-    subvars = variable.resource.subvariables.by('alias')
-    try:
-        responses = [
-            {'name': cat_names.get(response_id, "Response %s" % response_id),
-             'alias': subvar_alias(alias, response_id),
-             'combined_ids': [
-                subvars[subvar_alias(parent_alias, sv_alias)].entity_url
-                for sv_alias in combined_ids]}
-            for response_id, combined_ids in sorted(
-                six.iteritems(response_map))
-        ]
-    except KeyError:
-        # This means we tried to combine a subvariable with ~id~ that does not
-        # exist in the subvariables. Treat as bad input.
-        raise ValueError("Unknown subvariables for variable %s" % parent_alias)
-    return responses
-
-
-def combinations_from_map(map, categories, missing):
-    missing = missing if isinstance(missing, list) else [missing]
-    combinations = [{
-        'id': cat_id,
-        'name': categories.get(cat_id, "Category %s" % cat_id),
-        'missing': cat_id in missing,
-        'combined_ids': combined_ids
-        if isinstance(combined_ids, (list, tuple)) else [combined_ids]
-    } for cat_id, combined_ids in sorted(six.iteritems(map))]
-    return combinations
-
-
-def combine_responses_expr(variable_url, responses):
-    return {
-        'function': 'combine_responses',
-        'args': [{
-            'variable': variable_url
-        }, {
-            'value': responses
-        }]
-    }
-
-
-def combine_categories_expr(variable_url, combinations):
-    return {
-        'function': 'combine_categories',
-        'args': [{
-            'variable': variable_url
-        }, {
-            'value': combinations
-        }]
-    }
 
 
 def _get_site():
@@ -1301,6 +1226,7 @@ class Dataset(object):
         # TODO: Implement `default` parameter in Crunch API
         responses = responses_from_map(
             variable, map, categories or {}, alias, parent_alias)
+
         payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
@@ -1575,8 +1501,8 @@ class Dataset(object):
         or on a given url for an existing filter. TODO: for the moment
         we only allow expressions
         """
-        right_var_url = var_name_to_url(right_ds, right_var)
-        left_var_url = var_name_to_url(self, left_var)
+        right_var_url = right_ds[right_var].url
+        left_var_url = self[left_var].url
         # this dictionary sets the main part of the join
         adapter = {
             'function': 'adapt',
