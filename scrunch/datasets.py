@@ -83,8 +83,9 @@ def _get_site():
 def get_dataset(dataset, site=None, editor=False, project=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
-    and the user has direct access permissions to it. If you have access to a
-    project you should do change_project first.
+    and the user has access permissions to it. If you have access to the dataset
+    through a project you should do pass the project parameter.
+
     This method tries to use pycrunch singleton session, environment variables
     or a crunch.ini config file if the optional "site" parameter isn't provided.
 
