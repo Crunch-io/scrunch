@@ -77,13 +77,17 @@ def _get_site():
         raise AttributeError('No crunch.ini file found and no '
                              'environment variables found')
 
+
 def get_dataset(dataset, site=None, editor=False):
     """
-    Retrieve a reference to a given dataset (either by name, or ID) if it exists.
-    This method uses the library singleton session if the optional "site"
-    parameter is not provided.
+    Retrieve a reference to a given dataset (either by name, or ID) if it exists
+    and the user has direct access permissions to it. If you have access to a
+    project you should do change_project first.
+    This method tries to use pycrunch singleton session, environment variables
+    or a crunch.ini config file if the optional "site" parameter isn't provided.
 
-    Also able to change editor while getting the dataset with the optional .
+    Also able to change editor while getting the dataset with the optional
+    editor parameter.
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
@@ -92,14 +96,18 @@ def get_dataset(dataset, site=None, editor=False):
         if pycrunch.session is None:
             site = _get_site()
             if not site:
-                raise AttributeError("Authenticate first with scrunch.connect() or"
-                                     "providing environment variables")
+                raise AttributeError(
+                    "Authenticate first with scrunch.connect() or providing "
+                    "config/environment variables")
         else:
             site = pycrunch.session
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
-        shoji_ds = site.datasets.by('id')[dataset].entity
+        try:
+            shoji_ds = site.datasets.by('id')[dataset].entity
+        except KeyError:
+            raise KeyError("Dataset not found in current context.")
 
     ds = Dataset(shoji_ds)
 
