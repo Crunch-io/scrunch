@@ -11,5 +11,5 @@ pytest==3.0.5
 pytest-sugar==0.8.0
 pytest-cov
 requests
-backports.unittest_mock
+backports.unittest-mock==1.2.1
 isodate
