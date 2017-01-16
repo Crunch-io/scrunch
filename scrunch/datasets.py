@@ -158,34 +158,6 @@ def create_dataset(name, variables, site=None):
     return Dataset(shoji_ds)
 
 
-def var_name_to_url(ds, alias):
-    """
-    :param ds: The dataset we are gonna inspect
-    :param alias: the alias of the variable name we want to check
-    :return: the id of the given varname or None
-    """
-    try:
-        return ds.variables.by('alias')[alias].entity_url
-    except KeyError:
-        raise KeyError(
-            'Variable %s does not exist in Dataset %s' % (alias,
-                                                          ds['body']['name']))
-
-
-def var_id_to_url(ds, id):
-    """
-    :param ds: The dataset to look for the id of variable
-    :param id: The id string of a variable
-    :return: the url of the given variable as crunch url
-    """
-    try:
-        return ds.variables.by('id')[id].entity.self
-    except KeyError:
-        raise KeyError(
-            'Variable %s does not exist in Dataset %s' % (id,
-                                                          ds['body']['name']))
-
-
 def variable_to_url(ds, variable):
     """Receive a valid variable reference and return the variable url.
 
@@ -204,9 +176,13 @@ def variable_to_url(ds, variable):
         return variable
     else:
         try:
-            return var_name_to_url(ds, variable)
+            return ds.variables.by('alias')[variable].entity_url
         except KeyError:
-            return var_id_to_url(ds, variable)
+            try:
+                return ds.variables.by('id')[variable].entity.self
+            except KeyError:
+                raise KeyError('Variable %s does not exist in Dataset %s' % (
+                    variable, ds['body']['name']))
 
 
 def aliases_to_urls(ds, variable_url, response_map):
