@@ -80,7 +80,7 @@ def _get_site():
                              'environment variables found')
 
 
-def get_dataset(dataset, site=None, editor=False):
+def get_dataset(dataset, site=None, editor=False, project=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
     and the user has direct access permissions to it. If you have access to a
@@ -100,6 +100,8 @@ def get_dataset(dataset, site=None, editor=False):
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
+    if project:
+        site = get_project(project, site)
 
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
@@ -117,19 +119,13 @@ def get_dataset(dataset, site=None, editor=False):
     return ds
 
 
-def change_project(project, site=None):
-    """
-    :param project: name or ID of a project
-    :param site: scrunch session, defaults to global session
-    :return: the project session
-    """
+def get_project(project, site=None):
     if site is None:
         site = _get_site()
         if not site:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
-
     try:
         ret = site.projects.by('name')[project].entity
     except KeyError:
@@ -137,7 +133,7 @@ def change_project(project, site=None):
             ret = site.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project name or id not found.")
-    pycrunch.session = ret
+    return ret
 
 
 def create_dataset(name, variables, site=None):
