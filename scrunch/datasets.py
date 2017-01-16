@@ -44,6 +44,8 @@ def _get_site():
     Utilitarian function that reads credentials from
     file or from ENV variables
     """
+    if pycrunch.session is not None:
+        return pycrunch.session
     # try to get credentials from enviroment
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
@@ -93,14 +95,12 @@ def get_dataset(dataset, site=None, editor=False):
     Raises a KeyError if no such dataset exists.
     """
     if site is None:
-        if pycrunch.session is None:
-            site = _get_site()
-            if not site:
-                raise AttributeError(
-                    "Authenticate first with scrunch.connect() or providing "
-                    "config/environment variables")
-        else:
-            site = pycrunch.session
+        site = _get_site()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+
     try:
         shoji_ds = site.datasets.by('name')[dataset].entity
     except KeyError:
@@ -119,26 +119,34 @@ def get_dataset(dataset, site=None, editor=False):
 
 def change_project(project, site=None):
     """
-    :param project: name or ID of the project
+    :param project: name or ID of a project
     :param site: scrunch session, defaults to global session
     :return: the project session
     """
     if site is None:
-        if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+        site = _get_site()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+
     try:
         ret = site.projects.by('name')[project].entity
     except KeyError:
-        ret = site.projects.by('id')[project].entity
+        try:
+            ret = site.projects.by('id')[project].entity
+        except KeyError:
+            raise KeyError("Project name or id not found.")
     pycrunch.session = ret
 
 
 def create_dataset(name, variables, site=None):
     if site is None:
-        if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+        site = _get_site()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
 
     shoji_ds = site.datasets.create({
         'element': 'shoji:entity',
