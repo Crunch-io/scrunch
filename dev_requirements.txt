@@ -9,7 +9,7 @@ pandas==0.19.2
 mock==2.0.0
 pytest==3.0.5
 pytest-sugar==0.8.0
-pytest-cov
+pytest-cov==2.4.0
 requests
 backports.unittest-mock==1.2.1
 isodate==0.5.4
