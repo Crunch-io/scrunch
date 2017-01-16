@@ -12,4 +12,4 @@ pytest-sugar==0.8.0
 pytest-cov
 requests
 backports.unittest-mock==1.2.1
-isodate
+isodate==0.5.4
