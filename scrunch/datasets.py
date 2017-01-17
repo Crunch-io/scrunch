@@ -881,6 +881,7 @@ class Dataset(object):
         self.resource = resource
         self.session = self.resource.session
         self.order = Order(self)
+        self.url = self.resource.self
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
