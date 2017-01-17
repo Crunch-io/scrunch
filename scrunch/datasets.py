@@ -886,17 +886,9 @@ class Dataset(object):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
-        # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
-
-        if variable is None:
-            # Variable doesn't exists, must raise an AttributeError
-            raise AttributeError('Dataset %s has no attribute %s' % (
-                self.resource.body['name'], item))
-
-        # Variable exists!, return the variable entity
-        raise AttributeError('Dataset variables should be accessed like '
-                             'a dictionary')
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Dataset %s has no attribute %s' % (
+            self.resource.body['name'], item))
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
