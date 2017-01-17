@@ -1462,7 +1462,7 @@ class Dataset(object):
         adapter = {
             'function': 'adapt',
             'args': [
-                {'dataset': right_ds.self},
+                {'dataset': right_ds.url},
                 {'variable': right_var_url},
                 {'variable': left_var_url}
             ]
@@ -1493,7 +1493,7 @@ class Dataset(object):
             expr = process_expr(parse_expr(filter), right_ds)
             payload['body']['filter'] = {'expression': expr}
 
-        progress = self.variables.post(payload)
+        progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
             return wait_progress(r=progress, session=self.session, entity=self)
