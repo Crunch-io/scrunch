@@ -629,12 +629,14 @@ class TestVariables(TestDatasetBase, TestCase):
     def test_variable_as_member(self):
         session = mock.MagicMock()
         body = {'name': 'mocked_dataset'}
-        dataset_resource = mock.MagicMock()
+        dataset_resource = mock.Mock()
         dataset_resource.session = session
         dataset_resource.body = body
 
+
         test_variable = mock.MagicMock()
-        test_variable.entity = Entity(session=session)
+        test_variable.entity = Entity(session=session,
+                                      self="fake_url")
 
         variables = {
             'test_variable': test_variable
