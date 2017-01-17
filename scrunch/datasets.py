@@ -909,10 +909,6 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
 
-    def web_url(self, host):
-        WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
-        return urljoin(host, WEB_URL % self.id)
-
     def rename(self, new_name):
         self.resource.edit(name=new_name)
 
