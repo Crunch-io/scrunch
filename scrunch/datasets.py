@@ -24,6 +24,7 @@ from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
+from scrunch.exceptions import AuthenticationError
 from scrunch.variables import validate_variable_url, responses_from_map, combinations_from_map, combine_responses_expr, \
     combine_categories_expr
 
@@ -76,8 +77,9 @@ def _get_site():
         print("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password)
     else:
-        raise AttributeError('No crunch.ini file found and no '
-                             'environment variables found')
+        raise AuthenticationError(
+            'Couldn\'t find existing session, crunch.ini file or environment '
+            'variables.')
 
 
 def get_dataset(dataset, site=None, editor=False, project=None):
@@ -156,33 +158,6 @@ def create_dataset(name, variables, site=None):
         }
     }).refresh()
     return Dataset(shoji_ds)
-
-
-def variable_to_url(ds, variable):
-    """Receive a valid variable reference and return the variable url.
-
-    :param ds: The crunch dataset
-    :param variable: A valid variable reference in the form of a shoji Entity
-                     of the variable or a string containing the variable url
-                     or alias.
-    :return: The variable url
-    """
-    assert isinstance(variable, (six.string_types, Variable))
-
-    if isinstance(variable, Variable):
-        return variable.resource.self
-
-    elif validate_variable_url(variable):
-        return variable
-    else:
-        try:
-            return ds.variables.by('alias')[variable].entity_url
-        except KeyError:
-            try:
-                return ds.variables.by('id')[variable].entity.self
-            except KeyError:
-                raise KeyError('Variable %s does not exist in Dataset %s' % (
-                    variable, ds['body']['name']))
 
 
 def aliases_to_urls(ds, variable_url, response_map):
@@ -1431,7 +1406,7 @@ class Dataset(object):
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
-                id_vars.append(variable_to_url(self.resource, var))
+                id_vars.append(self[var].url)
             # Now build the payload with selected variables
             payload['body']['where'] = {
                     'function': 'select',
@@ -1782,41 +1757,6 @@ class Variable(object):
 
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
-        # get some initial variables
-        ds = get_dataset(self.resource.body.dataset_id)
-        variable_url = variable_to_url(ds, variable)
-        function = self.resource.body.derivation['function']
-
-        # make the proper transformations based on the function
-        # array is combine_responses
-        if function == 'array':
-            trans_responses = aliases_to_urls(ds, variable_url, mapper)
-            values = validate_response_map(trans_responses)
-            function = 'combine_responses'
-        elif function == 'combine_categories':
-            values = validate_category_map(mapper)
-        else:
-            raise AttributeError(
-                'Function %s does not support edit' % function)
-
-        # build the proper payload
-        payload = {
-            'element': 'shoji:entity',
-            'body': {
-                'expr': {
-                    'function': function,
-                    'args': [
-                        {
-                            'variable': variable_url
-                        },
-                        {
-                            'value': values
-                        }
-                    ]
-                }
-            }
-        }
-        return self.resource.patch(payload)
 
     def edit(self, **kwargs):
         return self.resource.edit(**kwargs)
