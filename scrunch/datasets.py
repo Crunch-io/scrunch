@@ -881,6 +881,7 @@ class Dataset(object):
         self.resource = resource
         self.session = self.resource.session
         self.order = Order(self)
+        self.url = self.resource.self
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -912,7 +913,7 @@ class Dataset(object):
         Returns the total of rows streamed
         """
         importer = Importer()
-        count = len(columns.values()[0])
+        count = len(list(columns.values())[0])
         for x in range(count):
             importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
         return count
@@ -1449,7 +1450,7 @@ class Dataset(object):
         adapter = {
             'function': 'adapt',
             'args': [
-                {'dataset': right_ds.self},
+                {'dataset': right_ds.url},
                 {'variable': right_var_url},
                 {'variable': left_var_url}
             ]
@@ -1480,7 +1481,7 @@ class Dataset(object):
             expr = process_expr(parse_expr(filter), right_ds)
             payload['body']['filter'] = {'expression': expr}
 
-        progress = self.variables.post(payload)
+        progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
             return wait_progress(r=progress, session=self.session, entity=self)
