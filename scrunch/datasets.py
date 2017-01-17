@@ -869,10 +869,10 @@ class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
-
-    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'description', 'is_published',
-                         'archived', 'end_date', 'start_date', 'creation_time',
-                         'modification_time'}
+    _MUTABLE_ATTRIBUTES = ('name', 'notes', 'description', 'is_published',
+                           'archived', 'end_date', 'start_date')
+    _IMMUTABLE_ATTRIBUTES = ('id', 'creation_time', 'modification_time')
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES + _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, resource):
         """
@@ -883,7 +883,7 @@ class Dataset(object):
         self.order = Order(self)
 
     def __getattr__(self, item):
-        if item in self.ENTITY_ATTRIBUTES:
+        if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
         # Check if the attribute corresponds to a variable alias
@@ -894,7 +894,8 @@ class Dataset(object):
             raise AttributeError('Dataset has no attribute %s' % item)
 
         # Variable exists!, return the variable entity
-        return variable.entity
+        raise AttributeError('Dataset variables should be accessed like '
+                             'a dictionary')
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias

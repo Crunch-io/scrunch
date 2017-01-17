@@ -626,7 +626,7 @@ class TestVariables(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
     user_url = 'https://test.crunch.io/api/users/12345/'
 
-    def test_variable_as_attribute(self):
+    def test_variable_as_member(self):
         session = mock.MagicMock()
         dataset_resource = mock.MagicMock()
         dataset_resource.session = session
@@ -642,7 +642,14 @@ class TestVariables(TestDatasetBase, TestCase):
 
         dataset = Dataset(dataset_resource)
 
-        assert isinstance(dataset.test_variable, Entity)
+        assert isinstance(dataset['test_variable'], Variable)
+        with pytest.raises(AttributeError) as err:
+            dataset.test_variable
+        with pytest.raises(ValueError) as err:
+            dataset['another_variable']
+
+        assert str(err.value) == 'Dataset has no variable another_variable'
+
         with pytest.raises(AttributeError) as err:
             dataset.another_variable
 
