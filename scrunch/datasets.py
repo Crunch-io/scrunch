@@ -1517,16 +1517,19 @@ class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
-
-    ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
-                         'type', 'id', 'view', 'notes', 'categories'}
+    _MUTABLE_ATTRIBUTES = ('name', 'description', 'discarded',
+                           'view', 'notes','format')
+    _IMMUTABLE_ATTRIBUTES = ('id', 'alias', 'type', 'categories')
+    # We won't expose owner and private
+    # categories in immutable. IMO it should be handled separately
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES + _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, resource):
         self.resource = resource
         self.url = self.resource.self
 
     def __getattr__(self, item):
-        if item in self.ENTITY_ATTRIBUTES:
+        if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
     def hide(self):
