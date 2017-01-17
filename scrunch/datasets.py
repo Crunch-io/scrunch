@@ -1,5 +1,6 @@
 import abc
 import collections
+import logging
 import json
 import os
 import re
@@ -39,6 +40,8 @@ _VARIABLE_PAYLOAD_TMPL = {
 
 _MR_TYPE = 'multiple_response'
 
+LOG = logging.getLogger('scrunch')
+
 
 def _get_site():
     """
@@ -52,10 +55,10 @@ def _get_site():
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
-        print("Found Crunch credentials on Environment")
+        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        print("Found Crunch credentials on Environment")
+        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
@@ -71,10 +74,10 @@ def _get_site():
         site = None
     # now try to login with obtained creds
     if username and password and site:
-        print("Found Crunch credentials on crunch.ini")
+        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        print("Found Crunch credentials on crunch.ini")
+        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
@@ -112,7 +115,7 @@ def get_dataset(dataset, site=None, editor=False, project=None):
         try:
             shoji_ds = site.datasets.by('id')[dataset].entity
         except KeyError:
-            raise KeyError("Dataset not found in current context.")
+            raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
     ds = Dataset(shoji_ds)
 
@@ -135,7 +138,7 @@ def get_project(project, site=None):
         try:
             ret = site.projects.by('id')[project].entity
         except KeyError:
-            raise KeyError("Project name or id not found.")
+            raise KeyError("Project (name or id: %s) not found." % project)
     return ret
 
 
@@ -867,7 +870,7 @@ class Dataset(object):
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
 
-    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'descrpition', 'is_published',
+    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'description', 'is_published',
                          'archived', 'end_date', 'start_date', 'creation_time',
                          'modification_time'}
 
@@ -1523,11 +1526,11 @@ class Variable(object):
             return self.resource.body[item]  # Has to exist
 
     def hide(self):
-        print("HIDING")
+        LOG.debug("HIDING")
         self.resource.edit(discarded=True)
 
     def unhide(self):
-        print("UNHIDING")
+        LOG.debug("UNHIDING")
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
