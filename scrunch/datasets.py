@@ -925,7 +925,7 @@ class Dataset(object):
         Returns the total of rows streamed
         """
         importer = Importer()
-        count = len(columns.values()[0])
+        count = len(list(columns.values())[0])
         for x in range(count):
             importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
         return count
