@@ -869,10 +869,10 @@ class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
-    _MUTABLE_ATTRIBUTES = ('name', 'notes', 'description', 'is_published',
-                           'archived', 'end_date', 'start_date')
-    _IMMUTABLE_ATTRIBUTES = ('id', 'creation_time', 'modification_time')
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES + _IMMUTABLE_ATTRIBUTES
+    _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
+                           'archived', 'end_date', 'start_date'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, resource):
         """
@@ -1513,12 +1513,12 @@ class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
-    _MUTABLE_ATTRIBUTES = ('name', 'description', 'discarded',
-                           'view', 'notes','format')
-    _IMMUTABLE_ATTRIBUTES = ('id', 'alias', 'type', 'categories')
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'discarded',
+                           'view', 'notes','format'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES + _IMMUTABLE_ATTRIBUTES
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, resource):
         self.resource = resource
