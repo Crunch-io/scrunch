@@ -1523,6 +1523,7 @@ class Variable(object):
 
     def __init__(self, resource):
         self.resource = resource
+        self.url = self.resource.self
 
     def __getattr__(self, item):
         if item in self.ENTITY_ATTRIBUTES:
