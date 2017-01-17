@@ -891,7 +891,8 @@ class Dataset(object):
 
         if variable is None:
             # Variable doesn't exists, must raise an AttributeError
-            raise AttributeError('Dataset has no attribute %s' % item)
+            raise AttributeError('Dataset %s has no attribute %s' % (
+                self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
         raise AttributeError('Dataset variables should be accessed like '
@@ -902,7 +903,8 @@ class Dataset(object):
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise an ValueError
-            raise ValueError('Dataset has no variable %s' % item)
+            raise ValueError('Dataset %s has no variable %s' % (
+                self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
         return Variable(variable.entity)

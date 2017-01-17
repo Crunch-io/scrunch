@@ -628,8 +628,10 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_variable_as_member(self):
         session = mock.MagicMock()
+        body = {'name': 'mocked_dataset'}
         dataset_resource = mock.MagicMock()
         dataset_resource.session = session
+        dataset_resource.body = body
 
         test_variable = mock.MagicMock()
         test_variable.entity = Entity(session=session)
@@ -648,12 +650,12 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             dataset['another_variable']
 
-        assert str(err.value) == 'Dataset has no variable another_variable'
+        assert str(err.value) == 'Dataset mocked_dataset has no variable another_variable'
 
         with pytest.raises(AttributeError) as err:
             dataset.another_variable
 
-        assert str(err.value) == 'Dataset has no attribute another_variable'
+        assert str(err.value) == 'Dataset mocked_dataset has no attribute another_variable'
 
     def test_variable_cast(self):
         variable = mock.MagicMock()
