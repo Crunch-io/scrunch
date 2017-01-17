@@ -1532,6 +1532,14 @@ class Variable(object):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
+    def edit(self, **kwargs):
+        for key in kwargs:
+            if key not in self._MUTABLE_ATTRIBUTES:
+                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                    key, self.name
+                ))
+        return self.resource.edit(**kwargs)
+
     def hide(self):
         LOG.debug("HIDING")
         self.resource.edit(discarded=True)
@@ -1768,5 +1776,4 @@ class Variable(object):
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
 
-    def edit(self, **kwargs):
-        return self.resource.edit(**kwargs)
+
