@@ -1381,7 +1381,7 @@ class TestHierarchicalOrder(TestCase):
             'self': '%stable/' % self.ds_url,
             'metadata': collections.OrderedDict()
         }
-        variables = collections.OrderedDict()
+        variables = dict()
         hier_order = {
             'element': 'shoji:order',
             'self': '%svariables/hier/' % self.ds_url,
@@ -1424,7 +1424,8 @@ class TestHierarchicalOrder(TestCase):
             _var_mock.entity.body.__getitem__.side_effect = _get_func
             _var_mock.entity.body.get.side_effect = _get_func
             table['metadata'][var['id']] = _var_mock
-            variables[var['id']] = _var_mock
+            variables[var['id']] = _var_mock     # for .variables.by('id')
+            variables[var['alias']] = _var_mock  # for .variables.by('alias')
 
         def _session_get(*args):
             if args[0] == '{}table/'.format(self.ds_url):
@@ -2585,6 +2586,91 @@ class TestHierarchicalOrder(TestCase):
 
         with pytest.raises(ValueError):
             ds.order['|Account'].rename('@##$.')
+
+    def test_move_group(self):
+        ds = self.ds
+
+        group = ds.order['|Account|User Information']
+        assert group.name == 'User Information'
+        group.move('|')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                {
+                    'User Information': [
+                        '../000005/',       # first_name
+                        '../000006/',       # last_name
+                        '../000007/',       # gender
+                    ]
+                },
+            ]
+        }
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            ds.order['|Account|Location'].move('|Invalid Group|')
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            ds.order['|Account|Location'].move('|Account|Location')
+
+    @mock.patch('scrunch.datasets.get_dataset')
+    def test_move_variable(self, get_dataset_mock):
+        ds = self.ds
+        get_dataset_mock.return_value = ds
+
+        var = ds['id']
+        assert var.name == 'ID'
+        var.move('|Account|User Information')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                                '../000001/',       # id
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            var.move('|Account|Invalid Group')
 
 
 class TestDatasetJoins(TestCase):

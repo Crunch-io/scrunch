@@ -533,6 +533,20 @@ class Group(object):
         # Update!
         self.order.update()
 
+    def move(self, path, position=-1):
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+
+        target_group = self.order[str(path)]
+        if target_group == self:
+            raise InvalidPathError(
+                'Invalid path %s: cannot move Group into itself.' % path
+            )
+        target_group.insert(self.name, position=position)
+
 
 class Order(object):
 
@@ -1544,4 +1558,13 @@ class Variable(object):
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
 
+    def move(self, path, position=-1):
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
 
+        ds = get_dataset(self.resource.body.dataset_id)
+        target_group = ds.order[str(path)]
+        target_group.insert(self.alias, position=position)
