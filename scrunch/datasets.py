@@ -12,10 +12,10 @@ from scrunch.helpers import abs_url, subvar_alias
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit, urljoin
+    from urlparse import urlsplit
 else:
     import configparser
-    from urllib.parse import urlsplit, urljoin
+    from urllib.parse import urlsplit
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.exceptions import AuthenticationError
-from scrunch.variables import validate_variable_url, responses_from_map, combinations_from_map, combine_responses_expr, \
+from scrunch.variables import responses_from_map, combinations_from_map, combine_responses_expr, \
     combine_categories_expr
 
 _VARIABLE_PAYLOAD_TMPL = {
