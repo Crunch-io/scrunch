@@ -2585,3 +2585,80 @@ class TestHierarchicalOrder(TestCase):
 
         with pytest.raises(ValueError):
             ds.order['|Account'].rename('@##$.')
+
+
+class TestDatasetJoins(TestCase):
+    left_ds_url = 'https://test.crunch.io/api/datasets/123/'
+    right_ds_url = 'https://test.crunch.io/api/datasets/456/'
+
+    @staticmethod
+    def _build_get_func(d):
+        properties = {}
+        properties.update(d)
+
+        def _get(*args):
+            return properties.get(args[0], args[0])
+        return _get
+
+    def _variable_mock(self, ds_url, var):
+        var_url = '%svariables/%s/' % (ds_url, var['id'])
+        _get_func = self._build_get_func(var)
+        _var_mock = mock.MagicMock()
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.entity.self = var_url
+        _var_mock.entity.body.__getitem__.side_effect = _get_func
+        _var_mock.entity.body.get.side_effect = _get_func
+        return _var_mock
+
+    def setUp(self):
+        var = {
+            'id': '000001',
+            'alias': 'id',
+            'name': 'ID',
+            'type': 'numeric',
+            'is_subvar': False
+        }
+
+        # setup for left dataset
+        _left_var_mock = self._variable_mock(self.left_ds_url, var)
+        left_variable = collections.OrderedDict()
+        left_variable[var['alias']] = _left_var_mock
+        left_ds_res = mock.MagicMock()
+        left_ds_res.self = self.left_ds_url
+        left_ds_res.variables.by.return_value = left_variable
+        self.left_ds = Dataset(left_ds_res)
+
+        # setup for right dataset
+        _right_var_mock = self._variable_mock(self.right_ds_url, var)
+        right_variable = collections.OrderedDict()
+        right_variable[var['alias']] = _right_var_mock
+        right_ds_res = mock.MagicMock()
+        right_ds_res.self = self.right_ds_url
+        right_ds_res.variables.by.return_value = right_variable
+        self.right_ds = Dataset(right_ds_res)
+
+    def test_dataset_joins(self):
+        left_ds = self.left_ds
+        right_ds = self.right_ds
+        left_var = left_ds['id']
+        right_var = right_ds['id']
+
+        left_ds.join('id', right_ds, 'id', wait=False)
+
+        call_payload = left_ds.resource.variables.post.call_args[0][0]
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'function': 'adapt',
+                'args': [
+                    {'dataset': right_ds.url},
+                    {'variable': '%svariables/%s/' % (right_ds.url, right_var.id)},
+                    {'variable': '%svariables/%s/' % (left_ds.url, left_var.id)}
+                ]
+            }
+        }
+
+        assert call_payload == expected_payload
+        left_ds.resource.variables.post.assert_called_once_with(
+            expected_payload)
