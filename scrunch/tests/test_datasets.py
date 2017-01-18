@@ -1476,10 +1476,10 @@ class TestHierarchicalOrder(TestCase):
         assert group.name == 'User Information'
         assert group.parent == ds.order['|Account']
 
-        with pytest.raises(scrunch.datasets.InvalidPathError):
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
             _ = ds.order['|Account|Invalid Group|']
 
-        with pytest.raises(scrunch.datasets.InvalidPathError):
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
             _ = ds.order['|Invalid Group|']
 
     def test_access_with_relative_paths(self):
@@ -1495,10 +1495,10 @@ class TestHierarchicalOrder(TestCase):
         assert usr_info_group.name == 'User Information'
         assert usr_info_group.parent == acct_group
 
-        with pytest.raises(scrunch.datasets.InvalidPathError):
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
             _ = ds.order['Invalid Group']
 
-        with pytest.raises(scrunch.datasets.InvalidPathError):
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
             _ = acct_group['Another Invalid Group']
 
     def test_access_with_the_in_operator(self):

@@ -8,3 +8,7 @@ class AuthenticationError(Exception):
 
 class OrderUpdateError(Exception):
     pass
+
+
+class InvalidPathError(ValueError):
+    pass
