@@ -163,27 +163,6 @@ def create_dataset(name, variables, site=None):
     }).refresh()
     return Dataset(shoji_ds)
 
-
-def aliases_to_urls(ds, variable_url, response_map):
-    """
-    Maps subvariable aliases to urls
-    :param ds: a dataset object
-    :param variable_url: url of the variable we want to inspect
-    :param response_map: mapping of new subvariables
-    :return:
-    """
-    suvars = ds.variables.index(variable_url).entity.subvariables.by('alias')
-    mapped_urls = {}
-    for key, values in response_map.items():
-        try:
-            mapped_urls[key] = [suvars[x].entity_url for x in values]
-        except KeyError:
-            raise KeyError(
-                'Unexistent variables %s in Dataset %s' % (
-                    values, ds['body']['alias']))
-    return mapped_urls
-
-
 def validate_category_rules(categories, rules):
     if not ((len(categories) - 1) <= len(rules) <= len(categories)):
         raise ValueError(
