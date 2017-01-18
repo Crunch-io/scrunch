@@ -24,7 +24,7 @@ from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.exceptions import AuthenticationError
+from scrunch.exceptions import AuthenticationError, OrderUpdateError
 from scrunch.variables import responses_from_map, combinations_from_map, combine_responses_expr, \
     combine_categories_expr
 
@@ -168,10 +168,6 @@ def _validate_category_rules(categories, rules):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
-
-
-class OrderUpdateError(Exception):
-    pass
 
 
 class AbstractContainer(object):
