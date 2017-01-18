@@ -163,48 +163,12 @@ def create_dataset(name, variables, site=None):
     }).refresh()
     return Dataset(shoji_ds)
 
-def validate_category_rules(categories, rules):
+
+def _validate_category_rules(categories, rules):
     if not ((len(categories) - 1) <= len(rules) <= len(categories)):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
-
-
-def validate_category_map(map):
-    """
-    :param map: categories keyed by new category id mapped to existing ones
-    :return: a list of dictionary objects that the Crunch API expects
-    """
-    REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
-    raise PendingDeprecationWarning("Does not use the new input format")
-    for value in map.values():
-        keys = set(list(value.keys()))
-        assert keys & REQUIRED_VALUES, (
-            'category_map has one or more missing keys of ' % REQUIRED_VALUES)
-    rebuilt = list()
-    for key, value in map.items():
-        category = dict()
-        category.update(value)
-        # unfold expressions like range(1,5) to a list of ids
-        category['combined_ids'] = list(category['combined_ids'])
-        category['id'] = key
-        rebuilt.append(category)
-    return rebuilt
-
-
-def validate_response_map(map):
-    """
-    :param map: responses keyed by new alias mapped to existing aliases
-    :return: a list of dictionaries describing the new responses to create for
-             the variable
-    """
-    rebuilt = list()
-    for key, value in map.items():
-        response = dict()
-        response['name'] = key
-        response['combined_ids'] = value
-        rebuilt.append(response)
-    return rebuilt
 
 
 def download_file(url, filename):
@@ -1719,7 +1683,7 @@ class Variable(object):
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
-        validate_category_rules(categories, rules)
+        _validate_category_rules(categories, rules)
         args = [{
             'column': [c['id'] for c in categories],
             'type': {
