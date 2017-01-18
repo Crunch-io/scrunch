@@ -7,7 +7,7 @@ git+https://github.com/Crunch-io/pycrunch#pycrunch
 #pycrunch
 pandas
 mock
-pytest
+pytest==3.0.5
 pytest-sugar
 pytest-cov
 requests
