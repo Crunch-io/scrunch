@@ -1,3 +1,4 @@
+import requests
 import six
 
 if six.PY2:  # pragma: no cover
@@ -33,3 +34,17 @@ def abs_url(expr, base_url):
 
 def subvar_alias(parent_alias, response_id):
     return '%s_%d' % (parent_alias, response_id)
+
+
+def download_file(url, filename):
+    if url.startswith('file://'):
+        # Result is in local filesystem (for local development mostly)
+        import shutil
+        shutil.copyfile(url.split('file://', 1)[1], filename)
+    else:
+        r = requests.get(url, stream=True)
+        with open(filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:   # filter out keep-alive new chunks
+                    f.write(chunk)
+    return filename

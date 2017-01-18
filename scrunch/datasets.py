@@ -1,14 +1,13 @@
 import abc
 import collections
-import logging
 import json
+import logging
 import os
 import re
 
-import requests
 import six
 
-from scrunch.helpers import abs_url, subvar_alias
+from scrunch.helpers import abs_url, subvar_alias, download_file
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -169,20 +168,6 @@ def _validate_category_rules(categories, rules):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
-
-
-def download_file(url, filename):
-    if url.startswith('file://'):
-        # Result is in local filesystem (for local development mostly)
-        import shutil
-        shutil.copyfile(url.split('file://', 1)[1], filename)
-    else:
-        r = requests.get(url, stream=True)
-        with open(filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:   # filter out keep-alive new chunks
-                    f.write(chunk)
-    return filename
 
 
 class OrderUpdateError(Exception):
