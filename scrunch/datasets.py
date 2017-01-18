@@ -7,7 +7,7 @@ import re
 
 import six
 
-from scrunch.helpers import abs_url, subvar_alias, download_file
+from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -762,34 +762,6 @@ class Order(object):
         self.graph.delete(*args, **kwargs)
 
 
-def case_expr(rules, name, alias):
-    """
-    Given a set of rules, return a `case` function expression to create a
-     variable.
-    """
-    expression = {
-        'references': {
-            'name': name,
-            'alias': alias,
-        },
-        'function': 'case',
-        'args': [{
-            'column': [1, 2],
-            'type': {
-                'value': {
-                    'class': 'categorical',
-                    'categories': [
-                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
-                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
-                    ]
-                }
-            }
-        }]
-    }
-    expression['args'].append(rules)
-    return expression
-
-
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -934,7 +906,7 @@ class Dataset(object):
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
             responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
-                alias='%s_%d' % (alias, resp['id']))
+                                                           alias='%s_%d' % (alias, resp['id']))
 
         payload = {
             'element': 'shoji:entity',

@@ -48,3 +48,31 @@ def download_file(url, filename):
                 if chunk:   # filter out keep-alive new chunks
                     f.write(chunk)
     return filename
+
+
+def case_expr(rules, name, alias):
+    """
+    Given a set of rules, return a `case` function expression to create a
+     variable.
+    """
+    expression = {
+        'references': {
+            'name': name,
+            'alias': alias,
+        },
+        'function': 'case',
+        'args': [{
+            'column': [1, 2],
+            'type': {
+                'value': {
+                    'class': 'categorical',
+                    'categories': [
+                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
+                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
+                    ]
+                }
+            }
+        }]
+    }
+    expression['args'].append(rules)
+    return expression
