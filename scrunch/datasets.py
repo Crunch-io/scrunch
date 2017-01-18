@@ -1,13 +1,12 @@
 import collections
-import logging
 import json
+import logging
 import os
 import re
 
-import requests
 import six
 
-from scrunch.helpers import abs_url, subvar_alias
+from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -24,7 +23,7 @@ from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.exceptions import AuthenticationError
+from scrunch.exceptions import AuthenticationError, OrderUpdateError
 from scrunch.variables import responses_from_map, combinations_from_map, combine_responses_expr, \
     combine_categories_expr
 
@@ -168,24 +167,6 @@ def _validate_category_rules(categories, rules):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
-
-
-def download_file(url, filename):
-    if url.startswith('file://'):
-        # Result is in local filesystem (for local development mostly)
-        import shutil
-        shutil.copyfile(url.split('file://', 1)[1], filename)
-    else:
-        r = requests.get(url, stream=True)
-        with open(filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:   # filter out keep-alive new chunks
-                    f.write(chunk)
-    return filename
-
-
-class OrderUpdateError(Exception):
-    pass
 
 
 class InvalidPathError(ValueError):
@@ -652,34 +633,6 @@ class Order(object):
         return self.graph[item]
 
 
-def case_expr(rules, name, alias):
-    """
-    Given a set of rules, return a `case` function expression to create a
-     variable.
-    """
-    expression = {
-        'references': {
-            'name': name,
-            'alias': alias,
-        },
-        'function': 'case',
-        'args': [{
-            'column': [1, 2],
-            'type': {
-                'value': {
-                    'class': 'categorical',
-                    'categories': [
-                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
-                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
-                    ]
-                }
-            }
-        }]
-    }
-    expression['args'].append(rules)
-    return expression
-
-
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -838,7 +791,7 @@ class Dataset(object):
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
             responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
-                alias='%s_%d' % (alias, resp['id']))
+                                                           alias='%s_%d' % (alias, resp['id']))
 
         payload = {
             'element': 'shoji:entity',

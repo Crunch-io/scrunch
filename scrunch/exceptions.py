@@ -4,3 +4,7 @@ class AuthenticationError(Exception):
     a user.
     """
     pass
+
+
+class OrderUpdateError(Exception):
+    pass
