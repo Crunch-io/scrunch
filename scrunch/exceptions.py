@@ -12,3 +12,7 @@ class OrderUpdateError(Exception):
 
 class InvalidPathError(ValueError):
     pass
+
+
+class InvalidReferenceError(ValueError):
+    pass

@@ -2474,7 +2474,7 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(TypeError):
             ds.order['|Account'].insert('id', before=1)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(scrunch.exceptions.InvalidReferenceError):
             ds.order['|Account'].insert('id', before='unknown')
 
     def test_group_creation(self):

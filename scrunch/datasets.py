@@ -23,7 +23,7 @@ from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.exceptions import AuthenticationError, OrderUpdateError, InvalidPathError
+from scrunch.exceptions import AuthenticationError, OrderUpdateError, InvalidPathError, InvalidReferenceError
 from scrunch.variables import responses_from_map, combinations_from_map, combine_responses_expr, \
     combine_categories_expr
 
@@ -326,8 +326,9 @@ class Group(object):
         if not isinstance(reference, six.string_types):
             raise TypeError('Invalid reference. It must be a string.')
         if reference not in self.elements:
-            raise ValueError(
-                'Invalid reference. It is not part of the current Group.'
+            raise InvalidReferenceError(
+                'Invalid reference %s: it is not part of the current Group.'
+                % reference
             )
         return reference
 
