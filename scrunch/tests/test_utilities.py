@@ -55,7 +55,6 @@ class TestGetDataset(object):
     @mock.patch('pycrunch.session')
     def test_get_connection_with_session(self, session_mock):
         assert scrunch.datasets._get_connection() == session_mock
-        # import pdb; pdb.set_trace()
 
     @mock.patch('pycrunch.connect')
     def test_get_connection_with_env(self, connect_mock, envpatch):
