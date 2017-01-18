@@ -6,7 +6,7 @@ git+https://github.com/Crunch-io/pycrunch#pycrunch
 
 #pycrunch
 pandas
-mock
+mock==2.0.0
 pytest
 pytest-sugar
 pytest-cov
