@@ -43,7 +43,7 @@ _MR_TYPE = 'multiple_response'
 LOG = logging.getLogger('scrunch')
 
 
-def _get_site():
+def _get_connection():
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
@@ -85,14 +85,14 @@ def _get_site():
             'variables.')
 
 
-def get_dataset(dataset, site=None, editor=False, project=None):
+def get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
     and the user has access permissions to it. If you have access to the dataset
     through a project you should do pass the project parameter.
 
-    This method tries to use pycrunch singleton session, environment variables
-    or a crunch.ini config file if the optional "site" parameter isn't provided.
+    This method tries to use pycrunch singleton connection, environment variables
+    or a crunch.ini config file if the optional "connection" parameter isn't provided.
 
     Also able to change editor while getting the dataset with the optional
     editor parameter.
@@ -100,34 +100,35 @@ def get_dataset(dataset, site=None, editor=False, project=None):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
-    if site is None:
-        site = _get_site()
-        if not site:
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
+    root = connection
     if project:
-        site = get_project(project, site)
+        root = get_project(project, connection)
 
     try:
-        shoji_ds = site.datasets.by('name')[dataset].entity
+        shoji_ds = root.datasets.by('name')[dataset].entity
     except KeyError:
         try:
-            shoji_ds = site.datasets.by('id')[dataset].entity
+            shoji_ds = root.datasets.by('id')[dataset].entity
         except KeyError:
             raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
     ds = Dataset(shoji_ds)
 
     if editor is True:
-        ds.change_editor(site.user_url.body.email)
+        ds.change_editor(root.user_url.body.email)
 
     return ds
 
 
 def get_project(project, site=None):
     if site is None:
-        site = _get_site()
+        site = _get_connection()
         if not site:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
@@ -144,7 +145,7 @@ def get_project(project, site=None):
 
 def create_dataset(name, variables, site=None):
     if site is None:
-        site = _get_site()
+        site = _get_connection()
         if not site:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
