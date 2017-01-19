@@ -8,13 +8,6 @@ import six
 
 from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
-if six.PY2:  # pragma: no cover
-    import ConfigParser as configparser
-    from urlparse import urlsplit
-else:
-    import configparser
-    from urllib.parse import urlsplit
-
 import pandas as pd
 
 import pycrunch
@@ -23,9 +16,17 @@ from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.exceptions import AuthenticationError, OrderUpdateError, InvalidPathError, InvalidReferenceError
-from scrunch.variables import responses_from_map, combinations_from_map, combine_responses_expr, \
-    combine_categories_expr
+from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
+                                InvalidPathError, InvalidReferenceError)
+from scrunch.variables import (responses_from_map, combinations_from_map,
+                               combine_responses_expr, combine_categories_expr)
+
+if six.PY2:  # pragma: no cover
+    import ConfigParser as configparser
+    from urlparse import urlsplit
+else:
+    import configparser
+    from urllib.parse import urlsplit
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -684,6 +685,12 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
 
+    def __repr__(self):
+        return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
     @property
     def order(self):
         return self._order
@@ -1321,6 +1328,12 @@ class Variable(object):
                     key, self.name
                 ))
         return self.resource.edit(**kwargs)
+
+    def __repr__(self):
+        return "<Variable: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
 
     def hide(self):
         LOG.debug("HIDING")
