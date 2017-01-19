@@ -10,6 +10,6 @@ mock
 pytest
 pytest-sugar
 pytest-cov
-requests
+requests==2.12.5
 backports.unittest_mock
 isodate
