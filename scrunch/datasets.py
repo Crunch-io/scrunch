@@ -685,6 +685,12 @@ class Dataset(object):
         # Variable exists!, return the variable entity
         return Variable(variable.entity)
 
+    def __repr__(self):
+        return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
     @property
     def order(self):
         return self._order
@@ -1322,6 +1328,12 @@ class Variable(object):
                     key, self.name
                 ))
         return self.resource.edit(**kwargs)
+
+    def __repr__(self):
+        return "<Variable: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
 
     def hide(self):
         LOG.debug("HIDING")
