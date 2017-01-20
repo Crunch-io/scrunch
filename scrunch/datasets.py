@@ -702,8 +702,13 @@ class Dataset(object):
             'Unsupported operation on the Hierarchical Order property'
         )
 
-    def rename(self, new_name):
-        self.resource.edit(name=new_name)
+    def edit(self, **kwargs):
+        for key in kwargs:
+            if key not in self._MUTABLE_ATTRIBUTES:
+                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                    key, self.name
+                ))
+        return self.resource.edit(**kwargs)
 
     def stream_rows(self, columns):
         """
