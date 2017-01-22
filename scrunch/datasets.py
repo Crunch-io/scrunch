@@ -715,6 +715,47 @@ class Dataset(object):
         self.resource.delete()
         logging.debug("Deleted dataset.")
 
+    def change_editor(self, user):
+        """
+        Change the current editor of the Crunch dataset.
+
+        Parameters
+        ----------
+        :param user:
+            The email address or the crunch url of the user who should be set
+            as the new current editor of the given dataset.
+
+        :returns: None
+        """
+
+        def _host_from_url(url):
+            resolved = urlsplit(url)
+            return resolved.hostname
+
+        def _to_url(email):
+            api_users = 'https://{}/api/users/'.format(
+                _host_from_url(self.resource.self)
+            )
+            user_url = None
+
+            users = self.session.get(api_users).payload['index']
+
+            for url, user in six.iteritems(users):
+                if user['email'] == email:
+                    user_url = url
+                    self.resource.patch({'current_editor': url})
+                    break
+            assert user_url is not None, 'Unable to resolve user url'
+
+            return user_url
+
+        def _is_url(u):
+            return u.startswith('https://') or u.startswith('http://')
+
+        user_url = user if _is_url(user) else _to_url(user)
+
+        self.resource.patch({'current_editor': user_url})
+
     def stream_rows(self, columns):
         """
         Receives a dict with columns of values to add and streams them
@@ -990,47 +1031,6 @@ class Dataset(object):
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
         return Variable(self.resource.variables.create(payload).refresh())
-
-    def change_editor(self, user):
-        """
-        Change the current editor of the Crunch dataset.
-
-        Parameters
-        ----------
-        :param user:
-            The email address or the crunch url of the user who should be set
-            as the new current editor of the given dataset.
-
-        :returns: None
-        """
-
-        def _host_from_url(url):
-            resolved = urlsplit(url)
-            return resolved.hostname
-
-        def _to_url(email):
-            api_users = 'https://{}/api/users/'.format(
-                _host_from_url(self.resource.self)
-            )
-            user_url = None
-
-            users = self.session.get(api_users).payload['index']
-
-            for url, user in six.iteritems(users):
-                if user['email'] == email:
-                    user_url = url
-                    self.resource.patch({'current_editor': url})
-                    break
-            assert user_url is not None, 'Unable to resolve user url'
-
-            return user_url
-
-        def _is_url(u):
-            return u.startswith('https://') or u.startswith('http://')
-
-        user_url = user if _is_url(user) else _to_url(user)
-
-        self.resource.patch({'current_editor': user_url})
 
     def create_savepoint(self, description):
         """
