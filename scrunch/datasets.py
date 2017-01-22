@@ -713,19 +713,23 @@ class Dataset(object):
     def stream_rows(self, columns):
         """
         Receives a dict with columns of values to add and streams them
-         into the dataset. Client must call .push_rows(n) later.
+         into the dataset. Client must call .push_rows(n) later or wait until
+         Crunch automatically processes the batch.
 
         Returns the total of rows streamed
         """
         importer = Importer()
         count = len(list(columns.values())[0])
         for x in range(count):
-            importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
+            importer.stream_rows(self.resource,
+                                 {a: columns[a][x] for a in columns})
         return count
 
     def push_rows(self, count):
         """
-        Batches in the rows that have been currently streamed.
+        Batches in the rows that have been recently streamed. This forces
+        the rows to appear in the dataset instead of waiting for crunch
+        automatic batcher process.
         """
         self.resource.batches.create({
             'element': 'shoji:entity',
