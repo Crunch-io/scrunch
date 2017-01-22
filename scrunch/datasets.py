@@ -710,6 +710,11 @@ class Dataset(object):
                 ))
         return self.resource.edit(**kwargs)
 
+    def delete(self):
+        logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
+        self.resource.delete()
+        logging.debug("Deleted dataset.")
+
     def stream_rows(self, columns):
         """
         Receives a dict with columns of values to add and streams them
