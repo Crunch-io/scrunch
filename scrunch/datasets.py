@@ -1,4 +1,5 @@
 import collections
+import datetime
 import json
 import logging
 import os
@@ -708,6 +709,12 @@ class Dataset(object):
                 raise AttributeError("Can't edit attibute %s of variable %s" % (
                     key, self.name
                 ))
+            if key in ['start_date', 'end_date'] and \
+                    (isinstance(kwargs[key], datetime.date) or
+                    isinstance(kwargs[key], datetime.datetime)
+                     ):
+                kwargs[key] = kwargs[key].isoformat()
+
         return self.resource.edit(**kwargs)
 
     def delete(self):
