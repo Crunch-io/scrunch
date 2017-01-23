@@ -716,42 +716,24 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
-class TestVariables(TestDatasetBase, TestCase):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
-    user_url = 'https://test.crunch.io/api/users/12345/'
-
+class TestVariables(TestDatasetBaseNG, TestCase):
     def test_variable_as_member(self):
-        session = mock.MagicMock()
-        body = {'name': 'mocked_dataset'}
-        dataset_resource = mock.Mock()
-        dataset_resource.session = session
-        dataset_resource.body = body
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        assert ds.name == self.ds_shoji['body']['name']
+        assert ds.id == self.ds_shoji['body']['id']
 
+        assert isinstance(ds['var1_alias'], Variable)
 
-        test_variable = mock.MagicMock()
-        test_variable.entity = Entity(session=session,
-                                      self="fake_url")
-
-        variables = {
-            'test_variable': test_variable
-        }
-        dataset_resource.variables = mock.MagicMock()
-        dataset_resource.variables.by.return_value = variables
-
-        dataset = Dataset(dataset_resource)
-
-        assert isinstance(dataset['test_variable'], Variable)
-        with pytest.raises(AttributeError) as err:
-            dataset.test_variable
         with pytest.raises(ValueError) as err:
-            dataset['another_variable']
-
-        assert str(err.value) == 'Dataset mocked_dataset has no variable another_variable'
+            ds['some_variable']
+        assert str(err.value) == \
+            'Dataset %s has no variable some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
-            dataset.another_variable
-
-        assert str(err.value) == 'Dataset mocked_dataset has no attribute another_variable'
+            ds.some_variable
+        assert str(err.value) == \
+            'Dataset %s has no attribute some_variable' % ds.name
 
     def test_variable_cast(self):
         variable = mock.MagicMock()
