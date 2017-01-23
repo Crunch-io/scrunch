@@ -1328,7 +1328,7 @@ class Variable(object):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'discarded',
-                           'view', 'notes','format'}
+                           'view', 'notes', 'format'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
@@ -1336,7 +1336,9 @@ class Variable(object):
 
     def __init__(self, resource):
         self.resource = resource
+        self.session = resource.session
         self.url = self.resource.self
+        self.dataset = self.session.get(resource.urls.dataset_url).payload
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -1365,7 +1367,7 @@ class Variable(object):
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
-               name=None, description=None):
+                name=None, description=None):
         # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.
@@ -1561,8 +1563,8 @@ class Variable(object):
                 }
             ]
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        return Variable(ds.variables.create(payload).refresh())
+        ds = Dataset(self.dataset)
+        return Variable(ds.resource.variables.create(payload).refresh())
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1578,7 +1580,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = get_dataset(self.resource.body.dataset_id)
+        ds = Dataset(self.dataset)
         more_args = process_expr(more_args, ds)
         # epression value building
         expr = dict(function='case', args=args + more_args)
@@ -1599,6 +1601,6 @@ class Variable(object):
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
 
-        ds = get_dataset(self.resource.body.dataset_id)
+        ds = Dataset(self.dataset)
         target_group = ds.order[str(path)]
         target_group.insert(self.alias, position=position)
