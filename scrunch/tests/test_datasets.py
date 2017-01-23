@@ -42,6 +42,101 @@ class TestDatasetBase(object):
         return Dataset(ds)
 
 
+class TestDatasetBaseNG(object):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+
+    ds_shoji = {
+        'element': 'shoji:entity',
+        'body': {
+            'id': '123456',
+            'name': 'test_dataset_name',
+            'alias': 'test_dataset_alias'
+        }
+    }
+
+    variables = {
+        '0001': dict(
+            id='0001',
+            alias='var1_alias',
+            name='var1_name',
+            type='numeric',
+            is_subvar=False
+        ),
+        '0002': dict(
+            id='0002',
+            alias='var2_alias',
+            name='var2_name',
+            type='numeric',
+            is_subvar=False
+        )
+    }
+
+    def _dataset_mock(self, variables=None):
+        _ds_mock = mock.MagicMock()
+        _get_body = self._build_get_func(self.ds_shoji['body'])
+        _ds_mock.variables.by.side_effect = self._variables_by_side_effect(variables)
+        _ds_mock.entity.self = self.ds_url
+        _ds_mock.entity.body.__getitem__.side_effect = _get_body
+        _ds_mock.entity.body.get.side_effect = _get_body
+        _ds_mock.body.__getitem__.side_effect = _get_body
+        _ds_mock.body.get.side_effect = _get_body
+        return _ds_mock
+
+    def _variable_mock(self, variable=None):
+        variable = variable or self.variables['0001']
+
+        var_url = '%svariables/%s/' % (self.ds_url, variable['id'])
+        _get_func = self._build_get_func(variable)
+        _var_mock = mock.MagicMock()
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.entity.self = var_url
+        _var_mock.entity.body.__getitem__.side_effect = _get_func
+        _var_mock.entity.body.get.side_effect = _get_func
+        return _var_mock
+
+    def _variables_by_side_effect(self, variables=None):
+        variables = variables or self.variables
+        table = {
+            'element': 'crunch:table',
+            'self': '%stable/' % self.ds_url,
+            'metadata': collections.OrderedDict()
+        }
+
+        _variables = dict(id=dict(), name=dict(), alias=dict())
+        for var in variables:
+            _var_mock = self._variable_mock(variables[var])
+            _variables['id'].update({variables[var]['id']: _var_mock})
+            _variables['name'].update({variables[var]['name']: _var_mock})
+            _variables['alias'].update({variables[var]['alias']: _var_mock})
+            table['metadata'][variables[var]['id']] = _var_mock
+
+        self.ds_shoji['body']['table'] = table
+
+        def _get(*args):
+            return _variables.get(args[0])
+        return _get
+
+    @staticmethod
+    def _build_get_func(d):
+        properties = {}
+        properties.update(d)
+
+        def _get(*args):
+            return properties.get(args[0])
+        return _get
+
+    @staticmethod
+    def _by_side_effect(shoji, entity_mock):
+        d = {'name': {shoji['body']['name']: entity_mock},
+             'id': {shoji['body']['id']: entity_mock},
+             'alias': {shoji['body']['alias']: entity_mock}}
+
+        def _get(*args):
+            return d.get(args[0])
+        return _get
+
+
 class TestExclusionFilters(TestDatasetBase, TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
