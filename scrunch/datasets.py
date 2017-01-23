@@ -684,7 +684,7 @@ class Dataset(object):
                 self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
-        return Variable(variable.entity)
+        return Variable(variable.entity, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -858,7 +858,9 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -890,7 +892,9 @@ class Dataset(object):
                 }
             }
         }
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -959,8 +963,10 @@ class Dataset(object):
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
                 }
-        shoji_var = self.resource.variables.create(payload).refresh()
-        return Variable(shoji_var)
+
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1004,7 +1010,10 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(self.resource.variables.create(payload).refresh())
+
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1037,7 +1046,10 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(self.resource.variables.create(payload).refresh())
+
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_savepoint(self, description):
         """
@@ -1334,11 +1346,10 @@ class Variable(object):
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
-    def __init__(self, resource):
+    def __init__(self, resource, dataset_resource):
         self.resource = resource
-        self.session = resource.session
         self.url = self.resource.self
-        self.dataset = self.session.get(resource.urls.dataset_url).payload
+        self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -1563,8 +1574,9 @@ class Variable(object):
                 }
             ]
 
-        ds = Dataset(self.dataset)
-        return Variable(ds.resource.variables.create(payload).refresh())
+        return Variable(
+            self.dataset.resource.variables.create(payload).refresh(),
+            self.dataset.resource)
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
