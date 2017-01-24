@@ -1613,6 +1613,5 @@ class Variable(object):
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
 
-        ds = Dataset(self.dataset)
-        target_group = ds.order[str(path)]
+        target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)
