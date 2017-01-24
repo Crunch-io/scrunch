@@ -2708,16 +2708,12 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(scrunch.exceptions.InvalidPathError):
             ds.order['|Account|Location'].move('|Account|Location')
 
-    @mock.patch('scrunch.datasets.get_dataset')
-    def test_move_variable(self, get_dataset_mock):
+    def test_move_variable(self):
         ds = self.ds
-        get_dataset_mock.return_value = ds
-
         var = ds['id']
         assert var.name == 'ID'
-        import pdb; pdb.set_trace()
         var.move('|Account|User Information')
-        assert self._get_update_payload(ds) == {
+        assert self._get_update_payload(var.dataset) == {
             'element': 'shoji:order',
             'graph': [
                 '../000002/',                       # hobbies
