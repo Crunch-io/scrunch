@@ -97,6 +97,7 @@ class TestCombine(TestCase):
         test_cats = {
             1: "China"
         }
+        ds_res_mock = mock.MagicMock()
         variable_mock = mock.MagicMock()
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
         variable_mock.subvariables.by.return_value = {
@@ -105,7 +106,7 @@ class TestCombine(TestCase):
             'parent_3': subvar_mock,
             'parent_4': subvar_mock,
         }
-        parent_var = Variable(variable_mock)
+        parent_var = Variable(variable_mock, ds_res_mock)
         modified_map = responses_from_map(parent_var, test_map, test_cats, 'test', 'parent')
         # subvar_url * 4 because we used the same mock for all subvars
         assert modified_map[0]['combined_ids'] == [subvar1_url] * 4
@@ -142,7 +143,8 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock
         }
-        entity = Variable(Entity(mock.MagicMock(), self=var_url, body={}))
+        entity = Variable(
+            Entity(mock.MagicMock(), self=var_url, body={}), resource)
         ds = Dataset(resource)
         ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
@@ -228,7 +230,7 @@ class TestCombine(TestCase):
             'test': parent_variable
         }
 
-        entity = Variable(parent_variable)
+        entity = Variable(parent_variable, ds_resource)
 
         # make the actual response call
         ds = Dataset(ds_resource)
@@ -410,7 +412,6 @@ class TestRecode(TestCase):
             }
 
         })
-        var = Variable(var_res)
         table_mock = mock.MagicMock(metadata={
             '00001': {
                 'id': '00001',
@@ -420,6 +421,7 @@ class TestRecode(TestCase):
             }
         })
         ds_res = mock.MagicMock()
+        var = Variable(var_res, ds_res)
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
         dataset = Dataset(ds_res)

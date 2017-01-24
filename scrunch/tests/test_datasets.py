@@ -1256,7 +1256,7 @@ class TestCopyVariable(TestCase):
         var_res = mock.MagicMock(body={'type': 'numeric'})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1290,7 +1290,7 @@ class TestCopyVariable(TestCase):
         }})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1319,8 +1319,9 @@ class TestCopyVariable(TestCase):
 
 
 def test_hide_unhide():
+    ds_res = mock.MagicMock()
     var_res = mock.MagicMock()
-    var = Variable(var_res)
+    var = Variable(var_res, ds_res)
     var.hide()
     var_res.edit.assert_called_with(discarded=True)
     var.unhide()
@@ -2714,6 +2715,7 @@ class TestHierarchicalOrder(TestCase):
 
         var = ds['id']
         assert var.name == 'ID'
+        import pdb; pdb.set_trace()
         var.move('|Account|User Information')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
