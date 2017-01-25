@@ -583,6 +583,7 @@ def prettify(expr, ds=None):
 
     operators = BINARY_FUNC_OPERATORS + COMPARISSON_OPERATORS
     methods = {m[1]: m[0] for m in CRUNCH_METHOD_MAP.items()}
+    functions = {f[1]: f[0] for f in CRUNCH_FUNC_MAP.items()}
 
     def _resolve_variable(var):
         is_url = validate_variable_url(var)
@@ -627,6 +628,8 @@ def prettify(expr, ds=None):
             result = '%s.%s(%s)' % (
                 args[0], methods[f], ', '.join(str(x) for x in args[1:])
             )
+        elif f in functions:
+            result = '%s(%s)' % (functions[f], args[0])
         else:
             raise Exception('Unknown function "%s"' % f)
 
