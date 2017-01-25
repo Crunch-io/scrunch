@@ -1,6 +1,7 @@
 # coding: utf-8
 
-from scrunch.helpers import subvar_alias
+from scrunch.datasets import subvar_alias
+
 
 # These are the categories that multiple response use. Selected and Not Selected
 MR_CATS = [

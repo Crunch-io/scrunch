@@ -424,18 +424,10 @@ def process_expr(obj, ds):
 
             elif isinstance(var_value, str):
                 for var in variables:
-                    if variables[var]['id'] == var_id and 'categories' in variables[var]:
-                        found = False
+                    if variables[var]['id'] == var_id:
                         for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
                                 value = cat['numeric_value']
-                                found = True
-                                break
-                        if not found:
-                            raise ValueError("Couldn't find a category id for category %s in filter for variable %s" % (var_value, var))
-                    elif 'categories' not in variables[var]:
-                        return var_value
-
             else:
                 return var_value
             return value
