@@ -3,7 +3,8 @@ from unittest import TestCase
 
 import pytest
 from scrunch.datasets import Dataset, Variable
-from scrunch.datasets import responses_from_map, subvar_alias
+from scrunch.variables import responses_from_map
+from scrunch.helpers import subvar_alias
 
 from pycrunch.shoji import Entity
 
@@ -111,8 +112,10 @@ class TestCombine(TestCase):
 
     def test_combine_categories_unknown_alias(self):
         resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
         entity_mock = mock.MagicMock()
         entity_mock.entity_url = var_url
+
         resource.variables.by.return_value = {
             'test': entity_mock
         }
@@ -120,7 +123,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
-        assert 'Dataset has no variable unknown' in str(err.value)
+        assert 'Dataset mocked_dataset has no variable unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()
