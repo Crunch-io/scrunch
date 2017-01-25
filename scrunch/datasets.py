@@ -16,7 +16,7 @@ from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
-from scrunch.expressions import parse_expr, process_expr
+from scrunch.expressions import parse_expr, process_expr, prettify
 from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
                                 InvalidPathError, InvalidReferenceError)
 from scrunch.variables import (responses_from_map, combinations_from_map,
@@ -813,6 +813,9 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
+    def get_exclusion(self):
+        return prettify(self.resource.exclusion.body.expression, self)
+
     def create_single_response(self, categories,
                            name, alias, description='', missing=True):
         """
@@ -1327,9 +1330,9 @@ class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description', 'discarded',
+    _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes','format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
