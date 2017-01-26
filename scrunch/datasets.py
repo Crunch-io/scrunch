@@ -1245,22 +1245,22 @@ class Dataset(object):
         """
         # the payload should include all hidden variables by default
         payload = {
-            "element": "shoji:entity",
-            "body": {
-                "options": {"use_category_ids": True}
-            }
+            "options": {"use_category_ids": True}
         }
         # add filter to rows if passed
         if filter:
-            payload['body']['filter'] = process_expr(
+            payload['filter'] = process_expr(
                 parse_expr(filter), self.resource)
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(self[var].url)
+            if len(id_vars) != len(variables):
+                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
-            payload['body']['where'] = {
+            payload['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
@@ -1271,7 +1271,7 @@ class Dataset(object):
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
-            payload['body']['where'] = {
+            payload['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
