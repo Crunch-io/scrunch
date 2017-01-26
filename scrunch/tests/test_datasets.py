@@ -1431,7 +1431,16 @@ class TestHierarchicalOrder(TestCase):
             if args[0] == '{}table/'.format(self.ds_url):
                 return self.CrunchPayload(table)
             elif args[0] == '{}variables/hier/'.format(self.ds_url):
+                self.ds._hier_calls += 1
                 return self.CrunchPayload(hier_order)
+            if args[0] == '{}state/'.format(self.ds_url):
+                return self.CrunchPayload({
+                    'element': 'shoji:entity',
+                    'self': '%sstate/' % self.ds_url,
+                    'body': self.CrunchPayload({
+                        'revision': self.ds._revision
+                    })
+                })
             return self.CrunchPayload()
 
         ds_resource = mock.MagicMock()
@@ -1440,6 +1449,8 @@ class TestHierarchicalOrder(TestCase):
         ds_resource.variables.by.return_value = variables
         ds_resource.session.get.side_effect = _session_get
         self.ds = Dataset(ds_resource)
+        self.ds._revision = 'one'
+        self.ds._hier_calls = 0
 
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
@@ -2671,6 +2682,23 @@ class TestHierarchicalOrder(TestCase):
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
             var.move('|Account|Invalid Group')
+
+    def test_order_synchronization(self):
+        ds = self.ds
+
+        # Only one call to the hierarchical order endpoint should be done as
+        # long as the dataset revision doesn't change. More details at
+        # .setUp().
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|Account'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert ds._hier_calls == 1
+
+        # Simulate the dataset having a new revision so that the
+        # synchronization mechanism kicks in. More details at .setUp().
+        ds._revision = 'two'
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert ds._hier_calls == 2
 
 
 class TestDatasetJoins(TestCase):

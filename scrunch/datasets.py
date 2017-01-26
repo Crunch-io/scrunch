@@ -557,6 +557,8 @@ class Order(object):
         self._hier = None
         self._vars = None
         self._graph = None
+        self._sync = True
+        self._revision = None
 
     def _load_hier(self):
         self._hier = self.ds.resource.session.get(
@@ -601,6 +603,22 @@ class Order(object):
     @graph.setter
     def graph(self, _):
         raise TypeError('Unsupported assignment operation')
+
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            ds_state = self.ds.resource.session.get(
+                self.ds.resource.self + 'state/'
+            ).payload
+            if self._revision is None:
+                self._revision = ds_state.body.revision
+            elif self._revision != ds_state.body.revision:
+                # There's a new dataset revision. Reload the
+                # hierarchical order.
+                self._revision = ds_state.body.revision
+                self._load_hier()
+                self._load_graph()
+        return self
 
     def _build_graph_structure(self):
 
@@ -694,7 +712,7 @@ class Dataset(object):
 
     @property
     def order(self):
-        return self._order
+        return self._order.get()
 
     @order.setter
     def order(self, _):
