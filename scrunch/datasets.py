@@ -736,6 +736,11 @@ class Dataset(object):
         return self.resource.edit(**kwargs)
 
     def delete(self):
+        """
+        Delete a dataset.
+        TODO: Shouldn't be possible if this is a streamed dataset.
+        :return:
+        """
         logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
         self.resource.delete()
         logging.debug("Deleted dataset.")
