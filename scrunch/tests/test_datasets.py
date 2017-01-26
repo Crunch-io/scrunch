@@ -42,6 +42,101 @@ class TestDatasetBase(object):
         return Dataset(ds)
 
 
+class TestDatasetBaseNG(object):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+
+    ds_shoji = {
+        'element': 'shoji:entity',
+        'body': {
+            'id': '123456',
+            'name': 'test_dataset_name',
+            'alias': 'test_dataset_alias'
+        }
+    }
+
+    variables = {
+        '0001': dict(
+            id='0001',
+            alias='var1_alias',
+            name='var1_name',
+            type='numeric',
+            is_subvar=False
+        ),
+        '0002': dict(
+            id='0002',
+            alias='var2_alias',
+            name='var2_name',
+            type='numeric',
+            is_subvar=False
+        )
+    }
+
+    def _dataset_mock(self, variables=None):
+        _ds_mock = mock.MagicMock()
+        _get_body = self._build_get_func(self.ds_shoji['body'])
+        _ds_mock.variables.by.side_effect = self._variables_by_side_effect(variables)
+        _ds_mock.entity.self = self.ds_url
+        _ds_mock.entity.body.__getitem__.side_effect = _get_body
+        _ds_mock.entity.body.get.side_effect = _get_body
+        _ds_mock.body.__getitem__.side_effect = _get_body
+        _ds_mock.body.get.side_effect = _get_body
+        return _ds_mock
+
+    def _variable_mock(self, variable=None):
+        variable = variable or self.variables['0001']
+
+        var_url = '%svariables/%s/' % (self.ds_url, variable['id'])
+        _get_func = self._build_get_func(variable)
+        _var_mock = mock.MagicMock()
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.entity.self = var_url
+        _var_mock.entity.body.__getitem__.side_effect = _get_func
+        _var_mock.entity.body.get.side_effect = _get_func
+        return _var_mock
+
+    def _variables_by_side_effect(self, variables=None):
+        variables = variables or self.variables
+        table = {
+            'element': 'crunch:table',
+            'self': '%stable/' % self.ds_url,
+            'metadata': collections.OrderedDict()
+        }
+
+        _variables = dict(id=dict(), name=dict(), alias=dict())
+        for var in variables:
+            _var_mock = self._variable_mock(variables[var])
+            _variables['id'].update({variables[var]['id']: _var_mock})
+            _variables['name'].update({variables[var]['name']: _var_mock})
+            _variables['alias'].update({variables[var]['alias']: _var_mock})
+            table['metadata'][variables[var]['id']] = _var_mock
+
+        self.ds_shoji['body']['table'] = table
+
+        def _get(*args):
+            return _variables.get(args[0])
+        return _get
+
+    @staticmethod
+    def _build_get_func(d):
+        properties = {}
+        properties.update(d)
+
+        def _get(*args):
+            return properties.get(args[0])
+        return _get
+
+    @staticmethod
+    def _by_side_effect(shoji, entity_mock):
+        d = {'name': {shoji['body']['name']: entity_mock},
+             'id': {shoji['body']['id']: entity_mock},
+             'alias': {shoji['body']['alias']: entity_mock}}
+
+        def _get(*args):
+            return d.get(args[0])
+        return _get
+
+
 class TestExclusionFilters(TestDatasetBase, TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
@@ -621,42 +716,24 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
-class TestVariables(TestDatasetBase, TestCase):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
-    user_url = 'https://test.crunch.io/api/users/12345/'
-
+class TestVariables(TestDatasetBaseNG, TestCase):
     def test_variable_as_member(self):
-        session = mock.MagicMock()
-        body = {'name': 'mocked_dataset'}
-        dataset_resource = mock.Mock()
-        dataset_resource.session = session
-        dataset_resource.body = body
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        assert ds.name == self.ds_shoji['body']['name']
+        assert ds.id == self.ds_shoji['body']['id']
 
+        assert isinstance(ds['var1_alias'], Variable)
 
-        test_variable = mock.MagicMock()
-        test_variable.entity = Entity(session=session,
-                                      self="fake_url")
-
-        variables = {
-            'test_variable': test_variable
-        }
-        dataset_resource.variables = mock.MagicMock()
-        dataset_resource.variables.by.return_value = variables
-
-        dataset = Dataset(dataset_resource)
-
-        assert isinstance(dataset['test_variable'], Variable)
-        with pytest.raises(AttributeError) as err:
-            dataset.test_variable
         with pytest.raises(ValueError) as err:
-            dataset['another_variable']
-
-        assert str(err.value) == 'Dataset mocked_dataset has no variable another_variable'
+            ds['some_variable']
+        assert str(err.value) == \
+            'Dataset %s has no variable some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
-            dataset.another_variable
-
-        assert str(err.value) == 'Dataset mocked_dataset has no attribute another_variable'
+            ds.some_variable
+        assert str(err.value) == \
+            'Dataset %s has no attribute some_variable' % ds.name
 
     def test_variable_cast(self):
         variable = mock.MagicMock()
@@ -1179,7 +1256,7 @@ class TestCopyVariable(TestCase):
         var_res = mock.MagicMock(body={'type': 'numeric'})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1213,7 +1290,7 @@ class TestCopyVariable(TestCase):
         }})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1242,8 +1319,9 @@ class TestCopyVariable(TestCase):
 
 
 def test_hide_unhide():
+    ds_res = mock.MagicMock()
     var_res = mock.MagicMock()
-    var = Variable(var_res)
+    var = Variable(var_res, ds_res)
     var.hide()
     var_res.edit.assert_called_with(discarded=True)
     var.unhide()
@@ -2641,15 +2719,12 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(scrunch.exceptions.InvalidPathError):
             ds.order['|Account|Location'].move('|Account|Location')
 
-    @mock.patch('scrunch.datasets.get_dataset')
-    def test_move_variable(self, get_dataset_mock):
+    def test_move_variable(self):
         ds = self.ds
-        get_dataset_mock.return_value = ds
-
         var = ds['id']
         assert var.name == 'ID'
         var.move('|Account|User Information')
-        assert self._get_update_payload(ds) == {
+        assert self._get_update_payload(var.dataset) == {
             'element': 'shoji:order',
             'graph': [
                 '../000002/',                       # hobbies
