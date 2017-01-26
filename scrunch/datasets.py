@@ -557,6 +557,8 @@ class Order(object):
         self._hier = None
         self._vars = None
         self._graph = None
+        self._sync = True
+        self._revision = None
 
     def _load_hier(self):
         self._hier = self.ds.resource.session.get(
@@ -601,6 +603,22 @@ class Order(object):
     @graph.setter
     def graph(self, _):
         raise TypeError('Unsupported assignment operation')
+
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            ds_state = self.ds.resource.session.get(
+                self.ds.resource.self + 'state/'
+            ).payload
+            if self._revision is None:
+                self._revision = ds_state.body.revision
+            elif self._revision != ds_state.body.revision:
+                # There's a new dataset revision. Reload the
+                # hierarchical order.
+                self._revision = ds_state.body.revision
+                self._load_hier()
+                self._load_graph()
+        return self
 
     def _build_graph_structure(self):
 
@@ -684,7 +702,7 @@ class Dataset(object):
                 self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
-        return Variable(variable.entity)
+        return Variable(variable.entity, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -694,7 +712,7 @@ class Dataset(object):
 
     @property
     def order(self):
-        return self._order
+        return self._order.get()
 
     @order.setter
     def order(self, _):
@@ -861,7 +879,9 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -893,7 +913,9 @@ class Dataset(object):
                 }
             }
         }
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -962,8 +984,10 @@ class Dataset(object):
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
                 }
-        shoji_var = self.resource.variables.create(payload).refresh()
-        return Variable(shoji_var)
+
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1007,7 +1031,9 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1040,7 +1066,9 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_savepoint(self, description):
         """
@@ -1337,9 +1365,10 @@ class Variable(object):
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
-    def __init__(self, resource):
+    def __init__(self, resource, dataset_resource):
         self.resource = resource
         self.url = self.resource.self
+        self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -1564,8 +1593,9 @@ class Variable(object):
                 }
             ]
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        return Variable(ds.variables.create(payload).refresh())
+        return Variable(
+            self.dataset.resource.variables.create(payload).refresh(),
+            self.dataset.resource)
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1581,8 +1611,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = get_dataset(self.resource.body.dataset_id)
-        more_args = process_expr(more_args, ds)
+        more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
         payload = dict(
@@ -1602,6 +1631,5 @@ class Variable(object):
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        target_group = ds.order[str(path)]
+        target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)
