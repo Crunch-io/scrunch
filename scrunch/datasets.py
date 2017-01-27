@@ -800,6 +800,18 @@ class Dataset(object):
         If the `expr` parameter is None, an empty expression object is sent
         as part of the PATCH request, which effectively removes the exclusion
         filter (if any).
+
+        Exclusion filters express logic that defines a set of rows that should be
+        dropped from the dataset. The rows aren't permanently deleted---you can
+        recover them at any time by removing the exclusion filter---but they are
+        omitted from all views and calculations, as if they had been deleted.
+
+        Note that exclusion filters work opposite from how "normal" filters work.
+        That is, a regular filter expression defines the subset of rows to operate
+        on: it says "keep these rows." An exclusion filter defines which rows to
+        omit. Applying a filter expression as a query filter will have the
+        opposite effect if applied as an exclusion. Indeed, applying it as both
+        query filter and exclusion at the same time will result in 0 rows.
         """
         if isinstance(expr, six.string_types):
             expr_obj = parse_expr(expr)
