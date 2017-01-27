@@ -664,6 +664,21 @@ class Order(object):
         return self.graph[item]
 
 
+class DatasetSettings(dict):
+
+    def __readonly__(self, *args, **kwargs):
+        raise RuntimeError('Please use the change_settings() method instead.')
+
+    __setitem__ = __readonly__
+    __delitem__ = __readonly__
+    pop = __readonly__
+    popitem = __readonly__
+    clear = __readonly__
+    update = __readonly__
+    setdefault = __readonly__
+    del __readonly__
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -672,6 +687,7 @@ class Dataset(object):
                            'archived', 'end_date', 'start_date'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight'}
 
     def __init__(self, resource):
         """
@@ -680,6 +696,7 @@ class Dataset(object):
         self.resource = resource
         self.session = self.resource.session
         self.url = self.resource.self
+        self._settings = None
 
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
@@ -720,6 +737,44 @@ class Dataset(object):
         raise TypeError(
             'Unsupported operation on the Hierarchical Order property'
         )
+
+    @property
+    def settings(self):
+        if self._settings is None:
+            self._load_settings()
+        return self._settings
+
+    @settings.setter
+    def settings(self, _):
+        # Protect the `settings` property from external modifications.
+        raise TypeError('Unsupported operation on the settings property')
+
+    def _load_settings(self):
+        settings = self.session.get(self.resource.fragments.settings).payload
+        self._settings = DatasetSettings(
+            (_name, _value) for _name, _value in settings.body.items()
+        )
+        return self._settings
+
+    def change_settings(self, **kwargs):
+        incoming_settings = set(kwargs.keys())
+        invalid_settings = incoming_settings.difference(self._EDITABLE_SETTINGS)
+        if invalid_settings:
+            raise ValueError(
+                'Invalid or read-only settings: %s'
+                % ','.join(list(invalid_settings))
+            )
+
+        settings_payload = {
+            setting: kwargs[setting] for setting in incoming_settings
+        }
+        if settings_payload:
+            self.session.patch(
+                self.resource.fragments.settings,
+                json.dumps(settings_payload),
+                headers={'Content-Type': 'application/json'}
+            )
+            self._settings = None
 
     def edit(self, **kwargs):
         for key in kwargs:

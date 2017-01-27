@@ -2779,6 +2779,101 @@ class TestHierarchicalOrder(TestCase):
         assert ds._hier_calls == 2
 
 
+class TestDatasetSettings(TestCase):
+
+    ds_url = 'http://test.crunch.local/api/datasets/123/'
+
+    def setUp(self):
+        settings = {
+            'element': 'shoji:entity',
+            'self': '%ssettings/' % self.ds_url,
+            'body': {
+                'viewers_can_export': False,
+                'min_base_size': 0,
+                'weight': None,
+                'viewers_can_change_weight': False
+            }
+        }
+
+        def _session_get(*args):
+            if args[0] == '{}settings/'.format(self.ds_url):
+                return _CrunchPayload(settings)
+            return _CrunchPayload()
+
+        ds_resource = mock.MagicMock()
+        ds_resource.self = self.ds_url
+        ds_resource.fragments.settings = '%ssettings/' % self.ds_url
+        ds_resource.session.get.side_effect = _session_get
+        self.ds = Dataset(ds_resource)
+
+    def test_settings_are_displayed_as_dict_obj(self):
+        ds = self.ds
+
+        assert isinstance(ds.settings, dict)
+        assert ds.settings == {
+            'viewers_can_export': False,
+            'min_base_size': 0,
+            'weight': None,
+            'viewers_can_change_weight': False
+        }
+
+    def test_settings_obj_is_protected_from_modifications(self):
+        ds = self.ds
+
+        # The `settings` property must be protected from modifications.
+        with pytest.raises(TypeError):
+            ds.settings = False
+
+    def test_settings_dict_obj_is_read_only(self):
+        ds = self.ds
+
+        with pytest.raises(RuntimeError):
+            ds.settings['viewers_can_export'] = 'invalid'
+
+        with pytest.raises(RuntimeError):
+            del ds.settings['viewers_can_export']
+
+        with pytest.raises(RuntimeError):
+            ds.settings.pop()
+
+        with pytest.raises(RuntimeError):
+            ds.settings.update({'viewers_can_export': 'invalid'})
+
+        with pytest.raises(RuntimeError):
+            ds.settings.clear()
+
+    def test_change_settings(self):
+        ds = self.ds
+
+        # Test that the change_settings method performs the proper PATCHes.
+        ds.change_settings(viewers_can_export=True)
+        _url = ds.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
+        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        assert _url == self.ds_url + 'settings/'
+        assert _payload == {'viewers_can_export': True}
+        assert _headers == {'Content-Type': 'application/json'}
+
+        ds.change_settings(
+            viewers_can_export=True, viewers_can_change_weight=True
+        )
+        _url = ds.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
+        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        assert _url == self.ds_url + 'settings/'
+        assert _payload == {
+            'viewers_can_export': True,
+            'viewers_can_change_weight': True
+        }
+        assert _headers == {'Content-Type': 'application/json'}
+
+        # Test that trying to edit invalid or read-only settings is forbidden.
+        with pytest.raises(ValueError):
+            ds.change_settings(invalid_setting=True)
+        with pytest.raises(ValueError):
+            ds.change_settings(viewers_can_export=True, weight=10)
+
+
 class TestDatasetJoins(TestCase):
     left_ds_url = 'https://test.crunch.io/api/datasets/123/'
     right_ds_url = 'https://test.crunch.io/api/datasets/456/'
