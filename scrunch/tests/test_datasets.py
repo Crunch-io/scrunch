@@ -14,6 +14,30 @@ import scrunch
 from scrunch.datasets import Dataset, Variable
 
 
+class _CrunchPayload(dict):
+    def __init__(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self.put = mock.MagicMock()
+        self.post = mock.MagicMock()
+        self.patch = mock.MagicMock()
+
+    def __getattr__(self, item):
+        if item == 'payload':
+            return self
+        else:
+            return self[item]
+
+
+def _build_get_func(var):
+    properties = {}
+    properties.update(var)
+
+    def _get(*args):
+        return properties.get(args[0], args[0])
+
+    return _get
+
+
 class TestDatasetBase(object):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
 
@@ -1332,27 +1356,6 @@ class TestHierarchicalOrder(TestCase):
 
     ds_url = 'http://test.crunch.local/api/datasets/123/'
 
-    class CrunchPayload(dict):
-        def __init__(self, *args, **kwargs):
-            super(self.__class__, self).__init__(*args, **kwargs)
-            self.put = mock.MagicMock()
-
-        def __getattr__(self, item):
-            if item == 'payload':
-                return self
-            else:
-                return self[item]
-
-    @staticmethod
-    def _build_get_func(var):
-        properties = {}
-        properties.update(var)
-
-        def _get(*args):
-            return properties.get(args[0], args[0])
-
-        return _get
-
     @staticmethod
     def _get_update_payload(ds):
         try:
@@ -1494,7 +1497,7 @@ class TestHierarchicalOrder(TestCase):
 
         for var in variable_defs:
             var_url = '%svariables/%s/' % (self.ds_url, var['id'])
-            _get_func = self._build_get_func(var)
+            _get_func = _build_get_func(var)
             _var_mock = mock.MagicMock()
             _var_mock.__getitem__.side_effect = _get_func
             _var_mock.get.side_effect = _get_func
@@ -1507,19 +1510,19 @@ class TestHierarchicalOrder(TestCase):
 
         def _session_get(*args):
             if args[0] == '{}table/'.format(self.ds_url):
-                return self.CrunchPayload(table)
+                return _CrunchPayload(table)
             elif args[0] == '{}variables/hier/'.format(self.ds_url):
                 self.ds._hier_calls += 1
-                return self.CrunchPayload(hier_order)
+                return _CrunchPayload(hier_order)
             if args[0] == '{}state/'.format(self.ds_url):
-                return self.CrunchPayload({
+                return _CrunchPayload({
                     'element': 'shoji:entity',
                     'self': '%sstate/' % self.ds_url,
-                    'body': self.CrunchPayload({
+                    'body': _CrunchPayload({
                         'revision': self.ds._revision
                     })
                 })
-            return self.CrunchPayload()
+            return _CrunchPayload()
 
         ds_resource = mock.MagicMock()
         ds_resource.self = self.ds_url
@@ -2780,18 +2783,9 @@ class TestDatasetJoins(TestCase):
     left_ds_url = 'https://test.crunch.io/api/datasets/123/'
     right_ds_url = 'https://test.crunch.io/api/datasets/456/'
 
-    @staticmethod
-    def _build_get_func(d):
-        properties = {}
-        properties.update(d)
-
-        def _get(*args):
-            return properties.get(args[0], args[0])
-        return _get
-
     def _variable_mock(self, ds_url, var):
         var_url = '%svariables/%s/' % (ds_url, var['id'])
-        _get_func = self._build_get_func(var)
+        _get_func = _build_get_func(var)
         _var_mock = mock.MagicMock()
         _var_mock.__getitem__.side_effect = _get_func
         _var_mock.get.side_effect = _get_func
