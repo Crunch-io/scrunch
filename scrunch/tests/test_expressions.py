@@ -2171,7 +2171,6 @@ class TestExpressionProcessing(TestCase):
             },
         ]
 
-
         table_mock = mock.MagicMock(metadata={
             var_id: {
                 'id': var_id,

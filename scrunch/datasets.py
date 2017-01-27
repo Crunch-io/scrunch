@@ -21,6 +21,7 @@ from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
                                 InvalidPathError, InvalidReferenceError)
 from scrunch.variables import (responses_from_map, combinations_from_map,
                                combine_responses_expr, combine_categories_expr)
+from scrunch.categories import CategoryList
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -1364,11 +1365,13 @@ class Variable(object):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
-                           'view', 'notes','format'}
+                           'view', 'notes', 'format'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
     def __init__(self, resource, dataset_resource):
         self.resource = resource
@@ -1392,6 +1395,17 @@ class Variable(object):
 
     def __str__(self):
         return self.name
+
+    _categories = None
+
+    @property
+    def categories(self):
+        if self.resource.type not in self.CATEGORICAL_TYPES:
+            raise TypeError("Variable of type %s do not have categories" % self.resource.type)
+        if self._categories is None:
+            self._categories = CategoryList(self.resource)
+        print(id(self._categories))
+        return self._categories
 
     def hide(self):
         LOG.debug("HIDING")
