@@ -3184,3 +3184,68 @@ class TestDatetimeStrings(TestCase):
                 }
             ]
         }
+
+
+class TestDateTimeExpression(TestCase):
+    """
+    Test for datetimes being correctly interpreted as values
+    """
+
+    ds_url = 'http://test.crunch.io/api/datasets/12345/'
+
+    def mock_dataset(self, var_id, var_alias, var_type, categories=None):
+        """
+        Helper for mocking a dataset for datetimes testing
+        """
+        if not categories:
+            categories = []
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        return ds
+
+    def test_process_expression(self):
+        var_id = '0001'
+        var_alias = 'starttime'
+        var_type = 'datetime'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        ds = self.mock_dataset(var_id, var_alias, var_type)
+        expr = "starttime < '2016-12-21'"
+        parsed = parse_expr(expr)
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == {
+            'function': '<',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': '2016-12-21'
+                }
+            ]
+        }
+
+    def test_datetime_as_value(self):
+        ds = self.mock_dataset(None, '', '')
+        expr = "'2016-12-21T12' == 5"
+        parsed = parse_expr(expr)
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'value': '2016-12-21T12'
+                },
+                {
+                    'value': 5
+                }
+            ]
+        }

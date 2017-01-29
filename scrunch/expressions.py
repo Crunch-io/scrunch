@@ -406,7 +406,7 @@ def process_expr(obj, ds):
         def variable_id(variable_url):
             return variable_url.split('/')[-2]
 
-        def category_ids(var_id, var_value, variables=variables):   
+        def category_ids(var_id, var_value, variables=variables):
             value = None
             if isinstance(var_value, list) or isinstance(var_value, tuple):
                 # {'values': [val1, val2, ...]}
@@ -424,6 +424,9 @@ def process_expr(obj, ds):
 
             elif isinstance(var_value, str):
                 for var in variables:
+                    # if the variable is a date, don't try to process it's categories
+                    if variables[var]['type'] == 'datetime':
+                        return var_value
                     if variables[var]['id'] == var_id and 'categories' in variables[var]:
                         found = False
                         for cat in variables[var]['categories']:
