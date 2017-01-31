@@ -104,21 +104,26 @@ BUILTIN_FUNCTIONS = []
 NOT_IN = object()
 
 
-def _nest(args, func):
+def _nest(args, func, concatenator=None):
+    """
+    :param args: list of arguments that need nesting
+    :param func: the function that applies to tuple of args
+    :param concatenator: the concatenator or tuples, usually 'or' 'and'
+    :return:
+    """
+    if not concatenator:
+        # in case of is_missing and is_valid we need to concatenate
+        # multiple arguments and nest them
+        concatenator = func
     # for the moment we are just nesting and & or
-    if func not in ['or', 'and']:
+    if func not in ['or', 'and', 'is_missing', 'is_valid'] or len(args) < 3:
         return {
-            'function': func,
-            'args': args
-        }
-    if len(args) == 2:
-        return {
-            'function': func,
+            'function': concatenator,
             'args': args
         }
     return {
-        'function': func,
-        'args': [args[0], _nest(args[1:], func)]
+        'function': concatenator,
+        'args': [args[0], _nest(args[1:], func, concatenator)]
     }
 
 
@@ -331,7 +336,7 @@ def parse_expr(expr):
                     elif op in CRUNCH_FUNC_MAP.values() \
                             and isinstance(args, list) and len(args) > 1:
                         obj = {
-                            'function': 'and',
+                            'function': 'or',
                             'args': []
                         }
                     else:
@@ -353,6 +358,9 @@ def parse_expr(expr):
                                     'args': [arg]
                                 }
                             )
+                        # concatenate with or when there is more than
+                        # 2 arguments in the list
+                        obj = _nest(obj['args'], op, concatenator='or')
                     else:
                         obj = _nest(args, op)
 
