@@ -1404,7 +1404,6 @@ class Variable(object):
             raise TypeError("Variable of type %s do not have categories" % self.resource.type)
         if self._categories is None:
             self._categories = CategoryList(self.resource)
-        print(id(self._categories))
         return self._categories
 
     def hide(self):
