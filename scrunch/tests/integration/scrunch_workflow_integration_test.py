@@ -7,8 +7,7 @@ import isodate
 import pycrunch
 from pycrunch import pandaslib
 
-from scrunch.datasets import Dataset
-
+from scrunch.datasets import Dataset, Variable
 
 CRUNCH_URL = os.environ.get('CRUNCH_TEST_URL')
 CRUNCH_USER = os.environ.get('CRUNCH_TEST_USER')
@@ -737,29 +736,45 @@ def main():
         # 2. Integration Tests for "Transformations".
 
         categories = [
-            {'id': 1, 'name': 'Nerds', 'numeric_value': 1, 'missing': False},
-            {'id': 2, 'name': 'Normal Users', 'numeric_value': 2, 'missing': False},
-            {'id': 3, 'name': 'Hipsters', 'numeric_value': 3, 'missing': False},
-            {'id': 32767, 'name': 'Unknown', 'numeric_value': None, 'missing': True}
-        ]
-
-        rules = [
-            'operating_system in ("Linux", "Solaris", "Minix", "FreeBSD", "NetBSD")',
-            'operating_system == "Windows"',
-            'operating_system == "MacOS"',
-            'missing(operating_system)'
+            {
+                'id': 1,
+                'name': 'Nerds',
+                'numeric_value': 1,
+                'missing': False,
+                'case': 'operating_system in ("Linux", "Solaris", "Minix", "FreeBSD", "NetBSD")',
+            },
+            {
+                'id': 2,
+                'name': 'Normal Users',
+                'numeric_value': 2,
+                'missing': False,
+                'case': 'operating_system == "Windows"',
+            },
+            {
+                'id': 3,
+                'name': 'Hipsters',
+                'numeric_value': 3,
+                'missing': False,
+                'case': 'operating_system == "MacOS"',
+            },
+            {
+                'id': 32767,
+                'name': 'Unknown',
+                'numeric_value': None,
+                'missing': True,
+                'case': 'missing(operating_system)'
+            }
         ]
 
         new_var = dataset.create_single_response(
             categories=categories,
-            rules=rules,
             name='Operating System Users',
             alias='operating_system_users',
             description='Type of Operating System Users'
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical'
+
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical'
 
         # Check the data on the new variable.
         df = pandaslib.dataframe(dataset.resource)
