@@ -1,8 +1,9 @@
-from mock import MagicMock
 from unittest import TestCase
-from scrunch.datasets import Variable
-from scrunch.categories import CategoryList
 
+from scrunch.categories import CategoryList
+from scrunch.datasets import Variable
+
+from mock import MagicMock
 
 TEST_CATEGORIES = lambda: [
     {"id": 1, "name": "Female", "missing": False, "numeric_value": None},
@@ -83,4 +84,3 @@ class TestCategoryList(TestCase):
             {'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Female'}
         ])
         resource.refresh.assert_called_once()
-

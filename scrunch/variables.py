@@ -1,7 +1,6 @@
 import re
 
 import six
-
 from scrunch.helpers import subvar_alias
 
 VARIABLE_URL_REGEX = re.compile(
