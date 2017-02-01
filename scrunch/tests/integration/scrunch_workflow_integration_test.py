@@ -902,17 +902,26 @@ def main():
 
         # 3.2 combine_responses.
 
-        response_map = {
-            'music_recoded_1': ['music_1', 'music_2'],
-            'music_recoded_2': ['music_97'],
-            'music_recoded_3': ['music_98', 'music_99']
+        cat_map = {
+            1: [1, 2],
+            2: [97],
+            3: [98, 99]
+        }
+
+        cat_names = {
+            1: 'music_recoded_1',
+            2: 'music_recoded_2',
+            3: 'music_recoded_3'
         }
         new_var = dataset.combine_multiple_response(
-            'music', response_map, 'Music (alt)', 'music_recoded'
+            'music',
+            map=cat_map,
+            categories=cat_names,
+            name='Music (alt)',
+            alias='music_recoded'
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'multiple_response'
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'multiple_response'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'music_recoded' in df
