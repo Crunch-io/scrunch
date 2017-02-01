@@ -804,29 +804,28 @@ def main():
 
         # On a 'categorical' variable.
         cat_map = {
-            1: {
-                'name': 'Bilingual',
-                'missing': False,
-                'combined_ids': [2, 3]
-            },
-            2: {
-                'name': 'Not Bilingual',
-                'missing': False,
-                'combined_ids': [1, 4]
-            },
-            99: {
-                'name': 'Unknown',
-                'missing': True,
-                'combined_ids': [32766, 32767]
-            }
+            1: [2, 3],
+            2: [1, 4],
+            99: [32766, 32767]
         }
+
+        cat_names = {
+            1: 'Bilingual',
+            2: 'Not Bilingual',
+            99: 'Unknown'
+        }
+
         new_var = dataset.combine_categorical(
-            'speak_spanish', cat_map, 'Bilingual Person', 'bilingual'
+            'speak_spanish',
+            map=cat_map,
+            categories=cat_names,
+            name='Bilingual Person',
+            alias='bilingual',
+            missing=[99]
         )
-        import pdb; pdb.set_trace()
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical'
+
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'bilingual' in df
