@@ -16,11 +16,12 @@ from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
 from pycrunch.exporting import export_dataset
 
-from scrunch.expressions import parse_expr, process_expr
+from scrunch.expressions import parse_expr, process_expr, prettify
 from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
                                 InvalidPathError, InvalidReferenceError)
 from scrunch.variables import (responses_from_map, combinations_from_map,
                                combine_responses_expr, combine_categories_expr)
+from scrunch.categories import CategoryList
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -557,6 +558,8 @@ class Order(object):
         self._hier = None
         self._vars = None
         self._graph = None
+        self._sync = True
+        self._revision = None
 
     def _load_hier(self):
         self._hier = self.ds.resource.session.get(
@@ -602,6 +605,22 @@ class Order(object):
     def graph(self, _):
         raise TypeError('Unsupported assignment operation')
 
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            ds_state = self.ds.resource.session.get(
+                self.ds.resource.self + 'state/'
+            ).payload
+            if self._revision is None:
+                self._revision = ds_state.body.revision
+            elif self._revision != ds_state.body.revision:
+                # There's a new dataset revision. Reload the
+                # hierarchical order.
+                self._revision = ds_state.body.revision
+                self._load_hier()
+                self._load_graph()
+        return self
+
     def _build_graph_structure(self):
 
         def _get(group):
@@ -646,6 +665,21 @@ class Order(object):
         return self.graph[item]
 
 
+class DatasetSettings(dict):
+
+    def __readonly__(self, *args, **kwargs):
+        raise RuntimeError('Please use the change_settings() method instead.')
+
+    __setitem__ = __readonly__
+    __delitem__ = __readonly__
+    pop = __readonly__
+    popitem = __readonly__
+    clear = __readonly__
+    update = __readonly__
+    setdefault = __readonly__
+    del __readonly__
+
+
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
@@ -654,6 +688,7 @@ class Dataset(object):
                            'archived', 'end_date', 'start_date'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight'}
 
     def __init__(self, resource):
         """
@@ -662,6 +697,7 @@ class Dataset(object):
         self.resource = resource
         self.session = self.resource.session
         self.url = self.resource.self
+        self._settings = None
 
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
@@ -684,7 +720,7 @@ class Dataset(object):
                 self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
-        return Variable(variable.entity)
+        return Variable(variable.entity, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -694,7 +730,7 @@ class Dataset(object):
 
     @property
     def order(self):
-        return self._order
+        return self._order.get()
 
     @order.setter
     def order(self, _):
@@ -702,6 +738,44 @@ class Dataset(object):
         raise TypeError(
             'Unsupported operation on the Hierarchical Order property'
         )
+
+    @property
+    def settings(self):
+        if self._settings is None:
+            self._load_settings()
+        return self._settings
+
+    @settings.setter
+    def settings(self, _):
+        # Protect the `settings` property from external modifications.
+        raise TypeError('Unsupported operation on the settings property')
+
+    def _load_settings(self):
+        settings = self.session.get(self.resource.fragments.settings).payload
+        self._settings = DatasetSettings(
+            (_name, _value) for _name, _value in settings.body.items()
+        )
+        return self._settings
+
+    def change_settings(self, **kwargs):
+        incoming_settings = set(kwargs.keys())
+        invalid_settings = incoming_settings.difference(self._EDITABLE_SETTINGS)
+        if invalid_settings:
+            raise ValueError(
+                'Invalid or read-only settings: %s'
+                % ','.join(list(invalid_settings))
+            )
+
+        settings_payload = {
+            setting: kwargs[setting] for setting in incoming_settings
+        }
+        if settings_payload:
+            self.session.patch(
+                self.resource.fragments.settings,
+                json.dumps(settings_payload),
+                headers={'Content-Type': 'application/json'}
+            )
+            self._settings = None
 
     def edit(self, **kwargs):
         for key in kwargs:
@@ -718,6 +792,11 @@ class Dataset(object):
         return self.resource.edit(**kwargs)
 
     def delete(self):
+        """
+        Delete a dataset.
+        TODO: Shouldn't be possible if this is a streamed dataset.
+        :return:
+        """
         logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
         self.resource.delete()
         logging.debug("Deleted dataset.")
@@ -825,6 +904,9 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
+    def get_exclusion(self):
+        return prettify(self.resource.exclusion.body.expression, self)
+
     def create_single_response(self, categories,
                            name, alias, description='', missing=True):
         """
@@ -870,7 +952,9 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -902,7 +986,9 @@ class Dataset(object):
                 }
             }
         }
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -971,8 +1057,10 @@ class Dataset(object):
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
                 }
-        shoji_var = self.resource.variables.create(payload).refresh()
-        return Variable(shoji_var)
+
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1016,7 +1104,9 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1049,7 +1139,9 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_savepoint(self, description):
         """
@@ -1221,22 +1313,22 @@ class Dataset(object):
         """
         # the payload should include all hidden variables by default
         payload = {
-            "element": "shoji:entity",
-            "body": {
-                "options": {"use_category_ids": True}
-            }
+            "options": {"use_category_ids": True}
         }
         # add filter to rows if passed
         if filter:
-            payload['body']['filter'] = process_expr(
+            payload['filter'] = process_expr(
                 parse_expr(filter), self.resource)
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(self[var].url)
+            if len(id_vars) != len(variables):
+                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
-            payload['body']['where'] = {
+            payload['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
@@ -1247,7 +1339,7 @@ class Dataset(object):
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
-            payload['body']['where'] = {
+            payload['where'] = {
                     'function': 'select',
                     'args': [{
                         'map': {
@@ -1339,16 +1431,19 @@ class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description', 'discarded',
-                           'view', 'notes','format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories'}
+    _MUTABLE_ATTRIBUTES = {'name', 'description',
+                           'view', 'notes', 'format'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
-    def __init__(self, resource):
+    CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
+
+    def __init__(self, resource, dataset_resource):
         self.resource = resource
         self.url = self.resource.self
+        self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -1367,6 +1462,16 @@ class Variable(object):
 
     def __str__(self):
         return self.name
+
+    _categories = None
+
+    @property
+    def categories(self):
+        if self.resource.type not in self.CATEGORICAL_TYPES:
+            raise TypeError("Variable of type %s do not have categories" % self.resource.type)
+        if self._categories is None:
+            self._categories = CategoryList(self.resource)
+        return self._categories
 
     def hide(self):
         LOG.debug("HIDING")
@@ -1573,8 +1678,9 @@ class Variable(object):
                 }
             ]
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        return Variable(ds.variables.create(payload).refresh())
+        return Variable(
+            self.dataset.resource.variables.create(payload).refresh(),
+            self.dataset.resource)
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1590,8 +1696,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = get_dataset(self.resource.body.dataset_id)
-        more_args = process_expr(more_args, ds)
+        more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
         payload = dict(
@@ -1611,6 +1716,5 @@ class Variable(object):
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        target_group = ds.order[str(path)]
+        target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)

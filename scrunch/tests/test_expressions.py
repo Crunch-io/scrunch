@@ -562,6 +562,11 @@ class TestExpressionParsing(TestCase):
         expr_obj = parse_expr(expr)
         assert expr_obj == expected_expr_obj
 
+    def test_r_raise(self):
+        with pytest.raises(AttributeError) as excinfo:
+            parse_expr("q1 in [r(10, )]")
+        assert "function 'r' needs 2 integer arguments" in str(excinfo.value)
+
     def test_parse_value_not_in_list(self):
         expr = 'country not in [1, 2, 3]'
         expr_obj = parse_expr(expr)
@@ -939,7 +944,7 @@ class TestExpressionParsing(TestCase):
                             'function': '=='
                         }
                     ],
-                   'function': 'and'
+                    'function': 'and'
                 }
             ],
             'function': 'and'
@@ -1084,7 +1089,7 @@ class TestExpressionParsing(TestCase):
         expr = "valid(birthyear, birthmonth)"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
-            'function': 'and',
+            'function': 'or',
             'args': [
                 {
                     'function': 'is_valid',
@@ -1108,7 +1113,7 @@ class TestExpressionParsing(TestCase):
         expr = "missing(birthyear, birthmonth)"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
-            'function': 'and',
+            'function': 'or',
             'args': [
                 {
                     'function': 'is_missing',
@@ -1136,7 +1141,7 @@ class TestExpressionParsing(TestCase):
             'function': 'not',
             'args': [
                 {
-                    'function': 'and',
+                    'function': 'or',
                     'args': [
                         {
                             'function': 'is_valid',
@@ -1165,7 +1170,7 @@ class TestExpressionParsing(TestCase):
             'function': 'not',
             'args': [
                 {
-                    'function': 'and',
+                    'function': 'or',
                     'args': [
                         {
                             'function': 'is_missing',
@@ -1206,7 +1211,7 @@ class TestExpressionParsing(TestCase):
                     ]
                 },
                 {
-                    'function': 'and',
+                    'function': 'or',
                     'args': [
                         {
                             'function': 'is_missing',
@@ -1227,6 +1232,67 @@ class TestExpressionParsing(TestCase):
                     ]
                 }
             ]
+        }
+
+    def test_multiple_missing_valid(self):
+        # More than 2 variables.
+        expr = "missing(year, month, age)"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'args': [
+                {
+                    'args': [{'variable': 'year'}],
+                    'function': 'is_missing'
+                },
+                {
+                    'args': [
+                        {
+                            'args': [{'variable': 'month'}],
+                            'function': 'is_missing'
+                        },
+                        {
+                            'args': [{'variable': 'age'}],
+                            'function': 'is_missing'
+                        }
+                    ],
+                    'function': 'or'
+                }
+            ],
+            'function': 'or'
+        }
+
+        expr = "valid(year, month, age, gender)"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'args': [
+                {
+                    'args': [{'variable': 'year'}],
+                    'function': 'is_valid'
+                },
+                {
+                    'args': [
+                        {
+                            'args': [{'variable': 'month'}],
+                            'function': 'is_valid'
+                        },
+                        {
+                            'args': [
+                                {
+                                    'args': [{'variable': 'age'}],
+                                    'function': 'is_valid'
+                                },
+                                {
+                                    'args': [{'variable': 'gender'}],
+                                    'function': 'is_valid'
+                                }
+                            ],
+                            'function': 'or'
+                        }
+                    ],
+                    'function': 'or'
+                }
+            ],
+            'function': 'or'
         }
 
     def test_parse_not_a_in_b(self):
@@ -1305,7 +1371,7 @@ class TestExpressionParsing(TestCase):
 #                     {'age': is_ge(18)},
 #                     {'profile_julesage': has_count(0)}])},
 
-#'text': '(age >= 18) & profile_bpcagesex is NaN',
+# 'text': '(age >= 18) & profile_bpcagesex is NaN',
 # 'index_mapper': intersection(
 #     [{'age': is_ge(18)}, {'profile_bpcagesex': has_count(0)}])}],
 
@@ -2171,7 +2237,6 @@ class TestExpressionProcessing(TestCase):
             },
         ]
 
-
         table_mock = mock.MagicMock(metadata={
             var_id: {
                 'id': var_id,
@@ -2269,7 +2334,6 @@ class TestExpressionPrettify(TestCase):
                 {
                     'function': 'or',
                     'args': [
-
                         {
                             'function': '==',
                             'args': [
@@ -2770,7 +2834,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='(identity == 1 and caseid <= surveyid) or identity >= 2'
+        assert cel == '(identity == 1 and caseid <= surveyid) or identity >= 2'
 
     def test_parse_value_in_list(self):
         expr = {
@@ -2857,7 +2921,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.any([1, 2, 3])'
+        assert cel == 'Q2.any([1, 2, 3])'
 
     def test_parse_all(self):
         expr = {
@@ -2872,7 +2936,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='Q2.all([1, 2, 3])'
+        assert cel == 'Q2.all([1, 2, 3])'
 
     def test_parse_sample_rule_2_complex(self):
         expr = {
@@ -2934,7 +2998,7 @@ class TestExpressionPrettify(TestCase):
             ]}
         cel = prettify(expr)
         assert cel == "(disposition == 0 and exit_status == 1) or " \
-               "(disposition == 0 and exit_status == 0)"
+                      "(disposition == 0 and exit_status == 0)"
 
     def test_parse_sample_any(self):
         expr = {
@@ -3003,7 +3067,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.any([1, 2, 3])'
+        assert cel == 'not Q2.any([1, 2, 3])'
 
         expr = {
             'function': 'not',
@@ -3022,7 +3086,7 @@ class TestExpressionPrettify(TestCase):
             ]
         }
         cel = prettify(expr)
-        assert cel =='not Q2.all([1, 2, 3])'
+        assert cel == 'not Q2.all([1, 2, 3])'
 
     def test_parse_duplicates_method(self):
         expr = {
@@ -3181,6 +3245,71 @@ class TestDatetimeStrings(TestCase):
                 },
                 {
                     "value": "2016"
+                }
+            ]
+        }
+
+
+class TestDateTimeExpression(TestCase):
+    """
+    Test for datetimes being correctly interpreted as values
+    """
+
+    ds_url = 'http://test.crunch.io/api/datasets/12345/'
+
+    def mock_dataset(self, var_id, var_alias, var_type, categories=None):
+        """
+        Helper for mocking a dataset for datetimes testing
+        """
+        if not categories:
+            categories = []
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        return ds
+
+    def test_process_expression(self):
+        var_id = '0001'
+        var_alias = 'starttime'
+        var_type = 'datetime'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        ds = self.mock_dataset(var_id, var_alias, var_type)
+        expr = "starttime < '2016-12-21'"
+        parsed = parse_expr(expr)
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == {
+            'function': '<',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': '2016-12-21'
+                }
+            ]
+        }
+
+    def test_datetime_as_value(self):
+        ds = self.mock_dataset(None, '', '')
+        expr = "'2016-12-21T12' == 5"
+        parsed = parse_expr(expr)
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'value': '2016-12-21T12'
+                },
+                {
+                    'value': 5
                 }
             ]
         }

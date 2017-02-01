@@ -104,21 +104,26 @@ BUILTIN_FUNCTIONS = []
 NOT_IN = object()
 
 
-def _nest(args, func):
+def _nest(args, func, concatenator=None):
+    """
+    :param args: list of arguments that need nesting
+    :param func: the function that applies to tuple of args
+    :param concatenator: the concatenator or tuples, usually 'or' 'and'
+    :return:
+    """
+    if not concatenator:
+        # in case of is_missing and is_valid we need to concatenate
+        # multiple arguments and nest them
+        concatenator = func
     # for the moment we are just nesting and & or
-    if func not in ['or', 'and']:
+    if func not in ['or', 'and', 'is_missing', 'is_valid'] or len(args) < 3:
         return {
-            'function': func,
-            'args': args
-        }
-    if len(args) == 2:
-        return {
-            'function': func,
+            'function': concatenator,
             'args': args
         }
     return {
-        'function': func,
-        'args': [args[0], _nest(args[1:], func)]
+        'function': concatenator,
+        'args': [args[0], _nest(args[1:], func, concatenator)]
     }
 
 
@@ -331,7 +336,7 @@ def parse_expr(expr):
                     elif op in CRUNCH_FUNC_MAP.values() \
                             and isinstance(args, list) and len(args) > 1:
                         obj = {
-                            'function': 'and',
+                            'function': 'or',
                             'args': []
                         }
                     else:
@@ -353,6 +358,9 @@ def parse_expr(expr):
                                     'args': [arg]
                                 }
                             )
+                        # concatenate with or when there is more than
+                        # 2 arguments in the list
+                        obj = _nest(obj['args'], op, concatenator='or')
                     else:
                         obj = _nest(args, op)
 
@@ -406,7 +414,7 @@ def process_expr(obj, ds):
         def variable_id(variable_url):
             return variable_url.split('/')[-2]
 
-        def category_ids(var_id, var_value, variables=variables):   
+        def category_ids(var_id, var_value, variables=variables):
             value = None
             if isinstance(var_value, list) or isinstance(var_value, tuple):
                 # {'values': [val1, val2, ...]}
@@ -424,10 +432,21 @@ def process_expr(obj, ds):
 
             elif isinstance(var_value, str):
                 for var in variables:
-                    if variables[var]['id'] == var_id:
+                    # if the variable is a date, don't try to process it's categories
+                    if variables[var]['type'] == 'datetime':
+                        return var_value
+                    if variables[var]['id'] == var_id and 'categories' in variables[var]:
+                        found = False
                         for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
                                 value = cat['numeric_value']
+                                found = True
+                                break
+                        if not found:
+                            raise ValueError("Couldn't find a category id for category %s in filter for variable %s" % (var_value, var))
+                    elif 'categories' not in variables[var]:
+                        return var_value
+
             else:
                 return var_value
             return value
@@ -575,6 +594,7 @@ def prettify(expr, ds=None):
 
     operators = BINARY_FUNC_OPERATORS + COMPARISSON_OPERATORS
     methods = {m[1]: m[0] for m in CRUNCH_METHOD_MAP.items()}
+    functions = {f[1]: f[0] for f in CRUNCH_FUNC_MAP.items()}
 
     def _resolve_variable(var):
         is_url = validate_variable_url(var)
@@ -619,6 +639,8 @@ def prettify(expr, ds=None):
             result = '%s.%s(%s)' % (
                 args[0], methods[f], ', '.join(str(x) for x in args[1:])
             )
+        elif f in functions:
+            result = '%s(%s)' % (functions[f], args[0])
         else:
             raise Exception('Unknown function "%s"' % f)
 
