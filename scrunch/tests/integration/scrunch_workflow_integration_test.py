@@ -859,29 +859,29 @@ def main():
         ) == bilingual_null_ids
 
         # On a 'categorical_array' variable.
+
         cat_map = {
-            1: {
-                'name': 'Interested',
-                'missing': False,
-                'combined_ids': [1, 2]
-            },
-            2: {
-                'name': 'Not interested',
-                'missing': False,
-                'combined_ids': [3, 4]
-            },
-            99: {
-                'name': 'Unknown',
-                'missing': True,
-                'combined_ids': [32766, 32767]
-            }
+            1: [1, 2],
+            2:[3, 4],
+            99: [32766, 32767]
         }
+
+        cat_names = {
+            1: 'Interested',
+            2: 'Not interested',
+            99: 'Unknown',
+        }
+
         new_var = dataset.combine_categorical(
-            'hobbies', cat_map, 'Hobbies (recoded)', 'hobbies_recoded'
+            'hobbies',
+            map=cat_map,
+            categories=cat_names,
+            name='Hobbies (recoded)',
+            alias='hobbies_recoded',
+            missing=[99]
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical_array'
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical_array'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'hobbies_recoded' in df
