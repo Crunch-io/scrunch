@@ -26,7 +26,7 @@ class Category:
     def edit(self, **kwargs):
         extra_attrs = set(kwargs.keys()) - self.MUTABLE_ATTRIBUTES
         if extra_attrs:
-            raise ValueError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs) )
+            raise ValueError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs))
 
         self.fill(kwargs)
         categories = [self.as_dict() if cat['id'] == self.id else cat
@@ -46,4 +46,3 @@ class CategoryList(OrderedDict):
         categories = sorted(self.variable.categories, key=lambda c: new_order.index(c['id']))
         self.variable.edit(categories=categories)
         self.variable.refresh()
-

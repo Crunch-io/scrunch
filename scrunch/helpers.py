@@ -6,6 +6,7 @@ if six.PY2:  # pragma: no cover
 else:
     from urllib.parse import urljoin
 
+
 def is_relative_url(url):
     return url.startswith(('.', '/'))
 
