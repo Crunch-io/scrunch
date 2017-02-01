@@ -58,7 +58,10 @@ class TestCategories(TestCase):
         # Try to change the ID
         with self.assertRaises(ValueError) as err:
             variable.categories[2].edit(id=100)
-        self.assertEqual(err.exception.message, 'Cannot edit the following attributes: id')
+        self.assertEqual(
+            str(err.exception),
+            'Cannot edit the following attributes: id'
+        )
 
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
