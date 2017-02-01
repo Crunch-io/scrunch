@@ -6,13 +6,36 @@ from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
-from scrunch.datasets import Dataset, Variable
 from pycrunch.elements import JSONObject
 from pycrunch.shoji import Entity
 from pycrunch.variables import cast
 
 import scrunch
 from scrunch.datasets import Dataset, Variable
+
+
+class _CrunchPayload(dict):
+    def __init__(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self.put = mock.MagicMock()
+        self.post = mock.MagicMock()
+        self.patch = mock.MagicMock()
+
+    def __getattr__(self, item):
+        if item == 'payload':
+            return self
+        else:
+            return self[item]
+
+
+def _build_get_func(var):
+    properties = {}
+    properties.update(var)
+
+    def _get(*args):
+        return properties.get(args[0], args[0])
+
+    return _get
 
 
 class TestDatasetBase(object):
@@ -41,6 +64,101 @@ class TestDatasetBase(object):
         ds.follow.return_value = table_mock
 
         return Dataset(ds)
+
+
+class TestDatasetBaseNG(object):
+    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+
+    ds_shoji = {
+        'element': 'shoji:entity',
+        'body': {
+            'id': '123456',
+            'name': 'test_dataset_name',
+            'alias': 'test_dataset_alias'
+        }
+    }
+
+    variables = {
+        '0001': dict(
+            id='0001',
+            alias='var1_alias',
+            name='var1_name',
+            type='numeric',
+            is_subvar=False
+        ),
+        '0002': dict(
+            id='0002',
+            alias='var2_alias',
+            name='var2_name',
+            type='numeric',
+            is_subvar=False
+        )
+    }
+
+    def _dataset_mock(self, variables=None):
+        _ds_mock = mock.MagicMock()
+        _get_body = self._build_get_func(self.ds_shoji['body'])
+        _ds_mock.variables.by.side_effect = self._variables_by_side_effect(variables)
+        _ds_mock.entity.self = self.ds_url
+        _ds_mock.entity.body.__getitem__.side_effect = _get_body
+        _ds_mock.entity.body.get.side_effect = _get_body
+        _ds_mock.body.__getitem__.side_effect = _get_body
+        _ds_mock.body.get.side_effect = _get_body
+        return _ds_mock
+
+    def _variable_mock(self, variable=None):
+        variable = variable or self.variables['0001']
+
+        var_url = '%svariables/%s/' % (self.ds_url, variable['id'])
+        _get_func = self._build_get_func(variable)
+        _var_mock = mock.MagicMock()
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.entity.self = var_url
+        _var_mock.entity.body.__getitem__.side_effect = _get_func
+        _var_mock.entity.body.get.side_effect = _get_func
+        return _var_mock
+
+    def _variables_by_side_effect(self, variables=None):
+        variables = variables or self.variables
+        table = {
+            'element': 'crunch:table',
+            'self': '%stable/' % self.ds_url,
+            'metadata': collections.OrderedDict()
+        }
+
+        _variables = dict(id=dict(), name=dict(), alias=dict())
+        for var in variables:
+            _var_mock = self._variable_mock(variables[var])
+            _variables['id'].update({variables[var]['id']: _var_mock})
+            _variables['name'].update({variables[var]['name']: _var_mock})
+            _variables['alias'].update({variables[var]['alias']: _var_mock})
+            table['metadata'][variables[var]['id']] = _var_mock
+
+        self.ds_shoji['body']['table'] = table
+
+        def _get(*args):
+            return _variables.get(args[0])
+        return _get
+
+    @staticmethod
+    def _build_get_func(d):
+        properties = {}
+        properties.update(d)
+
+        def _get(*args):
+            return properties.get(args[0])
+        return _get
+
+    @staticmethod
+    def _by_side_effect(shoji, entity_mock):
+        d = {'name': {shoji['body']['name']: entity_mock},
+             'id': {shoji['body']['id']: entity_mock},
+             'alias': {shoji['body']['alias']: entity_mock}}
+
+        def _get(*args):
+            return d.get(args[0])
+        return _get
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
@@ -622,31 +740,24 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
-class TestVariables(TestDatasetBase, TestCase):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
-    user_url = 'https://test.crunch.io/api/users/12345/'
+class TestVariables(TestDatasetBaseNG, TestCase):
+    def test_variable_as_member(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        assert ds.name == self.ds_shoji['body']['name']
+        assert ds.id == self.ds_shoji['body']['id']
 
-    def test_variable_as_attribute(self):
-        session = mock.MagicMock()
-        dataset_resource = mock.MagicMock()
-        dataset_resource.session = session
+        assert isinstance(ds['var1_alias'], Variable)
 
-        test_variable = mock.MagicMock()
-        test_variable.entity = Entity(session=session)
+        with pytest.raises(ValueError) as err:
+            ds['some_variable']
+        assert str(err.value) == \
+            'Dataset %s has no variable some_variable' % ds.name
 
-        variables = {
-            'test_variable': test_variable
-        }
-        dataset_resource.variables = mock.MagicMock()
-        dataset_resource.variables.by.return_value = variables
-
-        dataset = Dataset(dataset_resource)
-
-        assert isinstance(dataset.test_variable, Entity)
         with pytest.raises(AttributeError) as err:
-            dataset.another_variable
-
-        assert str(err.value) == 'Dataset has no attribute another_variable'
+            ds.some_variable
+        assert str(err.value) == \
+            'Dataset %s has no attribute some_variable' % ds.name
 
     def test_variable_cast(self):
         variable = mock.MagicMock()
@@ -1169,7 +1280,7 @@ class TestCopyVariable(TestCase):
         var_res = mock.MagicMock(body={'type': 'numeric'})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1203,7 +1314,7 @@ class TestCopyVariable(TestCase):
         }})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
-        var = Variable(var_res)
+        var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1232,8 +1343,9 @@ class TestCopyVariable(TestCase):
 
 
 def test_hide_unhide():
+    ds_res = mock.MagicMock()
     var_res = mock.MagicMock()
-    var = Variable(var_res)
+    var = Variable(var_res, ds_res)
     var.hide()
     var_res.edit.assert_called_with(discarded=True)
     var.unhide()
@@ -1243,27 +1355,6 @@ def test_hide_unhide():
 class TestHierarchicalOrder(TestCase):
 
     ds_url = 'http://test.crunch.local/api/datasets/123/'
-
-    class CrunchPayload(dict):
-        def __init__(self, *args, **kwargs):
-            super(self.__class__, self).__init__(*args, **kwargs)
-            self.put = mock.MagicMock()
-
-        def __getattr__(self, item):
-            if item == 'payload':
-                return self
-            else:
-                return self[item]
-
-    @staticmethod
-    def _build_get_func(var):
-        properties = {}
-        properties.update(var)
-
-        def _get(*args):
-            return properties.get(args[0], args[0])
-
-        return _get
 
     @staticmethod
     def _get_update_payload(ds):
@@ -1371,7 +1462,7 @@ class TestHierarchicalOrder(TestCase):
             'self': '%stable/' % self.ds_url,
             'metadata': collections.OrderedDict()
         }
-        variables = collections.OrderedDict()
+        variables = dict()
         hier_order = {
             'element': 'shoji:order',
             'self': '%svariables/hier/' % self.ds_url,
@@ -1406,7 +1497,7 @@ class TestHierarchicalOrder(TestCase):
 
         for var in variable_defs:
             var_url = '%svariables/%s/' % (self.ds_url, var['id'])
-            _get_func = self._build_get_func(var)
+            _get_func = _build_get_func(var)
             _var_mock = mock.MagicMock()
             _var_mock.__getitem__.side_effect = _get_func
             _var_mock.get.side_effect = _get_func
@@ -1414,14 +1505,24 @@ class TestHierarchicalOrder(TestCase):
             _var_mock.entity.body.__getitem__.side_effect = _get_func
             _var_mock.entity.body.get.side_effect = _get_func
             table['metadata'][var['id']] = _var_mock
-            variables[var['id']] = _var_mock
+            variables[var['id']] = _var_mock     # for .variables.by('id')
+            variables[var['alias']] = _var_mock  # for .variables.by('alias')
 
         def _session_get(*args):
             if args[0] == '{}table/'.format(self.ds_url):
-                return self.CrunchPayload(table)
+                return _CrunchPayload(table)
             elif args[0] == '{}variables/hier/'.format(self.ds_url):
-                return self.CrunchPayload(hier_order)
-            return self.CrunchPayload()
+                self.ds._hier_calls += 1
+                return _CrunchPayload(hier_order)
+            if args[0] == '{}state/'.format(self.ds_url):
+                return _CrunchPayload({
+                    'element': 'shoji:entity',
+                    'self': '%sstate/' % self.ds_url,
+                    'body': _CrunchPayload({
+                        'revision': self.ds._revision
+                    })
+                })
+            return _CrunchPayload()
 
         ds_resource = mock.MagicMock()
         ds_resource.self = self.ds_url
@@ -1429,6 +1530,8 @@ class TestHierarchicalOrder(TestCase):
         ds_resource.variables.by.return_value = variables
         ds_resource.session.get.side_effect = _session_get
         self.ds = Dataset(ds_resource)
+        self.ds._revision = 'one'
+        self.ds._hier_calls = 0
 
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
@@ -1436,234 +1539,134 @@ class TestHierarchicalOrder(TestCase):
         assert isinstance(ds.order, scrunch.datasets.Order)
         assert isinstance(ds.order.graph, scrunch.datasets.Group)  # root group
 
-    def test_element_access(self):
+    def test_order_property_is_protected_from_modifications(self):
         ds = self.ds
 
-        # Test element access using 0-based integer indexes.
-        var = ds.order[0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'ID'
-        assert var.alias == 'id'
-        assert var.id == '000001'
+        # The `order` property must be protected from modifications.
+        with pytest.raises(TypeError):
+            ds.order = False
 
-        group = ds.order[2]
+        # The "root" Group must also be protected from modifications.
+        with pytest.raises(TypeError):
+            ds.order.graph = None
+
+    def test_access_with_absolute_paths(self):
+        ds = self.ds
+
+        # The "root" Group.
+        root_group = ds.order['|']
+        assert isinstance(root_group, scrunch.datasets.Group)
+        assert root_group.is_root
+
+        # Sub-groups
+        group = ds.order['|Account']
         assert isinstance(group, scrunch.datasets.Group)
         assert group.name == 'Account'
         assert group.parent == ds.order.graph
 
-        # Test element access using "element references".
-        var = ds.order['id']
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'ID'
-        assert var.alias == 'id'
-        assert var.id == '000001'
-
-        group = ds.order['Account']
+        group = ds.order['|Account|User Information|']
         assert isinstance(group, scrunch.datasets.Group)
-        assert group.name == 'Account'
-        assert group.parent == ds.order.graph
+        assert group.name == 'User Information'
+        assert group.parent == ds.order['|Account']
 
-        # Test that the `in` operator works.
-        assert all(
-            isinstance(obj, (scrunch.datasets.Variable, scrunch.datasets.Group))
-            for obj in ds.order
-        )
-        assert 'id' in ds.order
-        assert 'Account' in ds.order
-        assert 'invalid_alias' not in ds.order
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            _ = ds.order['|Account|Invalid Group|']
 
-    def test_nested_element_access(self):
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            _ = ds.order['|Invalid Group|']
+
+    def test_access_with_relative_paths(self):
         ds = self.ds
 
-        # Test nested element access using 0-based integer indexes.
-        var = ds.order[2][0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Registration Time'
-        assert var.alias == 'registration_time'
-        assert var.id == '000003'
+        acct_group = ds.order['Account']
+        assert isinstance(acct_group, scrunch.datasets.Group)
+        assert acct_group.name == 'Account'
+        assert acct_group.parent == ds.order.graph
 
-        var = ds.order[2][3][0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Country'
-        assert var.alias == 'country'
-        assert var.id == '000008'
+        usr_info_group = acct_group['User Information']
+        assert isinstance(usr_info_group, scrunch.datasets.Group)
+        assert usr_info_group.name == 'User Information'
+        assert usr_info_group.parent == acct_group
 
-        group = ds.order[2][2]
-        assert isinstance(group, scrunch.datasets.Group)
-        assert group.name == 'User Information'
-        assert group.parent == ds.order[2]
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            _ = ds.order['Invalid Group']
 
-        # Test nested element access using "element references".
-        var = ds.order['Account']['registration_time']
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Registration Time'
-        assert var.alias == 'registration_time'
-        assert var.id == '000003'
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            _ = acct_group['Another Invalid Group']
 
-        var = ds.order['Account']['Location']['country']
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Country'
-        assert var.alias == 'country'
-        assert var.id == '000008'
+    def test_access_with_the_in_operator(self):
+        ds = self.ds
 
-        group = ds.order['Account']['User Information']
-        assert isinstance(group, scrunch.datasets.Group)
-        assert group.name == 'User Information'
-        assert group.parent == ds.order['Account']
-
-        # Test mixed nested element access
-        var = ds.order['Account'][0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Registration Time'
-        assert var.alias == 'registration_time'
-        assert var.id == '000003'
-
-        var = ds.order[2]['Location'][0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Country'
-        assert var.alias == 'country'
-        assert var.id == '000008'
-
-        group = ds.order[2]['User Information']
-        assert isinstance(group, scrunch.datasets.Group)
-        assert group.name == 'User Information'
-        assert group.parent == ds.order['Account']
-
-        # Test that the `in` operator works with nested access.
-        assert all(
-            isinstance(obj, (scrunch.datasets.Variable, scrunch.datasets.Group))
-            for obj in ds.order['Account']
-        )
-        assert 'registration_time' in ds.order['Account']
-        assert 'User Information' in ds.order[2]
-        assert 'country' in ds.order[2]['Location']
-        assert 'invalid_alias' not in ds.order['Account']
-        assert 'invalid_alias' not in ds.order['Account']['Location']
-
-        # Test element access with the `hierarchy` and `variables` properties.
-        var = ds.order['Account'].hierarchy[0]
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Registration Time'
-        assert var.alias == 'registration_time'
-        assert var.id == '000003'
-
-        var = ds.order.variables['country']
-        assert isinstance(var, scrunch.datasets.Variable)
-        assert var.name == 'Country'
-        assert var.alias == 'country'
-        assert var.id == '000008'
+        assert 'Account' in ds.order['|']
+        assert 'Invalid Group' not in ds.order['|']
+        assert 'User Information' in ds.order['|Account']
 
     def test_element_str_representation(self):
         ds = self.ds
 
         # Test first-level str representation.
         assert str(ds.order) == json.dumps(
-            ['id', 'hobbies', 'Group(Account)', 'music', 'religion'],
-            indent=scrunch.datasets.AbstractContainer.indent_size
-        )
-
-        # Test nested str representation.
-        assert str(ds.order['Account']) == json.dumps(
             [
-                'registration_time',
-                'last_login_time',
-                'Group(User Information)',
-                'Group(Location)'
-            ],
-            indent=scrunch.datasets.AbstractContainer.indent_size
-        )
-
-        # Test the str representation of the `hierarchy`.
-        assert str(ds.order.hierarchy) == json.dumps(
-            [
-                'id',
-                'hobbies',
+                'ID',
+                'Hobbies',
                 {
                     'Account': [
-                        'registration_time',
-                        'last_login_time',
+                        'Registration Time',
+                        'Last Login Time',
                         {
                             'User Information': [
-                                'first_name',
-                                'last_name',
-                                'gender'
+                                'First Name',
+                                'Last Name',
+                                'Gender'
                             ]
                         },
                         {
                             'Location': [
-                                'country',
-                                'city',
-                                'zip_code',
-                                'address'
+                                'Country',
+                                'City',
+                                'Zip Code',
+                                'Address'
                             ]
                         }
                     ]
                 },
-                'music',
-                'religion'
+                'Music',
+                'Religion'
             ],
-            indent=scrunch.datasets.AbstractContainer.indent_size
+            indent=scrunch.datasets.Group.INDENT_SIZE
         )
 
-        # Test the str representation of the `hierarchy` in nested Groups.
-        assert str(ds.order['Account'].hierarchy) == json.dumps(
+        # Test sub-group str representation.
+        assert str(ds.order['|Account']) == json.dumps(
             [
-                'registration_time',
-                'last_login_time',
+                'Registration Time',
+                'Last Login Time',
                 {
                     'User Information': [
-                        'first_name',
-                        'last_name',
-                        'gender'
+                        'First Name',
+                        'Last Name',
+                        'Gender'
                     ]
                 },
                 {
                     'Location': [
-                        'country',
-                        'city',
-                        'zip_code',
-                        'address'
+                        'Country',
+                        'City',
+                        'Zip Code',
+                        'Address'
                     ]
                 }
             ],
-            indent=scrunch.datasets.AbstractContainer.indent_size
+            indent=scrunch.datasets.Group.INDENT_SIZE
         )
 
-        # Test the str representation of the flat list of `variables`.
-        assert str(ds.order.variables) == json.dumps(
+        assert str(ds.order['|Account|User Information']) == json.dumps(
             [
-                'id',
-                'hobbies',
-                'registration_time',
-                'last_login_time',
-                'first_name',
-                'last_name',
-                'gender',
-                'country',
-                'city',
-                'zip_code',
-                'address',
-                'music',
-                'religion'
+                'First Name',
+                'Last Name',
+                'Gender'
             ],
-            indent=scrunch.datasets.AbstractContainer.indent_size
-        )
-
-        # Test the str representation of the flat list of `variables`
-        # in nested groups.
-        assert str(ds.order['Account'].variables) == json.dumps(
-            [
-                'registration_time',
-                'last_login_time',
-                'first_name',
-                'last_name',
-                'gender',
-                'country',
-                'city',
-                'zip_code',
-                'address'
-            ],
-            indent=scrunch.datasets.AbstractContainer.indent_size
+            indent=scrunch.datasets.Group.INDENT_SIZE
         )
 
     def test_update_hierarchy_order(self):
@@ -1703,7 +1706,7 @@ class TestHierarchicalOrder(TestCase):
     def test_local_movements(self):
         ds = self.ds
 
-        ds.order.move('id')
+        ds.order['|'].append('id')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1735,7 +1738,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move('music', position=1)
+        ds.order['|'].insert('music', position=1)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1767,7 +1770,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move(elements=['id', 'Account'], position=3)
+        ds.order['|'].insert(alias=['id', 'Account'], position=3)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1799,7 +1802,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_top(['Account', 'id'])
+        ds.order['|'].insert(['Account', 'id'])
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1831,7 +1834,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_bottom('hobbies')
+        ds.order['|'].append('hobbies')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1863,7 +1866,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_before('music', ['hobbies', 'religion'])
+        ds.order['|'].insert(['hobbies', 'religion'], before='music')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1895,7 +1898,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_after('id', 'Account')
+        ds.order['|'].insert('Account', after='id')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -1927,74 +1930,10 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_up('religion')
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                {
-                    'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
-                        {
-                            'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
-                            ]
-                        },
-                        {
-                            'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
-                            ]
-                        }
-                    ]
-                },
-                '../000013/',                       # religion
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-            ]
-        }
-
-        ds.order.move_down(element='Account')
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000013/',                       # religion
-                {
-                    'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
-                        {
-                            'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
-                            ]
-                        },
-                        {
-                            'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
-                            ]
-                        }
-                    ]
-                },
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-            ]
-        }
-
-    def test_local_movements_with_nested_access(self):
+    def test_local_movements_using_paths(self):
         ds = self.ds
 
-        ds.order['Account'].move('registration_time')
+        ds.order['|Account'].append('registration_time')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2026,7 +1965,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['User Information'].move('gender', position=1)
+        ds.order['|Account|User Information'].insert('gender', position=1)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2058,7 +1997,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['Location'].move(['country', 'zip_code'], 2)
+        ds.order['Account|Location'].insert(['country', 'zip_code'], 2)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2090,7 +2029,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['Location'].move_top('address')
+        ds.order['|Account|Location'].insert('address')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2122,7 +2061,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account'].move_bottom('User Information')
+        ds.order['|Account'].append('User Information')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2154,7 +2093,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account'].move_before('last_login_time', 'Location')
+        ds.order['|Account'].insert('Location', before='last_login_time')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2186,7 +2125,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['Location'].move_after('country', 'city')
+        ds.order['|Account|Location'].insert('city', after='country')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2211,70 +2150,6 @@ class TestHierarchicalOrder(TestCase):
                                 '../000006/',       # last_name
                             ]
                         },
-                    ]
-                },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-            ]
-        }
-
-        ds.order['Account']['User Information'].move_up('gender')
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                {
-                    'Account': [
-                        {
-                            'Location': [
-                                '../000011/',       # address
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                            ]
-                        },
-                        '../000004/',               # last_login_time
-                        '../000003/',               # registration_time
-                        {
-                            'User Information': [
-                                '../000007/',       # gender
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                            ]
-                        },
-                    ]
-                },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-            ]
-        }
-
-        ds.order['Account'].move_down(element='registration_time')
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                {
-                    'Account': [
-                        {
-                            'Location': [
-                                '../000011/',       # address
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                            ]
-                        },
-                        '../000004/',               # last_login_time
-                        {
-                            'User Information': [
-                                '../000007/',       # gender
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                            ]
-                        },
-                        '../000003/',               # registration_time
                     ]
                 },
                 '../000012/',                       # music
@@ -2285,7 +2160,7 @@ class TestHierarchicalOrder(TestCase):
     def test_cross_group_movements(self):
         ds = self.ds
 
-        ds.order.move('gender')
+        ds.order['|'].append('gender')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2317,7 +2192,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move('address', position=1)
+        ds.order['|'].insert('address', position=1)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2349,7 +2224,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move(elements=['last_login_time', 'Location'], position=3)
+        ds.order['|'].insert(alias=['last_login_time', 'Location'], position=3)
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2381,7 +2256,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_top(['User Information', 'country'])
+        ds.order['|'].insert(['User Information', 'country'])
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2413,7 +2288,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order.move_bottom('zip_code')
+        ds.order['|'].append('zip_code')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2445,9 +2320,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-#----
-
-        ds.order['Account'].move('last_login_time')
+        ds.order['Account'].append('last_login_time')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2479,7 +2352,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['User Information'].move_bottom('gender')
+        ds.order['|User Information'].append('gender')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2511,7 +2384,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account'].move(['User Information', 'Location'])
+        ds.order['|Account'].append(['User Information', 'Location'])
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2543,7 +2416,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['Location'].move_top('address')
+        ds.order['|Account|Location'].insert('address')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2575,7 +2448,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account']['Location'].move_after('city', 'country')
+        ds.order['|Account|Location|'].insert('country', after='city')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2610,7 +2483,7 @@ class TestHierarchicalOrder(TestCase):
     def test_group_level_reordering(self):
         ds = self.ds
 
-        ds.order.set(['id', 'hobbies', 'music', 'religion', 'Account'])
+        ds.order['|'].reorder(['id', 'hobbies', 'music', 'religion', 'Account'])
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2642,10 +2515,12 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['Account'].set(
-            ['User Information', 'Location', 'registration_time',
-             'last_login_time']
-        )
+        ds.order['|Account'].reorder([
+            'User Information',
+            'Location',
+            'registration_time',
+            'last_login_time'
+        ])
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2677,115 +2552,29 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-    def test_element_removal(self):
+    def test_movement_errors(self):
         ds = self.ds
 
-        ds.order['Account'].remove('last_login_time')
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                {
-                    'Account': [
-                        '../000003/',               # registration_time
-                        {
-                            'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
-                            ]
-                        },
-                        {
-                            'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
-                            ]
-                        }
-                    ]
-                },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000004/',                       # last_login_time
-            ]
-        }
+        with pytest.raises(ValueError):
+            ds.order['|Account|User Information'].append('invalid_alias')
 
-        ds.order['Account']['Location'].remove(['country', 'city'])
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                {
-                    'Account': [
-                        '../000003/',               # registration_time
-                        {
-                            'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
-                            ]
-                        },
-                        {
-                            'Location': [
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
-                            ]
-                        }
-                    ]
-                },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000004/',                       # last_login_time
-                '../000008/',                       # country
-                '../000009/',                       # city
-            ]
-        }
+        with pytest.raises(ValueError):
+            ds.order['|Account'].insert(alias=['id', 'invalid_alias'])
 
-        with pytest.raises(NotImplementedError):
-            ds.order.remove('id')
+        with pytest.raises(IndexError):
+            ds.order['|Account'].insert('gender', position=999)
 
-    def test_group_deletion(self):
-        ds = self.ds
+        with pytest.raises(TypeError):
+            ds.order['|Account'].insert('id', before=1)
 
-        ds.order['Account'].delete()
-        assert self._get_update_payload(ds) == {
-            'element': 'shoji:order',
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000003/',                       # registration_time
-                '../000004/',                       # last_login_time
-                {
-                    'User Information': [
-                        '../000005/',               # first_name
-                        '../000006/',               # last_name
-                        '../000007/',               # gender
-                    ]
-                },
-                {
-                    'Location': [
-                        '../000008/',               # country
-                        '../000009/',               # city
-                        '../000010/',               # zip_code
-                        '../000011/',               # address
-                    ]
-                }
-            ]
-        }
-
-        with pytest.raises(NotImplementedError):
-            ds.order.delete()
+        with pytest.raises(scrunch.exceptions.InvalidReferenceError):
+            ds.order['|Account'].insert('id', before='unknown')
 
     def test_group_creation(self):
         ds = self.ds
 
-        ds.order['Account'].create(
-            'Login Details', elements=['registration_time', 'last_login_time']
+        ds.order['|Account'].create_group(
+            'Login Details', alias=['registration_time', 'last_login_time']
         )
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
@@ -2823,12 +2612,24 @@ class TestHierarchicalOrder(TestCase):
         }
 
         with pytest.raises(ValueError):
-            ds.order.create('Account')
+            ds.order['|'].create_group('Account')
+
+        with pytest.raises(ValueError):
+            ds.order['|'].create_group('My new|Group')
+
+        with pytest.raises(ValueError):
+            ds.order['|'].create_group(
+                'Very very very long name for the new Group which should not '
+                'be allowed at all'
+            )
+
+        with pytest.raises(ValueError):
+            ds.order['|Account'].create_group('@##$')
 
     def test_group_renaming(self):
         ds = self.ds
 
-        ds.order['Account']['User Information'].rename('User Info')
+        ds.order['|Account|User Information'].rename('User Info')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
@@ -2860,8 +2661,282 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        with pytest.raises(NotImplementedError):
-            ds.order.rename('Root')
+        with pytest.raises(ValueError):
+            ds.order['|'].rename('Root')
 
         with pytest.raises(ValueError):
-            ds.order['Account'].rename('id')
+            ds.order['|Account'].rename('id')
+
+        with pytest.raises(ValueError):
+            ds.order['|Account'].rename('My new|Group')
+
+        with pytest.raises(ValueError):
+            ds.order['|Account'].rename(
+                'Very very very long new name for the Group which should not '
+                'be allowed at all'
+            )
+
+        with pytest.raises(ValueError):
+            ds.order['|Account'].rename('@##$.')
+
+    def test_move_group(self):
+        ds = self.ds
+
+        group = ds.order['|Account|User Information']
+        assert group.name == 'User Information'
+        group.move('|')
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+                {
+                    'User Information': [
+                        '../000005/',       # first_name
+                        '../000006/',       # last_name
+                        '../000007/',       # gender
+                    ]
+                },
+            ]
+        }
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            ds.order['|Account|Location'].move('|Invalid Group|')
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            ds.order['|Account|Location'].move('|Account|Location')
+
+    def test_move_variable(self):
+        ds = self.ds
+        var = ds['id']
+        assert var.name == 'ID'
+        var.move('|Account|User Information')
+        assert self._get_update_payload(var.dataset) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                                '../000001/',       # id
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            var.move('|Account|Invalid Group')
+
+    def test_order_synchronization(self):
+        ds = self.ds
+
+        # Only one call to the hierarchical order endpoint should be done as
+        # long as the dataset revision doesn't change. More details at
+        # .setUp().
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|Account'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert ds._hier_calls == 1
+
+        # Simulate the dataset having a new revision so that the
+        # synchronization mechanism kicks in. More details at .setUp().
+        ds._revision = 'two'
+        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert ds._hier_calls == 2
+
+
+class TestDatasetSettings(TestCase):
+
+    ds_url = 'http://test.crunch.local/api/datasets/123/'
+
+    def setUp(self):
+        settings = {
+            'element': 'shoji:entity',
+            'self': '%ssettings/' % self.ds_url,
+            'body': {
+                'viewers_can_export': False,
+                'min_base_size': 0,
+                'weight': None,
+                'viewers_can_change_weight': False
+            }
+        }
+
+        def _session_get(*args):
+            if args[0] == '{}settings/'.format(self.ds_url):
+                return _CrunchPayload(settings)
+            return _CrunchPayload()
+
+        ds_resource = mock.MagicMock()
+        ds_resource.self = self.ds_url
+        ds_resource.fragments.settings = '%ssettings/' % self.ds_url
+        ds_resource.session.get.side_effect = _session_get
+        self.ds = Dataset(ds_resource)
+
+    def test_settings_are_displayed_as_dict_obj(self):
+        ds = self.ds
+
+        assert isinstance(ds.settings, dict)
+        assert ds.settings == {
+            'viewers_can_export': False,
+            'min_base_size': 0,
+            'weight': None,
+            'viewers_can_change_weight': False
+        }
+
+    def test_settings_obj_is_protected_from_modifications(self):
+        ds = self.ds
+
+        # The `settings` property must be protected from modifications.
+        with pytest.raises(TypeError):
+            ds.settings = False
+
+    def test_settings_dict_obj_is_read_only(self):
+        ds = self.ds
+
+        with pytest.raises(RuntimeError):
+            ds.settings['viewers_can_export'] = 'invalid'
+
+        with pytest.raises(RuntimeError):
+            del ds.settings['viewers_can_export']
+
+        with pytest.raises(RuntimeError):
+            ds.settings.pop()
+
+        with pytest.raises(RuntimeError):
+            ds.settings.update({'viewers_can_export': 'invalid'})
+
+        with pytest.raises(RuntimeError):
+            ds.settings.clear()
+
+    def test_change_settings(self):
+        ds = self.ds
+
+        # Test that the change_settings method performs the proper PATCHes.
+        ds.change_settings(viewers_can_export=True)
+        _url = ds.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
+        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        assert _url == self.ds_url + 'settings/'
+        assert _payload == {'viewers_can_export': True}
+        assert _headers == {'Content-Type': 'application/json'}
+
+        ds.change_settings(
+            viewers_can_export=True, viewers_can_change_weight=True
+        )
+        _url = ds.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
+        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        assert _url == self.ds_url + 'settings/'
+        assert _payload == {
+            'viewers_can_export': True,
+            'viewers_can_change_weight': True
+        }
+        assert _headers == {'Content-Type': 'application/json'}
+
+        # Test that trying to edit invalid or read-only settings is forbidden.
+        with pytest.raises(ValueError):
+            ds.change_settings(invalid_setting=True)
+        with pytest.raises(ValueError):
+            ds.change_settings(viewers_can_export=True, weight=10)
+
+
+class TestDatasetJoins(TestCase):
+    left_ds_url = 'https://test.crunch.io/api/datasets/123/'
+    right_ds_url = 'https://test.crunch.io/api/datasets/456/'
+
+    def _variable_mock(self, ds_url, var):
+        var_url = '%svariables/%s/' % (ds_url, var['id'])
+        _get_func = _build_get_func(var)
+        _var_mock = mock.MagicMock()
+        _var_mock.__getitem__.side_effect = _get_func
+        _var_mock.get.side_effect = _get_func
+        _var_mock.entity.self = var_url
+        _var_mock.entity.body.__getitem__.side_effect = _get_func
+        _var_mock.entity.body.get.side_effect = _get_func
+        return _var_mock
+
+    def setUp(self):
+        var = {
+            'id': '000001',
+            'alias': 'id',
+            'name': 'ID',
+            'type': 'numeric',
+            'is_subvar': False
+        }
+
+        # setup for left dataset
+        _left_var_mock = self._variable_mock(self.left_ds_url, var)
+        left_variable = collections.OrderedDict()
+        left_variable[var['alias']] = _left_var_mock
+        left_ds_res = mock.MagicMock()
+        left_ds_res.self = self.left_ds_url
+        left_ds_res.variables.by.return_value = left_variable
+        self.left_ds = Dataset(left_ds_res)
+
+        # setup for right dataset
+        _right_var_mock = self._variable_mock(self.right_ds_url, var)
+        right_variable = collections.OrderedDict()
+        right_variable[var['alias']] = _right_var_mock
+        right_ds_res = mock.MagicMock()
+        right_ds_res.self = self.right_ds_url
+        right_ds_res.variables.by.return_value = right_variable
+        self.right_ds = Dataset(right_ds_res)
+
+    def test_dataset_joins(self):
+        left_ds = self.left_ds
+        right_ds = self.right_ds
+        left_var = left_ds['id']
+        right_var = right_ds['id']
+
+        left_ds.join('id', right_ds, 'id', wait=False)
+
+        call_payload = left_ds.resource.variables.post.call_args[0][0]
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'function': 'adapt',
+                'args': [
+                    {'dataset': right_ds.url},
+                    {'variable': '%svariables/%s/' % (right_ds.url, right_var.id)},
+                    {'variable': '%svariables/%s/' % (left_ds.url, left_var.id)}
+                ]
+            }
+        }
+
+        assert call_payload == expected_payload
+        left_ds.resource.variables.post.assert_called_once_with(
+            expected_payload)

@@ -1,31 +1,34 @@
-import abc
 import collections
+import datetime
 import json
+import logging
 import os
 import re
 
-import pycrunch
-import requests
 import six
 
-from pycrunch.exporting import export_dataset
-from pycrunch.importing import Importer
-from pycrunch.shoji import wait_progress
-from scrunch.expressions import parse_expr, process_expr
-from scrunch.helpers import abs_url, subvar_alias
-from scrunch.variables import (combinations_from_map, combine_categories_expr,
-                               combine_responses_expr, responses_from_map,
-                               validate_variable_url)
+from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
 import pandas as pd
 
+import pycrunch
+from pycrunch.importing import Importer
+from pycrunch.shoji import wait_progress
+from pycrunch.exporting import export_dataset
+
+from scrunch.expressions import parse_expr, process_expr, prettify
+from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
+                                InvalidPathError, InvalidReferenceError)
+from scrunch.variables import (responses_from_map, combinations_from_map,
+                               combine_responses_expr, combine_categories_expr)
+from scrunch.categories import CategoryList
+
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit, urljoin
+    from urlparse import urlsplit
 else:
     import configparser
-    from urllib.parse import urlsplit, urljoin
-
+    from urllib.parse import urlsplit
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -38,25 +41,25 @@ _VARIABLE_PAYLOAD_TMPL = {
 
 _MR_TYPE = 'multiple_response'
 
-
-def is_relative_url(url):
-    return url.startswith(('.', '/'))
+LOG = logging.getLogger('scrunch')
 
 
-def _get_site():
+def _get_connection():
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
     """
+    if pycrunch.session is not None:
+        return pycrunch.session
     # try to get credentials from enviroment
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
-        print("Found Crunch credentials on Environment")
+        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        print("Found Crunch credentials on Environment")
+        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
@@ -72,71 +75,82 @@ def _get_site():
         site = None
     # now try to login with obtained creds
     if username and password and site:
-        print("Found Crunch credentials on crunch.ini")
+        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        print("Found Crunch credentials on crunch.ini")
+        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password)
     else:
-        raise AttributeError('No crunch.ini file found and no '
-                             'environment variables found')
+        raise AuthenticationError(
+            'Couldn\'t find existing session, crunch.ini file or environment '
+            'variables.')
 
 
-def get_dataset(dataset, site=None, editor=False):
+def get_dataset(dataset, connection=None, editor=False, project=None):
     """
-    Retrieve a reference to a given dataset (either by name, or ID) if
-    it exists. This method uses the library singleton session if the
-    optional "site" parameter is not provided.
+    Retrieve a reference to a given dataset (either by name, or ID) if it exists
+    and the user has access permissions to it. If you have access to the dataset
+    through a project you should do pass the project parameter.
 
-    Also able to change editor while getting the dataset with the optional .
+    This method tries to use pycrunch singleton connection, environment variables
+    or a crunch.ini config file if the optional "connection" parameter isn't provided.
+
+    Also able to change editor while getting the dataset with the optional
+    editor parameter.
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
     """
-    if site is None:
-        if pycrunch.session is None:
-            site = _get_site()
-            if not site:
-                raise AttributeError(
-                    "Authenticate first with scrunch.connect() or"
-                    "providing environment variables")
-        else:
-            site = pycrunch.session
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    root = connection
+    if project:
+        root = get_project(project, connection)
+
     try:
-        shoji_ds = site.datasets.by('name')[dataset].entity
+        shoji_ds = root.datasets.by('name')[dataset].entity
     except KeyError:
-        shoji_ds = site.datasets.by('id')[dataset].entity
+        try:
+            shoji_ds = root.datasets.by('id')[dataset].entity
+        except KeyError:
+            raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
     ds = Dataset(shoji_ds)
 
     if editor is True:
-        ds.change_editor(site.user_url.body.email)
+        ds.change_editor(root.user_url.body.email)
 
     return ds
 
 
-def change_project(project, site=None):
-    """
-    :param project: name or ID of the project
-    :param site: scrunch session, defaults to global session
-    :return: the project session
-    """
+def get_project(project, site=None):
     if site is None:
-        if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+        site = _get_connection()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
     try:
         ret = site.projects.by('name')[project].entity
     except KeyError:
-        ret = site.projects.by('id')[project].entity
-    pycrunch.session = ret
+        try:
+            ret = site.projects.by('id')[project].entity
+        except KeyError:
+            raise KeyError("Project (name or id: %s) not found." % project)
+    return ret
 
 
 def create_dataset(name, variables, site=None):
     if site is None:
-        if pycrunch.session is None:
-            raise AttributeError("Authenticate first with scrunch.connect()")
-        site = pycrunch.session
+        site = _get_connection()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
 
     shoji_ds = site.datasets.create({
         'element': 'shoji:entity',
@@ -151,225 +165,50 @@ def create_dataset(name, variables, site=None):
     return Dataset(shoji_ds)
 
 
-def var_name_to_url(ds, alias):
-    """
-    :param ds: The dataset we are gonna inspect
-    :param alias: the alias of the variable name we want to check
-    :return: the id of the given varname or None
-    """
-    try:
-        return ds.variables.by('alias')[alias].entity_url
-    except KeyError:
-        raise KeyError(
-            'Variable %s does not exist in Dataset %s' % (alias,
-                                                          ds['body']['name']))
-
-
-def var_id_to_url(ds, id):
-    """
-    :param ds: The dataset to look for the id of variable
-    :param id: The id string of a variable
-    :return: the url of the given variable as crunch url
-    """
-    try:
-        return ds.variables.by('id')[id].entity.self
-    except KeyError:
-        raise KeyError(
-            'Variable %s does not exist in Dataset %s' % (id,
-                                                          ds['body']['name']))
-
-
-def variable_to_url(ds, variable):
-    """Receive a valid variable reference and return the variable url.
-
-    :param ds: The crunch dataset
-    :param variable: A valid variable reference in the form of a shoji Entity
-                     of the variable or a string containing the variable url
-                     or alias.
-    :return: The variable url
-    """
-    assert isinstance(variable, (six.string_types, Variable))
-
-    if isinstance(variable, Variable):
-        return variable.resource.self
-
-    elif validate_variable_url(variable):
-        return variable
-    else:
-        try:
-            return var_name_to_url(ds, variable)
-        except KeyError:
-            return var_id_to_url(ds, variable)
-
-
-def aliases_to_urls(ds, variable_url, response_map):
-    """
-    Maps subvariable aliases to urls
-    :param ds: a dataset object
-    :param variable_url: url of the variable we want to inspect
-    :param response_map: mapping of new subvariables
-    :return:
-    """
-    suvars = ds.variables.index(variable_url).entity.subvariables.by('alias')
-    mapped_urls = {}
-    for key, values in response_map.items():
-        try:
-            mapped_urls[key] = [suvars[x].entity_url for x in values]
-        except KeyError:
-            raise KeyError(
-                'Unexistent variables %s in Dataset %s' % (
-                    values, ds['body']['alias']))
-    return mapped_urls
-
-
-def validate_category_rules(categories, rules):
+def _validate_category_rules(categories, rules):
     if not ((len(categories) - 1) <= len(rules) <= len(categories)):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
 
 
-def validate_category_map(map):
-    """
-    :param map: categories keyed by new category id mapped to existing ones
-    :return: a list of dictionary objects that the Crunch API expects
-    """
-    REQUIRED_VALUES = {'name', 'id', 'missing', 'combined_ids'}
-    raise PendingDeprecationWarning("Does not use the new input format")
-    for value in map.values():
-        keys = set(list(value.keys()))
-        assert keys & REQUIRED_VALUES, (
-            'category_map has one or more missing keys of ' % REQUIRED_VALUES)
-    rebuilt = list()
-    for key, value in map.items():
-        category = dict()
-        category.update(value)
-        # unfold expressions like range(1,5) to a list of ids
-        category['combined_ids'] = list(category['combined_ids'])
-        category['id'] = key
-        rebuilt.append(category)
-    return rebuilt
+class Path(object):
+    def __init__(self, path):
+        if not isinstance(path, six.string_types):
+            raise TypeError('The path must be a string object')
 
+        if not re.match(r'^\|$|^\|?([\w\s]+\|?)+$', path, re.UNICODE):
+            raise InvalidPathError(
+                'Invalid path %s: it contains invalid characters.' % path
+            )
 
-def validate_response_map(map):
-    """
-    :param map: responses keyed by new alias mapped to existing aliases
-    :return: a list of dictionaries describing the new responses to create for
-             the variable
-    """
-    rebuilt = list()
-    for key, value in map.items():
-        response = dict()
-        response['name'] = key
-        response['combined_ids'] = value
-        rebuilt.append(response)
-    return rebuilt
-
-
-def download_file(url, filename):
-    if url.startswith('file://'):
-        # Result is in local filesystem (for local development mostly)
-        import shutil
-        shutil.copyfile(url.split('file://', 1)[1], filename)
-    else:
-        r = requests.get(url, stream=True)
-        with open(filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:   # filter out keep-alive new chunks
-                    f.write(chunk)
-    return filename
-
-
-class OrderUpdateError(Exception):
-    pass
-
-
-class AbstractContainer(object):
-    __metaclass__ = abc.ABCMeta
-
-    indent_size = 4
-
-    def __getitem__(self, item):
-        if not isinstance(item, (int, six.string_types)):
-            raise TypeError('arg 1 must be either int or str')
-        if isinstance(item, int):
-            key, obj = list(self.elements.items())[item]
-        else:
-            key = item
-            obj = self.elements[item]
-        if isinstance(obj, six.string_types):  # it's a variable ID
-            # Swap the variable ID for a Variable object.
-            var = Variable(resource=self.order.vars[obj].entity)
-            obj = self.elements[key] = var
-        return obj
-
-    def __contains__(self, item):
-        return item in self.elements
-
-
-class Hierarchy(AbstractContainer):
-    def __init__(self, group):
-        self.group = group
-        self.elements = group.elements
-        self.order = group.order
-
-    def __str__(self):
-        def _get_elements(group):
-            elements = []
-            for name, obj in list(group.elements.items()):
-                if isinstance(obj, Group):
-                    elements.append({name: _get_elements(obj)})
-                else:
-                    elements.append(name)
-            return elements
-
-        str_elements = _get_elements(self.group)
-        return json.dumps(str_elements, indent=self.indent_size)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class VariableList(AbstractContainer):
-    def __init__(self, group):
-        self.group = group
-        self.order = group.order
+        self.path = path
 
     @property
-    def elements(self):
-        class ElementsWrapper(collections.OrderedDict):
-            def __init__(self, container, *args, **kwargs):
-                self.order = container.order
-                super(ElementsWrapper, self).__init__(*args, **kwargs)
+    def is_root(self):
+        return self.path == '|'
 
-            def __setitem__(self, key, value, *args):
-                super(ElementsWrapper, self).__setitem__(key, value, *args)
-                if isinstance(value, Variable):
-                    group = self.order.find(key)
-                    if group and group.elements[key] != value:
-                        group.elements[key] = value
+    @property
+    def is_absolute(self):
+        return self.path.startswith('|')
 
-        flattened_elements = ElementsWrapper(self)
+    @property
+    def is_relative(self):
+        return not self.is_absolute
 
-        def _get_elements(group):
-            for name, obj in list(group.elements.items()):
-                if isinstance(obj, Group):
-                    _get_elements(obj)
-                else:
-                    flattened_elements[name] = obj
-
-        _get_elements(self.group)
-
-        return flattened_elements
+    def get_parts(self):
+        return [part.strip() for part in self.path.split('|') if part]
 
     def __str__(self):
-        return json.dumps(list(self.elements.keys()), indent=self.indent_size)
+        return self.path
 
     def __repr__(self):
         return self.__str__()
 
 
-class Group(AbstractContainer):
+class Group(object):
+
+    INDENT_SIZE = 4
 
     def __init__(self, obj, order, parent=None):
         self.name = list(obj.keys())[0]
@@ -383,48 +222,116 @@ class Group(AbstractContainer):
                 _id = element.split('/')[-2]
                 var = self.order.vars.get(_id)
                 if var:
-                    self.elements[var['alias']] = _id
+                    self.elements[var['alias']] = var
             elif isinstance(element, Variable):
                 self.elements[element.alias] = element
             else:
                 subgroup = Group(element, order=self.order, parent=self)
                 self.elements[subgroup.name] = subgroup
 
-        self.hierarchy = Hierarchy(self)
-        self.variables = VariableList(self)
-
     def __str__(self):
-        str_elements = []
-        for alias, obj in self.elements.items():
-            if isinstance(obj, six.string_types) or isinstance(obj, Variable):
-                str_elements.append(alias)
-            else:
-                str_elements.append('Group(%s)' % obj.name)
-        return json.dumps(str_elements, indent=self.indent_size)
+        def _get_elements(group):
+            elements = []
+            for key, obj in list(group.elements.items()):
+                if isinstance(obj, Group):
+                    elements.append({key: _get_elements(obj)})
+                elif isinstance(obj, Variable):
+                    elements.append(obj.name)
+                else:
+                    elements.append(obj['name'])
+            return elements
+
+        str_elements = _get_elements(self)
+        return json.dumps(str_elements, indent=self.INDENT_SIZE)
 
     def __repr__(self):
         return self.__str__()
 
-    @staticmethod
-    def _validate_elements_arg(elements):
-        if isinstance(elements, six.string_types):
-            elements = [elements]
-        if not isinstance(elements, collections.Iterable):
-            raise ValueError(
-                'Invalid list of elements to be inserted into the Group.'
+    def __getitem__(self, path):
+        if not isinstance(path, six.string_types):
+            raise TypeError('arg 1 must be a string')
+
+        path = Path(path)
+
+        if path.is_root and self.is_root:
+            return self
+
+        if path.is_absolute and not self.is_root:
+            raise InvalidPathError(
+                'Absolute paths can only be used on the root Group.'
             )
-        if not all(isinstance(e, six.string_types) for e in elements):
+
+        group = self
+        for part in path.get_parts():
+            try:
+                group = group.elements[part]
+            except KeyError:
+                raise InvalidPathError(
+                    'Invalid path %s: element %s does not exist.' % (path, part)
+                )
+            except AttributeError:
+                raise InvalidPathError(
+                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                )
+            if not isinstance(group, Group):
+                raise InvalidPathError(
+                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                )
+
+        return group
+
+    def __contains__(self, item):
+        return item in self.elements and isinstance(self.elements[item], Group)
+
+    @property
+    def is_root(self):
+        return self.parent is None and self.name == '__root__'
+
+    @staticmethod
+    def _validate_alias_arg(alias):
+        if isinstance(alias, six.string_types):
+            alias = [alias]
+        if not isinstance(alias, collections.Iterable):
+            raise ValueError(
+                'Invalid list of aliases/groups to be inserted into the Group.'
+            )
+        if not all(isinstance(a, six.string_types) for a in alias):
             raise ValueError(
                 'Only string references to aliases/group names are allowed.'
             )
-        return elements
+        return alias
+
+    def _validate_name_arg(self, name):
+        if not isinstance(name, six.string_types):
+            raise ValueError(
+                'The name argument must be a string object.'
+            )
+        if len(name) > 40:
+            raise ValueError(
+                'The name argument must not be longer than 40 characters.'
+            )
+        if '|' in name:
+            raise ValueError(
+                'The pipe (|) character is not allowed.'
+            )
+        if not re.match(r'^[\w\s]+$', name, re.UNICODE):
+            raise ValueError(
+                'Invalid name %s: it contains characters that are not allowed.'
+                % name
+            )
+        if name in self.elements:
+            raise ValueError(
+                'A variable/sub-group named \'%s\' already exists.' % name
+            )
+        return name
 
     def _validate_reference_arg(self, reference):
         if not isinstance(reference, six.string_types):
             raise TypeError('Invalid reference. It must be a string.')
         if reference not in self.elements:
-            raise ValueError(
-                'Invalid reference. It is not part of the current Group.'
+            raise InvalidReferenceError(
+                'Invalid reference %s: it is not part of the current Group.'
+                % reference
             )
         return reference
 
@@ -454,13 +361,26 @@ class Group(AbstractContainer):
 
         return _find(self)
 
-    def move(self, elements, position=-1):
-        elements = self._validate_elements_arg(elements)
+    def insert(self, alias, position=0, before=None, after=None):
+        elements = self._validate_alias_arg(alias)
 
         if not isinstance(position, int):
             raise ValueError('Invalid position. It must be an integer.')
         if position < -1 or position > len(self.elements):
-            raise ValueError('Invalid position %d' % position)
+            raise IndexError('Invalid position %d' % position)
+        if position == 0 and (before or after):
+            reference = self._validate_reference_arg(before or after)
+            i = 0
+            for name in self.elements.keys():
+                if name in elements:
+                    continue
+                if name == reference:
+                    if before:
+                        position = i
+                    elif after:
+                        position = i + 1
+                    break
+                i += 1
         if position == -1:
             position = len(self.elements)
 
@@ -470,14 +390,14 @@ class Group(AbstractContainer):
                 elements_to_move[element_name] = \
                     (self.elements[element_name], '__move__')
             else:
-                current_group = self.order.find(element_name)
+                current_group = self.order.graph.find(element_name)
                 if current_group:
                     # A variable.
                     elements_to_move[element_name] = \
                         (current_group, '__migrate_var__')
                 else:
                     # Not a variable. A group, maybe?
-                    group_to_move = self.order.find_group(element_name)
+                    group_to_move = self.order.graph.find_group(element_name)
                     if group_to_move:
                         elements_to_move[element_name] = \
                             (group_to_move, '__migrate_group__')
@@ -527,109 +447,38 @@ class Group(AbstractContainer):
         # Update!
         self.order.update()
 
-    def move_before(self, reference, elements):
-        reference = self._validate_reference_arg(reference)
-        elements = self._validate_elements_arg(elements)
+    def append(self, alias):
+        self.insert(alias, position=-1)
 
-        position = 0
-        i = 0
-        for name in self.elements.keys():
-            if name in elements:
-                continue
-            if reference == name:
-                position = i
-                break
-            i += 1
+    def reorder(self, items):
+        existing_items = [name for name in self.elements.keys()]
+        if len(items) != len(existing_items) or \
+                not all(i in existing_items for i in items):
+            raise ValueError('Invalid list of items for the reorder operation.')
 
-        self.move(elements, position=position)
-
-    def move_after(self, reference, elements):
-        reference = self._validate_reference_arg(reference)
-        elements = self._validate_elements_arg(elements)
-
-        position = 0
-        i = 0
-        for name in self.elements.keys():
-            if name in elements:
-                continue
-            if reference == name:
-                position = i + 1
-                break
-            i += 1
-
-        self.move(elements, position=position)
-
-    def move_up(self, element):
-        element = self._validate_reference_arg(element)
-
-        position = 0
-        for i, name in enumerate(self.elements.keys()):
-            if name == element:
-                position = i - 1
-                break
-
-        if position == -1:
-            # Nothing to do.
-            return
-
-        self.move(element, position=position)
-
-    def move_down(self, element):
-        element = self._validate_reference_arg(element)
-
-        position = 0
-        for i, name in enumerate(self.elements.keys()):
-            if name == element:
-                position = i + 1
-                break
-
-        if position == len(self.elements):
-            # Nothing to do.
-            return
-
-        self.move(element, position=position)
-
-    def move_top(self, element):
-        self.move(element, position=0)
-
-    def move_bottom(self, element):
-        self.move(element, position=-1)
-
-    def set(self, elements):
-        existing_elements = [name for name in self.elements.keys()]
-        if len(elements) != len(existing_elements) or \
-                not all(e in existing_elements for e in elements):
-            raise ValueError('Invalid list of element references.')
-
-        if elements == existing_elements:
+        if items == existing_items:
             # Nothing to do.
             return
 
         _elements = collections.OrderedDict()
-        for element in elements:
-            _elements[element] = self.elements[element]
+        for item in items:
+            _elements[item] = self.elements[item]
         self.elements = _elements
 
         self.order.update()
 
-    def create(self, name, elements=None):
-        if name in self.elements:
-            raise ValueError(
-                'A variable/sub-group named \'%s\' already exists.' % name
-            )
-        if elements is None:
-            elements = []
-        else:
-            elements = self._validate_elements_arg(elements)
+    def create_group(self, name, alias=None):
+        name = self._validate_name_arg(name)
+        elements = self._validate_alias_arg(alias)
 
         # Locate all elements to move. All of them have to exist.
         elements_to_move = collections.OrderedDict()
         for element_name in elements:
-            current_group = self.order.find(element_name)
+            current_group = self.order.graph.find(element_name)
             if current_group and element_name in current_group.elements:
                 elements_to_move[element_name] = (current_group,)
             else:
-                group_to_move = self.order.find_group(element_name)
+                group_to_move = self.order.graph.find_group(element_name)
                 if group_to_move:
                     elements_to_move[element_name] = group_to_move
                 else:
@@ -657,19 +506,22 @@ class Group(AbstractContainer):
         self.order.update()
 
     def rename(self, name):
-        if self.name == '__root__' and self.parent is None:
-            raise NotImplementedError(
+        name = self._validate_name_arg(name)
+
+        if self.is_root:
+            raise ValueError(
                 'Renaming the root Group is not allowed.'
             )
-        if name == self.name:
-            # Nothing to do.
-            return
 
         if name in self.parent.elements:
             raise ValueError(
                 'Parent Group \'%s\' already contains an element named \'%s\'.'
                 % (self.parent.name, name)
             )
+
+        if name == self.name:
+            # Nothing to do.
+            return
 
         # Rename!
         _elements = collections.OrderedDict()
@@ -684,60 +536,19 @@ class Group(AbstractContainer):
         # Update!
         self.order.update()
 
-    def remove(self, elements):
-        if self.name == '__root__' and self.parent is None:
-            raise NotImplementedError(
-                'Removing elements from the root Group is not allowed.'
-            )
-        if isinstance(elements, six.string_types):
-            elements = [elements]
-        if not isinstance(elements, collections.Iterable):
-            raise ValueError(
-                'Invalid list of elements to remove from Group.'
-            )
-        if not all(isinstance(e, six.string_types) for e in elements):
-            raise ValueError(
-                'Only string references to aliases/group names are allowed.'
+    def move(self, path, position=-1):
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
             )
 
-        # Locate all elements to remove. All of them have to be found.
-        elements_to_remove = collections.OrderedDict()
-        for element_name in elements:
-            if element_name not in self.elements:
-                raise ValueError(
-                    'A variable/sub-group named \'%s\' does not exist '
-                    'within the Group.' % element_name
-                )
-            elements_to_remove[element_name] = self.elements[element_name]
-
-        # Make the modifications to the order structure.
-        for element_name, obj in elements_to_remove.items():
-            if isinstance(obj, Group):
-                obj.parent = self.order.graph
-            self.order.graph.elements[element_name] = obj
-            del self.elements[element_name]
-
-        # Update!
-        self.order.update()
-
-    def delete(self):
-        if self.name == '__root__' and self.parent is None:
-            raise NotImplementedError(
-                'Deleting the root Group is not allowed.')
-
-        # Before deleting the Group, move all its elements to the root.
-        elements = self.elements.copy()
-        for element_name, obj in elements.items():
-            if isinstance(obj, Group):
-                obj.parent = self.order.graph
-            self.order.graph.elements[element_name] = obj
-            del self.elements[element_name]
-
-        # Delete from parent.
-        del self.parent.elements[self.name]
-
-        # Update!
-        self.order.update()
+        target_group = self.order[str(path)]
+        if target_group == self:
+            raise InvalidPathError(
+                'Invalid path %s: cannot move Group into itself.' % path
+            )
+        target_group.insert(self.name, position=position)
 
 
 class Order(object):
@@ -747,6 +558,8 @@ class Order(object):
         self._hier = None
         self._vars = None
         self._graph = None
+        self._sync = True
+        self._revision = None
 
     def _load_hier(self):
         self._hier = self.ds.resource.session.get(
@@ -768,17 +581,45 @@ class Order(object):
             self._load_hier()
         return self._hier
 
+    @hier.setter
+    def hier(self, _):
+        raise TypeError('Unsupported assignment operation')
+
     @property
     def vars(self):
         if self._vars is None:
             self._load_vars()
         return self._vars
 
+    @vars.setter
+    def vars(self, _):
+        raise TypeError('Unsupported assignment operation')
+
     @property
     def graph(self):
         if self._graph is None:
             self._load_graph()
         return self._graph
+
+    @graph.setter
+    def graph(self, _):
+        raise TypeError('Unsupported assignment operation')
+
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            ds_state = self.ds.resource.session.get(
+                self.ds.resource.self + 'state/'
+            ).payload
+            if self._revision is None:
+                self._revision = ds_state.body.revision
+            elif self._revision != ds_state.body.revision:
+                # There's a new dataset revision. Reload the
+                # hierarchical order.
+                self._revision = ds_state.body.revision
+                self._load_hier()
+                self._load_graph()
+        return self
 
     def _build_graph_structure(self):
 
@@ -793,7 +634,7 @@ class Order(object):
                     if isinstance(obj, Variable):
                         _id = obj.id
                     else:
-                        _id = obj
+                        _id = obj['id']
                     _elements.append('../%s/' % _id)
             return _elements
 
@@ -814,14 +655,6 @@ class Order(object):
 
     # Proxy methods for the __root__ Group
 
-    @property
-    def hierarchy(self):
-        return self.graph.hierarchy
-
-    @property
-    def variables(self):
-        return self.graph.variables
-
     def __str__(self):
         return str(self.graph)
 
@@ -831,90 +664,31 @@ class Order(object):
     def __getitem__(self, item):
         return self.graph[item]
 
-    def __contains__(self, item):
-        return item in self.graph
 
-    def find(self, *args, **kwargs):
-        return self.graph.find(*args, **kwargs)
+class DatasetSettings(dict):
 
-    def find_group(self, *args, **kwargs):
-        return self.graph.find_group(*args, **kwargs)
+    def __readonly__(self, *args, **kwargs):
+        raise RuntimeError('Please use the change_settings() method instead.')
 
-    def move(self, *args, **kwargs):
-        self.graph.move(*args, **kwargs)
-
-    def move_before(self, *args, **kwargs):
-        self.graph.move_before(*args, **kwargs)
-
-    def move_after(self, *args, **kwargs):
-        self.graph.move_after(*args, **kwargs)
-
-    def move_up(self, *args, **kwargs):
-        self.graph.move_up(*args, **kwargs)
-
-    def move_down(self, *args, **kwargs):
-        self.graph.move_down(*args, **kwargs)
-
-    def move_top(self, *args, **kwargs):
-        self.graph.move_top(*args, **kwargs)
-
-    def move_bottom(self, *args, **kwargs):
-        self.graph.move_bottom(*args, **kwargs)
-
-    def set(self, *args, **kwargs):
-        self.graph.set(*args, **kwargs)
-
-    def create(self, *args, **kwargs):
-        self.graph.create(*args, **kwargs)
-
-    def rename(self, *args, **kwargs):
-        self.graph.rename(*args, **kwargs)
-
-    def remove(self, *args, **kwargs):
-        self.graph.remove(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        self.graph.delete(*args, **kwargs)
-
-
-def case_expr(rules, name, alias):
-    """
-    Given a set of rules, return a `case` function expression to create a
-     variable.
-    """
-    expression = {
-        'references': {
-            'name': name,
-            'alias': alias,
-        },
-        'function': 'case',
-        'args': [{
-            'column': [1, 2],
-            'type': {
-                'value': {
-                    'class': 'categorical',
-                    'categories': [
-                        {'id': 1, 'name': 'Selected', 'missing': False,
-                         'numeric_value': None, 'selected': True},
-                        {'id': 2, 'name': 'Not selected', 'missing': False,
-                         'numeric_value': None, 'selected': False},
-                    ]
-                }
-            }
-        }]
-    }
-    expression['args'].append(rules)
-    return expression
+    __setitem__ = __readonly__
+    __delitem__ = __readonly__
+    pop = __readonly__
+    popitem = __readonly__
+    clear = __readonly__
+    update = __readonly__
+    setdefault = __readonly__
+    del __readonly__
 
 
 class Dataset(object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
-
-    ENTITY_ATTRIBUTES = {'id', 'name', 'notes', 'descrpition', 'is_published',
-                         'archived', 'end_date', 'start_date', 'creation_time',
-                         'modification_time'}
+    _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
+                           'archived', 'end_date', 'start_date'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight'}
 
     def __init__(self, resource):
         """
@@ -922,56 +696,172 @@ class Dataset(object):
         """
         self.resource = resource
         self.session = self.resource.session
-        self.order = Order(self)
+        self.url = self.resource.self
+        self._settings = None
+
+        # The `order` property, which provides a high-level API for
+        # manipulating the "Hierarchical Order" structure of a Dataset.
+        self._order = Order(self)
 
     def __getattr__(self, item):
-        if item in self.ENTITY_ATTRIBUTES:
+        if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
-        # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
-
-        if variable is None:
-            # Variable doesn't exists, must raise an AttributeError
-            raise AttributeError('Dataset has no attribute %s' % item)
-
-        # Variable exists!, return the variable entity
-        return variable.entity
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Dataset %s has no attribute %s' % (
+            self.resource.body['name'], item))
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise an ValueError
-            raise ValueError('Dataset has no variable %s' % item)
+            raise ValueError('Dataset %s has no variable %s' % (
+                self.resource.body['name'], item))
 
         # Variable exists!, return the variable entity
-        return Variable(variable.entity)
+        return Variable(variable.entity, self.resource)
 
-    def web_url(self, host):
-        WEB_URL = 'https://app.crunch.io/dataset/%s/browse/'
-        return urljoin(host, WEB_URL % self.id)
+    def __repr__(self):
+        return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
 
-    def rename(self, new_name):
-        self.resource.edit(name=new_name)
+    def __str__(self):
+        return self.name
+
+    @property
+    def order(self):
+        return self._order.get()
+
+    @order.setter
+    def order(self, _):
+        # Protect the `order` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the Hierarchical Order property'
+        )
+
+    @property
+    def settings(self):
+        if self._settings is None:
+            self._load_settings()
+        return self._settings
+
+    @settings.setter
+    def settings(self, _):
+        # Protect the `settings` property from external modifications.
+        raise TypeError('Unsupported operation on the settings property')
+
+    def _load_settings(self):
+        settings = self.session.get(self.resource.fragments.settings).payload
+        self._settings = DatasetSettings(
+            (_name, _value) for _name, _value in settings.body.items()
+        )
+        return self._settings
+
+    def change_settings(self, **kwargs):
+        incoming_settings = set(kwargs.keys())
+        invalid_settings = incoming_settings.difference(self._EDITABLE_SETTINGS)
+        if invalid_settings:
+            raise ValueError(
+                'Invalid or read-only settings: %s'
+                % ','.join(list(invalid_settings))
+            )
+
+        settings_payload = {
+            setting: kwargs[setting] for setting in incoming_settings
+        }
+        if settings_payload:
+            self.session.patch(
+                self.resource.fragments.settings,
+                json.dumps(settings_payload),
+                headers={'Content-Type': 'application/json'}
+            )
+            self._settings = None
+
+    def edit(self, **kwargs):
+        for key in kwargs:
+            if key not in self._MUTABLE_ATTRIBUTES:
+                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                    key, self.name
+                ))
+            if key in ['start_date', 'end_date'] and \
+                    (isinstance(kwargs[key], datetime.date) or
+                    isinstance(kwargs[key], datetime.datetime)
+                     ):
+                kwargs[key] = kwargs[key].isoformat()
+
+        return self.resource.edit(**kwargs)
+
+    def delete(self):
+        """
+        Delete a dataset.
+        TODO: Shouldn't be possible if this is a streamed dataset.
+        :return:
+        """
+        logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
+        self.resource.delete()
+        logging.debug("Deleted dataset.")
+
+    def change_editor(self, user):
+        """
+        Change the current editor of the Crunch dataset.
+
+        Parameters
+        ----------
+        :param user:
+            The email address or the crunch url of the user who should be set
+            as the new current editor of the given dataset.
+
+        :returns: None
+        """
+
+        def _host_from_url(url):
+            resolved = urlsplit(url)
+            return resolved.hostname
+
+        def _to_url(email):
+            api_users = 'https://{}/api/users/'.format(
+                _host_from_url(self.resource.self)
+            )
+            user_url = None
+
+            users = self.session.get(api_users).payload['index']
+
+            for url, user in six.iteritems(users):
+                if user['email'] == email:
+                    user_url = url
+                    self.resource.patch({'current_editor': url})
+                    break
+            assert user_url is not None, 'Unable to resolve user url'
+
+            return user_url
+
+        def _is_url(u):
+            return u.startswith('https://') or u.startswith('http://')
+
+        user_url = user if _is_url(user) else _to_url(user)
+
+        self.resource.patch({'current_editor': user_url})
 
     def stream_rows(self, columns):
         """
         Receives a dict with columns of values to add and streams them
-         into the dataset. Client must call .push_rows(n) later.
+         into the dataset. Client must call .push_rows(n) later or wait until
+         Crunch automatically processes the batch.
 
         Returns the total of rows streamed
         """
         importer = Importer()
-        count = len(columns.values()[0])
+        count = len(list(columns.values())[0])
         for x in range(count):
-            importer.stream_rows(self.resource, {a: columns[a][x]
-                                                 for a in columns})
+            importer.stream_rows(self.resource,
+                                 {a: columns[a][x] for a in columns})
         return count
 
     def push_rows(self, count):
         """
-        Batches in the rows that have been currently streamed.
+        Batches in the rows that have been recently streamed. This forces
+        the rows to appear in the dataset instead of waiting for crunch
+        automatic batcher process.
         """
         self.resource.batches.create({
             'element': 'shoji:entity',
@@ -992,7 +882,7 @@ class Dataset(object):
         """
         if isinstance(expr, six.string_types):
             expr_obj = parse_expr(expr)
-            expr_obj = process_expr(expr_obj, self.resource)  # we need URLs
+            expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
         elif expr is None:
             expr_obj = {}
         else:
@@ -1002,8 +892,11 @@ class Dataset(object):
             data=json.dumps(dict(expression=expr_obj))
         )
 
-    def create_single_response(self, categories, name, alias,
-                               description='', missing=True):
+    def get_exclusion(self):
+        return prettify(self.resource.exclusion.body.expression, self)
+
+    def create_single_response(self, categories,
+                           name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1047,7 +940,9 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -1059,9 +954,8 @@ class Dataset(object):
             case = resp['case']
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
-            responses_map['%04d' % resp['id']] = \
-                case_expr(case, name=resp['name'],
-                          alias='%s_%d' % (alias, resp['id']))
+            responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
+                                                           alias='%s_%d' % (alias, resp['id']))
 
         payload = {
             'element': 'shoji:entity',
@@ -1080,11 +974,12 @@ class Dataset(object):
                 }
             }
         }
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
-
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
             # to have their aliases in the same pattern and order that the
@@ -1123,7 +1018,7 @@ class Dataset(object):
                 # We need to update the complex `array` function expression
                 # to contain the new suffixed aliases. Given that the map is
                 # unordered, we have to iterated and find a name match.
-                subvars = payload['body']['derivation']['args'][0]['args'][0]['map']  # noqa: E501
+                subvars = payload['body']['derivation']['args'][0]['args'][0]['map']
                 subreferences = subrefs(variable, alias)
                 for subref in subreferences:
                     for subvar_pos in subvars:
@@ -1150,24 +1045,24 @@ class Dataset(object):
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
                 }
-        shoji_var = self.resource.variables.create(payload).refresh()
-        return Variable(shoji_var)
 
-    def combine_categories(self, variable, map, categories, missing=None,
-                           default=None, name='', alias='', description=''):
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
+
+    def combine_categories(self, variable, map, categories, missing=None, default=None,
+            name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in _MR_TYPE:
-            return self.combine_multiple_response(
-                variable, map, categories, name=name,
-                alias=alias, description=description)
+            return self.combine_multiple_response(variable, map, categories, name=name,
+                                                  alias=alias, description=description)
         else:
-            return self.combine_categorical(
-                variable, map, categories, missing, default,
-                name=name, alias=alias, description=description)
+            return self.combine_categorical(variable, map, categories, missing, default,
+                                            name=name, alias=alias, description=description)
 
     def combine_categorical(self, variable, map, categories=None, missing=None,
-                            default=None, name='', alias='', description=''):
+            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
@@ -1190,19 +1085,19 @@ class Dataset(object):
             variable = self[variable]
 
         # TODO: Implement `default` parameter in Crunch API
-        combinations = combinations_from_map(
-            map, categories or {}, missing or [])
+        combinations = combinations_from_map(map, categories or {}, missing or [])
         payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(self.resource.variables.create(payload).refresh())
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
-    def combine_multiple_response(self, variable, map, categories=None,
-                                  default=None, name='', alias='',
-                                  description=''):
+    def combine_multiple_response(self, variable, map, categories=None, default=None,
+                          name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1224,57 +1119,17 @@ class Dataset(object):
             parent_alias = variable.alias
 
         # TODO: Implement `default` parameter in Crunch API
-        responses = responses_from_map(
-            variable, map, categories or {}, alias, parent_alias)
-
+        responses = responses_from_map(variable, map, categories or {}, alias,
+                                       parent_alias)
         payload = _VARIABLE_PAYLOAD_TMPL.copy()
         payload['body']['name'] = name
         payload['body']['alias'] = alias
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(self.resource.variables.create(payload).refresh())
-
-    def change_editor(self, user):
-        """
-        Change the current editor of the Crunch dataset.
-
-        Parameters
-        ----------
-        :param user:
-            The email address or the crunch url of the user who should be set
-            as the new current editor of the given dataset.
-
-        :returns: None
-        """
-
-        def _host_from_url(url):
-            resolved = urlsplit(url)
-            return resolved.hostname
-
-        def _to_url(email):
-            api_users = 'https://{}/api/users/'.format(
-                _host_from_url(self.resource.self)
-            )
-            user_url = None
-
-            users = self.session.get(api_users).payload['index']
-
-            for url, user in six.iteritems(users):
-                if user['email'] == email:
-                    user_url = url
-                    self.resource.patch({'current_editor': url})
-                    break
-            assert user_url is not None, 'Unable to resolve user url'
-
-            return user_url
-
-        def _is_url(u):
-            return u.startswith('https://') or u.startswith('http://')
-
-        user_url = user if _is_url(user) else _to_url(user)
-
-        self.resource.patch({'current_editor': user_url})
+        return Variable(
+            self.resource.variables.create(payload).refresh(),
+            self.resource)
 
     def create_savepoint(self, description):
         """
@@ -1319,8 +1174,7 @@ class Dataset(object):
                 " exists.".format(description)
             )
 
-        revert = self.resource.savepoints.by('description')\
-            .get(description).revert
+        revert = self.resource.savepoints.by('description').get(description).revert
         self.resource.session.post(revert)
 
     def savepoint_attributes(self, attrib):
@@ -1426,8 +1280,7 @@ class Dataset(object):
                 'id'
             ]]
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
-            _forks['modification_time'] = pd.to_datetime(
-                _forks['modification_time'])
+            _forks['modification_time'] = pd.to_datetime(_forks['modification_time'])
             _forks.sort(columns='creation_time', inplace=True)
 
             return _forks
@@ -1448,37 +1301,40 @@ class Dataset(object):
         """
         # the payload should include all hidden variables by default
         payload = {
-            "element": "shoji:entity",
-            "body": {
-                "options": {"use_category_ids": True}
-            }
+            "options": {"use_category_ids": True}
         }
         # add filter to rows if passed
         if filter:
-            payload['body']['filter'] = process_expr(
+            payload['filter'] = process_expr(
                 parse_expr(filter), self.resource)
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
-                id_vars.append(variable_to_url(self.resource, var))
+                id_vars.append(self[var].url)
+            if len(id_vars) != len(variables):
+                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
-            payload['body']['where'] = {
-                'function': 'select',
-                'args': [
-                    {'map': {x: {'variable': x} for x in id_vars}}
-                ]
-            }
+            payload['where'] = {
+                    'function': 'select',
+                    'args': [{
+                        'map': {
+                            x: {'variable': x} for x in id_vars
+                        }
+                    }]
+                }
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
-            payload['body']['where'] = {
-                'function': 'select',
-                'args': [
-                    {'map': {x: {'variable': x}
-                             for x in self.resource.variables.index.keys()}}
-                ]
-            }
+            payload['where'] = {
+                    'function': 'select',
+                    'args': [{
+                        'map': {
+                            x: {'variable': x} for x in self.resource.variables.index.keys()
+                        }
+                    }]
+                }
         url = export_dataset(self.resource, payload, format='csv')
         download_file(url, path)
 
@@ -1507,7 +1363,7 @@ class Dataset(object):
         adapter = {
             'function': 'adapt',
             'args': [
-                {'dataset': right_ds.self},
+                {'dataset': right_ds.url},
                 {'variable': right_var_url},
                 {'variable': left_var_url}
             ]
@@ -1529,10 +1385,8 @@ class Dataset(object):
             }
             # add the individual variable columns to the payload
             for var in columns:
-                var_url = var_name_to_url(right_ds, var)
-                payload['body']['args'][0]['map'][var_url] = {
-                    'variable': var_url
-                }
+                var_url = right_ds[var].url
+                payload['body']['args'][0]['map'][var_url] = {'variable': var_url}
 
         if filter:
             # in the case of a filter, convert it to crunch
@@ -1540,54 +1394,83 @@ class Dataset(object):
             expr = process_expr(parse_expr(filter), right_ds)
             payload['body']['filter'] = {'expression': expr}
 
-        progress = self.variables.post(payload)
+        progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
             return wait_progress(r=progress, session=self.session, entity=self)
         return progress.json()['value']
 
-    def create_categorical(self, categories, alias, name,
-                           multiple, description=''):
+    def create_categorical(self, categories, alias, name, multiple, description=''):
         """
-        Used to create new categorical variables
-        using Crunchs's `case` function.
+        Used to create new categorical variables using Crunchs's `case` function.
 
-        Will create either categorical variables or multiple response depending
-        on the `multiple` parameter.
+         Will create either categorical variables or multiple response depending
+         on the `multiple` parameter.
         """
         if multiple:
-            return self.create_multiple_response(
-                categories, alias=alias, name=name, description=description)
+            return self.create_multiple_response(categories, alias=alias,
+                name=name, description=description)
         else:
-            return self.create_single_response(
-                categories, alias=alias, name=name, description=description)
+            return self.create_single_response(categories, alias=alias, name=name,
+                description=description)
 
 
 class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
+    _MUTABLE_ATTRIBUTES = {'name', 'description',
+                           'view', 'notes', 'format'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
+    # We won't expose owner and private
+    # categories in immutable. IMO it should be handled separately
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
-    ENTITY_ATTRIBUTES = {'name', 'alias', 'description', 'discarded', 'format',
-                         'type', 'id', 'view', 'notes', 'categories'}
+    CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, resource):
+    def __init__(self, resource, dataset_resource):
         self.resource = resource
+        self.url = self.resource.self
+        self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
-        if item in self.ENTITY_ATTRIBUTES:
+        if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
 
+    def edit(self, **kwargs):
+        for key in kwargs:
+            if key not in self._MUTABLE_ATTRIBUTES:
+                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                    key, self.name
+                ))
+        return self.resource.edit(**kwargs)
+
+    def __repr__(self):
+        return "<Variable: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+    _categories = None
+
+    @property
+    def categories(self):
+        if self.resource.type not in self.CATEGORICAL_TYPES:
+            raise TypeError("Variable of type %s do not have categories" % self.resource.type)
+        if self._categories is None:
+            self._categories = CategoryList(self.resource)
+        return self._categories
+
     def hide(self):
-        print("HIDING")
+        LOG.debug("HIDING")
         self.resource.edit(discarded=True)
 
     def unhide(self):
-        print("UNHIDING")
+        LOG.debug("UNHIDING")
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
-                name=None, description=None):
+               name=None, description=None):
         # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.
@@ -1783,12 +1666,13 @@ class Variable(object):
                 }
             ]
 
-        ds = get_dataset(self.resource.body.dataset_id)
-        return Variable(ds.variables.create(payload).refresh())
+        return Variable(
+            self.dataset.resource.variables.create(payload).refresh(),
+            self.dataset.resource)
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
-        validate_category_rules(categories, rules)
+        _validate_category_rules(categories, rules)
         args = [{
             'column': [c['id'] for c in categories],
             'type': {
@@ -1800,8 +1684,7 @@ class Variable(object):
         for rule in rules:
             more_args.append(parse_expr(rule))
         # get dataset and build the expression
-        ds = get_dataset(self.resource.body.dataset_id)
-        more_args = process_expr(more_args, ds)
+        more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
         payload = dict(
@@ -1813,41 +1696,13 @@ class Variable(object):
 
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
-        # get some initial variables
-        ds = get_dataset(self.resource.body.dataset_id)
-        variable_url = variable_to_url(ds, variable)
-        function = self.resource.body.derivation['function']
 
-        # make the proper transformations based on the function
-        # array is combine_responses
-        if function == 'array':
-            trans_responses = aliases_to_urls(ds, variable_url, mapper)
-            values = validate_response_map(trans_responses)
-            function = 'combine_responses'
-        elif function == 'combine_categories':
-            values = validate_category_map(mapper)
-        else:
-            raise AttributeError(
-                'Function %s does not support edit' % function)
+    def move(self, path, position=-1):
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
 
-        # build the proper payload
-        payload = {
-            'element': 'shoji:entity',
-            'body': {
-                'expr': {
-                    'function': function,
-                    'args': [
-                        {
-                            'variable': variable_url
-                        },
-                        {
-                            'value': values
-                        }
-                    ]
-                }
-            }
-        }
-        return self.resource.patch(payload)
-
-    def edit(self, **kwargs):
-        return self.resource.edit(**kwargs)
+        target_group = self.dataset.order[str(path)]
+        target_group.insert(self.alias, position=position)
