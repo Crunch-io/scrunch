@@ -242,10 +242,7 @@ def parse_expr(expr):
             else:
                 for _name, _val in fields:
                     if not isinstance(node, ast.UnaryOp) and (
-                            isinstance(_val, ast.BoolOp) or
-                            isinstance(_val, ast.UnaryOp) or
-                            isinstance(_val, ast.Compare) or
-                            isinstance(_val, ast.Call)):
+                            isinstance(_val, (ast.BoolOp, ast.UnaryOp, ast.Compare, ast.Call))):
                         # Descend.
                         obj.update(_parse(_val, parent=node))
                     elif isinstance(_val, ast.And):
@@ -306,8 +303,7 @@ def parse_expr(expr):
                             # For method calls, we only allow list-of-int
                             # parameters.
                             if _name == 'args' and func_type == 'method':
-                                if 'value' not in right or\
-                                        not isinstance(right['value'], list):
+                                if not isinstance(right.get('value'), list):
                                     raise ValueError
 
                             args.append(right)
@@ -409,7 +405,6 @@ def process_expr(obj, ds):
 
     def ensure_category_ids(subitems, variables=variables):
         var_id = None
-        var_value = None  # noqa: F841
         _subitems = []
 
         def variable_id(variable_url):
