@@ -7,8 +7,7 @@ import isodate
 import pycrunch
 from pycrunch import pandaslib
 
-from scrunch.datasets import Dataset
-
+from scrunch.datasets import Dataset, Variable
 
 CRUNCH_URL = os.environ.get('CRUNCH_TEST_URL')
 CRUNCH_USER = os.environ.get('CRUNCH_TEST_USER')
@@ -737,29 +736,45 @@ def main():
         # 2. Integration Tests for "Transformations".
 
         categories = [
-            {'id': 1, 'name': 'Nerds', 'numeric_value': 1, 'missing': False},
-            {'id': 2, 'name': 'Normal Users', 'numeric_value': 2, 'missing': False},
-            {'id': 3, 'name': 'Hipsters', 'numeric_value': 3, 'missing': False},
-            {'id': 32767, 'name': 'Unknown', 'numeric_value': None, 'missing': True}
-        ]
-
-        rules = [
-            'operating_system in ("Linux", "Solaris", "Minix", "FreeBSD", "NetBSD")',
-            'operating_system == "Windows"',
-            'operating_system == "MacOS"',
-            'missing(operating_system)'
+            {
+                'id': 1,
+                'name': 'Nerds',
+                'numeric_value': 1,
+                'missing': False,
+                'case': 'operating_system in ("Linux", "Solaris", "Minix", "FreeBSD", "NetBSD")',
+            },
+            {
+                'id': 2,
+                'name': 'Normal Users',
+                'numeric_value': 2,
+                'missing': False,
+                'case': 'operating_system == "Windows"',
+            },
+            {
+                'id': 3,
+                'name': 'Hipsters',
+                'numeric_value': 3,
+                'missing': False,
+                'case': 'operating_system == "MacOS"',
+            },
+            {
+                'id': 32767,
+                'name': 'Unknown',
+                'numeric_value': None,
+                'missing': True,
+                'case': 'missing(operating_system)'
+            }
         ]
 
         new_var = dataset.create_single_response(
             categories=categories,
-            rules=rules,
             name='Operating System Users',
             alias='operating_system_users',
             description='Type of Operating System Users'
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical'
+
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical'
 
         # Check the data on the new variable.
         df = pandaslib.dataframe(dataset.resource)
@@ -789,29 +804,28 @@ def main():
 
         # On a 'categorical' variable.
         cat_map = {
-            1: {
-                'name': 'Bilingual',
-                'missing': False,
-                'combined_ids': [2, 3]
-            },
-            2: {
-                'name': 'Not Bilingual',
-                'missing': False,
-                'combined_ids': [1, 4]
-            },
-            99: {
-                'name': 'Unknown',
-                'missing': True,
-                'combined_ids': [32766, 32767]
-            }
+            1: [2, 3],
+            2: [1, 4],
+            99: [32766, 32767]
         }
+
+        cat_names = {
+            1: 'Bilingual',
+            2: 'Not Bilingual',
+            99: 'Unknown'
+        }
+
         new_var = dataset.combine_categorical(
-            'speak_spanish', cat_map, 'Bilingual Person', 'bilingual'
+            'speak_spanish',
+            map=cat_map,
+            categories=cat_names,
+            name='Bilingual Person',
+            alias='bilingual',
+            missing=[99]
         )
-        import pdb; pdb.set_trace()
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical'
+
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'bilingual' in df
@@ -845,29 +859,29 @@ def main():
         ) == bilingual_null_ids
 
         # On a 'categorical_array' variable.
+
         cat_map = {
-            1: {
-                'name': 'Interested',
-                'missing': False,
-                'combined_ids': [1, 2]
-            },
-            2: {
-                'name': 'Not interested',
-                'missing': False,
-                'combined_ids': [3, 4]
-            },
-            99: {
-                'name': 'Unknown',
-                'missing': True,
-                'combined_ids': [32766, 32767]
-            }
+            1: [1, 2],
+            2:[3, 4],
+            99: [32766, 32767]
         }
+
+        cat_names = {
+            1: 'Interested',
+            2: 'Not interested',
+            99: 'Unknown',
+        }
+
         new_var = dataset.combine_categorical(
-            'hobbies', cat_map, 'Hobbies (recoded)', 'hobbies_recoded'
+            'hobbies',
+            map=cat_map,
+            categories=cat_names,
+            name='Hobbies (recoded)',
+            alias='hobbies_recoded',
+            missing=[99]
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'categorical_array'
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'categorical_array'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'hobbies_recoded' in df
@@ -888,17 +902,26 @@ def main():
 
         # 3.2 combine_responses.
 
-        response_map = {
-            'music_recoded_1': ['music_1', 'music_2'],
-            'music_recoded_2': ['music_97'],
-            'music_recoded_3': ['music_98', 'music_99']
+        cat_map = {
+            1: [1, 2],
+            2: [97],
+            3: [98, 99]
+        }
+
+        cat_names = {
+            1: 'music_recoded_1',
+            2: 'music_recoded_2',
+            3: 'music_recoded_3'
         }
         new_var = dataset.combine_multiple_response(
-            'music', response_map, 'Music (alt)', 'music_recoded'
+            'music',
+            map=cat_map,
+            categories=cat_names,
+            name='Music (alt)',
+            alias='music_recoded'
         )
-        assert isinstance(new_var, pycrunch.shoji.Entity)
-        new_var.refresh()
-        assert new_var.body.type == 'multiple_response'
+        assert isinstance(new_var, Variable)
+        assert new_var.type == 'multiple_response'
 
         df = pandaslib.dataframe(dataset.resource)
         assert 'music_recoded' in df
