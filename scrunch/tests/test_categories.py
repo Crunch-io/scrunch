@@ -13,27 +13,26 @@ TEST_CATEGORIES = lambda: [
 
 class EditableMock(MagicMock):
     def edit(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+        self.body.update(kwargs)
         self._edit(**kwargs)
 
 
 class TestCategories(TestCase):
     def test_instance_is_reused(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         cat_list = variable.categories
         self.assertEqual(id(cat_list), id(variable.categories))
         self.assertTrue(isinstance(cat_list, CategoryList))
 
     def test_edit_category(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         variable.categories[1].edit(name='Mujer')
         resource._edit.assert_called_with(categories=[
@@ -54,6 +53,11 @@ class TestCategories(TestCase):
             # Same as above, reusing the existing value from API still
             {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
         ])
+        x = [
+            {'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Female'},
+            {'numeric_value': None, 'selected': False, 'id': 2, 'missing': False,'name': 'Hombre'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ]
 
         # Try to change the ID
         with self.assertRaises(ValueError) as err:
@@ -66,13 +70,25 @@ class TestCategories(TestCase):
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
 
+    def test_edit_derived(self):
+        resource = EditableMock(body=dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical',
+            derivation={'function': 'derivation_function'}
+        ))
+        variable = Variable(resource, MagicMock())
+        with self.assertRaises(TypeError) as err:
+            variable.categories[1].edit(name='Mujer')
+        self.assertEqual(err.exception.message,
+            "Cannot edit categories on derived variables. Re-derive with the appropriate expression")
+
 
 class TestCategoryList(TestCase):
     def test_reorder(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         variable.categories.order(2, -1, 1)
 
