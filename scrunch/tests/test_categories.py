@@ -53,11 +53,6 @@ class TestCategories(TestCase):
             # Same as above, reusing the existing value from API still
             {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
         ])
-        x = [
-            {'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Female'},
-            {'numeric_value': None, 'selected': False, 'id': 2, 'missing': False,'name': 'Hombre'},
-            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
-        ]
 
         # Try to change the ID
         with self.assertRaises(ValueError) as err:
@@ -81,6 +76,20 @@ class TestCategories(TestCase):
             variable.categories[1].edit(name='Mujer')
         self.assertEqual(err.exception.message,
             "Cannot edit categories on derived variables. Re-derive with the appropriate expression")
+
+        # Try again with an empty derivation
+        resource = EditableMock(body=dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical',
+            derivation={}  # Empty
+        ))
+        variable = Variable(resource, MagicMock())
+        variable.categories[1].edit(name='Mujer')
+        resource._edit.assert_called_with(categories=[
+            {'numeric_value': None, 'selected': False, 'id': 1, 'missing': False, 'name': 'Mujer'},
+            {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ])
 
 
 class TestCategoryList(TestCase):
