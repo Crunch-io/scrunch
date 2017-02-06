@@ -1420,7 +1420,7 @@ class Variable(ReadOnly, object):
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
