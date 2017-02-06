@@ -7,7 +7,8 @@ import re
 
 import six
 
-from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
+from scrunch.helpers import (abs_url, subvar_alias, download_file,
+                             case_expr, ReadOnly)
 
 import pandas as pd
 
@@ -680,7 +681,7 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(object):
+class Dataset(ReadOnly, object):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -694,9 +695,7 @@ class Dataset(object):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        self.resource = resource
-        self.session = self.resource.session
-        self.url = self.resource.self
+        super(Dataset, self).__init__(resource)
         self._settings = None
 
         # The `order` property, which provides a high-level API for
@@ -1415,7 +1414,7 @@ class Dataset(object):
                 description=description)
 
 
-class Variable(object):
+class Variable(ReadOnly, object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
@@ -1430,8 +1429,7 @@ class Variable(object):
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
     def __init__(self, resource, dataset_resource):
-        self.resource = resource
-        self.url = self.resource.self
+        super(Variable, self).__init__(resource)
         self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
