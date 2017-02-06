@@ -1,24 +1,30 @@
 from collections import OrderedDict
+from scrunch.helpers import ReadOnly
 
 
-class Category:
+class Category(ReadOnly, object):
     _MUTABLE_ATTRIBUTES = {'name', 'numeric_value', 'missing', 'selected'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, variable_resource, category):
-        self.resource = variable_resource
+        super(Category, self).__init__(variable_resource)
+        self.category = category
         self.selected = False  # Default, not always present
-        self.fill(category)
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            cat = [c for c in self.resource.body.categories
+                   if c[item] == self.category[item]][0]
+            return cat[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Category %s has no attribute %s' % (
+            self.category['name'], item))
 
     def __repr__(self):
         attrs = self.as_dict()
         return 'Category(%s)' % ', '.join('%s=%s' % c for c in attrs.items())
-
-    def fill(self, kwargs):
-        for k, v in kwargs.items():
-            if k in self._ENTITY_ATTRIBUTES:
-                setattr(self, k, v)
 
     def as_dict(self):
         return {attr: getattr(self, attr) for attr in self._ENTITY_ATTRIBUTES}
@@ -30,7 +36,6 @@ class Category:
         if extra_attrs:
             raise AttributeError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs) )
 
-        self.fill(kwargs)
         categories = [self.as_dict() if cat['id'] == self.id else cat
                       for cat in self.resource.body['categories']]
         self.resource.edit(categories=categories)
