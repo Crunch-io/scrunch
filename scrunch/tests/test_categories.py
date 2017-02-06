@@ -1,3 +1,4 @@
+import pytest
 from mock import MagicMock
 from unittest import TestCase
 from scrunch.datasets import Variable
@@ -72,10 +73,10 @@ class TestCategories(TestCase):
             derivation={'function': 'derivation_function'}
         ))
         variable = Variable(resource, MagicMock())
-        with self.assertRaises(TypeError) as err:
+
+        error_msg = "Cannot edit categories on derived variables. Re-derive with the appropriate expression"
+        with pytest.raises(TypeError, message=error_msg):
             variable.categories[1].edit(name='Mujer')
-        self.assertEqual(err.exception.message,
-            "Cannot edit categories on derived variables. Re-derive with the appropriate expression")
 
         # Try again with an empty derivation
         resource = EditableMock(body=dict(
