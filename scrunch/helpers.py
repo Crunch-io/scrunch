@@ -6,6 +6,26 @@ if six.PY2:  # pragma: no cover
 else:
     from urllib.parse import urljoin
 
+
+class ReadOnly(object):
+    """
+    class for protecting undesired writes to attributes
+    """
+    def __init__(self, resource):
+        object.__setattr__(self, "resource", resource)
+        object.__setattr__(self, "session", resource.session)
+        object.__setattr__(self, "url", resource.self)
+
+    def __setattr__(self, attr, value):
+        if attr in self._IMMUTABLE_ATTRIBUTES:
+            raise AttributeError(
+                "Can't edit attibute '%s'" % attr)
+        if attr in self._MUTABLE_ATTRIBUTES:
+            raise AttributeError('use the edit() method for '
+                                 'mutating attributes')
+        object.__setattr__(self, attr, value)
+
+
 def is_relative_url(url):
     return url.startswith(('.', '/'))
 
