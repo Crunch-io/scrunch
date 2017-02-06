@@ -56,7 +56,7 @@ class TestCategories(TestCase):
         ])
 
         # Try to change the ID
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(AttributeError) as err:
             variable.categories[2].edit(id=100)
         self.assertEqual(
             str(err.exception),
