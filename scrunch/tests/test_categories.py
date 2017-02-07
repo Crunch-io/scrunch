@@ -19,14 +19,13 @@ class EditableMock(MagicMock):
 
 
 class TestCategories(TestCase):
-    def test_instance_is_reused(self):
+    def test_CategoryList_instance(self):
         resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
         ))
         variable = Variable(resource, MagicMock())
         cat_list = variable.categories
-        self.assertEqual(id(cat_list), id(variable.categories))
         self.assertTrue(isinstance(cat_list, CategoryList))
 
     def test_edit_category(self):
