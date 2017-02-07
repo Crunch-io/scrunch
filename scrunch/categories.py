@@ -9,14 +9,14 @@ class Category(ReadOnly):
 
     def __init__(self, variable_resource, category):
         super(Category, self).__init__(variable_resource)
-        self.category = category
-        self.selected = False  # Default, not always present
+        self._category = category
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
-            cat = [c for c in self.resource.body.categories
-                   if c[item] == self.category[item]][0]
-            return cat[item]  # Has to exist
+            if item == 'selected':
+                # Default is False; not always present
+                return self._category.get('selected', False)
+            return self._category[item]  # Has to exist
 
         # Attribute doesn't exists, must raise an AttributeError
         raise AttributeError('Category %s has no attribute %s' % (
