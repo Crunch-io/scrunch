@@ -2,7 +2,7 @@ from collections import OrderedDict
 from scrunch.helpers import ReadOnly
 
 
-class Category(ReadOnly, object):
+class Category(ReadOnly):
     _MUTABLE_ATTRIBUTES = {'name', 'numeric_value', 'missing', 'selected'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
