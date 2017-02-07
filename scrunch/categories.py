@@ -45,11 +45,13 @@ class Category(ReadOnly):
 
 
 class CategoryList(OrderedDict):
-    def __init__(self, variable_resource):
-        self.resource = variable_resource
+
+    @classmethod
+    def _from(cls, variable_resource):
+        cls.resource = variable_resource
         categories = [(cat['id'], Category(variable_resource, cat))
                       for cat in variable_resource.body['categories']]
-        super(CategoryList, self).__init__(categories)
+        return cls(categories)
 
     def order(self, *new_order):
         categories = sorted(self.resource.body['categories'],

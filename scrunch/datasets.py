@@ -1454,15 +1454,11 @@ class Variable(ReadOnly, object):
     def __str__(self):
         return self.name
 
-    _categories = None
-
     @property
     def categories(self):
         if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
             raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
-        if self._categories is None:
-            self._categories = CategoryList(self.resource)
-        return self._categories
+        return CategoryList._from(self.resource)
 
     def hide(self):
         LOG.debug("HIDING")
