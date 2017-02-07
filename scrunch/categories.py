@@ -26,8 +26,10 @@ class Category(ReadOnly):
         attrs = self.as_dict()
         return 'Category(%s)' % ', '.join('%s=%s' % c for c in attrs.items())
 
-    def as_dict(self):
-        return {attr: getattr(self, attr) for attr in self._ENTITY_ATTRIBUTES}
+    def as_dict(self, **kwargs):
+        dct = {attr: getattr(self, attr) for attr in self._ENTITY_ATTRIBUTES}
+        dct.update(**kwargs or {})
+        return dct
 
     def edit(self, **kwargs):
         if self.resource.body.get('derivation'):
@@ -36,7 +38,7 @@ class Category(ReadOnly):
         if extra_attrs:
             raise AttributeError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs) )
 
-        categories = [self.as_dict() if cat['id'] == self.id else cat
+        categories = [self.as_dict(**kwargs) if cat['id'] == self.id else cat
                       for cat in self.resource.body['categories']]
         self.resource.edit(categories=categories)
         self.resource.refresh()
