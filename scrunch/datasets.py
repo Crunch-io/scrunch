@@ -1437,6 +1437,7 @@ class Variable(object):
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _OVERRIDDEN_ATTRIBUTES = {'categories'}
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
@@ -1446,8 +1447,12 @@ class Variable(object):
         self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
-        if item in self._ENTITY_ATTRIBUTES:
-            return self.resource.body[item]  # Has to exist
+        if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
+            try:
+                return self.resource.body[item]  # Has to exist
+            except KeyError:
+                raise AttributeError("Variable does not have attribute %s" % item)
+        return super(Variable, self).__getattribute__(item)
 
     def edit(self, **kwargs):
         for key in kwargs:
@@ -1467,8 +1472,8 @@ class Variable(object):
 
     @property
     def categories(self):
-        if self.resource.type not in self.CATEGORICAL_TYPES:
-            raise TypeError("Variable of type %s do not have categories" % self.resource.type)
+        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+            raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
         if self._categories is None:
             self._categories = CategoryList(self.resource)
         return self._categories

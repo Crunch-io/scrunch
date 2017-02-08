@@ -1,3 +1,4 @@
+import pytest
 from mock import MagicMock
 from unittest import TestCase
 from scrunch.datasets import Variable
@@ -13,27 +14,26 @@ TEST_CATEGORIES = lambda: [
 
 class EditableMock(MagicMock):
     def edit(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+        self.body.update(kwargs)
         self._edit(**kwargs)
 
 
 class TestCategories(TestCase):
     def test_instance_is_reused(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         cat_list = variable.categories
         self.assertEqual(id(cat_list), id(variable.categories))
         self.assertTrue(isinstance(cat_list, CategoryList))
 
     def test_edit_category(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         variable.categories[1].edit(name='Mujer')
         resource._edit.assert_called_with(categories=[
@@ -66,13 +66,39 @@ class TestCategories(TestCase):
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
 
+    def test_edit_derived(self):
+        resource = EditableMock(body=dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical',
+            derivation={'function': 'derivation_function'}
+        ))
+        variable = Variable(resource, MagicMock())
+
+        error_msg = "Cannot edit categories on derived variables. Re-derive with the appropriate expression"
+        with pytest.raises(TypeError, message=error_msg):
+            variable.categories[1].edit(name='Mujer')
+
+        # Try again with an empty derivation
+        resource = EditableMock(body=dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical',
+            derivation={}  # Empty
+        ))
+        variable = Variable(resource, MagicMock())
+        variable.categories[1].edit(name='Mujer')
+        resource._edit.assert_called_with(categories=[
+            {'numeric_value': None, 'selected': False, 'id': 1, 'missing': False, 'name': 'Mujer'},
+            {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ])
+
 
 class TestCategoryList(TestCase):
     def test_reorder(self):
-        resource = EditableMock(
+        resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
-        )
+        ))
         variable = Variable(resource, MagicMock())
         variable.categories.order(2, -1, 1)
 
