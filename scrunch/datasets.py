@@ -44,6 +44,12 @@ _MR_TYPE = 'multiple_response'
 LOG = logging.getLogger('scrunch')
 
 
+def _set_debug_log():
+    LOG.setLevel(logging.DEBUG)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True
+
 def _get_connection():
     """
     Utilitarian function that reads credentials from
@@ -159,6 +165,7 @@ def get_user(user, connection=None):
         except KeyError:
             raise KeyError("User (email or id: %s) not found." % user)
     return ret
+
 
 def create_dataset(name, variables, connection=None):
     if connection is None:
