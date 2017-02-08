@@ -161,6 +161,7 @@ def get_user(user, connection=None):
         ret = connection.users.by('email')[user].entity
     except KeyError:
         try:
+            # TODO: Getting by id is not working.
             ret = connection.users.by('id')[user].entity
         except KeyError:
             raise KeyError("User (email or id: %s) not found." % user)
