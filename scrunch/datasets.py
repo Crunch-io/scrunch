@@ -753,6 +753,28 @@ class Dataset(object):
         return self.name
 
     @property
+    def editor(self):
+        return self.resource.body.current_editor
+
+    @editor.setter
+    def editor(self, _):
+        # Protect the `editor` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the editor property'
+        )
+
+    @property
+    def owner(self):
+        return self.resource.body.owner
+
+    @owner.setter
+    def owner(self, _):
+        # Protect the `owner` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the owner property'
+        )
+
+    @property
     def order(self):
         return self._order.get()
 
