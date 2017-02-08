@@ -144,6 +144,22 @@ def get_project(project, site=None):
     return ret
 
 
+def get_user(user, site=None):
+    if site is None:
+        site = _get_connection()
+        if not site:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    try:
+        ret = site.users.by('email')[user].entity
+    except KeyError:
+        try:
+            ret = site.users.by('id')[user].entity
+        except KeyError:
+            raise KeyError("User (email or id: %s) not found." % user)
+    return ret
+
 def create_dataset(name, variables, site=None):
     if site is None:
         site = _get_connection()
