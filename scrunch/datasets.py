@@ -127,48 +127,48 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     return ds
 
 
-def get_project(project, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_project(project, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     try:
-        ret = site.projects.by('name')[project].entity
+        ret = connection.projects.by('name')[project].entity
     except KeyError:
         try:
-            ret = site.projects.by('id')[project].entity
+            ret = connection.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project (name or id: %s) not found." % project)
     return ret
 
 
-def get_user(user, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_user(user, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     try:
-        ret = site.users.by('email')[user].entity
+        ret = connection.users.by('email')[user].entity
     except KeyError:
         try:
-            ret = site.users.by('id')[user].entity
+            ret = connection.users.by('id')[user].entity
         except KeyError:
             raise KeyError("User (email or id: %s) not found." % user)
     return ret
 
-def create_dataset(name, variables, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def create_dataset(name, variables, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
 
-    shoji_ds = site.datasets.create({
+    shoji_ds = connection.datasets.create({
         'element': 'shoji:entity',
         'body': {
             'name': name,
