@@ -40,34 +40,6 @@ def _build_get_func(var):
 
 
 class TestDatasetBase(object):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
-
-    def dataset_mock(self, variables=None):
-        variables = variables or {
-            '0001': dict(
-                id='0001',
-                alias='disposition',
-                type='numeric',
-                is_subvar=False
-            ),
-            '0002': dict(
-                id='0002',
-                alias='exit_status',
-                type='numeric',
-                is_subvar=False
-            )
-        }
-
-        ds = MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        table_mock = MagicMock(metadata=variables)
-        ds.follow.return_value = table_mock
-
-        return Dataset(ds)
-
-
-class TestDatasetBaseNG(object):
     api = 'https://test.crunch.io/api/'
 
     ds_shoji = {
@@ -181,7 +153,7 @@ class TestDatasetBaseNG(object):
         return _get
 
 
-class TestDatasets(TestDatasetBaseNG, TestCase):
+class TestDatasets(TestDatasetBase, TestCase):
 
     def test_edit_Dataset(self):
         ds_mock = self._dataset_mock()
@@ -230,8 +202,7 @@ class TestDatasets(TestDatasetBaseNG, TestCase):
         ds.resource._edit.assert_called_with(**changes)
 
 
-class TestExclusionFilters(TestDatasetBaseNG, TestCase):
-    # ds_url = 'http://test.crunch.io/api/datasets/123/'
+class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_apply_exclusion(self):
         """
@@ -899,7 +870,7 @@ class TestExclusionFilters(TestDatasetBaseNG, TestCase):
         assert data == expected_expr_obj
 
 
-class TestProtectAttributes(TestDatasetBaseNG, TestCase):
+class TestProtectAttributes(TestDatasetBase, TestCase):
     error_msg = 'use the edit() method for mutating attributes'
 
     def test_Dataset_attribute_writes(self):
@@ -961,7 +932,7 @@ class TestProtectAttributes(TestDatasetBaseNG, TestCase):
         assert var.view is None
 
 
-class TestVariables(TestDatasetBaseNG, TestCase):
+class TestVariables(TestDatasetBase, TestCase):
     def test_variable_as_member(self):
         ds_mock = self._dataset_mock()
         ds = Dataset(ds_mock)
@@ -1039,17 +1010,11 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
     user_url = 'https://test.crunch.io/api/users/12345/'
 
     def test_change_editor(self):
-        body = {
-            'self': self.ds_url,
-            'name': 'Dataset Name'
-        }
-        sess = MagicMock()
-        ds_res = MagicMock(session=sess, body=body)
-        ds_res.patch = MagicMock()
-        ds = Dataset(ds_res)
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
         ds.change_editor(self.user_url)
 
-        ds_res.patch.assert_called_with({
+        ds_mock.patch.assert_called_with({
             'current_editor': self.user_url
         })
 
@@ -1290,7 +1255,9 @@ class TestRecode(TestDatasetBase):
                 'is_subvar': False
             },
         }
-        ds = self.dataset_mock(variables=variables)
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
             {'id': 2, 'name': 'Twitter',
@@ -1407,13 +1374,15 @@ class TestRecode(TestDatasetBase):
                 'is_subvar': False
             },
         }
-        ds = self.dataset_mock(variables=variables)
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
             {'id': 2, 'name': 'Twitter', 'case': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        mr = ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
+        ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
