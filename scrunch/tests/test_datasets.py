@@ -1,5 +1,6 @@
 import collections
 import json
+import copy
 
 import mock
 from unittest import TestCase
@@ -11,6 +12,7 @@ from pycrunch.variables import cast
 
 import scrunch
 from scrunch.datasets import Dataset, Variable
+from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
 class _CrunchPayload(dict):
@@ -73,7 +75,12 @@ class TestDatasetBaseNG(object):
         'body': {
             'id': '123456',
             'name': 'test_dataset_name',
-            'alias': 'test_dataset_alias'
+            'notes': '',
+            'description': '',
+            'is_published': False,
+            'archived': False,
+            'end_date': None,
+            'start_date': None,
         }
     }
 
@@ -82,6 +89,10 @@ class TestDatasetBaseNG(object):
             id='0001',
             alias='var1_alias',
             name='var1_name',
+            description='',
+            notes='',
+            format=None,
+            view=None,
             type='numeric',
             is_subvar=False
         ),
@@ -89,33 +100,47 @@ class TestDatasetBaseNG(object):
             id='0002',
             alias='var2_alias',
             name='var2_name',
-            type='numeric',
+            description='',
+            notes='',
+            format=None,
+            view=None,
+            type='text',
+            is_subvar=False
+        ),
+        '0003': dict(
+            id='0003',
+            alias='var3_alias',
+            name='var3_name',
+            description=None,
+            notes=None,
+            format=None,
+            view=None,
+            type='categorical',
+            categories=TEST_CATEGORIES(),
             is_subvar=False
         )
     }
 
     def _dataset_mock(self, variables=None):
-        _ds_mock = mock.MagicMock()
-        _get_body = self._build_get_func(self.ds_shoji['body'])
-        _ds_mock.variables.by.side_effect = self._variables_by_side_effect(variables)
-        _ds_mock.entity.self = self.ds_url
-        _ds_mock.entity.body.__getitem__.side_effect = _get_body
-        _ds_mock.entity.body.get.side_effect = _get_body
-        _ds_mock.body.__getitem__.side_effect = _get_body
-        _ds_mock.body.get.side_effect = _get_body
+        variables = variables or copy.deepcopy(self.variables)
+        variables_attributes = {
+            'by.side_effect': self._variables_by_side_effect(variables)
+        }
+        entity_attr = {
+            'body': copy.deepcopy(self.ds_shoji['body']),
+            'variables': mock.MagicMock(**variables_attributes),
+        }
+        _ds_mock = EditableMock(**entity_attr)
+        _ds_mock.self = self.ds_url
         return _ds_mock
 
     def _variable_mock(self, variable=None):
-        variable = variable or self.variables['0001']
 
+        variable = variable or self.variables['0001']
         var_url = '%svariables/%s/' % (self.ds_url, variable['id'])
-        _get_func = self._build_get_func(variable)
         _var_mock = mock.MagicMock()
-        _var_mock.__getitem__.side_effect = _get_func
-        _var_mock.get.side_effect = _get_func
+        _var_mock.entity = EditableMock(body=variable)
         _var_mock.entity.self = var_url
-        _var_mock.entity.body.__getitem__.side_effect = _get_func
-        _var_mock.entity.body.get.side_effect = _get_func
         return _var_mock
 
     def _variables_by_side_effect(self, variables=None):
@@ -140,24 +165,54 @@ class TestDatasetBaseNG(object):
             return _variables.get(args[0])
         return _get
 
-    @staticmethod
-    def _build_get_func(d):
-        properties = {}
-        properties.update(d)
 
-        def _get(*args):
-            return properties.get(args[0])
-        return _get
+class TestDatasets(TestDatasetBaseNG, TestCase):
 
-    @staticmethod
-    def _by_side_effect(shoji, entity_mock):
-        d = {'name': {shoji['body']['name']: entity_mock},
-             'id': {shoji['body']['id']: entity_mock},
-             'alias': {shoji['body']['alias']: entity_mock}}
+    def test_edit_Dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
 
-        def _get(*args):
-            return d.get(args[0])
-        return _get
+        assert ds.name == 'test_dataset_name'
+        changes = dict(name='changed')
+        ds.edit(**changes)
+        assert ds.name == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.description == ''
+        changes = dict(description='changed')
+        ds.edit(**changes)
+        assert ds.description == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.notes == ''
+        changes = dict(notes='changed')
+        ds.edit(**changes)
+        assert ds.notes == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.is_published is False
+        changes = dict(is_published=True)
+        ds.edit(**changes)
+        assert ds.is_published is True
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.archived is False
+        changes = dict(archived=True)
+        ds.edit(**changes)
+        assert ds.archived is True
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.end_date is None
+        changes = dict(end_date='2017-01-01')
+        ds.edit(**changes)
+        assert ds.end_date == '2017-01-01'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.start_date is None
+        changes = dict(start_date='2017-01-01')
+        ds.edit(**changes)
+        assert ds.start_date == '2017-01-01'
+        ds.resource._edit.assert_called_with(**changes)
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
@@ -739,6 +794,68 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
 
+class TestProtectAttributes(TestDatasetBaseNG, TestCase):
+    error_msg = 'use the edit() method for mutating attributes'
+
+    def test_Dataset_attribute_writes(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        assert ds.name == 'test_dataset_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.name = 'forbidden'
+        assert ds.name == 'test_dataset_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.notes = 'forbidden'
+        assert ds.notes == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.description = 'forbidden'
+        assert ds.description == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.is_published = True
+        assert ds.is_published is False
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.archived = True
+        assert ds.archived is False
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.end_date = 'forbidden'
+        assert ds.end_date is None
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.start_date = 'forbidden'
+        assert ds.start_date is None
+
+    def test_Variable_attribute_writes(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.name = 'forbidden'
+        assert var.name == 'var1_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.description = 'forbidden'
+        assert var.description == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.notes = 'forbidden'
+        assert var.notes == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.format = 'forbidden'
+        assert var.format is None
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.view = 'forbidden'
+        assert var.view is None
+
+
 class TestVariables(TestDatasetBaseNG, TestCase):
     def test_variable_as_member(self):
         ds_mock = self._dataset_mock()
@@ -775,6 +892,41 @@ class TestVariables(TestDatasetBaseNG, TestCase):
             'offset': 'offset',
             'format': 'format'
         }
+
+    def test_edit_Variables(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        assert var.name == 'var1_name'
+        changes = dict(name='changed')
+        var.edit(**changes)
+        assert var.name == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.description == ''
+        changes = dict(description='changed')
+        var.edit(**changes)
+        assert var.description == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.notes == ''
+        changes = dict(notes='changed')
+        var.edit(**changes)
+        assert var.notes == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.format is None
+        changes = dict(format=dict(summary=dict(digits=2)))
+        var.edit(**changes)
+        assert var.format == dict(summary=dict(digits=2))
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.view is None
+        changes = dict(view=dict(show_counts=True))
+        var.edit(**changes)
+        assert var.view == dict(show_counts=True)
+        var.resource._edit.assert_called_with(**changes)
 
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
