@@ -13,7 +13,6 @@ class ReadOnly(object):
     """
     def __init__(self, resource):
         object.__setattr__(self, "resource", resource)
-        object.__setattr__(self, "session", resource.session)
         object.__setattr__(self, "url", resource.self)
 
     def __setattr__(self, attr, value):

@@ -681,7 +681,7 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(ReadOnly, object):
+class Dataset(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -750,7 +750,8 @@ class Dataset(ReadOnly, object):
         raise TypeError('Unsupported operation on the settings property')
 
     def _load_settings(self):
-        settings = self.session.get(self.resource.fragments.settings).payload
+        settings = self.resource.session.get(
+            self.resource.fragments.settings).payload
         self._settings = DatasetSettings(
             (_name, _value) for _name, _value in settings.body.items()
         )
@@ -769,7 +770,7 @@ class Dataset(ReadOnly, object):
             setting: kwargs[setting] for setting in incoming_settings
         }
         if settings_payload:
-            self.session.patch(
+            self.resource.session.patch(
                 self.resource.fragments.settings,
                 json.dumps(settings_payload),
                 headers={'Content-Type': 'application/json'}
@@ -823,7 +824,7 @@ class Dataset(ReadOnly, object):
             )
             user_url = None
 
-            users = self.session.get(api_users).payload['index']
+            users = self.resource.session.get(api_users).payload['index']
 
             for url, user in six.iteritems(users):
                 if user['email'] == email:
@@ -1414,7 +1415,7 @@ class Dataset(ReadOnly, object):
                 description=description)
 
 
-class Variable(ReadOnly, object):
+class Variable(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
