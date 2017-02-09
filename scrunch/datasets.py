@@ -22,6 +22,7 @@ from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
 from scrunch.variables import (responses_from_map, combinations_from_map,
                                combine_responses_expr, combine_categories_expr)
 from scrunch.categories import CategoryList
+from scrunch.permissions import User, Project
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -165,7 +166,7 @@ def get_user(user, connection=None):
             ret = connection.users.by('id')[user].entity
         except KeyError:
             raise KeyError("User (email or id: %s) not found." % user)
-    return ret
+    return User(ret)
 
 
 def create_dataset(name, variables, connection=None):
