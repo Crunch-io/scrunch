@@ -731,10 +731,8 @@ class Dataset(object):
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
-
-        # Attribute doesn't exists, must raise an AttributeError
-        raise AttributeError('Dataset %s has no attribute %s' % (
-            self.resource.body['name'], item))
+        # Default behaviour
+        return object.__getattribute__(self, item)
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
@@ -755,7 +753,7 @@ class Dataset(object):
 
     @property
     def editor(self):
-        return self.resource.body.current_editor
+        return User(self.resource.follow('editor_url'))
 
     @editor.setter
     def editor(self, _):
