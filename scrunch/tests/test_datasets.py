@@ -2,7 +2,7 @@ import collections
 import json
 import copy
 
-import mock
+from mock import MagicMock
 from unittest import TestCase
 
 import pytest
@@ -18,9 +18,9 @@ from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
-        self.put = mock.MagicMock()
-        self.post = mock.MagicMock()
-        self.patch = mock.MagicMock()
+        self.put = MagicMock()
+        self.post = MagicMock()
+        self.patch = MagicMock()
 
     def __getattr__(self, item):
         if item == 'payload':
@@ -58,10 +58,10 @@ class TestDatasetBase(object):
             )
         }
 
-        ds = mock.MagicMock()
+        ds = MagicMock()
         ds.self = self.ds_url
         ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        table_mock = mock.MagicMock(metadata=variables)
+        table_mock = MagicMock(metadata=variables)
         ds.follow.return_value = table_mock
 
         return Dataset(ds)
@@ -135,14 +135,14 @@ class TestDatasetBaseNG(object):
 
         ds_mock_attributes = {
             'body': ds_shoji['body'],
-            'variables': mock.MagicMock(**var_mock_attributes),
-            'session': mock.MagicMock(spec=ElementSession),
+            'variables': MagicMock(**var_mock_attributes),
+            'session': MagicMock(spec=ElementSession),
             'fragments.exclusion': '%sexclusion/' % ds_url
         }
         _ds_mock = EditableMock(**ds_mock_attributes)
         _ds_mock.self = ds_url
 
-        table_mock = mock.MagicMock(metadata=variables)
+        table_mock = MagicMock(metadata=variables)
         table_mock.self = table.get('self')
         _ds_mock.follow.return_value = table_mock
         return _ds_mock
@@ -150,7 +150,7 @@ class TestDatasetBaseNG(object):
     def _variable_mock(self, ds_url, variable=None):
         variable = variable or self.variables['0001']
         var_url = '%svariables/%s/' % (ds_url, variable['id'])
-        _var_mock = mock.MagicMock()
+        _var_mock = MagicMock()
         _var_mock.entity = EditableMock(body=variable)
         _var_mock.entity.self = var_url
         return _var_mock
@@ -268,7 +268,7 @@ class TestExclusionFilters(TestDatasetBaseNG, TestCase):
         Tests that the proper PATCH request is sent to Crunch in order to
         clear (i.e. remove) the exclusion filter from a dataset.
         """
-        ds_res = mock.MagicMock()
+        ds_res = MagicMock()
         ds = Dataset(ds_res)
         ds.exclude()
 
@@ -981,7 +981,7 @@ class TestVariables(TestDatasetBaseNG, TestCase):
             'Dataset %s has no attribute some_variable' % ds.name
 
     def test_variable_cast(self):
-        variable = mock.MagicMock()
+        variable = MagicMock()
         cast(
             variable,
             type='numeric',
@@ -1043,9 +1043,9 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
             'self': self.ds_url,
             'name': 'Dataset Name'
         }
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.patch = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.patch = MagicMock()
         ds = Dataset(ds_res)
         ds.change_editor(self.user_url)
 
@@ -1054,8 +1054,8 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
         })
 
     def test_change_editor_email(self):
-        sess = mock.MagicMock()
-        response = mock.MagicMock()
+        sess = MagicMock()
+        response = MagicMock()
         response.payload = {
             'index': {
                 self.user_url: {
@@ -1068,9 +1068,9 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
             return response
 
         sess.get.side_effect = _get
-        ds_res = mock.MagicMock(session=sess)
+        ds_res = MagicMock(session=sess)
         ds_res.self = self.ds_url
-        ds_res.patch = mock.MagicMock()
+        ds_res.patch = MagicMock()
         ds = Dataset(ds_res)
         ds.change_editor('jane.doe@crunch.io')
 
@@ -1084,9 +1084,9 @@ class TestSavepoints(TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_create_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds = Dataset(ds_res)
         ds.create_savepoint('savepoint description')
         ds_res.savepoints.create.assert_called_with({
@@ -1097,9 +1097,9 @@ class TestSavepoints(TestCase):
         })
 
     def test_create_savepoint_keyerror(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {
             1: {
                 'description': 'savepoint description'
@@ -1110,9 +1110,9 @@ class TestSavepoints(TestCase):
             ds.create_savepoint('savepoint description')
 
     def test_load_initial_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {
             1: {
                 'description': 'savepoint description'
@@ -1123,9 +1123,9 @@ class TestSavepoints(TestCase):
             ds.create_savepoint('savepoint description')
 
     def test_load_empty_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {}
         ds = Dataset(ds_res)
         with pytest.raises(KeyError):
@@ -1137,14 +1137,14 @@ class TestForks(TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_fork(self):
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': 'http://test.crunch.io/api/users/123/'
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork()
@@ -1164,14 +1164,14 @@ class TestForks(TestCase):
 
     def test_fork_preserve_owner(self):
         user_id = 'http://test.crunch.io/api/users/123/'
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': user_id
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork(preserve_owner=True)
@@ -1179,26 +1179,26 @@ class TestForks(TestCase):
 
     def test_fork_preserve_owner_project(self):
         project_id = 'http://test.crunch.io/api/projects/456/'
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': project_id
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork()
         f.resource.patch.assert_called_with({'owner': project_id})
 
     def test_delete_forks(self):
-        f1 = mock.MagicMock()
-        f2 = mock.MagicMock()
-        f3 = mock.MagicMock()
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        f1 = MagicMock()
+        f2 = MagicMock()
+        f3 = MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {
             'abc1': f1,
             'abc2': f2,
@@ -1223,9 +1223,9 @@ class TestForks(TestCase):
             modification_time='2016-01-01T00:00Z',
             id='abc123',
         )
-        sess = mock.MagicMock()
-        ds_res = mock.Mock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {
             'abc1': f1
         }
@@ -1240,9 +1240,9 @@ class TestForks(TestCase):
         ]
 
     def test_forks_dataframe_empty(self):
-        sess = mock.MagicMock()
-        ds_res = mock.Mock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
 
         ds = Dataset(ds_res)
@@ -1532,8 +1532,8 @@ class TestRecode(TestDatasetBase):
 
 class TestCopyVariable(TestCase):
     def test_base_variable(self):
-        ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'numeric'})
+        ds_res = MagicMock()
+        var_res = MagicMock(body={'type': 'numeric'})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
@@ -1551,8 +1551,8 @@ class TestCopyVariable(TestCase):
         })
 
     def test_derived_variable(self):
-        ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'multiple_response', 'derivation': {
+        ds_res = MagicMock()
+        var_res = MagicMock(body={'type': 'multiple_response', 'derivation': {
             'function': 'array',
             'args': [{
                 'function': 'select',
@@ -1599,8 +1599,8 @@ class TestCopyVariable(TestCase):
 
 
 def test_hide_unhide():
-    ds_res = mock.MagicMock()
-    var_res = mock.MagicMock()
+    ds_res = MagicMock()
+    var_res = MagicMock()
     var = Variable(var_res, ds_res)
     var.hide()
     var_res.edit.assert_called_with(discarded=True)
@@ -1754,7 +1754,7 @@ class TestHierarchicalOrder(TestCase):
         for var in variable_defs:
             var_url = '%svariables/%s/' % (self.ds_url, var['id'])
             _get_func = _build_get_func(var)
-            _var_mock = mock.MagicMock()
+            _var_mock = MagicMock()
             _var_mock.__getitem__.side_effect = _get_func
             _var_mock.get.side_effect = _get_func
             _var_mock.entity.self = var_url
@@ -1780,7 +1780,7 @@ class TestHierarchicalOrder(TestCase):
                 })
             return _CrunchPayload()
 
-        ds_resource = mock.MagicMock()
+        ds_resource = MagicMock()
         ds_resource.self = self.ds_url
         ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
         ds_resource.variables.by.return_value = variables
@@ -3056,7 +3056,7 @@ class TestDatasetSettings(TestCase):
                 return _CrunchPayload(settings)
             return _CrunchPayload()
 
-        ds_resource = mock.MagicMock()
+        ds_resource = MagicMock()
         ds_resource.self = self.ds_url
         ds_resource.fragments.settings = '%ssettings/' % self.ds_url
         ds_resource.session.get.side_effect = _session_get
@@ -3137,7 +3137,7 @@ class TestDatasetJoins(TestCase):
     def _variable_mock(self, ds_url, var):
         var_url = '%svariables/%s/' % (ds_url, var['id'])
         _get_func = _build_get_func(var)
-        _var_mock = mock.MagicMock()
+        _var_mock = MagicMock()
         _var_mock.__getitem__.side_effect = _get_func
         _var_mock.get.side_effect = _get_func
         _var_mock.entity.self = var_url
@@ -3158,7 +3158,7 @@ class TestDatasetJoins(TestCase):
         _left_var_mock = self._variable_mock(self.left_ds_url, var)
         left_variable = collections.OrderedDict()
         left_variable[var['alias']] = _left_var_mock
-        left_ds_res = mock.MagicMock()
+        left_ds_res = MagicMock()
         left_ds_res.self = self.left_ds_url
         left_ds_res.variables.by.return_value = left_variable
         self.left_ds = Dataset(left_ds_res)
@@ -3167,7 +3167,7 @@ class TestDatasetJoins(TestCase):
         _right_var_mock = self._variable_mock(self.right_ds_url, var)
         right_variable = collections.OrderedDict()
         right_variable[var['alias']] = _right_var_mock
-        right_ds_res = mock.MagicMock()
+        right_ds_res = MagicMock()
         right_ds_res.self = self.right_ds_url
         right_ds_res.variables.by.return_value = right_variable
         self.right_ds = Dataset(right_ds_res)
