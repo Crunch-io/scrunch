@@ -140,7 +140,7 @@ class TestDatasetBaseNG(object):
             'fragments.exclusion': '%sexclusion/' % ds_url
         }
         _ds_mock = EditableMock(**ds_mock_attributes)
-        _ds_mock.self = '%sdatasets/%s/' % (self.api, ds_shoji['body']['id'])
+        _ds_mock.self = ds_url
 
         table_mock = mock.MagicMock(metadata=variables)
         table_mock.self = table.get('self')
