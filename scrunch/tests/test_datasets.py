@@ -7,7 +7,6 @@ from unittest import TestCase
 import pytest
 from pandas import DataFrame
 from pycrunch.elements import JSONObject
-from pycrunch.shoji import Entity
 from pycrunch.variables import cast
 
 import scrunch
