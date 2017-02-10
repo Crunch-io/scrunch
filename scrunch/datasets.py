@@ -680,7 +680,40 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(object):
+class DatasetVariablesMixin(collections.Mapping):
+    """
+    Handles dataset variable iteration
+    """
+
+    def __init__(self, resource):
+        self.ds_resource = resource
+        self.resource = resource.variables
+
+    def __iter__(self):
+        # PIZZA
+        pass
+
+    def __len__(self):
+        pass
+
+    def itervalues(self):
+        pass
+
+    def iterkeys(self):
+        for label in self.resource.index.keys():
+            yield label
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
+
+class Dataset(DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -702,6 +735,8 @@ class Dataset(object):
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
+        # PIZZA
+        super(Dataset, self).__init__(self.resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
