@@ -2940,3 +2940,111 @@ class TestDatasetJoins(TestCase):
         assert call_payload == expected_payload
         left_ds.resource.variables.post.assert_called_once_with(
             expected_payload)
+
+
+@mock.patch('scrunch.datasets.download_file')
+@mock.patch('scrunch.datasets.export_dataset')
+class TestDatasetExport(TestCase):
+
+    ds_url = 'http://test.crunch.local/api/datasets/123/'
+    file_download_url = 'http://test.crunch.local/download-file'
+
+    def setUp(self):
+        ds_resource = mock.MagicMock()
+        ds_resource.self = self.ds_url
+        self.ds = Dataset(ds_resource)
+
+    def test_basic_csv_export(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        ds.download('export.csv')
+
+        export_payload = export_ds_mock.call_args_list[0][0][1]
+        export_format = export_ds_mock.call_args_list[0][1].get('format')
+        export_options = export_payload.get('options', {})
+
+        assert export_format == 'csv'
+        assert export_options == {'use_category_ids': True}
+
+        dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
+
+    def test_csv_export_options(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        ds.download('export.csv', options={'use_category_ids': False})
+
+        export_payload = export_ds_mock.call_args_list[0][0][1]
+        export_format = export_ds_mock.call_args_list[0][1].get('format')
+        export_options = export_payload.get('options', {})
+
+        assert export_format == 'csv'
+        assert export_options == {'use_category_ids': False}
+
+        dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
+
+    def test_invalid_csv_export_options(self, export_ds_mock, _):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        with pytest.raises(ValueError):
+            ds.download('export.csv', options={'invalid_option': False})
+
+    def test_basic_spss_export(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        ds.download('export.sav', format='spss')
+
+        export_payload = export_ds_mock.call_args_list[0][0][1]
+        export_format = export_ds_mock.call_args_list[0][1].get('format')
+        export_options = export_payload.get('options', {})
+
+        assert export_format == 'spss'
+        assert export_options == {
+            'prefix_subvariables': False,
+            'var_label_field': 'description'
+        }
+
+        dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
+
+    def test_spss_export_options(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        ds.download(
+            'export.sav',
+            format='spss',
+            options={
+                'prefix_subvariables': True,
+                'var_label_field': 'name'
+            }
+        )
+
+        export_payload = export_ds_mock.call_args_list[0][0][1]
+        export_format = export_ds_mock.call_args_list[0][1].get('format')
+        export_options = export_payload.get('options', {})
+
+        assert export_format == 'spss'
+        assert export_options == {
+            'prefix_subvariables': True,
+            'var_label_field': 'name'
+        }
+
+        dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
+
+    def test_invalid_spss_export_options(self, export_ds_mock, _):
+        ds = self.ds
+        export_ds_mock.return_value = self.file_download_url
+
+        with pytest.raises(ValueError):
+            ds.download(
+                'export.csv', format='spss', options={'invalid_option': False}
+            )
+
+        with pytest.raises(ValueError):
+            ds.download(
+                'export.csv', format='spss',
+                options={'var_label_field': 'invalid'}
+            )

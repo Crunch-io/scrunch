@@ -1305,27 +1305,75 @@ class Dataset(object):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, filter=None, variables=None, hidden=True):
+    def download(self, path, format='csv', filter=None, variables=None,
+                 hidden=True, options=None):
         """
-        Downloads a dataset as CSV to the given path.
-        this includes hidden variables and categories
-        as id's.
+        Downloads a dataset as CSV or as SPSS to the given path. This
+        includes hidden variables.
+
+        By default, categories in CSV exports are provided as id's.
         """
+
+        # Only CSV and SPSS exports are currently supported.
+        if format not in ('csv', 'spss'):
+            raise ValueError(
+                'Invalid format %s. Allowed formats are: "csv" and "spss".'
+                % format
+            )
+
+        if format == 'csv':
+            # Default options for CSV exports.
+            export_options = {'use_category_ids': True}
+        else:
+            # Default options for SPSS exports.
+            export_options = {
+                'prefix_subvariables': False,
+                'var_label_field': 'description'
+            }
+
+        # Validate the user-provided export options.
+        options = options or {}
+        if not isinstance(options, dict):
+            raise ValueError(
+                'The options argument must be a dictionary.'
+            )
+        invalid_options = set(options.keys()).difference(
+            set(export_options.keys())
+        )
+        if invalid_options:
+            raise ValueError(
+                'Invalid options for format "%s": %s.'
+                % (format, ','.join(invalid_options))
+            )
+        if 'var_label_field' in options \
+                and not options['var_label_field'] in ('name', 'description'):
+            raise ValueError(
+                'The "var_label_field" export option must be either "name" '
+                'or "description".'
+            )
+
+        # All good. Update the export options with the user-provided values.
+        export_options.update(options)
+
         # the payload should include all hidden variables by default
-        payload = {
-            "options": {"use_category_ids": True}
-        }
+        payload = {'options': export_options}
+
         # add filter to rows if passed
         if filter:
             payload['filter'] = process_expr(
-                parse_expr(filter), self.resource)
+                parse_expr(filter), self.resource
+            )
+
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(self[var].url)
             if len(id_vars) != len(variables):
-                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                LOG.debug(
+                    "Variables passed: %s Variables detected: %s"
+                    % (variables, id_vars)
+                )
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
             payload['where'] = {
@@ -1343,11 +1391,12 @@ class Dataset(object):
                     'function': 'select',
                     'args': [{
                         'map': {
-                            x: {'variable': x} for x in self.resource.variables.index.keys()
+                            x: {'variable': x}
+                            for x in self.resource.variables.index.keys()
                         }
                     }]
                 }
-        url = export_dataset(self.resource, payload, format='csv')
+        url = export_dataset(self.resource, payload, format=format)
         download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
