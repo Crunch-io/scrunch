@@ -6,6 +6,7 @@ from scrunch.datasets import Dataset, Variable
 from scrunch.variables import responses_from_map
 from scrunch.helpers import subvar_alias
 
+import pycrunch
 from pycrunch.shoji import Entity
 
 

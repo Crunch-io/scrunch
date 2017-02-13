@@ -74,7 +74,6 @@ class TestGetDataset(object):
         pw = os.environ.get('CRUNCH_PASSWORD')
         assert user == 'USERNAME'
         assert pw == 'PASSWORD'
-
         scrunch.datasets._get_connection()
         assert connect_mock.call_args[0] == (user, pw)
 

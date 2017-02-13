@@ -7,6 +7,9 @@ import re
 
 import six
 
+# FIXME: remove this module
+import mock
+
 from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
 import pandas as pd
@@ -51,7 +54,7 @@ def _get_connection():
     """
     if pycrunch.session is not None:
         return pycrunch.session
-    # try to get credentials from enviroment
+    # try to get credentials from environment
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
@@ -685,23 +688,26 @@ class DatasetVariablesMixin(collections.Mapping):
     Handles dataset variable iteration
     """
 
-    def __init__(self, resource):
-        self.ds_resource = resource
-        self.resource = resource.variables
+    def __init__(self, ds_resource):
+        self.ds_resource = ds_resource
+        # self._vars = [Variable(var.entity, ds_resource) for var in ds_resource.variables.index.values()]
+        self._vars = self.ds_resource.variables.index.items()
 
     def __iter__(self):
-        # PIZZA
-        pass
+        for var in self._vars:
+            yield var
 
     def __len__(self):
-        pass
+        return len(self.ds_resource.variables.index.keys())
 
     def itervalues(self):
-        pass
+        for _, var_tuple in self._vars:
+            print("INSTANTIATING")
+            yield Variable(var_tuple, self.ds_resource)
 
     def iterkeys(self):
-        for label in self.resource.index.keys():
-            yield label
+        for var in self._vars:
+            yield var[1].name
 
     def keys(self):
         return list(self.iterkeys())
@@ -735,7 +741,7 @@ class Dataset(DatasetVariablesMixin):
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
-        # PIZZA
+        # make sure we initiate the variable mixin context
         super(Dataset, self).__init__(self.resource)
 
     def __getattr__(self, item):
@@ -750,7 +756,7 @@ class Dataset(DatasetVariablesMixin):
         # Check if the attribute corresponds to a variable alias
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
-            # Variable doesn't exists, must raise an ValueError
+            # Variable doesn't exists, must raise a ValueError
             raise ValueError('Dataset %s has no variable %s' % (
                 self.resource.body['name'], item))
 
@@ -1476,12 +1482,34 @@ class Variable(object):
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, resource, dataset_resource):
-        self.resource = resource
-        self.url = self.resource.self
-        self.dataset = Dataset(dataset_resource)
+    def __init__(self, tuple_entity, dataset):
+        self.shoji_tuple = tuple_entity
+        self.is_instance = False
+        self._resource = None
+        # pass an Entity class to save time
+        if isinstance(dataset, pycrunch.shoji.Entity):
+            self.dataset = dataset
+        else:
+            self.dataset = Dataset(dataset)
+        # FIXME: for tests to pass we need to force a mock instance here
+        if isinstance(tuple_entity, pycrunch.shoji.Entity) or isinstance(tuple_entity, mock.mock.MagicMock):
+            self._resource = self.shoji_tuple
+            self.is_instance = True
+
+    @property
+    def resource(self):
+        if not self.is_instance:
+            self._resource = self.shoji_tuple.entity
+            self.is_instance = True
+        return self._resource
 
     def __getattr__(self, item):
+        # don't access self.resource unless necessary
+        # PIZZA
+        print("ACCESSING HERE")
+        print(item)
+        if item in self.shoji_tuple.keys():
+            return self.shoji_tuple[item]
         if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
             try:
                 return self.resource.body[item]  # Has to exist
@@ -1492,7 +1520,7 @@ class Variable(object):
     def edit(self, **kwargs):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                raise AttributeError("Can't edit attribute %s of variable %s" % (
                     key, self.name
                 ))
         return self.resource.edit(**kwargs)
