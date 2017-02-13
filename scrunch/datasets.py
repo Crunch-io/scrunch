@@ -702,7 +702,6 @@ class DatasetVariablesMixin(collections.Mapping):
 
     def itervalues(self):
         for _, var_tuple in self._vars:
-            print("INSTANTIATING")
             yield Variable(var_tuple, self.ds_resource)
 
     def iterkeys(self):
@@ -1482,32 +1481,32 @@ class Variable(object):
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, tuple_entity, dataset):
-        self.shoji_tuple = tuple_entity
+    def __init__(self, var_shoji, dataset):
+        self.shoji_tuple = var_shoji
         self.is_instance = False
         self._resource = None
+        self.url = None
         # pass an Entity class to save time
         if isinstance(dataset, pycrunch.shoji.Entity):
             self.dataset = dataset
         else:
             self.dataset = Dataset(dataset)
         # FIXME: for tests to pass we need to force a mock instance here
-        if isinstance(tuple_entity, pycrunch.shoji.Entity) or isinstance(tuple_entity, mock.mock.MagicMock):
+        if isinstance(var_shoji, pycrunch.shoji.Entity) or isinstance(var_shoji, mock.mock.MagicMock):
             self._resource = self.shoji_tuple
+            self.url = self._resource.self
             self.is_instance = True
 
     @property
     def resource(self):
         if not self.is_instance:
             self._resource = self.shoji_tuple.entity
+            self.url = self._resource.self
             self.is_instance = True
         return self._resource
 
     def __getattr__(self, item):
         # don't access self.resource unless necessary
-        # PIZZA
-        print("ACCESSING HERE")
-        print(item)
         if item in self.shoji_tuple.keys():
             return self.shoji_tuple[item]
         if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
