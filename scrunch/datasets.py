@@ -1152,7 +1152,7 @@ class Dataset(DatasetVariablesMixin):
         responses into new categorized ones
 
             map={
-                1: [1],
+                1: 1,
                 2: [2, 3, 4]
             },
             categories={

@@ -126,7 +126,6 @@ class TestCombine(TestCase):
         assert 'Dataset mocked_dataset has no variable unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
-        # PIZZA
         resource = mock.MagicMock()
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
@@ -180,7 +179,6 @@ class TestCombine(TestCase):
         assert 'Unknown subvariables for variable' in str(err.value)
 
     def test_combine_responses_by_alias(self):
-        # PIZZA
         resource = mock.MagicMock()
         resource.entity.self = dataset_url
 
