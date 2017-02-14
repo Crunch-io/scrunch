@@ -7,9 +7,6 @@ import re
 
 import six
 
-# FIXME: remove this module
-import mock
-
 from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
 
 import pandas as pd
@@ -690,7 +687,6 @@ class DatasetVariablesMixin(collections.Mapping):
 
     def __init__(self, ds_resource):
         self.ds_resource = ds_resource
-        # self._vars = [Variable(var.entity, ds_resource) for var in ds_resource.variables.index.values()]
         self._vars = self.ds_resource.variables.index.items()
 
     def __iter__(self):
@@ -698,7 +694,7 @@ class DatasetVariablesMixin(collections.Mapping):
             yield var
 
     def __len__(self):
-        return len(self.ds_resource.variables.index.keys())
+        return len(self._vars)
 
     def itervalues(self):
         for _, var_tuple in self._vars:
@@ -759,8 +755,8 @@ class Dataset(DatasetVariablesMixin):
             raise ValueError('Dataset %s has no variable %s' % (
                 self.resource.body['name'], item))
 
-        # Variable exists!, return the variable entity
-        return Variable(variable.entity, self.resource)
+        # Variable exists!, return the variable Instance
+        return Variable(variable, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -992,9 +988,9 @@ class Dataset(DatasetVariablesMixin):
                                  expr=expr,
                                  description=description))
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload).refresh()
+        # return the variable instance
+        return self[new_var.body.alias]
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -1026,9 +1022,10 @@ class Dataset(DatasetVariablesMixin):
                 }
             }
         }
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload).refresh()
+        # return an instance of Variable
+        return self[new_var.body.alias]
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -1098,9 +1095,9 @@ class Dataset(DatasetVariablesMixin):
                     'subreferences': subreferences
                 }
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload).refresh()
+        # return an instance of Variable
+        return self[new_var.body.alias]
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1144,9 +1141,10 @@ class Dataset(DatasetVariablesMixin):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload).refresh()
+        # at this point we are returning a Variable instance
+        return self[new_var.body.alias]
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1155,7 +1153,7 @@ class Dataset(DatasetVariablesMixin):
         responses into new categorized ones
 
             map={
-                1: 1,
+                1: [1],
                 2: [2, 3, 4]
             },
             categories={
@@ -1179,9 +1177,10 @@ class Dataset(DatasetVariablesMixin):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload).refresh()
+        # return an instance of Variable
+        return self[new_var.body.alias]
 
     def create_savepoint(self, description):
         """
@@ -1420,6 +1419,7 @@ class Dataset(DatasetVariablesMixin):
                 {'variable': left_var_url}
             ]
         }
+
         # wrap the adapter method on a shoji and body entity
         payload = {
             'element': 'shoji:entity',
@@ -1481,33 +1481,31 @@ class Variable(object):
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, var_shoji, dataset):
-        self.shoji_tuple = var_shoji
+    def __init__(self, var_tuple, dataset):
+        self.shoji_tuple = var_tuple
         self.is_instance = False
         self._resource = None
-        self.url = None
         # pass an Entity class to save time
         if isinstance(dataset, pycrunch.shoji.Entity):
             self.dataset = dataset
         else:
+            # Need to instantiate Dataset for ds.order method
             self.dataset = Dataset(dataset)
-        # FIXME: for tests to pass we need to force a mock instance here
-        if isinstance(var_shoji, pycrunch.shoji.Entity) or isinstance(var_shoji, mock.mock.MagicMock):
-            self._resource = self.shoji_tuple
-            self.url = self._resource.self
-            self.is_instance = True
 
     @property
     def resource(self):
         if not self.is_instance:
             self._resource = self.shoji_tuple.entity
-            self.url = self._resource.self
             self.is_instance = True
         return self._resource
 
+    @property
+    def url(self):
+        return self.resource.self
+
     def __getattr__(self, item):
         # don't access self.resource unless necessary
-        if item in self.shoji_tuple.keys():
+        if hasattr(self.shoji_tuple, item):
             return self.shoji_tuple[item]
         if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
             try:
@@ -1745,9 +1743,9 @@ class Variable(object):
                 }
             ]
 
-        return Variable(
-            self.dataset.resource.variables.create(payload).refresh(),
-            self.dataset.resource)
+        new_var = self.resource.variables.create(payload).refresh()
+        # return an instance of Variable
+        return self[new_var.body.alias]
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1782,6 +1780,5 @@ class Variable(object):
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)

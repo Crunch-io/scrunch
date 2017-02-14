@@ -100,7 +100,8 @@ class TestCombine(TestCase):
         ds_res_mock = mock.MagicMock()
         variable_mock = mock.MagicMock()
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
-        variable_mock.subvariables.by.return_value = {
+        # mock the call to entity, this will happen on Variable.resource
+        variable_mock.entity.subvariables.by.return_value = {
             'parent_1': subvar_mock,
             'parent_2': subvar_mock,
             'parent_3': subvar_mock,
@@ -114,9 +115,7 @@ class TestCombine(TestCase):
     def test_combine_categories_unknown_alias(self):
         resource = mock.MagicMock()
         resource.body = {'name': 'mocked_dataset'}
-        entity_mock = mock.MagicMock()
-        entity_mock.entity_url = var_url
-
+        entity_mock = mock.MagicMock(entity_url=var_url)
         resource.variables.by.return_value = {
             'test': entity_mock
         }
@@ -127,6 +126,7 @@ class TestCombine(TestCase):
         assert 'Dataset mocked_dataset has no variable unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
+        # PIZZA
         resource = mock.MagicMock()
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
@@ -180,14 +180,13 @@ class TestCombine(TestCase):
         assert 'Unknown subvariables for variable' in str(err.value)
 
     def test_combine_responses_by_alias(self):
+        # PIZZA
         resource = mock.MagicMock()
         resource.entity.self = dataset_url
 
         # mock subvariables
-        subvar_mock = mock.MagicMock()
-        subvar_mock.entity_url = subvar1_url
-        subvar2_mock = mock.MagicMock()
-        subvar2_mock.entity_url = subvar2_url
+        subvar_mock = mock.MagicMock(entity_url=subvar1_url)
+        subvar2_mock = mock.MagicMock(entity_url=subvar2_url)
 
         # mock parent variable
         entity_mock = mock.MagicMock()

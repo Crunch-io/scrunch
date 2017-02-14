@@ -1276,8 +1276,9 @@ class TestRecode(TestDatasetBase):
 class TestCopyVariable(TestCase):
     def test_base_variable(self):
         ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'numeric'})
-        var_res.self = '/variable/url/'
+        var_res = mock.MagicMock()
+        var_res.entity.body = {'type': 'numeric'}
+        var_res.entity.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
@@ -1295,23 +1296,25 @@ class TestCopyVariable(TestCase):
 
     def test_derived_variable(self):
         ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'multiple_response', 'derivation': {
-            'function': 'array',
-            'args': [{
-                'function': 'select',
+        var_res = mock.MagicMock()
+        var_res.entity.body = {
+            'type': 'multiple_response', 'derivation': {
+                'function': 'array',
                 'args': [{
-                    'map': {
-                        '00001': {
-                            'function': 'combine_responses',
-                            'args': [
-                                {'variable': '../original_variable'}
-                            ]
+                    'function': 'select',
+                    'args': [{
+                        'map': {
+                            '00001': {
+                                'function': 'combine_responses',
+                                'args': [
+                                    {'variable': '../original_variable'}
+                                ]
+                            }
                         }
-                    }
+                    }]
                 }]
-            }]
-        }})
-        var_res.self = '/variable/url/'
+            }}
+        var_res.entity.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
@@ -1346,9 +1349,9 @@ def test_hide_unhide():
     var_res = mock.MagicMock()
     var = Variable(var_res, ds_res)
     var.hide()
-    var_res.edit.assert_called_with(discarded=True)
+    var_res.entity.edit.assert_called_with(discarded=True)
     var.unhide()
-    var_res.edit.assert_called_with(discarded=False)
+    var_res.entity.edit.assert_called_with(discarded=False)
 
 
 class TestHierarchicalOrder(TestCase):

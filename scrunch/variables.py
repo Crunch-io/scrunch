@@ -21,7 +21,7 @@ def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
     subvars = variable.resource.subvariables.by('alias')
     try:
         responses = [{
-                         'name': cat_names.get(response_id, "Response %s"  % response_id),
+                         'name': cat_names.get(response_id, "Response %s" % response_id),
                          'alias': subvar_alias(alias, response_id),
                          'combined_ids': [subvars[subvar_alias(parent_alias,
                                                                sv_alias)].entity_url for sv_alias in
