@@ -689,6 +689,16 @@ class DatasetVariablesMixin(collections.Mapping):
         self.ds_resource = ds_resource
         self._vars = self.ds_resource.variables.index.items()
 
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.ds_resource.variables.by('alias').get(item)
+        if variable is None:
+            # Variable doesn't exists, must raise a ValueError
+            raise ValueError('Dataset %s has no variable %s' % (
+                self.ds_resource.body['name'], item))
+        # Variable exists!, return the variable Instance
+        return Variable(variable, self.ds_resource)
+
     def __iter__(self):
         for var in self._vars:
             yield var
@@ -746,17 +756,6 @@ class Dataset(DatasetVariablesMixin):
         # Attribute doesn't exists, must raise an AttributeError
         raise AttributeError('Dataset %s has no attribute %s' % (
             self.resource.body['name'], item))
-
-    def __getitem__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
-        if variable is None:
-            # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
-
-        # Variable exists!, return the variable Instance
-        return Variable(variable, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
