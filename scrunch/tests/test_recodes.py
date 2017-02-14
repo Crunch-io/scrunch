@@ -372,6 +372,8 @@ class TestRecode(TestCase):
         var_res = Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
+            # needed in order to simulate a Tuple, now Variable is inited with Tuple
+            'entity_url': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
             'body': {
                 'name': 'Q1',
                 'subreferences': [
@@ -418,7 +420,7 @@ class TestRecode(TestCase):
             }
         })
         ds_res = mock.MagicMock()
-        var = Variable(var_res, ds_res)
+        Variable(var_res, ds_res)
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
         dataset = Dataset(ds_res)

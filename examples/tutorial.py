@@ -66,7 +66,7 @@ new_ds = create_dataset('Test dataset', {
     }
 })
 
-print "Dataset %s created" % new_ds.id
+print("Dataset %s created" % new_ds.id)
 
 rows = {
     'catvar': [1, 2, 3, 1, 2],
@@ -85,15 +85,15 @@ assert dataset.id == new_ds.id
 total = dataset.stream_rows(rows)
 dataset.push_rows(total)
 
-print "Added %s rows" % len(rows.values()[0])
+print("Added %s rows" % len(rows.values()[0]))
 
 dataset.exclude("numvar > 0")
 
-print "Exclusion filter set"
+print("Exclusion filter set")
 
 dataset.create_savepoint("After setting exclusion")
 
-print "Created savepoint"
+print("Created savepoint")
 
 catvar = dataset['catvar']
 
@@ -111,7 +111,7 @@ combined = dataset.combine_categorical(catvar, {
 }, name='combined', alias='combined')
 
 assert combined.resource.body.derivation['function'] == 'combine_categories'
-print "Variable combined as: %s" % combined.alias
+print("Variable combined as: %s" % combined.alias)
 
 numvar = dataset['numvar']
 copy_numeric = dataset.copy_variable(numvar, name='Copied numvar',

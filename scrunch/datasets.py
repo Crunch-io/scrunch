@@ -682,22 +682,30 @@ class DatasetSettings(dict):
 
 class DatasetVariablesMixin(collections.Mapping):
     """
-    Handles dataset variable iteration
+    Handles dataset variable iteration in a dict-like way
     """
 
     def __init__(self, ds_resource):
         self.ds_resource = ds_resource
-        self._vars = self.ds_resource.variables.index.items()
+        self._reload_variables()
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
+        # TODO: have this cached
         variable = self.ds_resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
             raise ValueError('Dataset %s has no variable %s' % (
                 self.ds_resource.body['name'], item))
         # Variable exists!, return the variable Instance
-        return Variable(variable, self.ds_resource)
+        return Variable(variable, self)
+
+    def _reload_variables(self):
+        """
+        Helper that takes care of updating self._vars on init and
+        whenever the dataset adds a variable
+        """
+        self._vars = self.ds_resource.variables.index.items()
 
     def __iter__(self):
         for var in self._vars:
@@ -708,7 +716,7 @@ class DatasetVariablesMixin(collections.Mapping):
 
     def itervalues(self):
         for _, var_tuple in self._vars:
-            yield Variable(var_tuple, self.ds_resource)
+            yield Variable(var_tuple, self)
 
     def iterkeys(self):
         for var in self._vars:
@@ -742,7 +750,6 @@ class Dataset(DatasetVariablesMixin):
         self.session = self.resource.session
         self.url = self.resource.self
         self._settings = None
-
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
@@ -987,9 +994,11 @@ class Dataset(DatasetVariablesMixin):
                                  expr=expr,
                                  description=description))
 
-        new_var = self.resource.variables.create(payload).refresh()
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
         # return the variable instance
-        return self[new_var.body.alias]
+        return self[new_var['body']['alias']]
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -1022,9 +1031,11 @@ class Dataset(DatasetVariablesMixin):
             }
         }
 
-        new_var = self.resource.variables.create(payload).refresh()
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
         # return an instance of Variable
-        return self[new_var.body.alias]
+        return self[new_var['body']['alias']]
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -1094,9 +1105,11 @@ class Dataset(DatasetVariablesMixin):
                     'subreferences': subreferences
                 }
 
-        new_var = self.resource.variables.create(payload).refresh()
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
         # return an instance of Variable
-        return self[new_var.body.alias]
+        return self[new_var['body']['alias']]
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1141,9 +1154,12 @@ class Dataset(DatasetVariablesMixin):
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
 
-        new_var = self.resource.variables.create(payload).refresh()
+        # this returns an entity
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
         # at this point we are returning a Variable instance
-        return self[new_var.body.alias]
+        return self[new_var['body']['alias']]
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1177,9 +1193,11 @@ class Dataset(DatasetVariablesMixin):
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
 
-        new_var = self.resource.variables.create(payload).refresh()
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
         # return an instance of Variable
-        return self[new_var.body.alias]
+        return self[new_var['body']['alias']]
 
     def create_savepoint(self, description):
         """
@@ -1481,15 +1499,15 @@ class Variable(object):
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
     def __init__(self, var_tuple, dataset):
+        """
+        :param var_tuple: A Shoji Tuple for a dataset variable
+        :param dataset: a Dataset() object instance
+        """
         self.shoji_tuple = var_tuple
         self.is_instance = False
         self._resource = None
-        # pass an Entity class to save time
-        if isinstance(dataset, pycrunch.shoji.Entity):
-            self.dataset = dataset
-        else:
-            # Need to instantiate Dataset for ds.order method
-            self.dataset = Dataset(dataset)
+        self.url = var_tuple.entity_url
+        self.dataset = dataset
 
     @property
     def resource(self):
@@ -1497,10 +1515,6 @@ class Variable(object):
             self._resource = self.shoji_tuple.entity
             self.is_instance = True
         return self._resource
-
-    @property
-    def url(self):
-        return self.resource.self
 
     def __getattr__(self, item):
         # don't access self.resource unless necessary
@@ -1742,9 +1756,11 @@ class Variable(object):
                 }
             ]
 
-        new_var = self.resource.variables.create(payload).refresh()
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self.dataset._reload_variables()
         # return an instance of Variable
-        return self[new_var.body.alias]
+        return self.dataset[new_var['body']['alias']]
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size

@@ -2887,6 +2887,7 @@ class TestDatasetJoins(TestCase):
         _var_mock.__getitem__.side_effect = _get_func
         _var_mock.get.side_effect = _get_func
         _var_mock.entity.self = var_url
+        _var_mock.entity_url = var_url
         _var_mock.entity.body.__getitem__.side_effect = _get_func
         _var_mock.entity.body.get.side_effect = _get_func
         return _var_mock
