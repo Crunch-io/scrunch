@@ -53,6 +53,8 @@ if six.PY2:
 else:
     from urllib.parse import urlencode
 
+ARRAY_TYPES = ('categorical_array', 'multiple_response')
+
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
     'missing': 'is_missing',
@@ -381,7 +383,7 @@ def get_dataset_variables(ds):
         var['id'] = _id
         variables[var['alias']] = var
 
-        if var['type'] in ('categorical_array', 'multiple_response'):
+        if var['type'] in ARRAY_TYPES:
             subreferences = var.get('subreferences', {})
             for subvar_id, subvar in subreferences.items():
                 subvar['is_subvar'] = True
@@ -501,8 +503,7 @@ def process_expr(obj, ds):
                     else:
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
-                    VALID_TYPES = ('categorical_array', 'multiple_response')
-                    if var['type'] in VALID_TYPES:
+                    if var['type'] in ARRAY_TYPES:
                         subvariables = [
                             '%svariables/%s/subvariables/%s/'
                             % (base_url, var['id'], subvar_id)
