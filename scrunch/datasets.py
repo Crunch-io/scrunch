@@ -1318,6 +1318,42 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         return fork
 
+    def merge(self, fork_id=None, autorollback=True):
+        """
+        :param fork_id: str or int
+            can either be the fork id, name or its number as string or int
+
+        :param autorollback: bool, default=True
+            if True the original dataset is rolled back to the previous state
+            in case of a merge conflict.
+            if False the dataset and fork are beeing left 'dirty'
+        """
+        if isinstance(fork_id, int) or (
+                isinstance(fork_id, six.string_types) and
+                fork_id.isdigit()):
+            fork_id = "FORK #{} of {}".format(fork_id, self.resource.body.name)
+
+        elif fork_id is None:
+            raise ValueError('fork id, name or number missing')
+
+        fork_index = self.resource.forks.index
+
+        forks = [f for f in fork_index
+                 if fork_index[f].get('name') == fork_id or
+                 fork_index[f].get('id') == fork_id]
+        if len(forks) == 1:
+            fork_url = forks[0]
+        else:
+            raise ValueError(
+                "Couldn't find a (unique) fork. "
+                "Please try again using its id")
+
+        body = dict(
+            dataset=fork_url,
+            autorollback=autorollback
+        )
+        self.resource.actions.post(body)
+
     def forks_dataframe(self):
         """
         Return a dataframe summarizing the forks on the dataset.
