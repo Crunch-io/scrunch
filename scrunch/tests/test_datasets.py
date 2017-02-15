@@ -123,9 +123,12 @@ class TestDatasetBase(object):
     def _variable_mock(self, ds_url, variable=None):
         variable = variable or self.variables['0001']
         var_url = '%svariables/%s/' % (ds_url, variable['id'])
-        _var_mock = MagicMock()
+        # set attrs outside of entity
+        _var_mock = MagicMock(variable)
         _var_mock.entity = EditableMock(body=variable)
         _var_mock.entity.self = var_url
+        # force new Variable behaviour not being an entity
+        _var_mock.entity_url = var_url
         return _var_mock
 
     def _build_test_meta(self, ds_shoji, variables):
@@ -460,9 +463,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "variable": var.url
                     },
                     {
-                        "value": [
-                            32767
-                        ]
+                        "value": [32767]
                     }
                 ],
                 "function": "all"
@@ -907,30 +908,31 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
             ds.start_date = 'forbidden'
         assert ds.start_date is None
 
-    def test_Variable_attribute_writes(self):
-        ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
-        var = ds['var1_alias']
-
-        with pytest.raises(AttributeError, message=self.error_msg):
-            var.name = 'forbidden'
-        assert var.name == 'var1_name'
-
-        with pytest.raises(AttributeError, message=self.error_msg):
-            var.description = 'forbidden'
-        assert var.description == ''
-
-        with pytest.raises(AttributeError, message=self.error_msg):
-            var.notes = 'forbidden'
-        assert var.notes == ''
-
-        with pytest.raises(AttributeError, message=self.error_msg):
-            var.format = 'forbidden'
-        assert var.format is None
-
-        with pytest.raises(AttributeError, message=self.error_msg):
-            var.view = 'forbidden'
-        assert var.view is None
+    # NOTE: Variable is no longer ReadOnly
+    # def test_Variable_attribute_writes(self):
+    #     ds_mock = self._dataset_mock()
+    #     ds = Dataset(ds_mock)
+    #     var = ds['var1_alias']
+    #
+    #     with pytest.raises(AttributeError, message=self.error_msg):
+    #         var.name = 'forbidden'
+    #     assert var.name == 'var1_name'
+    #
+    #     with pytest.raises(AttributeError, message=self.error_msg):
+    #         var.description = 'forbidden'
+    #     assert var.description == ''
+    #
+    #     with pytest.raises(AttributeError, message=self.error_msg):
+    #         var.notes = 'forbidden'
+    #     assert var.notes == ''
+    #
+    #     with pytest.raises(AttributeError, message=self.error_msg):
+    #         var.format = 'forbidden'
+    #     assert var.format is None
+    #
+    #     with pytest.raises(AttributeError, message=self.error_msg):
+    #         var.view = 'forbidden'
+    #     assert var.view is None
 
 
 class TestVariables(TestDatasetBase, TestCase):
@@ -1266,7 +1268,9 @@ class TestRecode(TestDatasetBase):
             {'id': 3, 'name': 'Google+',
              'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
+        assert 'Dataset test_dataset_name has no variable' in str(err.value)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1383,7 +1387,9 @@ class TestRecode(TestDatasetBase):
             {'id': 2, 'name': 'Twitter', 'case': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
+        assert 'Dataset test_dataset_name has no variable' in str(err.value)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1502,9 +1508,10 @@ class TestRecode(TestDatasetBase):
 
 class TestCopyVariable(TestCase):
     def test_base_variable(self):
-        ds_res = MagicMock()
-        var_res = MagicMock(body={'type': 'numeric'})
-        var_res.self = '/variable/url/'
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock()
+        var_res.entity.body = {'type': 'numeric'}
+        var_res.entity.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
@@ -1521,24 +1528,26 @@ class TestCopyVariable(TestCase):
         })
 
     def test_derived_variable(self):
-        ds_res = MagicMock()
-        var_res = MagicMock(body={'type': 'multiple_response', 'derivation': {
-            'function': 'array',
-            'args': [{
-                'function': 'select',
+        ds_res = mock.MagicMock()
+        var_res = mock.MagicMock()
+        var_res.entity.body = {
+            'type': 'multiple_response', 'derivation': {
+                'function': 'array',
                 'args': [{
-                    'map': {
-                        '00001': {
-                            'function': 'combine_responses',
-                            'args': [
-                                {'variable': '../original_variable'}
-                            ]
+                    'function': 'select',
+                    'args': [{
+                        'map': {
+                            '00001': {
+                                'function': 'combine_responses',
+                                'args': [
+                                    {'variable': '../original_variable'}
+                                ]
+                            }
                         }
-                    }
+                    }]
                 }]
-            }]
-        }})
-        var_res.self = '/variable/url/'
+            }}
+        var_res.entity.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
@@ -1573,9 +1582,9 @@ def test_hide_unhide():
     var_res = MagicMock()
     var = Variable(var_res, ds_res)
     var.hide()
-    var_res.edit.assert_called_with(discarded=True)
+    var_res.entity.edit.assert_called_with(discarded=True)
     var.unhide()
-    var_res.edit.assert_called_with(discarded=False)
+    var_res.entity.edit.assert_called_with(discarded=False)
 
 
 class TestHierarchicalOrder(TestCase):
@@ -3111,6 +3120,7 @@ class TestDatasetJoins(TestCase):
         _var_mock.__getitem__.side_effect = _get_func
         _var_mock.get.side_effect = _get_func
         _var_mock.entity.self = var_url
+        _var_mock.entity_url = var_url
         _var_mock.entity.body.__getitem__.side_effect = _get_func
         _var_mock.entity.body.get.side_effect = _get_func
         return _var_mock
@@ -3274,3 +3284,40 @@ class TestDatasetExport(TestCase):
                 'export.csv', format='spss',
                 options={'var_label_field': 'invalid'}
             )
+
+
+class TestVariableIterator(TestDatasetBase):
+
+    variables = {
+        'var_a': {
+            'id': '001',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'numeric',
+            'is_subvar': False
+        },
+        'var_b': {
+            'id': '002',
+            'alias': 'var_b',
+            'name': 'Variable B',
+            'type': 'categorical',
+            'is_subvar': False
+        },
+        'var_c': {
+            'id': '003',
+            'alias': 'var_c',
+            'name': 'Variable C',
+            'type': 'categorical',
+            'is_subvar': False
+        }
+    }
+
+    def test_ds_keys(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = Dataset(ds_mock)
+        assert isinstance(ds.keys(), list)
+
+    def test_ds_values(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = Dataset(ds_mock)
+        assert isinstance(ds.values(), list)

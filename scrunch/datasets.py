@@ -52,7 +52,7 @@ def _get_connection():
     """
     if pycrunch.session is not None:
         return pycrunch.session
-    # try to get credentials from enviroment
+    # try to get credentials from environment
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
@@ -681,7 +681,54 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(ReadOnly):
+class DatasetVariablesMixin(collections.Mapping):
+    """
+    Handles dataset variable iteration in a dict-like way
+    """
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
+        if variable is None:
+            # Variable doesn't exists, must raise a ValueError
+            raise ValueError('Dataset %s has no variable %s' % (
+                self.resource.body['name'], item))
+        # Variable exists!, return the variable Instance
+        return Variable(variable, self)
+
+    def _reload_variables(self):
+        """
+        Helper that takes care of updating self._vars on init and
+        whenever the dataset adds a variable
+        """
+        self._vars = self.resource.variables.index.items()
+
+    def __iter__(self):
+        for var in self._vars:
+            yield var
+
+    def __len__(self):
+        return len(self._vars)
+
+    def itervalues(self):
+        for _, var_tuple in self._vars:
+            yield Variable(var_tuple, self)
+
+    def iterkeys(self):
+        for var in self._vars:
+            yield var[1].name
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
+
+class Dataset(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -697,10 +744,12 @@ class Dataset(ReadOnly):
         """
         super(Dataset, self).__init__(resource)
         self._settings = None
-
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
+        # since we no longer have an __init__ on DatasetVariablesMixin because
+        # of the multiple inheritance, we just initiate self._vars here
+        self._reload_variables()
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -709,17 +758,6 @@ class Dataset(ReadOnly):
         # Attribute doesn't exists, must raise an AttributeError
         raise AttributeError('Dataset %s has no attribute %s' % (
             self.resource.body['name'], item))
-
-    def __getitem__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
-        if variable is None:
-            # Variable doesn't exists, must raise an ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
-
-        # Variable exists!, return the variable entity
-        return Variable(variable.entity, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -952,9 +990,11 @@ class Dataset(ReadOnly):
                                  expr=expr,
                                  description=description))
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[new_var['body']['alias']]
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -986,9 +1026,12 @@ class Dataset(ReadOnly):
                 }
             }
         }
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
@@ -1058,9 +1101,11 @@ class Dataset(ReadOnly):
                     'subreferences': subreferences
                 }
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
@@ -1104,9 +1149,13 @@ class Dataset(ReadOnly):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        # this returns an entity
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # at this point we are returning a Variable instance
+        return self[new_var['body']['alias']]
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
                           name='', alias='', description=''):
@@ -1139,9 +1188,12 @@ class Dataset(ReadOnly):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def create_savepoint(self, description):
         """
@@ -1429,6 +1481,7 @@ class Dataset(ReadOnly):
                 {'variable': left_var_url}
             ]
         }
+
         # wrap the adapter method on a shoji and body entity
         payload = {
             'element': 'shoji:entity',
@@ -1458,7 +1511,7 @@ class Dataset(ReadOnly):
         progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
-            return wait_progress(r=progress, session=self.session, entity=self)
+            return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
     def create_categorical(self, categories, alias, name, multiple, description=''):
@@ -1476,7 +1529,7 @@ class Dataset(ReadOnly):
                 description=description)
 
 
-class Variable(ReadOnly):
+class Variable(object):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
@@ -1490,11 +1543,28 @@ class Variable(ReadOnly):
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, resource, dataset_resource):
-        super(Variable, self).__init__(resource)
-        self.dataset = Dataset(dataset_resource)
+    def __init__(self, var_tuple, dataset):
+        """
+        :param var_tuple: A Shoji Tuple for a dataset variable
+        :param dataset: a Dataset() object instance
+        """
+        self.shoji_tuple = var_tuple
+        self.is_instance = False
+        self._resource = None
+        self.url = var_tuple.entity_url
+        self.dataset = dataset
+
+    @property
+    def resource(self):
+        if not self.is_instance:
+            self._resource = self.shoji_tuple.entity
+            self.is_instance = True
+        return self._resource
 
     def __getattr__(self, item):
+        # don't access self.resource unless necessary
+        if hasattr(self.shoji_tuple, item):
+            return self.shoji_tuple[item]
         if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
             try:
                 return self.resource.body[item]  # Has to exist
@@ -1505,7 +1575,7 @@ class Variable(ReadOnly):
     def edit(self, **kwargs):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                raise AttributeError("Can't edit attribute %s of variable %s" % (
                     key, self.name
                 ))
         return self.resource.edit(**kwargs)
@@ -1727,9 +1797,11 @@ class Variable(ReadOnly):
                 }
             ]
 
-        return Variable(
-            self.dataset.resource.variables.create(payload).refresh(),
-            self.dataset.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self.dataset._reload_variables()
+        # return an instance of Variable
+        return self.dataset[new_var['body']['alias']]
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1764,6 +1836,5 @@ class Variable(ReadOnly):
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)

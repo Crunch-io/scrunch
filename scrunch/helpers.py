@@ -12,6 +12,7 @@ class ReadOnly(object):
     class for protecting undesired writes to attributes
     """
     def __init__(self, resource):
+        # need to call parent to make sure we call other mixin's __init__
         object.__setattr__(self, "resource", resource)
         object.__setattr__(self, "url", resource.self)
 
