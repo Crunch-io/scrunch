@@ -3284,3 +3284,40 @@ class TestDatasetExport(TestCase):
                 'export.csv', format='spss',
                 options={'var_label_field': 'invalid'}
             )
+
+
+class TestVariableIterator(TestDatasetBase):
+
+    variables = {
+        'var_a': {
+            'id': '001',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'numeric',
+            'is_subvar': False
+        },
+        'var_b': {
+            'id': '002',
+            'alias': 'var_b',
+            'name': 'Variable B',
+            'type': 'categorical',
+            'is_subvar': False
+        },
+        'var_c': {
+            'id': '003',
+            'alias': 'var_c',
+            'name': 'Variable C',
+            'type': 'categorical',
+            'is_subvar': False
+        }
+    }
+
+    def test_ds_keys(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = Dataset(ds_mock)
+        assert isinstance(ds.keys(), list)
+
+    def test_ds_values(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = Dataset(ds_mock)
+        assert isinstance(ds.values(), list)
