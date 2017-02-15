@@ -505,11 +505,11 @@ def process_expr(obj, ds):
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
                     if var['type'] in ('categorical_array', 'multiple_response'):
-                        subvariables = [
-                            '%svariables/%s/subvariables/%s/'
-                            % (base_url, var['id'], subvar_id)
-                            for subvar_id in var.get('subvariables', [])
-                        ]
+                        subvariables = [{
+                            'id': subvar_id,
+                            'url': '%svariables/%s/subvariables/%s/'
+                                   % (base_url, var['id'], subvar_id)
+                        } for subvar_id in var.get('subvariables', [])]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
             elif key == 'function':
@@ -544,39 +544,56 @@ def process_expr(obj, ds):
                 if len(values) != 1:
                     raise ValueError
 
-                subvariables = arrays[0]
+                subvariable_mapping = {
+                    subvar['id']: subvar['url'] for subvar in arrays[0]
+                }
                 value = values[0]
 
-                if op == 'all':
-                    if len(value['value']) != 1:
-                        raise ValueError
-                    value['value'] = value['value'][0]
+                are_subvars = all(
+                    subvar in value['value']
+                    for subvar in subvariable_mapping.keys()
+                )
 
-                if len(subvariables) == 1:
-                    obj['function'] = real_op
-                    obj['args'][0] = {'variable': subvariables[0]}
-                    obj['args'][1] = value
+                if are_subvars:
+                    # no expansion is needed if all arguments are subvariables,
+                    # instead we should just transform variable references to
+                    # their corresponding urls
+                    value['value'] = [
+                        subvariable_mapping[v] for v in value['value']
+                    ]
                 else:
-                    obj = {
-                        'function': expansion_op,
-                        'args': []
-                    }
-                    args_ref = obj['args']
-                    for i, subvar in enumerate(subvariables):
-                        args_ref.append(
-                            {
-                                'function': real_op,
-                                'args': [
-                                    {'variable': subvar},
-                                    value
-                                ]
-                            }
-                        )
-                        if i < len(subvariables) - 2:
+                    subvariables = [subvar['url'] for subvar in arrays[0]]
+
+                    if op == 'all':
+                        if len(value['value']) != 1:
+                            raise ValueError
+                        value['value'] = value['value'][0]
+
+                    if len(subvariables) == 1:
+                        obj['function'] = real_op
+                        obj['args'][0] = {'variable': subvariables[0]}
+                        obj['args'][1] = value
+                    else:
+                        obj = {
+                            'function': expansion_op,
+                            'args': []
+                        }
+                        args_ref = obj['args']
+                        for i, subvar in enumerate(subvariables):
                             args_ref.append(
-                                {'function': expansion_op, 'args': []}
+                                {
+                                    'function': real_op,
+                                    'args': [
+                                        {'variable': subvar},
+                                        value
+                                    ]
+                                }
                             )
-                            args_ref = args_ref[-1]['args']
+                            if i < len(subvariables) - 2:
+                                args_ref.append(
+                                    {'function': expansion_op, 'args': []}
+                                )
+                                args_ref = args_ref[-1]['args']
 
         return obj
 
