@@ -7,7 +7,8 @@ import re
 
 import six
 
-from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
+from scrunch.helpers import (abs_url, subvar_alias, download_file,
+                             case_expr, ReadOnly)
 
 import pandas as pd
 
@@ -680,7 +681,7 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(object):
+class Dataset(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -694,9 +695,7 @@ class Dataset(object):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        self.resource = resource
-        self.session = self.resource.session
-        self.url = self.resource.self
+        super(Dataset, self).__init__(resource)
         self._settings = None
 
         # The `order` property, which provides a high-level API for
@@ -751,7 +750,8 @@ class Dataset(object):
         raise TypeError('Unsupported operation on the settings property')
 
     def _load_settings(self):
-        settings = self.session.get(self.resource.fragments.settings).payload
+        settings = self.resource.session.get(
+            self.resource.fragments.settings).payload
         self._settings = DatasetSettings(
             (_name, _value) for _name, _value in settings.body.items()
         )
@@ -770,7 +770,7 @@ class Dataset(object):
             setting: kwargs[setting] for setting in incoming_settings
         }
         if settings_payload:
-            self.session.patch(
+            self.resource.session.patch(
                 self.resource.fragments.settings,
                 json.dumps(settings_payload),
                 headers={'Content-Type': 'application/json'}
@@ -824,7 +824,7 @@ class Dataset(object):
             )
             user_url = None
 
-            users = self.session.get(api_users).payload['index']
+            users = self.resource.session.get(api_users).payload['index']
 
             for url, user in six.iteritems(users):
                 if user['email'] == email:
@@ -1476,13 +1476,13 @@ class Dataset(object):
                 description=description)
 
 
-class Variable(object):
+class Variable(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -1491,8 +1491,7 @@ class Variable(object):
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
     def __init__(self, resource, dataset_resource):
-        self.resource = resource
-        self.url = self.resource.self
+        super(Variable, self).__init__(resource)
         self.dataset = Dataset(dataset_resource)
 
     def __getattr__(self, item):
@@ -1517,15 +1516,11 @@ class Variable(object):
     def __str__(self):
         return self.name
 
-    _categories = None
-
     @property
     def categories(self):
         if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
             raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
-        if self._categories is None:
-            self._categories = CategoryList(self.resource)
-        return self._categories
+        return CategoryList._from(self.resource)
 
     def hide(self):
         LOG.debug("HIDING")

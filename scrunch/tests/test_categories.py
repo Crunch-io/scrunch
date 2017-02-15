@@ -19,14 +19,13 @@ class EditableMock(MagicMock):
 
 
 class TestCategories(TestCase):
-    def test_instance_is_reused(self):
+    def test_CategoryList_instance(self):
         resource = EditableMock(body=dict(
             categories=TEST_CATEGORIES(),
             type='categorical'
         ))
         variable = Variable(resource, MagicMock())
         cat_list = variable.categories
-        self.assertEqual(id(cat_list), id(variable.categories))
         self.assertTrue(isinstance(cat_list, CategoryList))
 
     def test_edit_category(self):
@@ -56,7 +55,7 @@ class TestCategories(TestCase):
         ])
 
         # Try to change the ID
-        with self.assertRaises(ValueError) as err:
+        with self.assertRaises(AttributeError) as err:
             variable.categories[2].edit(id=100)
         self.assertEqual(
             str(err.exception),
@@ -65,6 +64,40 @@ class TestCategories(TestCase):
 
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
+
+    def test_Category_attribute_writes(self):
+        resource = EditableMock(body=dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical',
+        ))
+        variable = Variable(resource, MagicMock())
+
+        error_msg = 'use the edit() method for mutating attributes'
+
+        with pytest.raises(AttributeError, message=error_msg):
+            variable.categories[1].id = 42
+        # nothing has changed
+        assert variable.categories[1].id == 1
+
+        with pytest.raises(AttributeError, message=error_msg):
+            variable.categories[1].name = 'forbidden'
+        # nothing has changed
+        assert variable.categories[1].name == 'Female'
+
+        with pytest.raises(AttributeError, message=error_msg):
+            variable.categories[1].numeric_value = 42
+        # nothing has changed
+        assert variable.categories[1].numeric_value is None
+
+        with pytest.raises(AttributeError, message=error_msg):
+            variable.categories[1].missing = True
+        # nothing has changed
+        assert variable.categories[1].missing is False
+
+        with pytest.raises(AttributeError, message=error_msg):
+            variable.categories[1].selected = True
+        # nothing has changed, default is False
+        assert variable.categories[1].selected is False
 
     def test_edit_derived(self):
         resource = EditableMock(body=dict(

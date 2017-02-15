@@ -1,25 +1,26 @@
 import collections
 import json
+import copy
 
-import mock
+from mock import MagicMock
 from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
-from pycrunch.elements import JSONObject
-from pycrunch.shoji import Entity
+from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
 from scrunch.datasets import Dataset, Variable
+from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
-        self.put = mock.MagicMock()
-        self.post = mock.MagicMock()
-        self.patch = mock.MagicMock()
+        self.put = MagicMock()
+        self.post = MagicMock()
+        self.patch = MagicMock()
 
     def __getattr__(self, item):
         if item == 'payload':
@@ -39,42 +40,19 @@ def _build_get_func(var):
 
 
 class TestDatasetBase(object):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
-
-    def dataset_mock(self, variables=None):
-        variables = variables or {
-            '0001': dict(
-                id='0001',
-                alias='disposition',
-                type='numeric',
-                is_subvar=False
-            ),
-            '0002': dict(
-                id='0002',
-                alias='exit_status',
-                type='numeric',
-                is_subvar=False
-            )
-        }
-
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.fragments.exclusion = '%sexclusion/' % self.ds_url
-        table_mock = mock.MagicMock(metadata=variables)
-        ds.follow.return_value = table_mock
-
-        return Dataset(ds)
-
-
-class TestDatasetBaseNG(object):
-    ds_url = 'https://test.crunch.io/api/datasets/123456/'
+    api = 'https://test.crunch.io/api/'
 
     ds_shoji = {
         'element': 'shoji:entity',
         'body': {
             'id': '123456',
             'name': 'test_dataset_name',
-            'alias': 'test_dataset_alias'
+            'notes': '',
+            'description': '',
+            'is_published': False,
+            'archived': False,
+            'end_date': None,
+            'start_date': None,
         }
     }
 
@@ -83,6 +61,10 @@ class TestDatasetBaseNG(object):
             id='0001',
             alias='var1_alias',
             name='var1_name',
+            description='',
+            notes='',
+            format=None,
+            view=None,
             type='numeric',
             is_subvar=False
         ),
@@ -90,104 +72,149 @@ class TestDatasetBaseNG(object):
             id='0002',
             alias='var2_alias',
             name='var2_name',
-            type='numeric',
+            description='',
+            notes='',
+            format=None,
+            view=None,
+            type='text',
+            is_subvar=False
+        ),
+        '0003': dict(
+            id='0003',
+            alias='var3_alias',
+            name='var3_name',
+            description=None,
+            notes=None,
+            format=None,
+            view=None,
+            type='categorical',
+            categories=TEST_CATEGORIES(),
             is_subvar=False
         )
     }
 
-    def _dataset_mock(self, variables=None):
-        _ds_mock = mock.MagicMock()
-        _get_body = self._build_get_func(self.ds_shoji['body'])
-        _ds_mock.variables.by.side_effect = self._variables_by_side_effect(variables)
-        _ds_mock.entity.self = self.ds_url
-        _ds_mock.entity.body.__getitem__.side_effect = _get_body
-        _ds_mock.entity.body.get.side_effect = _get_body
-        _ds_mock.body.__getitem__.side_effect = _get_body
-        _ds_mock.body.get.side_effect = _get_body
+    def _dataset_mock(self, ds_shoji=None, variables=None):
+        ds_shoji = ds_shoji or copy.deepcopy(self.ds_shoji)
+        ds_url = '%sdatasets/%s/' % (self.api, ds_shoji['body']['id'])
+        variables = variables or copy.deepcopy(self.variables)
+
+        table, _variables = self._build_test_meta(ds_shoji, variables)
+        ds_shoji['body']['table'] = table
+
+        var_mock_attributes = {
+            'by.side_effect': self._variables_by_side_effect(_variables)
+        }
+
+        ds_mock_attributes = {
+            'body': ds_shoji['body'],
+            'variables': MagicMock(**var_mock_attributes),
+            'session': MagicMock(spec=ElementSession),
+            'fragments.exclusion': '%sexclusion/' % ds_url
+        }
+        _ds_mock = EditableMock(**ds_mock_attributes)
+        _ds_mock.self = ds_url
+
+        table_mock = MagicMock(metadata=variables)
+        table_mock.self = table.get('self')
+        _ds_mock.follow.return_value = table_mock
         return _ds_mock
 
-    def _variable_mock(self, variable=None):
+    def _variable_mock(self, ds_url, variable=None):
         variable = variable or self.variables['0001']
-
-        var_url = '%svariables/%s/' % (self.ds_url, variable['id'])
-        _get_func = self._build_get_func(variable)
-        _var_mock = mock.MagicMock()
-        _var_mock.__getitem__.side_effect = _get_func
-        _var_mock.get.side_effect = _get_func
+        var_url = '%svariables/%s/' % (ds_url, variable['id'])
+        _var_mock = MagicMock()
+        _var_mock.entity = EditableMock(body=variable)
         _var_mock.entity.self = var_url
-        _var_mock.entity.body.__getitem__.side_effect = _get_func
-        _var_mock.entity.body.get.side_effect = _get_func
         return _var_mock
 
-    def _variables_by_side_effect(self, variables=None):
-        variables = variables or self.variables
-        table = {
-            'element': 'crunch:table',
-            'self': '%stable/' % self.ds_url,
-            'metadata': collections.OrderedDict()
-        }
+    def _build_test_meta(self, ds_shoji, variables):
+        ds_url = '%sdatasets/%s/' % (self.api, ds_shoji['body']['id'])
+        table = dict(
+            element='crunch:table',
+            self='%stable/' % ds_url,
+            metadata=collections.OrderedDict()
+        )
 
         _variables = dict(id=dict(), name=dict(), alias=dict())
         for var in variables:
-            _var_mock = self._variable_mock(variables[var])
+            _var_mock = self._variable_mock(ds_url, variables[var])
             _variables['id'].update({variables[var]['id']: _var_mock})
             _variables['name'].update({variables[var]['name']: _var_mock})
             _variables['alias'].update({variables[var]['alias']: _var_mock})
             table['metadata'][variables[var]['id']] = _var_mock
 
-        self.ds_shoji['body']['table'] = table
+        return table, _variables
+
+    def _variables_by_side_effect(self, variables):
+        _variables = variables
 
         def _get(*args):
             return _variables.get(args[0])
         return _get
 
-    @staticmethod
-    def _build_get_func(d):
-        properties = {}
-        properties.update(d)
 
-        def _get(*args):
-            return properties.get(args[0])
-        return _get
+class TestDatasets(TestDatasetBase, TestCase):
 
-    @staticmethod
-    def _by_side_effect(shoji, entity_mock):
-        d = {'name': {shoji['body']['name']: entity_mock},
-             'id': {shoji['body']['id']: entity_mock},
-             'alias': {shoji['body']['alias']: entity_mock}}
+    def test_edit_Dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
 
-        def _get(*args):
-            return d.get(args[0])
-        return _get
+        assert ds.name == 'test_dataset_name'
+        changes = dict(name='changed')
+        ds.edit(**changes)
+        assert ds.name == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.description == ''
+        changes = dict(description='changed')
+        ds.edit(**changes)
+        assert ds.description == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.notes == ''
+        changes = dict(notes='changed')
+        ds.edit(**changes)
+        assert ds.notes == 'changed'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.is_published is False
+        changes = dict(is_published=True)
+        ds.edit(**changes)
+        assert ds.is_published is True
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.archived is False
+        changes = dict(archived=True)
+        ds.edit(**changes)
+        assert ds.archived is True
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.end_date is None
+        changes = dict(end_date='2017-01-01')
+        ds.edit(**changes)
+        assert ds.end_date == '2017-01-01'
+        ds.resource._edit.assert_called_with(**changes)
+
+        assert ds.start_date is None
+        changes = dict(start_date='2017-01-01')
+        ds.edit(**changes)
+        assert ds.start_date == '2017-01-01'
+        ds.resource._edit.assert_called_with(**changes)
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
-    ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_apply_exclusion(self):
         """
         Tests that the proper PATCH request is sent to Crunch in order to
         apply an exclusion filter to a dataset.
         """
-        var_id = '0001'
-        var_alias = 'disposition'
-        var_type = 'numeric'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
-
-        ds_res = mock.MagicMock()
-        ds_res.self = self.ds_url
-        table_mock = mock.MagicMock(metadata={
-            var_id: {
-                'alias': var_alias,
-                'id': var_id,
-                'type': var_type,
-            }
-        })
-        ds_res.follow.return_value = table_mock
+        ds_res = self._dataset_mock()
         ds = Dataset(ds_res)
+        var = ds['var1_alias']
 
         # Action!
-        exclusion_filter = 'disposition != 0'
+        exclusion_filter = 'var1_alias != 0'
         ds.exclude(exclusion_filter)
 
         # Ensure .patch was called the right way.
@@ -200,7 +227,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             'expression': {
                 'function': '!=',
                 'args': [
-                    {'variable': var_url},  # Crunch needs variable URLs!
+                    {'variable': var.url},  # Crunch needs variable URLs!
                     {'value': 0}
                 ]
             }
@@ -212,8 +239,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         Tests that the proper PATCH request is sent to Crunch in order to
         clear (i.e. remove) the exclusion filter from a dataset.
         """
-        ds_res = mock.MagicMock()
-        ds_res.fragments.exclusion = '%sexclusion/' % self.ds_url
+        ds_res = MagicMock()
         ds = Dataset(ds_res)
         ds.exclude()
 
@@ -222,20 +248,22 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             data=json.dumps({'expression': {}})
         )
 
-    def _exclude_payload(self, expr):
-        dataset = self.dataset_mock()
-        dataset.exclude(expr)
-        call = dataset.session.patch.call_args_list[0]
+    def _exclude_payload(self, ds, expr):
+        ds.exclude(expr)
+        call = ds.resource.session.patch.call_args_list[0]
         return json.loads(call[1]['data'])
 
     def test_gt(self):
-        urld = '%svariables/%s/' % (self.ds_url, '0001')
-        data = self._exclude_payload('disposition > 5')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias > 5')
         expected_expr_obj = {
             'expression': {
                 'function': '>',
                 'args': [
-                    {'variable': urld},
+                    {'variable': var.url},
                     {'value': 5}
                 ]
             }
@@ -243,12 +271,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_in(self):
-        data = self._exclude_payload('disposition in [32766]')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias in [32766]')
         expected_expr_obj = {
             "expression": {
                 "function": "in",
                 "args": [
-                    {"variable": "http://test.crunch.io/api/datasets/123/variables/0001/"},
+                    {"variable": var.url},
                     {"value": [32766]}
                 ]
             }
@@ -257,12 +289,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_in_multiple(self):
-        data = self._exclude_payload('disposition in (32766, 32767)')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias in (32766, 32767)')
         expected_expr_obj = {
             "expression": {
                 "function": "in",
                 "args": [
-                    {"variable": "http://test.crunch.io/api/datasets/123/variables/0001/"},
+                    {"variable": var.url},
                     {"value": [32766, 32767]}
                 ]
             }
@@ -271,7 +307,27 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_and(self):
-        data = self._exclude_payload('not (disposition in (1, 2) and exit_status == 0)')
+        variables = {
+            '0001': dict(
+                id='0001',
+                alias='disposition',
+                name='Disposition',
+                type='numeric'
+            ),
+            '0002': dict(
+                id='0002',
+                alias='exit_status',
+                name='Exit',
+                type='numeric'
+            )
+        }
+
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+        var1 = ds['disposition']
+        var2 = ds['exit_status']
+
+        data = self._exclude_payload(ds, 'not (disposition in (1, 2) and exit_status == 0)')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -283,7 +339,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                 "function": "in",
                                 "args": [
                                     {
-                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0001/"
+                                        "variable": var1.url
                                     },
                                     {
                                         "value": [
@@ -297,7 +353,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                 "function": "==",
                                 "args": [
                                     {
-                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                        "variable": var2.url
                                     },
                                     {
                                         "value": 0
@@ -313,13 +369,17 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_any(self):
-        data = self._exclude_payload('exit_status.any([32766])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     },
                     {
                         "value": [
@@ -333,7 +393,11 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_any(self):
-        data = self._exclude_payload('not exit_status.any([32766])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'not var1_alias.any([32766])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -342,7 +406,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "any",
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             },
                             {
                                 "value": [
@@ -358,13 +422,17 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_any_multiple(self):
-        data = self._exclude_payload('exit_status.any([32766, 32767])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias.any([32766, 32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "any",
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     },
                     {
                         "value": [
@@ -379,12 +447,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_all(self):
-        data = self._exclude_payload('exit_status.all([32767])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     },
                     {
                         "value": [
@@ -399,7 +471,11 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_all(self):
-        data = self._exclude_payload('not exit_status.all([32767])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'not var1_alias.all([32767])')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -408,7 +484,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "all",
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             },
                             {
                                 "value": [
@@ -424,14 +500,18 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_all_or_all(self):
-        data = self._exclude_payload('exit_status.all([1]) or exit_status.all([2])')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias.all([1]) or var1_alias.all([2])')
         expected_expr_obj = {
             "expression": {
                 "args": [
                     {
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             },
                             {
                                 "value": [
@@ -444,7 +524,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                     {
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             },
                             {
                                 "value": [
@@ -462,7 +542,11 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_all_or_all(self):
-        data = self._exclude_payload('not(exit_status.all([1]) or exit_status.all([2]))')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'not(var1_alias.all([1]) or var1_alias.all([2]))')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -472,7 +556,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                        "variable": var.url
                                     },
                                     {
                                         "value": [
@@ -485,7 +569,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                        "variable": var.url
                                     },
                                     {
                                         "value": [
@@ -505,13 +589,17 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_duplicates(self):
-        data = self._exclude_payload('exit_status.duplicates()')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias.duplicates()')
         expected_expr_obj = {
             "expression": {
                 "function": "duplicates",
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     }
                 ]
             }
@@ -520,13 +608,17 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_valid(self):
-        data = self._exclude_payload('valid(exit_status)')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'valid(var1_alias)')
         expected_expr_obj = {
             "expression": {
                 "function": "is_valid",
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     }
                 ]
             }
@@ -535,14 +627,18 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_valid(self):
-        data = self._exclude_payload('not valid(exit_status)')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'not valid(var1_alias)')
         expected_expr_obj = {
             "expression": {
                 "args": [
                     {
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             }
                         ],
                         "function": "is_valid"
@@ -555,12 +651,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_missing(self):
-        data = self._exclude_payload('missing(exit_status)')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'missing(var1_alias)')
         expected_expr_obj = {
             "expression": {
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     }
                 ],
                 "function": "is_missing"
@@ -570,7 +670,11 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_not_missing(self):
-        data = self._exclude_payload('not missing(exit_status)')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'not missing(var1_alias)')
         expected_expr_obj = {
             "expression": {
                 "function": "not",
@@ -579,7 +683,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "is_missing",
                         "args": [
                             {
-                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                "variable": var.url
                             }
                         ]
                     }
@@ -590,12 +694,16 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_equal(self):
-        data = self._exclude_payload('exit_status == 1')
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        data = self._exclude_payload(ds, 'var1_alias == 1')
         expected_expr_obj = {
             "expression": {
                 "args": [
                     {
-                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                        "variable": var.url
                     },
                     {
                         "value": 1
@@ -608,7 +716,26 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_nested(self):
-        data = self._exclude_payload('(disposition != 1 and (not valid(exit_status) or exit_status >= 1)) or (disposition == 0 and exit_status == 0) or (disposition == 0 and exit_status == 1)')
+        variables = {
+            '0001': dict(
+                id='0001',
+                alias='disposition',
+                name='Disposition',
+                type='numeric'
+            ),
+            '0002': dict(
+                id='0002',
+                alias='exit_status',
+                name='Exit',
+                type='numeric'
+            )
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+        var1 = ds['disposition']
+        var2 = ds['exit_status']
+
+        data = self._exclude_payload(ds, '(disposition != 1 and (not valid(exit_status) or exit_status >= 1)) or (disposition == 0 and exit_status == 0) or (disposition == 0 and exit_status == 1)')
         expected_expr_obj = {
             "expression": {
                 "args": [
@@ -617,7 +744,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0001/"
+                                        "variable": var1.url
                                     },
                                     {
                                         "value": 1
@@ -632,7 +759,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                             {
                                                 "args": [
                                                     {
-                                                        "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                                        "variable": var2.url
                                                     }
                                                 ],
                                                 "function": "is_valid"
@@ -643,7 +770,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                                "variable": var2.url
                                             },
                                             {
                                                 "value": 1
@@ -664,7 +791,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": "http://test.crunch.io/api/datasets/123/variables/0001/"
+                                                "variable": var1.url
                                             },
                                             {
                                                 "value": 0
@@ -675,7 +802,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                                "variable": var2.url
                                             },
                                             {
                                                 "value": 0
@@ -691,7 +818,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": "http://test.crunch.io/api/datasets/123/variables/0001/"
+                                                "variable": var1.url
                                             },
                                             {
                                                 "value": 0
@@ -702,7 +829,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                                                "variable": var2.url
                                             },
                                             {
                                                 "value": 1
@@ -724,6 +851,9 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         assert data == expected_expr_obj
 
     def test_dict_expr(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+
         expr = {
             "args": [
                 {
@@ -735,12 +865,74 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             ],
             "function": "=="
         }
-        data = self._exclude_payload(expr)
+        data = self._exclude_payload(ds, expr)
         expected_expr_obj = {'expression': expr}
         assert data == expected_expr_obj
 
 
-class TestVariables(TestDatasetBaseNG, TestCase):
+class TestProtectAttributes(TestDatasetBase, TestCase):
+    error_msg = 'use the edit() method for mutating attributes'
+
+    def test_Dataset_attribute_writes(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        assert ds.name == 'test_dataset_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.name = 'forbidden'
+        assert ds.name == 'test_dataset_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.notes = 'forbidden'
+        assert ds.notes == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.description = 'forbidden'
+        assert ds.description == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.is_published = True
+        assert ds.is_published is False
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.archived = True
+        assert ds.archived is False
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.end_date = 'forbidden'
+        assert ds.end_date is None
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            ds.start_date = 'forbidden'
+        assert ds.start_date is None
+
+    def test_Variable_attribute_writes(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.name = 'forbidden'
+        assert var.name == 'var1_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.description = 'forbidden'
+        assert var.description == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.notes = 'forbidden'
+        assert var.notes == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.format = 'forbidden'
+        assert var.format is None
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.view = 'forbidden'
+        assert var.view is None
+
+
+class TestVariables(TestDatasetBase, TestCase):
     def test_variable_as_member(self):
         ds_mock = self._dataset_mock()
         ds = Dataset(ds_mock)
@@ -760,7 +952,7 @@ class TestVariables(TestDatasetBaseNG, TestCase):
             'Dataset %s has no attribute some_variable' % ds.name
 
     def test_variable_cast(self):
-        variable = mock.MagicMock()
+        variable = MagicMock()
         cast(
             variable,
             type='numeric',
@@ -777,29 +969,58 @@ class TestVariables(TestDatasetBaseNG, TestCase):
             'format': 'format'
         }
 
+    def test_edit_Variables(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        assert var.name == 'var1_name'
+        changes = dict(name='changed')
+        var.edit(**changes)
+        assert var.name == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.description == ''
+        changes = dict(description='changed')
+        var.edit(**changes)
+        assert var.description == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.notes == ''
+        changes = dict(notes='changed')
+        var.edit(**changes)
+        assert var.notes == 'changed'
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.format is None
+        changes = dict(format=dict(summary=dict(digits=2)))
+        var.edit(**changes)
+        assert var.format == dict(summary=dict(digits=2))
+        var.resource._edit.assert_called_with(**changes)
+
+        assert var.view is None
+        changes = dict(view=dict(show_counts=True))
+        var.edit(**changes)
+        assert var.view == dict(show_counts=True)
+        var.resource._edit.assert_called_with(**changes)
+
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
     user_url = 'https://test.crunch.io/api/users/12345/'
 
     def test_change_editor(self):
-        body = {
-            'self': self.ds_url,
-            'name': 'Dataset Name'
-        }
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.patch = mock.MagicMock()
-        ds = Dataset(ds_res)
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
         ds.change_editor(self.user_url)
 
-        ds_res.patch.assert_called_with({
+        ds_mock.patch.assert_called_with({
             'current_editor': self.user_url
         })
 
     def test_change_editor_email(self):
-        sess = mock.MagicMock()
-        response = mock.MagicMock()
+        sess = MagicMock()
+        response = MagicMock()
         response.payload = {
             'index': {
                 self.user_url: {
@@ -812,9 +1033,9 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
             return response
 
         sess.get.side_effect = _get
-        ds_res = mock.MagicMock(session=sess)
+        ds_res = MagicMock(session=sess)
         ds_res.self = self.ds_url
-        ds_res.patch = mock.MagicMock()
+        ds_res.patch = MagicMock()
         ds = Dataset(ds_res)
         ds.change_editor('jane.doe@crunch.io')
 
@@ -828,9 +1049,9 @@ class TestSavepoints(TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_create_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds = Dataset(ds_res)
         ds.create_savepoint('savepoint description')
         ds_res.savepoints.create.assert_called_with({
@@ -841,9 +1062,9 @@ class TestSavepoints(TestCase):
         })
 
     def test_create_savepoint_keyerror(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {
             1: {
                 'description': 'savepoint description'
@@ -854,9 +1075,9 @@ class TestSavepoints(TestCase):
             ds.create_savepoint('savepoint description')
 
     def test_load_initial_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {
             1: {
                 'description': 'savepoint description'
@@ -867,9 +1088,9 @@ class TestSavepoints(TestCase):
             ds.create_savepoint('savepoint description')
 
     def test_load_empty_savepoint(self):
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.savepoints = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {}
         ds = Dataset(ds_res)
         with pytest.raises(KeyError):
@@ -881,14 +1102,14 @@ class TestForks(TestCase):
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
     def test_fork(self):
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': 'http://test.crunch.io/api/users/123/'
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork()
@@ -908,14 +1129,14 @@ class TestForks(TestCase):
 
     def test_fork_preserve_owner(self):
         user_id = 'http://test.crunch.io/api/users/123/'
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': user_id
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork(preserve_owner=True)
@@ -923,26 +1144,26 @@ class TestForks(TestCase):
 
     def test_fork_preserve_owner_project(self):
         project_id = 'http://test.crunch.io/api/projects/456/'
-        sess = mock.MagicMock()
+        sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': project_id
         })
-        ds_res = mock.MagicMock(session=sess, body=body)
-        ds_res.forks = mock.MagicMock()
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = Dataset(ds_res)
         f = ds.fork()
         f.resource.patch.assert_called_with({'owner': project_id})
 
     def test_delete_forks(self):
-        f1 = mock.MagicMock()
-        f2 = mock.MagicMock()
-        f3 = mock.MagicMock()
-        sess = mock.MagicMock()
-        ds_res = mock.MagicMock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        f1 = MagicMock()
+        f2 = MagicMock()
+        f3 = MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {
             'abc1': f1,
             'abc2': f2,
@@ -967,9 +1188,9 @@ class TestForks(TestCase):
             modification_time='2016-01-01T00:00Z',
             id='abc123',
         )
-        sess = mock.MagicMock()
-        ds_res = mock.Mock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {
             'abc1': f1
         }
@@ -984,9 +1205,9 @@ class TestForks(TestCase):
         ]
 
     def test_forks_dataframe_empty(self):
-        sess = mock.MagicMock()
-        ds_res = mock.Mock(session=sess)
-        ds_res.forks = mock.MagicMock()
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
         ds_res.forks.index = {}
 
         ds = Dataset(ds_res)
@@ -1034,7 +1255,9 @@ class TestRecode(TestDatasetBase):
                 'is_subvar': False
             },
         }
-        ds = self.dataset_mock(variables=variables)
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
             {'id': 2, 'name': 'Twitter',
@@ -1151,13 +1374,15 @@ class TestRecode(TestDatasetBase):
                 'is_subvar': False
             },
         }
-        ds = self.dataset_mock(variables=variables)
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
             {'id': 2, 'name': 'Twitter', 'case': 'var_b < 10 and var_c in (1, 2, 3)'},
             {'id': 3, 'name': 'Google+', 'case': '(gender == 1) and (age >= 16 and age <= 24)'},
         ]
-        mr = ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
+        ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1276,8 +1501,8 @@ class TestRecode(TestDatasetBase):
 
 class TestCopyVariable(TestCase):
     def test_base_variable(self):
-        ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'numeric'})
+        ds_res = MagicMock()
+        var_res = MagicMock(body={'type': 'numeric'})
         var_res.self = '/variable/url/'
         ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
@@ -1295,8 +1520,8 @@ class TestCopyVariable(TestCase):
         })
 
     def test_derived_variable(self):
-        ds_res = mock.MagicMock()
-        var_res = mock.MagicMock(body={'type': 'multiple_response', 'derivation': {
+        ds_res = MagicMock()
+        var_res = MagicMock(body={'type': 'multiple_response', 'derivation': {
             'function': 'array',
             'args': [{
                 'function': 'select',
@@ -1343,8 +1568,8 @@ class TestCopyVariable(TestCase):
 
 
 def test_hide_unhide():
-    ds_res = mock.MagicMock()
-    var_res = mock.MagicMock()
+    ds_res = MagicMock()
+    var_res = MagicMock()
     var = Variable(var_res, ds_res)
     var.hide()
     var_res.edit.assert_called_with(discarded=True)
@@ -1498,7 +1723,7 @@ class TestHierarchicalOrder(TestCase):
         for var in variable_defs:
             var_url = '%svariables/%s/' % (self.ds_url, var['id'])
             _get_func = _build_get_func(var)
-            _var_mock = mock.MagicMock()
+            _var_mock = MagicMock()
             _var_mock.__getitem__.side_effect = _get_func
             _var_mock.get.side_effect = _get_func
             _var_mock.entity.self = var_url
@@ -1524,7 +1749,7 @@ class TestHierarchicalOrder(TestCase):
                 })
             return _CrunchPayload()
 
-        ds_resource = mock.MagicMock()
+        ds_resource = MagicMock()
         ds_resource.self = self.ds_url
         ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
         ds_resource.variables.by.return_value = variables
@@ -2800,7 +3025,7 @@ class TestDatasetSettings(TestCase):
                 return _CrunchPayload(settings)
             return _CrunchPayload()
 
-        ds_resource = mock.MagicMock()
+        ds_resource = MagicMock()
         ds_resource.self = self.ds_url
         ds_resource.fragments.settings = '%ssettings/' % self.ds_url
         ds_resource.session.get.side_effect = _session_get
@@ -2847,9 +3072,9 @@ class TestDatasetSettings(TestCase):
 
         # Test that the change_settings method performs the proper PATCHes.
         ds.change_settings(viewers_can_export=True)
-        _url = ds.session.patch.call_args_list[-1][0][0]
-        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
-        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        _url = ds.resource.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.resource.session.patch.call_args_list[-1][0][1])
+        _headers = ds.resource.session.patch.call_args_list[-1][1].get('headers', {})
         assert _url == self.ds_url + 'settings/'
         assert _payload == {'viewers_can_export': True}
         assert _headers == {'Content-Type': 'application/json'}
@@ -2857,9 +3082,9 @@ class TestDatasetSettings(TestCase):
         ds.change_settings(
             viewers_can_export=True, viewers_can_change_weight=True
         )
-        _url = ds.session.patch.call_args_list[-1][0][0]
-        _payload = json.loads(ds.session.patch.call_args_list[-1][0][1])
-        _headers = ds.session.patch.call_args_list[-1][1].get('headers', {})
+        _url = ds.resource.session.patch.call_args_list[-1][0][0]
+        _payload = json.loads(ds.resource.session.patch.call_args_list[-1][0][1])
+        _headers = ds.resource.session.patch.call_args_list[-1][1].get('headers', {})
         assert _url == self.ds_url + 'settings/'
         assert _payload == {
             'viewers_can_export': True,
@@ -2881,7 +3106,7 @@ class TestDatasetJoins(TestCase):
     def _variable_mock(self, ds_url, var):
         var_url = '%svariables/%s/' % (ds_url, var['id'])
         _get_func = _build_get_func(var)
-        _var_mock = mock.MagicMock()
+        _var_mock = MagicMock()
         _var_mock.__getitem__.side_effect = _get_func
         _var_mock.get.side_effect = _get_func
         _var_mock.entity.self = var_url
@@ -2902,7 +3127,7 @@ class TestDatasetJoins(TestCase):
         _left_var_mock = self._variable_mock(self.left_ds_url, var)
         left_variable = collections.OrderedDict()
         left_variable[var['alias']] = _left_var_mock
-        left_ds_res = mock.MagicMock()
+        left_ds_res = MagicMock()
         left_ds_res.self = self.left_ds_url
         left_ds_res.variables.by.return_value = left_variable
         self.left_ds = Dataset(left_ds_res)
@@ -2911,7 +3136,7 @@ class TestDatasetJoins(TestCase):
         _right_var_mock = self._variable_mock(self.right_ds_url, var)
         right_variable = collections.OrderedDict()
         right_variable[var['alias']] = _right_var_mock
-        right_ds_res = mock.MagicMock()
+        right_ds_res = MagicMock()
         right_ds_res.self = self.right_ds_url
         right_ds_res.variables.by.return_value = right_variable
         self.right_ds = Dataset(right_ds_res)
