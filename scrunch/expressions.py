@@ -381,9 +381,10 @@ def get_dataset_variables(ds):
         variables[var['alias']] = var
 
         if var['type'] in ('categorical_array', 'multiple_response'):
-            for i, subvar in enumerate(var.get('subreferences', [])):
+            subreferences = var.get('subreferences', {})
+            for subvar_id, subvar in subreferences.items():
                 subvar['is_subvar'] = True
-                subvar['id'] = var['subvariables'][i]
+                subvar['id'] = subvar_id
                 subvar['parent_id'] = _id
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
@@ -422,9 +423,14 @@ def process_expr(obj, ds):
                         continue
                     for var in variables:
                         if variables[var]['id'] == var_id:
-                            for cat in variables[var]['categories']:
-                                if cat['name'] == val:
-                                    value.append(cat['numeric_value'])
+                            if 'categories' in variables[var]:
+                                for cat in variables[var]['categories']:
+                                    if cat['name'] == val:
+                                        value.append(cat['numeric_value'])
+                            else:
+                                # variable has no categories, return original
+                                # list of values
+                                value = var_value
 
             elif isinstance(var_value, str):
                 for var in variables:
