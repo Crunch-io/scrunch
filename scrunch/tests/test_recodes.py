@@ -127,26 +127,37 @@ class TestCombine(TestCase):
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
+        entity_mock = mock.MagicMock()
+        entity_mock.entity.self = var_url
+        resource.variables.by.return_value = {
+            'test': entity_mock,
+        }
+        ds = Dataset(resource)
+        with pytest.raises(ValueError) as err:
+            ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
+        ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
+        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+
+    def test_combine_categories_from_entity(self):
+        resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
         resource.variables.by.return_value = {
             'test': entity_mock
         }
-        ds = Dataset(resource)
-        ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
-        ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
 
-    def test_combine_categories_from_entity(self):
-        resource = mock.MagicMock()
-        entity_mock = mock.MagicMock()
-        resource.variables.by.return_value = {
-            'test': entity_mock
-        }
-        entity = Variable(
-            Entity(mock.MagicMock(), self=var_url, body={}), resource)
+        # mock a Tuple object
+        tuple_mock = mock.MagicMock()
+        tuple_mock.entity.self = var_url
+
+        entity = Variable(tuple_mock, resource)
         ds = Dataset(resource)
-        ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
+        with pytest.raises(ValueError) as err:
+            ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
+        assert 'Dataset mocked_dataset has no variable' in str(err.value)
 
     def test_combine_responses_unknown_alias(self):
         resource = mock.MagicMock()
@@ -180,6 +191,7 @@ class TestCombine(TestCase):
 
     def test_combine_responses_by_alias(self):
         resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
         resource.entity.self = dataset_url
 
         # mock subvariables
@@ -202,37 +214,43 @@ class TestCombine(TestCase):
 
         # make the actual response call
         ds = Dataset(resource)
-        ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
+        with pytest.raises(ValueError) as err:
+            ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
+        assert 'Dataset mocked_dataset has no variable' in str(err.value)
 
     def test_combine_responses_by_entity(self):
-        ds_resource = mock.MagicMock()
-        ds_resource.entity.self = dataset_url
+        resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
+        resource.entity.self = dataset_url
 
         # mock subvariables
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
+        subvar_mock.entity.self = subvar1_url
         subvar2_mock = mock.MagicMock(entity_url=subvar2_url)
 
         # mock parent variable
-        parent_variable = mock.MagicMock(body={'alias': 'test'})
-        parent_variable.self = var_url
+        entity_mock = mock.MagicMock()
+        # need to name the var to actually build subvar names
+        entity_mock.alias = 'test'
+        entity_mock.resource.self = var_url
 
         # add dictionaries return to by functions
-        parent_variable.subvariables.by.return_value = {
+        entity_mock.resource.subvariables.by.return_value = {
             'test_1': subvar_mock,
             'test_2': subvar2_mock
         }
 
-        ds_resource.variables.by.return_value = {
-            'test': parent_variable
+        resource.variables.by.return_value = {
+            'test': entity_mock
         }
 
-        entity = Variable(parent_variable, ds_resource)
+        ds = Dataset(resource)
 
-        # make the actual response call
-        ds = Dataset(ds_resource)
-        ds.combine_multiple_response(entity, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
-        ds_resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
+        with pytest.raises(ValueError) as err:
+            ds.combine_multiple_response(entity_mock, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
+        resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
+        assert 'Dataset mocked_dataset has no variable' in str(err.value)
 
 
 class TestRecode(TestCase):
