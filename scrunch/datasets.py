@@ -7,7 +7,8 @@ import re
 
 import six
 
-from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
+from scrunch.helpers import (abs_url, subvar_alias, download_file,
+                             case_expr, ReadOnly)
 
 import pandas as pd
 
@@ -685,18 +686,13 @@ class DatasetVariablesMixin(collections.Mapping):
     Handles dataset variable iteration in a dict-like way
     """
 
-    def __init__(self, ds_resource):
-        self.ds_resource = ds_resource
-        self._reload_variables()
-
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
-        # TODO: have this cached
-        variable = self.ds_resource.variables.by('alias').get(item)
+        variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
             raise ValueError('Dataset %s has no variable %s' % (
-                self.ds_resource.body['name'], item))
+                self.resource.body['name'], item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
@@ -705,7 +701,7 @@ class DatasetVariablesMixin(collections.Mapping):
         Helper that takes care of updating self._vars on init and
         whenever the dataset adds a variable
         """
-        self._vars = self.ds_resource.variables.index.items()
+        self._vars = self.resource.variables.index.items()
 
     def __iter__(self):
         for var in self._vars:
@@ -732,7 +728,7 @@ class DatasetVariablesMixin(collections.Mapping):
         return zip(self.iterkeys(), self.itervalues())
 
 
-class Dataset(DatasetVariablesMixin):
+class Dataset(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -746,15 +742,14 @@ class Dataset(DatasetVariablesMixin):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        self.resource = resource
-        self.session = self.resource.session
-        self.url = self.resource.self
+        super(Dataset, self).__init__(resource)
         self._settings = None
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
-        # make sure we initiate the variable mixin context
-        super(Dataset, self).__init__(self.resource)
+        # since we no longer have an __init__ on DatasetVariablesMixin because
+        # of the multiple inheritance, we just initiate self._vars here
+        self._reload_variables()
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -793,7 +788,8 @@ class Dataset(DatasetVariablesMixin):
         raise TypeError('Unsupported operation on the settings property')
 
     def _load_settings(self):
-        settings = self.session.get(self.resource.fragments.settings).payload
+        settings = self.resource.session.get(
+            self.resource.fragments.settings).payload
         self._settings = DatasetSettings(
             (_name, _value) for _name, _value in settings.body.items()
         )
@@ -812,7 +808,7 @@ class Dataset(DatasetVariablesMixin):
             setting: kwargs[setting] for setting in incoming_settings
         }
         if settings_payload:
-            self.session.patch(
+            self.resource.session.patch(
                 self.resource.fragments.settings,
                 json.dumps(settings_payload),
                 headers={'Content-Type': 'application/json'}
@@ -866,7 +862,7 @@ class Dataset(DatasetVariablesMixin):
             )
             user_url = None
 
-            users = self.session.get(api_users).payload['index']
+            users = self.resource.session.get(api_users).payload['index']
 
             for url, user in six.iteritems(users):
                 if user['email'] == email:
@@ -1361,27 +1357,75 @@ class Dataset(DatasetVariablesMixin):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, filter=None, variables=None, hidden=True):
+    def download(self, path, format='csv', filter=None, variables=None,
+                 hidden=True, options=None):
         """
-        Downloads a dataset as CSV to the given path.
-        this includes hidden variables and categories
-        as id's.
+        Downloads a dataset as CSV or as SPSS to the given path. This
+        includes hidden variables.
+
+        By default, categories in CSV exports are provided as id's.
         """
+
+        # Only CSV and SPSS exports are currently supported.
+        if format not in ('csv', 'spss'):
+            raise ValueError(
+                'Invalid format %s. Allowed formats are: "csv" and "spss".'
+                % format
+            )
+
+        if format == 'csv':
+            # Default options for CSV exports.
+            export_options = {'use_category_ids': True}
+        else:
+            # Default options for SPSS exports.
+            export_options = {
+                'prefix_subvariables': False,
+                'var_label_field': 'description'
+            }
+
+        # Validate the user-provided export options.
+        options = options or {}
+        if not isinstance(options, dict):
+            raise ValueError(
+                'The options argument must be a dictionary.'
+            )
+        invalid_options = set(options.keys()).difference(
+            set(export_options.keys())
+        )
+        if invalid_options:
+            raise ValueError(
+                'Invalid options for format "%s": %s.'
+                % (format, ','.join(invalid_options))
+            )
+        if 'var_label_field' in options \
+                and not options['var_label_field'] in ('name', 'description'):
+            raise ValueError(
+                'The "var_label_field" export option must be either "name" '
+                'or "description".'
+            )
+
+        # All good. Update the export options with the user-provided values.
+        export_options.update(options)
+
         # the payload should include all hidden variables by default
-        payload = {
-            "options": {"use_category_ids": True}
-        }
+        payload = {'options': export_options}
+
         # add filter to rows if passed
         if filter:
             payload['filter'] = process_expr(
-                parse_expr(filter), self.resource)
+                parse_expr(filter), self.resource
+            )
+
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(self[var].url)
             if len(id_vars) != len(variables):
-                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                LOG.debug(
+                    "Variables passed: %s Variables detected: %s"
+                    % (variables, id_vars)
+                )
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
             payload['where'] = {
@@ -1399,11 +1443,12 @@ class Dataset(DatasetVariablesMixin):
                     'function': 'select',
                     'args': [{
                         'map': {
-                            x: {'variable': x} for x in self.resource.variables.index.keys()
+                            x: {'variable': x}
+                            for x in self.resource.variables.index.keys()
                         }
                     }]
                 }
-        url = export_dataset(self.resource, payload, format='csv')
+        url = export_dataset(self.resource, payload, format=format)
         download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
@@ -1466,7 +1511,7 @@ class Dataset(DatasetVariablesMixin):
         progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
-            return wait_progress(r=progress, session=self.session, entity=self)
+            return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
     def create_categorical(self, categories, alias, name, multiple, description=''):
@@ -1490,7 +1535,7 @@ class Variable(object):
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -1541,15 +1586,11 @@ class Variable(object):
     def __str__(self):
         return self.name
 
-    _categories = None
-
     @property
     def categories(self):
         if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
             raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
-        if self._categories is None:
-            self._categories = CategoryList(self.resource)
-        return self._categories
+        return CategoryList._from(self.resource)
 
     def hide(self):
         LOG.debug("HIDING")
