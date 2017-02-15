@@ -384,9 +384,10 @@ def get_dataset_variables(ds):
         variables[var['alias']] = var
 
         if var['type'] in ('categorical_array', 'multiple_response'):
-            for i, subvar in enumerate(var.get('subreferences', [])):
+            subreferences = var.get('subreferences', {})
+            for subvar_id, subvar in subreferences.items():
                 subvar['is_subvar'] = True
-                subvar['id'] = var['subvariables'][i]
+                subvar['id'] = subvar_id
                 subvar['parent_id'] = _id
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
