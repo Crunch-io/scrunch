@@ -2,6 +2,7 @@ import collections
 import json
 import copy
 
+import mock
 from mock import MagicMock
 from unittest import TestCase
 
