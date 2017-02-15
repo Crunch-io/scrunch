@@ -45,6 +45,7 @@ import copy
 
 import scrunch
 import six
+
 from scrunch.variables import validate_variable_url
 
 if six.PY2:

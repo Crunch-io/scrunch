@@ -5,24 +5,22 @@ import logging
 import os
 import re
 
+import pycrunch
 import six
 
-from scrunch.helpers import (abs_url, subvar_alias, download_file,
-                             case_expr, ReadOnly)
-
-import pandas as pd
-
-import pycrunch
+from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
-from pycrunch.exporting import export_dataset
-
-from scrunch.expressions import parse_expr, process_expr, prettify
-from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
-                                InvalidPathError, InvalidReferenceError)
-from scrunch.variables import (responses_from_map, combinations_from_map,
-                               combine_responses_expr, combine_categories_expr)
 from scrunch.categories import CategoryList
+from scrunch.exceptions import (AuthenticationError, InvalidPathError,
+                                InvalidReferenceError, OrderUpdateError)
+from scrunch.expressions import parse_expr, prettify, process_expr
+from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
+                             subvar_alias)
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map)
+
+import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
