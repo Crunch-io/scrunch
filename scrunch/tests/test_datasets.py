@@ -908,31 +908,30 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
             ds.start_date = 'forbidden'
         assert ds.start_date is None
 
-    # NOTE: Variable is no longer ReadOnly
-    # def test_Variable_attribute_writes(self):
-    #     ds_mock = self._dataset_mock()
-    #     ds = Dataset(ds_mock)
-    #     var = ds['var1_alias']
-    #
-    #     with pytest.raises(AttributeError, message=self.error_msg):
-    #         var.name = 'forbidden'
-    #     assert var.name == 'var1_name'
-    #
-    #     with pytest.raises(AttributeError, message=self.error_msg):
-    #         var.description = 'forbidden'
-    #     assert var.description == ''
-    #
-    #     with pytest.raises(AttributeError, message=self.error_msg):
-    #         var.notes = 'forbidden'
-    #     assert var.notes == ''
-    #
-    #     with pytest.raises(AttributeError, message=self.error_msg):
-    #         var.format = 'forbidden'
-    #     assert var.format is None
-    #
-    #     with pytest.raises(AttributeError, message=self.error_msg):
-    #         var.view = 'forbidden'
-    #     assert var.view is None
+    def test_Variable_attribute_writes(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        var = ds['var1_alias']
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.name = 'forbidden'
+        assert var.name == 'var1_name'
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.description = 'forbidden'
+        assert var.description == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.notes = 'forbidden'
+        assert var.notes == ''
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.format = 'forbidden'
+        assert var.format is None
+
+        with pytest.raises(AttributeError, message=self.error_msg):
+            var.view = 'forbidden'
+        assert var.view is None
 
 
 class TestVariables(TestDatasetBase, TestCase):

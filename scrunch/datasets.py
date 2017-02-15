@@ -1565,7 +1565,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 description=description)
 
 
-class Variable(object):
+class Variable(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
