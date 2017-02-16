@@ -5,24 +5,22 @@ import logging
 import os
 import re
 
+import pycrunch
 import six
 
-from scrunch.helpers import (abs_url, subvar_alias, download_file,
-                             case_expr, ReadOnly)
-
-import pandas as pd
-
-import pycrunch
+from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
-from pycrunch.exporting import export_dataset
-
-from scrunch.expressions import parse_expr, process_expr, prettify
-from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
-                                InvalidPathError, InvalidReferenceError)
-from scrunch.variables import (responses_from_map, combinations_from_map,
-                               combine_responses_expr, combine_categories_expr)
 from scrunch.categories import CategoryList
+from scrunch.exceptions import (AuthenticationError, InvalidPathError,
+                                InvalidReferenceError, OrderUpdateError)
+from scrunch.expressions import parse_expr, prettify, process_expr
+from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
+                             subvar_alias)
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map)
+
+import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -823,7 +821,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 ))
             if key in ['start_date', 'end_date'] and \
                     (isinstance(kwargs[key], datetime.date) or
-                    isinstance(kwargs[key], datetime.datetime)
+                     isinstance(kwargs[key], datetime.datetime)
                      ):
                 kwargs[key] = kwargs[key].isoformat()
 
@@ -945,8 +943,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def get_exclusion(self):
         return prettify(self.resource.exclusion.body.expression, self)
 
-    def create_single_response(self, categories,
-                           name, alias, description='', missing=True):
+    def create_single_response(self, categories, name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1035,6 +1032,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
+
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
             # to have their aliases in the same pattern and order that the
@@ -1108,7 +1106,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
-            name='', alias='', description=''):
+                           name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in _MR_TYPE:
@@ -1119,7 +1117,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                             name=name, alias=alias, description=description)
 
     def combine_categorical(self, variable, map, categories=None, missing=None,
-            default=None, name='', alias='', description=''):
+                            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
@@ -1158,7 +1156,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
-                          name='', alias='', description=''):
+                                  name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1469,25 +1467,25 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
             payload['where'] = {
-                    'function': 'select',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x} for x in id_vars
-                        }
-                    }]
-                }
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x} for x in id_vars
+                    }
+                }]
+            }
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
             payload['where'] = {
-                    'function': 'select',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x}
-                            for x in self.resource.variables.index.keys()
-                        }
-                    }]
-                }
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x}
+                        for x in self.resource.variables.index.keys()
+                    }
+                }]
+            }
         url = export_dataset(self.resource, payload, format=format)
         download_file(url, path)
 
@@ -1562,11 +1560,11 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
          on the `multiple` parameter.
         """
         if multiple:
-            return self.create_multiple_response(categories, alias=alias,
-                name=name, description=description)
+            return self.create_multiple_response(
+                categories, alias=alias, name=name, description=description)
         else:
-            return self.create_single_response(categories, alias=alias, name=name,
-                description=description)
+            return self.create_single_response(
+                categories, alias=alias, name=name, description=description)
 
 
 class Variable(ReadOnly):
@@ -1641,7 +1639,7 @@ class Variable(ReadOnly):
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
-               name=None, description=None):
+                name=None, description=None):
         # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.

@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 from scrunch.helpers import ReadOnly
 
 
@@ -36,7 +37,7 @@ class Category(ReadOnly):
             raise TypeError("Cannot edit categories on derived variables. Re-derive with the appropriate expression")
         extra_attrs = set(kwargs.keys()) - self._MUTABLE_ATTRIBUTES
         if extra_attrs:
-            raise AttributeError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs) )
+            raise AttributeError("Cannot edit the following attributes: %s" % ', '.join(extra_attrs))
 
         categories = [self.as_dict(**kwargs) if cat['id'] == self.id else cat
                       for cat in self.resource.body['categories']]
@@ -54,7 +55,8 @@ class CategoryList(OrderedDict):
         return cls(categories)
 
     def order(self, *new_order):
-        categories = sorted(self.resource.body['categories'],
-            key=lambda c: new_order.index(c['id']))
+        categories = sorted(
+            self.resource.body['categories'], key=lambda c: new_order.index(c['id'])
+        )
         self.resource.edit(categories=categories)
         self.resource.refresh()
