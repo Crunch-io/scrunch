@@ -1477,6 +1477,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
+            if not self.resource.body.permissions.edit:
+                raise AttributeError("Only Dataset editors can export hidden variables")
             payload['where'] = {
                 'function': 'select',
                 'args': [{
@@ -1486,6 +1488,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                     }
                 }]
             }
+
         url = export_dataset(self.resource, payload, format=format)
         download_file(url, path)
 
