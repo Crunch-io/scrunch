@@ -123,7 +123,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     ds = Dataset(shoji_ds)
 
     if editor is True:
-        ds.change_editor(root.user_url.body.email)
+        ds.change_editor(root.session.email)
 
     return ds
 
