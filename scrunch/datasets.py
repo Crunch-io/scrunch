@@ -1394,10 +1394,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             fork.entity.delete()
 
     def export(self, path, format='csv', filter=None, variables=None,
-               hidden=True, options=None):
+               hidden=False, options=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
+
+        Dataset viewers can't download hidden variables so we default
+        to False. Dataset editors will need to add hidden=True if they
+        need this feature.
 
         By default, categories in CSV exports are provided as id's.
         """
