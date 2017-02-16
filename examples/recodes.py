@@ -55,37 +55,40 @@ dataset.exclude('agerange == 1')  # Remove underage
 # MAYBE: Create a new numeric expression based on arbitrary rules
 
 # Copy a variable
-origintype_copy = dataset.copy_variable(origintype, name='Copy of origintype',
+origintype_copy = dataset.copy_variable(
+    origintype,
+    name='Copy of origintype',
     alias='origintype_copy')
 print("Variable %s created" % origintype_copy.alias)
 
 onlinenewssource = dataset.combine_categories(origintype_copy,
-                                   map={
+    map={
         1: 1,
         2: [2, 3, 4]
     },
-                                   categories={
+    categories={
         1: "online",
         2: "notonline",
     },
-                                   alias="onlinenewssource",
-                                   name='Online or not',
-                                   )
+    alias="onlinenewssource",
+    name='Online or not')
 print('Created combination: %s' % onlinenewssource.alias)
 
 # Combine a single categorical - Combine with subvar 3 on the wrong place
 over35 = dataset.combine_categories(agerange,
-                         map={
+    map={
         1: [1, 2, 3],
         2: [4, 5]
     },
-                         categories={
-     1: 'under35',
-     2: 'over35'
-    }, name='over 35?', alias='over35')
+    categories={
+        1: 'under35',
+        2: 'over35'
+    },
+    name='over 35?',
+    alias='over35')
 print('Created combination: %s' % over35.alias)
 
 # Export some rows
-dataset.download("recodes.csv")
+dataset.export("recodes.csv")
 
 print('Visit on the web: %s' % dataset.web_url(HOST))

@@ -3193,7 +3193,7 @@ class TestDatasetExport(TestCase):
         ds = self.ds
         export_ds_mock.return_value = self.file_download_url
 
-        ds.download('export.csv')
+        ds.export('export.csv')
 
         export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
@@ -3208,7 +3208,7 @@ class TestDatasetExport(TestCase):
         ds = self.ds
         export_ds_mock.return_value = self.file_download_url
 
-        ds.download('export.csv', options={'use_category_ids': False})
+        ds.export('export.csv', options={'use_category_ids': False})
 
         export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
@@ -3224,13 +3224,13 @@ class TestDatasetExport(TestCase):
         export_ds_mock.return_value = self.file_download_url
 
         with pytest.raises(ValueError):
-            ds.download('export.csv', options={'invalid_option': False})
+            ds.export('export.csv', options={'invalid_option': False})
 
     def test_basic_spss_export(self, export_ds_mock, dl_file_mock):
         ds = self.ds
         export_ds_mock.return_value = self.file_download_url
 
-        ds.download('export.sav', format='spss')
+        ds.export('export.sav', format='spss')
 
         export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
@@ -3248,7 +3248,7 @@ class TestDatasetExport(TestCase):
         ds = self.ds
         export_ds_mock.return_value = self.file_download_url
 
-        ds.download(
+        ds.export(
             'export.sav',
             format='spss',
             options={
@@ -3274,12 +3274,12 @@ class TestDatasetExport(TestCase):
         export_ds_mock.return_value = self.file_download_url
 
         with pytest.raises(ValueError):
-            ds.download(
+            ds.export(
                 'export.csv', format='spss', options={'invalid_option': False}
             )
 
         with pytest.raises(ValueError):
-            ds.download(
+            ds.export(
                 'export.csv', format='spss',
                 options={'var_label_field': 'invalid'}
             )

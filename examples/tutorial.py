@@ -119,7 +119,7 @@ copy_numeric = dataset.copy_variable(numvar, name='Copied numvar',
 
 assert copy_numeric.resource.body.derivation['function'] == 'copy_variable'
 
-dataset.download('rows.csv')#,
+dataset.export('rows.csv')#,
                  #variables=[catvar, copy_numeric],
                  #filter='combined == 1')
 

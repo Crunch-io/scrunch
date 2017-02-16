@@ -1393,8 +1393,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, format='csv', filter=None, variables=None,
-                 hidden=True, options=None):
+    def export(self, path, format='csv', filter=None, variables=None,
+               hidden=True, options=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
