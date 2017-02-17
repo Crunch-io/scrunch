@@ -742,6 +742,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         super(Dataset, self).__init__(resource)
         self._settings = None
+        self.session = resource.session
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
@@ -941,6 +942,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         )
 
     def get_exclusion(self):
+        # make sure there is an expression
+        expr = self.resource.exclusion.get('body').get('expression')
+        if not expr:
+            return None
         return prettify(self.resource.exclusion.body.expression, self)
 
     def create_single_response(self, categories, name, alias, description='', missing=True):
