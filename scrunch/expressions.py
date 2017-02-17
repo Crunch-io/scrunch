@@ -611,7 +611,7 @@ def prettify(expr, ds=None):
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'
             )
-        return ds.session.get(var).payload.body.alias
+        return ds.resource.session.get(var).payload.body.alias
 
     def _resolve_variables(_expr):
         new_expr = dict(

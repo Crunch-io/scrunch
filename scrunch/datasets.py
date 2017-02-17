@@ -742,7 +742,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         super(Dataset, self).__init__(resource)
         self._settings = None
-        self.session = resource.session
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)

@@ -2429,12 +2429,12 @@ class TestExpressionPrettify(TestCase):
         response = mock.MagicMock()
         response.payload.body.alias = 'age'
 
-        ds.session.get.side_effect = lambda *arg: response
+        ds.resource.session.get.side_effect = lambda *arg: response
 
         expected = 'age == 1'
         cel = prettify(expr, ds)
         assert expected == cel
-        ds.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
+        ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
 
     def test_variable_url_no_dataset(self):
         expr = {
