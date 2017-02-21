@@ -1122,12 +1122,6 @@ class TestForks(TestCase):
                 'is_published': False,
             }
         })
-        f.resource.savepoints.create.assert_called_with({
-            'element': 'shoji:entity',
-            'body': {
-                'description': 'initial fork'
-            }
-        })
 
     def test_fork_preserve_owner(self):
         user_id = 'http://test.crunch.io/api/users/123/'

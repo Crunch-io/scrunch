@@ -1307,7 +1307,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # not returning a dataset
         _fork = self.resource.forks.create({"body": body}).refresh()
         fork = Dataset(_fork)
-        fork.create_savepoint("initial fork")
 
         if preserve_owner or '/api/projects/' in self.resource.body.owner:
             try:
