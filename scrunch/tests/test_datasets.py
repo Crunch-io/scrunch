@@ -1212,25 +1212,35 @@ class TestForks(TestCase):
         assert df is None
 
     def test_merge_fork(self):
-        fork_url = 'http://test.crunch.io/api/datasets/456/'
+        fork1_url = 'http://test.crunch.io/api/datasets/abc/'
+        fork2_url = 'http://test.crunch.io/api/datasets/def/'
+        fork3_url = 'http://test.crunch.io/api/datasets/ghi/'
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
-            'id': 132,
+            'id': 'xyz',
             'description': 'ds description',
             'owner': 'http://test.crunch.io/api/users/123/'
         })
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks.index = {
-            fork_url: {
+            fork1_url: {
                 'name': 'FORK #1 of ds name',
                 'id': 'abc'
+            },
+            fork2_url: {
+                'name': 'myFork',
+                'id': 'def',
+            },
+            fork3_url: {
+                'name': 'myFork',
+                'id': 'ghi',
             }
         }
         ds = Dataset(ds_res)
 
         expected_call = {
-            'dataset': fork_url,
+            'dataset': fork1_url,
             'autorollback': True,
         }
 
@@ -1250,6 +1260,24 @@ class TestForks(TestCase):
         # test autorollback=False
         expected_call['autorollback'] = False
         ds.merge(1, autorollback=False)  # number as int
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        # ValueError if no unique fork could be found
+        error_msg = "Couldn't find a (unique) fork. "
+        "Please try again using its id"
+        with pytest.raises(ValueError, message=error_msg):
+            ds.merge('myFork')
+
+        expected_call['dataset'] = fork2_url
+        expected_call['autorollback'] = True
+
+        ds.merge('def')
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        expected_call['dataset'] = fork3_url
+        ds.merge('ghi')
         ds_res.actions.post.assert_called_once_with(expected_call)
 
 
