@@ -1211,6 +1211,47 @@ class TestForks(TestCase):
 
         assert df is None
 
+    def test_merge_fork(self):
+        fork_url = 'http://test.crunch.io/api/datasets/456/'
+        sess = MagicMock()
+        body = JSONObject({
+            'name': 'ds name',
+            'id': 132,
+            'description': 'ds description',
+            'owner': 'http://test.crunch.io/api/users/123/'
+        })
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks.index = {
+            fork_url: {
+                'name': 'FORK #1 of ds name',
+                'id': 'abc'
+            }
+        }
+        ds = Dataset(ds_res)
+
+        expected_call = {
+            'dataset': fork_url,
+            'autorollback': True,
+        }
+
+        ds.merge(1)  # number as int
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('1')  # number as str
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('FORK #1 of ds name')  # name
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('abc')  # id
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        # test autorollback=False
+        expected_call['autorollback'] = False
+        ds.merge(1, autorollback=False)  # number as int
+        ds_res.actions.post.assert_called_once_with(expected_call)
+
 
 class TestRecode(TestDatasetBase):
     def test_recode_single_categorical(self):
