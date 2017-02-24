@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import sys
 
 import pycrunch
 import six
@@ -1395,7 +1396,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             fork.entity.delete()
 
     def export(self, path, format='csv', filter=None, variables=None,
-               hidden=False, options=None):
+               hidden=False, options=None, metadata_path=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
@@ -1450,6 +1451,25 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         # the payload should include all hidden variables by default
         payload = {'options': export_options}
+
+        # Option for exporting metadata as json
+        if metadata_path is not None:
+            metadata = self.resource.table['metadata']
+            if variables is not None:
+                if sys.version_info >= (3, 0):
+                    metadata = {
+                        key: value
+                        for key, value in metadata.items()
+                        if value['alias'] in variables
+                    }
+                else:
+                    metadata = {
+                        key: value
+                        for key, value in metadata.iteritems()
+                        if value['alias'] in variables
+                    }
+            with open(metadata_path, 'w+') as f:
+                json.dump(metadata, f, sort_keys=True)
 
         # add filter to rows if passed
         if filter:
