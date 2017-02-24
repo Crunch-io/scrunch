@@ -3198,6 +3198,13 @@ class TestDatasetExport(TestCase):
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
+    def test_basic_json_export(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        ds.resource.table.__getitem__.return_value = 'json serializable'
+        ds.export('export.csv', metadata_path='metadata.json')
+
+        ds.resource.table.__getitem__.assert_called_with('metadata')
+
     def test_csv_export_options(self, export_ds_mock, dl_file_mock):
         ds = self.ds
         export_ds_mock.return_value = self.file_download_url
