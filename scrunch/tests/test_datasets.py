@@ -1211,6 +1211,75 @@ class TestForks(TestCase):
 
         assert df is None
 
+    def test_merge_fork(self):
+        fork1_url = 'http://test.crunch.io/api/datasets/abc/'
+        fork2_url = 'http://test.crunch.io/api/datasets/def/'
+        fork3_url = 'http://test.crunch.io/api/datasets/ghi/'
+        sess = MagicMock()
+        body = JSONObject({
+            'name': 'ds name',
+            'id': 'xyz',
+            'description': 'ds description',
+            'owner': 'http://test.crunch.io/api/users/123/'
+        })
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks.index = {
+            fork1_url: {
+                'name': 'FORK #1 of ds name',
+                'id': 'abc'
+            },
+            fork2_url: {
+                'name': 'myFork',
+                'id': 'def',
+            },
+            fork3_url: {
+                'name': 'myFork',
+                'id': 'ghi',
+            }
+        }
+        ds = Dataset(ds_res)
+
+        expected_call = {
+            'dataset': fork1_url,
+            'autorollback': True,
+        }
+
+        ds.merge(1)  # number as int
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('1')  # number as str
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('FORK #1 of ds name')  # name
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+        ds.merge('abc')  # id
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        # test autorollback=False
+        expected_call['autorollback'] = False
+        ds.merge(1, autorollback=False)  # number as int
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        # ValueError if no unique fork could be found
+        error_msg = "Couldn't find a (unique) fork. "
+        "Please try again using its id"
+        with pytest.raises(ValueError, message=error_msg):
+            ds.merge('myFork')
+
+        expected_call['dataset'] = fork2_url
+        expected_call['autorollback'] = True
+
+        ds.merge('def')
+        ds_res.actions.post.assert_called_once_with(expected_call)
+        ds_res.reset_mock()
+
+        expected_call['dataset'] = fork3_url
+        ds.merge('ghi')
+        ds_res.actions.post.assert_called_once_with(expected_call)
+
 
 class TestRecode(TestDatasetBase):
     def test_recode_single_categorical(self):
