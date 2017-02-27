@@ -20,8 +20,8 @@ from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
-import pandas as pd
 from tabulate import tabulate
+import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -1646,13 +1646,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             if func:
                 # TODO: for now, just append it as passed. var.url needed here!
                 # i.e.:
-                # - text: {“function”: “bin”, “args”: [{“variable”: url}]}
+                # - text: {'function': 'bin', 'args': [{'variable': url}]}
                 # - datetime:
                 #       {
-                #           “function”: “rollup”,
-                #           “args”: [
-                #               {“variable”: url},
-                #               {“value”: variable.rollup_resolution}
+                #           'function': 'rollup',
+                #           'args': [
+                #               {'variable': url},
+                #               {'value': variable.rollup_resolution}
                 #           ]
                 #       }
 
