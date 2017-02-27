@@ -21,6 +21,7 @@ from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
 import pandas as pd
+from tabulate import tabulate
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -1988,3 +1989,43 @@ class Variable(ReadOnly):
             )
         target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)
+
+    def summary(self, names=False):
+        dimensions = [{'variable': self.alias}]
+        cube = self.dataset.get_cube(dimensions=dimensions)
+        cube_result = cube['value']['result']
+        counts = cube_result['counts']
+        param = 'name' if names else 'alias'
+
+        subvars = self.shoji_tuple.get('subvariables')
+        if subvars:
+            refs = cube_result['dimensions'][1]['references']
+            subrefs = refs['subreferences']
+            categories = cube_result['dimensions'][1]['type']['categories']
+
+            table = []
+            i = 0
+            for ref in subrefs:
+                row = [ref[param]]
+                for c in categories:
+                    row.append(counts[i])
+                    i += 1
+                table.append(row)
+            headers = [param] + [c['id'] for c in categories]
+
+        else:
+            refs = cube_result['dimensions'][0]['references']
+            categories = cube_result['dimensions'][0]['type']['categories']
+
+            table = []
+            for num, c in enumerate(categories):
+                table.append([c['name'], counts[num]])
+            headers = ['category', 'count']
+
+        print(self.description + '\n')
+        if subvars:
+            print('categories:')
+            cat_table = [[c['id'], c['name']] for c in categories]
+            cat_table_header = ['id', 'name']
+            print(tabulate(cat_table, headers=cat_table_header))
+        print(tabulate(table, headers=headers))
