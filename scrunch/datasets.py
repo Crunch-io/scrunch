@@ -1990,12 +1990,18 @@ class Variable(ReadOnly):
         target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)
 
-    def summary(self, names=False):
+    def summary(self, names=False, tablefmt='psql'):
         dimensions = [{'variable': self.alias}]
         cube = self.dataset.get_cube(dimensions=dimensions)
         cube_result = cube['value']['result']
         counts = cube_result['counts']
         param = 'name' if names else 'alias'
+        valid_formats = 'plain simple grid fancy_grid pipe orgtbl jira psql ' \
+                        'rst mediawiki moinmoin html latex latex_booktabs ' \
+                        'textile'.split(' ')
+        if tablefmt not in valid_formats:
+            raise ValueError(
+                'format must be one of: %s' % ', '.join(valid_formats))
 
         subvars = self.shoji_tuple.get('subvariables')
         if subvars:
@@ -2022,10 +2028,17 @@ class Variable(ReadOnly):
                 table.append([c['name'], counts[num]])
             headers = ['category', 'count']
 
-        print(self.description + '\n')
+        print('\n      alias: {alias}, id: {id}\n'
+              '       type: {type}\n'
+              'description: {description}'.format(**self.shoji_tuple))
         if subvars:
-            print('categories:')
+            print('\ncategories:')
             cat_table = [[c['id'], c['name']] for c in categories]
             cat_table_header = ['id', 'name']
-            print(tabulate(cat_table, headers=cat_table_header))
-        print(tabulate(table, headers=headers))
+            print(tabulate(cat_table,
+                           headers=cat_table_header,
+                           tablefmt=tablefmt))
+        print('\nSummary:')
+        print(tabulate(table,
+                       headers=headers,
+                       tablefmt=tablefmt))
