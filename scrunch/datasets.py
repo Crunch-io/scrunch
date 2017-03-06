@@ -82,8 +82,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
-            'Couldn\'t find existing session, crunch.ini file or environment '
-            'variables.')
+            "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
 def get_dataset(dataset, connection=None, editor=False, project=None):
@@ -1424,6 +1423,9 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'prefix_subvariables': False,
                 'var_label_field': 'description'
             }
+
+        # add a default missing_values
+        export_options['missing_values'] = ''
 
         # Validate the user-provided export options.
         options = options or {}
