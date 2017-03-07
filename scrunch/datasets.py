@@ -1406,6 +1406,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         By default, categories in CSV exports are provided as id's.
         """
+        valid_options = ['use_category_ids', 'prefix_subvariables',
+                         'var_label_field', 'missing_values']
 
         # Only CSV and SPSS exports are currently supported.
         if format not in ('csv', 'spss'):
@@ -1424,23 +1426,19 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'var_label_field': 'description'
             }
 
-        # add a default missing_values
-        export_options['missing_values'] = ''
-
         # Validate the user-provided export options.
         options = options or {}
         if not isinstance(options, dict):
             raise ValueError(
                 'The options argument must be a dictionary.'
             )
-        invalid_options = set(options.keys()).difference(
-            set(export_options.keys())
-        )
-        if invalid_options:
-            raise ValueError(
-                'Invalid options for format "%s": %s.'
-                % (format, ','.join(invalid_options))
-            )
+
+        for k in options.keys():
+            if k not in valid_options:
+                raise ValueError(
+                    'Invalid options for format "%s": %s.'
+                    % (format, ','.join(k))
+                )
         if 'var_label_field' in options \
                 and not options['var_label_field'] in ('name', 'description'):
             raise ValueError(

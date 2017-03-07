@@ -3263,10 +3263,7 @@ class TestDatasetExport(TestCase):
         export_options = export_payload.get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {
-            'use_category_ids': True,
-            'missing_values': ''
-        }
+        assert export_options == {'use_category_ids': True}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
@@ -3288,10 +3285,7 @@ class TestDatasetExport(TestCase):
         export_options = export_payload.get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {
-            'use_category_ids': False,
-            'missing_values': ''
-        }
+        assert export_options == {'use_category_ids': False}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
@@ -3315,8 +3309,7 @@ class TestDatasetExport(TestCase):
         assert export_format == 'spss'
         assert export_options == {
             'prefix_subvariables': False,
-            'var_label_field': 'description',
-            'missing_values': ''
+            'var_label_field': 'description'
         }
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
@@ -3341,9 +3334,7 @@ class TestDatasetExport(TestCase):
         assert export_format == 'spss'
         assert export_options == {
             'prefix_subvariables': True,
-            'var_label_field': 'name',
-            'missing_values': ''
-        }
+            'var_label_field': 'name'}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
