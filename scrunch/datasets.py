@@ -1593,7 +1593,47 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 categories, alias=alias, name=name, description=description)
 
 
-class Variable(ReadOnly):
+class DatasetSubvariablesMixin(collections.Mapping):
+    """
+    Handles a variable subvariables iteration in a dict-like way
+    """
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        subvariable = self.resource.subvariables.by('alias').get(item)
+        if subvariable is None:
+            # subvariable doesn't exists, must raise a ValueError
+            raise ValueError('Variable %s has no subvariable %s' % (
+                self.resource['name'], item))
+        # subvariable exists!, return the subvariable Instance
+        return Variable(subvariable, self)
+
+    def __iter__(self):
+        for var in self.resource.subvariables.index.items():
+            yield var
+
+    def __len__(self):
+        return len(self.resource.subvariables.index.items())
+
+    def itervalues(self):
+        for _, var_tuple in self.resource.subvariables.index.items():
+            yield Variable(var_tuple, self)
+
+    def iterkeys(self):
+        for var in self.resource.subvariables.index.items():
+            yield var[1].name
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
+
+class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
