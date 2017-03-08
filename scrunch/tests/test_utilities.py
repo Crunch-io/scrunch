@@ -71,7 +71,7 @@ class TestGetDataset(object):
     def test_get_connection_with_ini(self, connect_mock):
         import os
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        ini_file = os.path.join(current_dir, 'crunch.ini')
+        ini_file = os.path.join(current_dir, 'crunch_test.ini')
         scrunch.datasets._get_connection(ini_file)
         user = 'testuser@yougov.com'
         pw = 'supersecret'
