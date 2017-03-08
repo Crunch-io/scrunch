@@ -44,7 +44,7 @@ _MR_TYPE = 'multiple_response'
 LOG = logging.getLogger('scrunch')
 
 
-def _get_connection():
+def _get_connection(file_path='crunch.ini'):
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
@@ -63,7 +63,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
-    config.read('crunch.ini')
+    config.read(file_path)
     try:
         username = config.get('DEFAULT', 'CRUNCH_USERNAME')
         password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
