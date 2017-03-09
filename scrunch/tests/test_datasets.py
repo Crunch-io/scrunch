@@ -951,7 +951,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(AttributeError) as err:
             ds.some_variable
         assert str(err.value) == \
-            'Dataset %s has no attribute some_variable' % ds.name
+               "'Dataset' object has no attribute 'some_variable'"
 
     def test_variable_cast(self):
         variable = MagicMock()

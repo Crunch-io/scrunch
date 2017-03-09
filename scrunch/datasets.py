@@ -728,7 +728,7 @@ class DatasetVariablesMixin(collections.Mapping):
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
             raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
+                self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
