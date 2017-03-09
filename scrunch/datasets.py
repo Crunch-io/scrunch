@@ -4,25 +4,25 @@ import json
 import logging
 import os
 import re
-
-import six
-
-from scrunch.helpers import abs_url, subvar_alias, download_file, case_expr
-
-import pandas as pd
+import sys
 
 import pycrunch
+import six
+
+from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
-from pycrunch.exporting import export_dataset
-
-from scrunch.expressions import parse_expr, process_expr, prettify
-from scrunch.exceptions import (AuthenticationError, OrderUpdateError,
-                                InvalidPathError, InvalidReferenceError)
-from scrunch.variables import (responses_from_map, combinations_from_map,
-                               combine_responses_expr, combine_categories_expr)
 from scrunch.categories import CategoryList
+from scrunch.exceptions import (AuthenticationError, InvalidPathError,
+                                InvalidReferenceError, OrderUpdateError)
+from scrunch.expressions import parse_expr, prettify, process_expr
+from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
+                             subvar_alias)
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map)
 from scrunch.permissions import User, Project
+
+import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -71,7 +71,7 @@ def _get_connection():
     """
     if pycrunch.session is not None:
         return pycrunch.session
-    # try to get credentials from enviroment
+    # try to get credentials from environment
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
@@ -102,8 +102,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
-            'Couldn\'t find existing session, crunch.ini file or environment '
-            'variables.')
+            "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
 def get_dataset(dataset, connection=None, editor=False, project=None):
@@ -142,7 +141,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     ds = Dataset(shoji_ds)
 
     if editor is True:
-        ds.change_editor(root.user_url.body.email)
+        ds.change_editor(root.session.email)
 
     return ds
 
@@ -718,7 +717,54 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class Dataset(object):
+class DatasetVariablesMixin(collections.Mapping):
+    """
+    Handles dataset variable iteration in a dict-like way
+    """
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        variable = self.resource.variables.by('alias').get(item)
+        if variable is None:
+            # Variable doesn't exists, must raise a ValueError
+            raise ValueError('Dataset %s has no variable %s' % (
+                self.resource.body['name'], item))
+        # Variable exists!, return the variable Instance
+        return Variable(variable, self)
+
+    def _reload_variables(self):
+        """
+        Helper that takes care of updating self._vars on init and
+        whenever the dataset adds a variable
+        """
+        self._vars = self.resource.variables.index.items()
+
+    def __iter__(self):
+        for var in self._vars:
+            yield var
+
+    def __len__(self):
+        return len(self._vars)
+
+    def itervalues(self):
+        for _, var_tuple in self._vars:
+            yield Variable(var_tuple, self)
+
+    def iterkeys(self):
+        for var in self._vars:
+            yield var[1].name
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
+
+class Dataset(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
@@ -732,31 +778,20 @@ class Dataset(object):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        self.resource = resource
-        self.session = self.resource.session
-        self.url = self.resource.self
+        super(Dataset, self).__init__(resource)
         self._settings = None
-
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self._order = Order(self)
+        # since we no longer have an __init__ on DatasetVariablesMixin because
+        # of the multiple inheritance, we just initiate self._vars here
+        self._reload_variables()
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
         # Default behaviour
         return object.__getattribute__(self, item)
-
-    def __getitem__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
-        if variable is None:
-            # Variable doesn't exists, must raise an ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
-
-        # Variable exists!, return the variable entity
-        return Variable(variable.entity, self.resource)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
@@ -809,7 +844,8 @@ class Dataset(object):
         raise TypeError('Unsupported operation on the settings property')
 
     def _load_settings(self):
-        settings = self.session.get(self.resource.fragments.settings).payload
+        settings = self.resource.session.get(
+            self.resource.fragments.settings).payload
         self._settings = DatasetSettings(
             (_name, _value) for _name, _value in settings.body.items()
         )
@@ -828,7 +864,7 @@ class Dataset(object):
             setting: kwargs[setting] for setting in incoming_settings
         }
         if settings_payload:
-            self.session.patch(
+            self.resource.session.patch(
                 self.resource.fragments.settings,
                 json.dumps(settings_payload),
                 headers={'Content-Type': 'application/json'}
@@ -843,7 +879,7 @@ class Dataset(object):
                 ))
             if key in ['start_date', 'end_date'] and \
                     (isinstance(kwargs[key], datetime.date) or
-                    isinstance(kwargs[key], datetime.datetime)
+                     isinstance(kwargs[key], datetime.datetime)
                      ):
                 kwargs[key] = kwargs[key].isoformat()
 
@@ -882,7 +918,7 @@ class Dataset(object):
             )
             user_url = None
 
-            users = self.session.get(api_users).payload['index']
+            users = self.resource.session.get(api_users).payload['index']
 
             for url, user in six.iteritems(users):
                 if user['email'] == email:
@@ -963,10 +999,13 @@ class Dataset(object):
         )
 
     def get_exclusion(self):
+        # make sure there is an expression
+        expr = self.resource.exclusion.get('body').get('expression')
+        if not expr:
+            return None
         return prettify(self.resource.exclusion.body.expression, self)
 
-    def create_single_response(self, categories,
-                           name, alias, description='', missing=True):
+    def create_single_response(self, categories, name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1010,9 +1049,11 @@ class Dataset(object):
                                  expr=expr,
                                  description=description))
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[new_var['body']['alias']]
 
     def create_multiple_response(self, responses, name, alias, description=''):
         """
@@ -1044,12 +1085,16 @@ class Dataset(object):
                 }
             }
         }
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def copy_variable(self, variable, name, alias):
         SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
+
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
             # to have their aliases in the same pattern and order that the
@@ -1116,12 +1161,14 @@ class Dataset(object):
                     'subreferences': subreferences
                 }
 
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def combine_categories(self, variable, map, categories, missing=None, default=None,
-            name='', alias='', description=''):
+                           name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in _MR_TYPE:
@@ -1132,7 +1179,7 @@ class Dataset(object):
                                             name=name, alias=alias, description=description)
 
     def combine_categorical(self, variable, map, categories=None, missing=None,
-            default=None, name='', alias='', description=''):
+                            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
@@ -1162,12 +1209,16 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_categories_expr(
             variable.resource.self, combinations)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        # this returns an entity
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # at this point we are returning a Variable instance
+        return self[new_var['body']['alias']]
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
-                          name='', alias='', description=''):
+                                  name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1197,9 +1248,12 @@ class Dataset(object):
         payload['body']['description'] = description
         payload['body']['derivation'] = combine_responses_expr(
             variable.resource.self, responses)
-        return Variable(
-            self.resource.variables.create(payload).refresh(),
-            self.resource)
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
 
     def create_savepoint(self, description):
         """
@@ -1311,7 +1365,6 @@ class Dataset(object):
         # not returning a dataset
         _fork = self.resource.forks.create({"body": body}).refresh()
         fork = Dataset(_fork)
-        fork.create_savepoint("initial fork")
 
         if preserve_owner or '/api/projects/' in self.resource.body.owner:
             try:
@@ -1323,6 +1376,42 @@ class Dataset(object):
                 pass
 
         return fork
+
+    def merge(self, fork_id=None, autorollback=True):
+        """
+        :param fork_id: str or int
+            can either be the fork id, name or its number as string or int
+
+        :param autorollback: bool, default=True
+            if True the original dataset is rolled back to the previous state
+            in case of a merge conflict.
+            if False the dataset and fork are beeing left 'dirty'
+        """
+        if isinstance(fork_id, int) or (
+                isinstance(fork_id, six.string_types) and
+                fork_id.isdigit()):
+            fork_id = "FORK #{} of {}".format(fork_id, self.resource.body.name)
+
+        elif fork_id is None:
+            raise ValueError('fork id, name or number missing')
+
+        fork_index = self.resource.forks.index
+
+        forks = [f for f in fork_index
+                 if fork_index[f].get('name') == fork_id or
+                 fork_index[f].get('id') == fork_id]
+        if len(forks) == 1:
+            fork_url = forks[0]
+        else:
+            raise ValueError(
+                "Couldn't find a (unique) fork. "
+                "Please try again using its id")
+
+        body = dict(
+            dataset=fork_url,
+            autorollback=autorollback
+        )
+        self.resource.actions.post(body)
 
     def forks_dataframe(self):
         """
@@ -1363,49 +1452,125 @@ class Dataset(object):
         for fork in six.itervalues(self.resource.forks.index):
             fork.entity.delete()
 
-    def download(self, path, filter=None, variables=None, hidden=True):
+    def export(self, path, format='csv', filter=None, variables=None,
+               hidden=False, options=None, metadata_path=None):
         """
-        Downloads a dataset as CSV to the given path.
-        this includes hidden variables and categories
-        as id's.
+        Downloads a dataset as CSV or as SPSS to the given path. This
+        includes hidden variables.
+
+        Dataset viewers can't download hidden variables so we default
+        to False. Dataset editors will need to add hidden=True if they
+        need this feature.
+
+        By default, categories in CSV exports are provided as id's.
         """
+        valid_options = ['use_category_ids', 'prefix_subvariables',
+                         'var_label_field', 'missing_values']
+
+        # Only CSV and SPSS exports are currently supported.
+        if format not in ('csv', 'spss'):
+            raise ValueError(
+                'Invalid format %s. Allowed formats are: "csv" and "spss".'
+                % format
+            )
+
+        if format == 'csv':
+            # Default options for CSV exports.
+            export_options = {'use_category_ids': True}
+        else:
+            # Default options for SPSS exports.
+            export_options = {
+                'prefix_subvariables': False,
+                'var_label_field': 'description'
+            }
+
+        # Validate the user-provided export options.
+        options = options or {}
+        if not isinstance(options, dict):
+            raise ValueError(
+                'The options argument must be a dictionary.'
+            )
+
+        for k in options.keys():
+            if k not in valid_options:
+                raise ValueError(
+                    'Invalid options for format "%s": %s.'
+                    % (format, ','.join(k))
+                )
+        if 'var_label_field' in options \
+                and not options['var_label_field'] in ('name', 'description'):
+            raise ValueError(
+                'The "var_label_field" export option must be either "name" '
+                'or "description".'
+            )
+
+        # All good. Update the export options with the user-provided values.
+        export_options.update(options)
+
         # the payload should include all hidden variables by default
-        payload = {
-            "options": {"use_category_ids": True}
-        }
+        payload = {'options': export_options}
+
+        # Option for exporting metadata as json
+        if metadata_path is not None:
+            metadata = self.resource.table['metadata']
+            if variables is not None:
+                if sys.version_info >= (3, 0):
+                    metadata = {
+                        key: value
+                        for key, value in metadata.items()
+                        if value['alias'] in variables
+                    }
+                else:
+                    metadata = {
+                        key: value
+                        for key, value in metadata.iteritems()
+                        if value['alias'] in variables
+                    }
+            with open(metadata_path, 'w+') as f:
+                json.dump(metadata, f, sort_keys=True)
+
         # add filter to rows if passed
         if filter:
             payload['filter'] = process_expr(
-                parse_expr(filter), self.resource)
+                parse_expr(filter), self.resource
+            )
+
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
             id_vars = []
             for var in variables:
                 id_vars.append(self[var].url)
             if len(id_vars) != len(variables):
-                LOG.debug("Variables passed: %s Variables detected: %s" % (variables, id_vars))
+                LOG.debug(
+                    "Variables passed: %s Variables detected: %s"
+                    % (variables, id_vars)
+                )
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
             payload['where'] = {
-                    'function': 'select',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x} for x in id_vars
-                        }
-                    }]
-                }
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x} for x in id_vars
+                    }
+                }]
+            }
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
+            if not self.resource.body.permissions.edit:
+                raise AttributeError("Only Dataset editors can export hidden variables")
             payload['where'] = {
-                    'function': 'select',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x} for x in self.resource.variables.index.keys()
-                        }
-                    }]
-                }
-        url = export_dataset(self.resource, payload, format='csv')
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x}
+                        for x in self.resource.variables.index.keys()
+                    }
+                }]
+            }
+
+        url = export_dataset(self.resource, payload, format=format)
         download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
@@ -1438,6 +1603,7 @@ class Dataset(object):
                 {'variable': left_var_url}
             ]
         }
+
         # wrap the adapter method on a shoji and body entity
         payload = {
             'element': 'shoji:entity',
@@ -1467,7 +1633,7 @@ class Dataset(object):
         progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
-            return wait_progress(r=progress, session=self.session, entity=self)
+            return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
     def create_categorical(self, categories, alias, name, multiple, description=''):
@@ -1478,20 +1644,20 @@ class Dataset(object):
          on the `multiple` parameter.
         """
         if multiple:
-            return self.create_multiple_response(categories, alias=alias,
-                name=name, description=description)
+            return self.create_multiple_response(
+                categories, alias=alias, name=name, description=description)
         else:
-            return self.create_single_response(categories, alias=alias, name=name,
-                description=description)
+            return self.create_single_response(
+                categories, alias=alias, name=name, description=description)
 
 
-class Variable(object):
+class Variable(ReadOnly):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'categories', 'discarded'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -1499,12 +1665,28 @@ class Variable(object):
 
     CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
 
-    def __init__(self, resource, dataset_resource):
-        self.resource = resource
-        self.url = self.resource.self
-        self.dataset = Dataset(dataset_resource)
+    def __init__(self, var_tuple, dataset):
+        """
+        :param var_tuple: A Shoji Tuple for a dataset variable
+        :param dataset: a Dataset() object instance
+        """
+        self.shoji_tuple = var_tuple
+        self.is_instance = False
+        self._resource = None
+        self.url = var_tuple.entity_url
+        self.dataset = dataset
+
+    @property
+    def resource(self):
+        if not self.is_instance:
+            self._resource = self.shoji_tuple.entity
+            self.is_instance = True
+        return self._resource
 
     def __getattr__(self, item):
+        # don't access self.resource unless necessary
+        if hasattr(self.shoji_tuple, item):
+            return self.shoji_tuple[item]
         if item in self._ENTITY_ATTRIBUTES - self._OVERRIDDEN_ATTRIBUTES:
             try:
                 return self.resource.body[item]  # Has to exist
@@ -1515,7 +1697,7 @@ class Variable(object):
     def edit(self, **kwargs):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attibute %s of variable %s" % (
+                raise AttributeError("Can't edit attribute %s of variable %s" % (
                     key, self.name
                 ))
         return self.resource.edit(**kwargs)
@@ -1526,15 +1708,11 @@ class Variable(object):
     def __str__(self):
         return self.name
 
-    _categories = None
-
     @property
     def categories(self):
         if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
             raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
-        if self._categories is None:
-            self._categories = CategoryList(self.resource)
-        return self._categories
+        return CategoryList._from(self.resource)
 
     def hide(self):
         LOG.debug("HIDING")
@@ -1545,7 +1723,7 @@ class Variable(object):
         self.resource.edit(discarded=False)
 
     def combine(self, alias=None, map=None, names=None, default='missing',
-               name=None, description=None):
+                name=None, description=None):
         # DEPRECATED - USE Dataset.combine*
         """
         Implements SPSS-like recode functionality for Crunch variables.
@@ -1741,9 +1919,11 @@ class Variable(object):
                 }
             ]
 
-        return Variable(
-            self.dataset.resource.variables.create(payload).refresh(),
-            self.dataset.resource)
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self.dataset._reload_variables()
+        # return an instance of Variable
+        return self.dataset[new_var['body']['alias']]
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -1778,6 +1958,5 @@ class Variable(object):
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.dataset.order[str(path)]
         target_group.insert(self.alias, position=position)

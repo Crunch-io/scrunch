@@ -1468,14 +1468,11 @@ class TestExpressionProcessing(TestCase):
             '0001',
             '0002'
         ]
-        subreferences = [
-            {
-                'alias': 'hobbies_1'
-            },
-            {
-                'alias': 'hobbies_2'
-            }
-        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+        }
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1513,11 +1510,10 @@ class TestExpressionProcessing(TestCase):
         subvariables = [
             '0001'
         ]
-        subreferences = [
-            {
-                'alias': 'hobbies_1'
-            }
-        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1627,20 +1623,12 @@ class TestExpressionProcessing(TestCase):
             '0003',
             '0004'
         ]
-        subreferences = [
-            {
-                'alias': 'hobbies_1'
-            },
-            {
-                'alias': 'hobbies_2'
-            },
-            {
-                'alias': 'hobbies_3'
-            },
-            {
-                'alias': 'hobbies_4'
-            }
-        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -2058,20 +2046,13 @@ class TestExpressionProcessing(TestCase):
             '0003',
             '0004'
         ]
-        subreferences = [
-            {
-                'alias': 'hobbies_1'
-            },
-            {
-                'alias': 'hobbies_2'
-            },
-            {
-                'alias': 'hobbies_3'
-            },
-            {
-                'alias': 'hobbies_4'
-            }
-        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -2448,12 +2429,12 @@ class TestExpressionPrettify(TestCase):
         response = mock.MagicMock()
         response.payload.body.alias = 'age'
 
-        ds.session.get.side_effect = lambda *arg: response
+        ds.resource.session.get.side_effect = lambda *arg: response
 
         expected = 'age == 1'
         cel = prettify(expr, ds)
         assert expected == cel
-        ds.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
+        ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
 
     def test_variable_url_no_dataset(self):
         expr = {

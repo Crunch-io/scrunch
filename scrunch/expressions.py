@@ -43,14 +43,17 @@ ready for the crunch API.
 import ast
 import copy
 
-import six
 import scrunch
+import six
+
 from scrunch.variables import validate_variable_url
 
 if six.PY2:
     from urllib import urlencode
 else:
     from urllib.parse import urlencode
+
+ARRAY_TYPES = ('categorical_array', 'multiple_response')
 
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
@@ -141,7 +144,8 @@ def unfold_list(_list):
                         for elem in r_list:
                             new_list.append(ast.Num(elem))
                     except:
-                        raise AttributeError("function 'r' needs 2 integer arguments")
+                        raise AttributeError(
+                            "function 'r' needs 2 integer arguments")
                 else:
                     return _list
             else:
@@ -241,10 +245,7 @@ def parse_expr(expr):
             else:
                 for _name, _val in fields:
                     if not isinstance(node, ast.UnaryOp) and (
-                            isinstance(_val, ast.BoolOp)
-                            or isinstance(_val, ast.UnaryOp)
-                            or isinstance(_val, ast.Compare)
-                            or isinstance(_val, ast.Call)):
+                            isinstance(_val, (ast.BoolOp, ast.UnaryOp, ast.Compare, ast.Call))):
                         # Descend.
                         obj.update(_parse(_val, parent=node))
                     elif isinstance(_val, ast.And):
@@ -305,8 +306,7 @@ def parse_expr(expr):
                             # For method calls, we only allow list-of-int
                             # parameters.
                             if _name == 'args' and func_type == 'method':
-                                if 'value' not in right \
-                                        or not isinstance(right['value'], list):
+                                if not isinstance(right.get('value'), list):
                                     raise ValueError
 
                             args.append(right)
@@ -383,10 +383,11 @@ def get_dataset_variables(ds):
         var['id'] = _id
         variables[var['alias']] = var
 
-        if var['type'] in ('categorical_array', 'multiple_response'):
-            for i, subvar in enumerate(var.get('subreferences', [])):
+        if var['type'] in ARRAY_TYPES:
+            subreferences = var.get('subreferences', {})
+            for subvar_id, subvar in subreferences.items():
                 subvar['is_subvar'] = True
-                subvar['id'] = var['subvariables'][i]
+                subvar['id'] = subvar_id
                 subvar['parent_id'] = _id
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
@@ -408,7 +409,6 @@ def process_expr(obj, ds):
 
     def ensure_category_ids(subitems, variables=variables):
         var_id = None
-        var_value = None
         _subitems = []
 
         def variable_id(variable_url):
@@ -496,14 +496,14 @@ def process_expr(obj, ds):
             elif key == 'variable':
                 var = variables.get(val)
                 if var:
-                    # TODO: We shouldn't be stitching URLs together, use the API
+                    # TODO: We shouldn't stitch URLs together, use the API
                     if var.get('is_subvar'):
                         obj[key] = '%svariables/%s/subvariables/%s/' \
                                    % (base_url, var['parent_id'], var['id'])
                     else:
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
-                    if var['type'] in ('categorical_array', 'multiple_response'):
+                    if var['type'] in ARRAY_TYPES:
                         subvariables = [
                             '%svariables/%s/subvariables/%s/'
                             % (base_url, var['id'], subvar_id)
@@ -611,7 +611,7 @@ def prettify(expr, ds=None):
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'
             )
-        return ds.session.get(var).payload.body.alias
+        return ds.resource.session.get(var).payload.body.alias
 
     def _resolve_variables(_expr):
         new_expr = dict(
@@ -685,9 +685,9 @@ def prettify(expr, ds=None):
         ]
         has_child_and_or = 'or' in child_functions
         nest = parent is not None and (
-            has_child_and_or
-            or (parent == 'or' and len(child_functions) > 1)
-            or _func == 'or'
+            has_child_and_or or
+            (parent == 'or' and len(child_functions) > 1) or
+            _func == 'or'
         )
         return _transform(_func, args, nest=nest)
 
