@@ -1593,7 +1593,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 categories, alias=alias, name=name, description=description)
 
 
-class DatasetSubvariablesMixin(collections.Mapping):
+class DatasetSubvariablesMixin(DatasetVariablesMixin):
     """
     Handles a variable subvariables iteration in a dict-like way
     """
@@ -1603,17 +1603,19 @@ class DatasetSubvariablesMixin(collections.Mapping):
         subvariable = self.resource.subvariables.by('alias').get(item)
         if subvariable is None:
             # subvariable doesn't exists, must raise a ValueError
-            raise ValueError('Variable %s has no subvariable %s' % (
-                self.resource['name'], item))
+            raise KeyError('Variable %s has no subvariable %s' % (
+                self.name, item))
         # subvariable exists!, return the subvariable Instance
         return Variable(subvariable, self)
 
     def __iter__(self):
-        for var in self.resource.subvariables.index.items():
-            yield var
+        """
+        Iterable of subvariable aliases
+        """
+        yield from self.resource.subvariables.index.values()
 
     def __len__(self):
-        return len(self.resource.subvariables.index.items())
+        return len(self.resource.subvariables.index)
 
     def itervalues(self):
         for _, var_tuple in self.resource.subvariables.index.items():
@@ -1622,15 +1624,6 @@ class DatasetSubvariablesMixin(collections.Mapping):
     def iterkeys(self):
         for var in self.resource.subvariables.index.items():
             yield var[1].name
-
-    def keys(self):
-        return list(self.iterkeys())
-
-    def values(self):
-        return list(self.itervalues())
-
-    def items(self):
-        return zip(self.iterkeys(), self.itervalues())
 
 
 class Variable(ReadOnly, DatasetSubvariablesMixin):
