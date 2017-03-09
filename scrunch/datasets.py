@@ -1612,7 +1612,8 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         """
         Iterable of subvariable aliases
         """
-        yield from self.resource.subvariables.index.values()
+        for svar in self.resource.subvariables.index.values():
+            yield svar
 
     def __len__(self):
         return len(self.resource.subvariables.index)
