@@ -63,7 +63,8 @@ def _set_debug_log():
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
 
-def _get_connection():
+
+def _get_connection(file_path='crunch.ini'):
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
@@ -82,7 +83,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
-    config.read('crunch.ini')
+    config.read(file_path)
     try:
         username = config.get('DEFAULT', 'CRUNCH_USERNAME')
         password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
@@ -833,7 +834,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                            'archived', 'end_date', 'start_date'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight'}
+    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
+                          'viewers_can_share'}
 
     def __init__(self, resource):
         """
@@ -1722,7 +1724,41 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 categories, alias=alias, name=name, description=description)
 
 
-class Variable(ReadOnly):
+class DatasetSubvariablesMixin(DatasetVariablesMixin):
+    """
+    Handles a variable subvariables iteration in a dict-like way
+    """
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        subvariable = self.resource.subvariables.by('alias').get(item)
+        if subvariable is None:
+            # subvariable doesn't exists, must raise a ValueError
+            raise KeyError('Variable %s has no subvariable %s' % (
+                self.name, item))
+        # subvariable exists!, return the subvariable Instance
+        return Variable(subvariable, self)
+
+    def __iter__(self):
+        """
+        Iterable of subvariable aliases
+        """
+        for svar in self.resource.subvariables.index.values():
+            yield svar
+
+    def __len__(self):
+        return len(self.resource.subvariables.index)
+
+    def itervalues(self):
+        for _, var_tuple in self.resource.subvariables.index.items():
+            yield Variable(var_tuple, self)
+
+    def iterkeys(self):
+        for var in self.resource.subvariables.index.items():
+            yield var[1].name
+
+
+class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
