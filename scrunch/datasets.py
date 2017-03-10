@@ -20,7 +20,6 @@ from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
                              subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-from scrunch.permissions import User, Project
 
 import pandas as pd
 
@@ -128,17 +127,21 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "config/environment variables")
     root = connection
     if project:
-        root = get_project(project, connection)
-
-    try:
-        shoji_ds = root.datasets.by('name')[dataset].entity
-    except KeyError:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            ds = project_obj.get_dataset(dataset)
+        else:
+            ds = project.get_dataset(dataset)
+    else:
         try:
-            shoji_ds = root.datasets.by('id')[dataset].entity
+            shoji_ds = root.datasets.by('name')[dataset].entity
         except KeyError:
-            raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
+            try:
+                shoji_ds = root.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
-    ds = Dataset(shoji_ds)
+        ds = Dataset(shoji_ds)
 
     if editor is True:
         ds.change_editor(root.session.email)
@@ -160,7 +163,7 @@ def get_project(project, connection=None):
             ret = connection.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project (name or id: %s) not found." % project)
-    return ret
+    return Project(ret)
 
 
 def get_user(user, connection=None):
@@ -208,6 +211,64 @@ def _validate_category_rules(categories, rules):
             'Amount of rules should match categories (or categories -1)'
         )
 
+
+class User:
+    _MUTABLE_ATTRIBUTES = {'name', 'email'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, user_resource):
+        self.resource = user_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('User has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<User: email='{}'; id='{}'>".format(self.email, self.id)
+
+    def __str__(self):
+        return self.email
+
+
+class Project:
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, project_resource):
+        self.resource = project_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Project has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<Project: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+    def get_dataset(self, dataset):
+        try:
+            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+        except KeyError:
+            try:
+                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in project." % dataset)
+
+        ds = Dataset(shoji_ds)
+        return ds
 
 class Path(object):
     def __init__(self, path):
@@ -801,7 +862,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @property
     def editor(self):
-        return User(self.resource.follow('editor_url'))
+        try:
+            return User(self.resource.follow('editor_url'))
+        except pycrunch.lemonpy.ClientError:
+            return self.resource.body.current_editor
 
     @editor.setter
     def editor(self, _):
@@ -812,7 +876,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @property
     def owner(self):
-        return self.resource.body.owner
+        owner_url = self.resource.body.owner
+        try:
+            if '/users/' in owner_url:
+                return User(self.resource.follow('owner_url'))
+            else:
+                return Project(self.resource.follow('owner_url'))
+        except pycrunch.lemonpy.ClientError:
+            return owner_url
 
     @owner.setter
     def owner(self, _):
@@ -902,8 +973,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         Parameters
         ----------
         :param user:
-            The email address or the crunch url of the user who should be set
-            as the new current editor of the given dataset.
+            The email address, the crunch url or a User instance of the user
+            who should be set as the new current editor of the given dataset.
 
         :returns: None
         """
