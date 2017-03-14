@@ -151,6 +151,11 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
 
 
 def get_project(project, connection=None):
+    """
+    :param project: Crunch project ID or Name
+    :param connection: An scrunch session object
+    :return: Project class instance
+    """
     if connection is None:
         connection = _get_connection()
         if not connection:
@@ -168,6 +173,11 @@ def get_project(project, connection=None):
 
 
 def get_user(user, connection=None):
+    """
+    :param user: Crunch user email address
+    :param connection: An scrunch session object
+    :return: User class instance
+    """
     if connection is None:
         connection = _get_connection()
         if not connection:
@@ -177,11 +187,7 @@ def get_user(user, connection=None):
     try:
         ret = connection.users.by('email')[user].entity
     except KeyError:
-        try:
-            # TODO: Getting by id is not working.
-            ret = connection.users.by('id')[user].entity
-        except KeyError:
-            raise KeyError("User (email or id: %s) not found." % user)
+        raise KeyError("User email '%s' not found." % user)
     return User(ret)
 
 
@@ -270,6 +276,51 @@ class Project:
 
         ds = Dataset(shoji_ds)
         return ds
+
+    @property
+    def users(self):
+        """
+        :return: dictionary of User instances
+        """
+        # TODO: return a dictionary keyed by email and values should be User
+        # instances, but when trying to got 403 from Crunch
+        return [e['email'] for e in self.resource.members.index.values()]
+        # return {val['email']: User(val.entity) for val in self.resource.members.index.values()}
+
+    def remove_user(self, user):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+
+        found_url = None
+        for url, tuple in self.resource.members.index.items():
+            if tuple['email'] == user.email:
+                found_url = url
+
+        if found_url:
+            self.resource.members.patch({found_url: None})
+        else:
+            raise KeyError("User %s not found in project %s" % (user.email, self.name))
+
+    def add_user(self, user, edit=False):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch({user.url: {'edit': edit}})
+
+    def edit_user(self, user, edit):
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch(
+            {user.url: {'permissions': {'edit': edit}}}
+        )
+
 
 class Path(object):
     def __init__(self, path):
@@ -889,10 +940,35 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @owner.setter
     def owner(self, _):
-        # Protect the `owner` from external modifications.
+        # Protect `owner` from external modifications.
         raise TypeError(
             'Unsupported operation on the owner property'
         )
+
+    def change_owner(self, user=None, project=None):
+        """
+        :param user: email or User object
+        :param project: id, name or Project object
+        :return:
+        """
+        if user and project:
+            raise AttributeError(
+                "Must provide user or project. Not both"
+            )
+        owner_url = None
+        if user:
+            if not isinstance(user, User):
+                user = get_user(user)
+            owner_url = user.url
+        if project:
+            if not isinstance(project, Project):
+                project = get_project(project)
+            owner_url = project.url
+
+        if not owner_url:
+            raise AttributeError("Can't set owner")
+
+        self.resource.patch({'owner': owner_url})
 
     @property
     def order(self):
@@ -1005,6 +1081,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         def _is_url(u):
             return u.startswith('https://') or u.startswith('http://')
 
+        if isinstance(user, User):
+            user = user.url
         user_url = user if _is_url(user) else _to_url(user)
 
         self.resource.patch({'current_editor': user_url})

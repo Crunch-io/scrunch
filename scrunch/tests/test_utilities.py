@@ -3,7 +3,9 @@ import mock
 
 import scrunch
 from scrunch.variables import validate_variable_url
-from scrunch.datasets import get_dataset, Dataset
+from scrunch.datasets import (get_dataset, Dataset,
+                              get_user, get_project,
+                              Project, User)
 
 
 @pytest.fixture(scope='function')
@@ -61,7 +63,7 @@ def _by_side_effect(shoji, entity_mock):
     return _get
 
 
-class TestGetDataset(object):
+class TestUtilities(object):
 
     @mock.patch('pycrunch.session')
     def test_get_connection_with_session(self, session_mock):
@@ -139,3 +141,42 @@ class TestGetDataset(object):
         assert isinstance(ds, Dataset)
         assert ds.name == 'dataset_name'
         assert ds.id == '123456'
+
+    @mock.patch('pycrunch.session')
+    def test_get_project(self, session):
+
+        shoji_entity = {
+            "element": "shoji:catalog",
+            "body": {
+                "name": "Y Team",
+                "id": "614a7b2ebe9a4292bba54edce83563ae"
+            }
+        }
+
+        site_mock = mock.MagicMock(**shoji_entity)
+        site_mock.entity = mock.MagicMock(**shoji_entity)
+        session.projects.by.side_effect = _by_side_effect(shoji_entity, site_mock)
+
+        project = get_project('Y Team')
+        session.projects.by.assert_called_with('name')
+        assert isinstance(project, Project)
+        assert project.id == '614a7b2ebe9a4292bba54edce83563ae'
+
+    @mock.patch('pycrunch.session')
+    def test_get_user(self, session):
+
+        shoji_entity = {
+            "element": "shoji:catalog",
+            "body": {
+                "name": "Heisenberg",
+                "email": "heisenberg@sc.org",
+            }
+        }
+
+        site_mock = mock.MagicMock(**shoji_entity)
+        site_mock.entity = mock.MagicMock(**shoji_entity)
+        session.users.by.side_effect = {"heisenberg@sc.org": site_mock},
+
+        user = get_user('heisenberg@sc.org')
+        session.users.by.assert_called_with('email')
+        assert isinstance(user, User)
