@@ -1049,6 +1049,7 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
 
 class TestCurrentOwner(TestDatasetBase, TestCase):
     user_url = 'https://test.crunch.io/api/users/12345/'
+    user_email = 'test@crunch.com'
     project_url = 'https://test.crunch.io/api/projects/12345/'
 
     def test_change_owner_exception(self):
@@ -1057,6 +1058,19 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         with pytest.raises(AttributeError) as e:
             ds.change_owner(user=self.user_url, project=self.project_url)
             assert e.message == "Must provide user or project. Not both"
+
+    @mock.patch('scrunch.datasets.get_user')
+    def test_change_owner(self, mocked_get_user):
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        ds.change_owner(user=user)
+        ds_mock.patch.assert_called_with({
+            'owner': self.user_url
+        })
 
 
 class TestSavepoints(TestCase):
