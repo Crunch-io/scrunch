@@ -12,7 +12,8 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Dataset, Variable
+from scrunch.datasets import (Dataset, Variable,
+                              User, Project)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -951,7 +952,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(AttributeError) as err:
             ds.some_variable
         assert str(err.value) == \
-            'Dataset %s has no attribute some_variable' % ds.name
+               "'Dataset' object has no attribute 'some_variable'"
 
     def test_variable_cast(self):
         variable = MagicMock()
@@ -1043,6 +1044,32 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
 
         ds_res.patch.assert_called_with({
             'current_editor': self.user_url
+        })
+
+
+class TestCurrentOwner(TestDatasetBase, TestCase):
+    user_url = 'https://test.crunch.io/api/users/12345/'
+    user_email = 'test@crunch.com'
+    project_url = 'https://test.crunch.io/api/projects/12345/'
+
+    def test_change_owner_exception(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        with pytest.raises(AttributeError) as e:
+            ds.change_owner(user=self.user_url, project=self.project_url)
+            assert e.message == "Must provide user or project. Not both"
+
+    @mock.patch('scrunch.datasets.get_user')
+    def test_change_owner(self, mocked_get_user):
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        ds.change_owner(user=user)
+        ds_mock.patch.assert_called_with({
+            'owner': self.user_url
         })
 
 

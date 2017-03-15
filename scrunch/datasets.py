@@ -44,6 +44,26 @@ _MR_TYPE = 'multiple_response'
 LOG = logging.getLogger('scrunch')
 
 
+def _set_debug_log():
+    # ref: http://docs.python-requests.org/en/master/api/#api-changes
+    #
+    #  These two lines enable debugging at httplib level
+    # (requests->urllib3->http.client)
+    # You will see the REQUEST, including HEADERS and DATA,
+    # and RESPONSE with HEADERS but without DATA.
+    # The only thing missing will be the response.body which is not logged.
+    try:
+        import http.client as http_client
+    except ImportError:
+        # Python 2
+        import httplib as http_client
+    http_client.HTTPConnection.debuglevel = 1
+    LOG.setLevel(logging.DEBUG)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True
+
+
 def _get_connection(file_path='crunch.ini'):
     """
     Utilitarian function that reads credentials from
@@ -108,17 +128,21 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "config/environment variables")
     root = connection
     if project:
-        root = get_project(project, connection)
-
-    try:
-        shoji_ds = root.datasets.by('name')[dataset].entity
-    except KeyError:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            ds = project_obj.get_dataset(dataset)
+        else:
+            ds = project.get_dataset(dataset)
+    else:
         try:
-            shoji_ds = root.datasets.by('id')[dataset].entity
+            shoji_ds = root.datasets.by('name')[dataset].entity
         except KeyError:
-            raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
+            try:
+                shoji_ds = root.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
-    ds = Dataset(shoji_ds)
+        ds = Dataset(shoji_ds)
 
     if editor is True:
         ds.change_editor(root.session.email)
@@ -126,32 +150,56 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     return ds
 
 
-def get_project(project, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_project(project, connection=None):
+    """
+    :param project: Crunch project ID or Name
+    :param connection: An scrunch session object
+    :return: Project class instance
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     try:
-        ret = site.projects.by('name')[project].entity
+        ret = connection.projects.by('name')[project].entity
     except KeyError:
         try:
-            ret = site.projects.by('id')[project].entity
+            ret = connection.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project (name or id: %s) not found." % project)
-    return ret
+    return Project(ret)
 
 
-def create_dataset(name, variables, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_user(user, connection=None):
+    """
+    :param user: Crunch user email address
+    :param connection: An scrunch session object
+    :return: User class instance
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    try:
+        ret = connection.users.by('email')[user].entity
+    except KeyError:
+        raise KeyError("User email '%s' not found." % user)
+    return User(ret)
+
+
+def create_dataset(name, variables, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
 
-    shoji_ds = site.datasets.create({
+    shoji_ds = connection.datasets.create({
         'element': 'shoji:entity',
         'body': {
             'name': name,
@@ -168,6 +216,109 @@ def _validate_category_rules(categories, rules):
     if not ((len(categories) - 1) <= len(rules) <= len(categories)):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
+        )
+
+
+class User:
+    _MUTABLE_ATTRIBUTES = {'name', 'email'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, user_resource):
+        self.resource = user_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('User has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<User: email='{}'; id='{}'>".format(self.email, self.id)
+
+    def __str__(self):
+        return self.email
+
+
+class Project:
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, project_resource):
+        self.resource = project_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Project has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<Project: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+    def get_dataset(self, dataset):
+        try:
+            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+        except KeyError:
+            try:
+                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in project." % dataset)
+
+        ds = Dataset(shoji_ds)
+        return ds
+
+    @property
+    def users(self):
+        """
+        :return: dictionary of User instances
+        """
+        # TODO: return a dictionary keyed by email and values should be User
+        # instances, but when trying to got 403 from Crunch
+        return [e['email'] for e in self.resource.members.index.values()]
+        # return {val['email']: User(val.entity) for val in self.resource.members.index.values()}
+
+    def remove_user(self, user):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+
+        found_url = None
+        for url, tuple in self.resource.members.index.items():
+            if tuple['email'] == user.email:
+                found_url = url
+
+        if found_url:
+            self.resource.members.patch({found_url: None})
+        else:
+            raise KeyError("User %s not found in project %s" % (user.email, self.name))
+
+    def add_user(self, user, edit=False):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch({user.url: {'edit': edit}})
+
+    def edit_user(self, user, edit):
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch(
+            {user.url: {'permissions': {'edit': edit}}}
         )
 
 
@@ -690,7 +841,7 @@ class DatasetVariablesMixin(collections.Mapping):
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
             raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
+                self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
@@ -753,16 +904,71 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
-
-        # Attribute doesn't exists, must raise an AttributeError
-        raise AttributeError('Dataset %s has no attribute %s' % (
-            self.resource.body['name'], item))
+        # Default behaviour
+        return object.__getattribute__(self, item)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
 
     def __str__(self):
         return self.name
+
+    @property
+    def editor(self):
+        try:
+            return User(self.resource.follow('editor_url'))
+        except pycrunch.lemonpy.ClientError:
+            return self.resource.body.current_editor
+
+    @editor.setter
+    def editor(self, _):
+        # Protect the `editor` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the editor property'
+        )
+
+    @property
+    def owner(self):
+        owner_url = self.resource.body.owner
+        try:
+            if '/users/' in owner_url:
+                return User(self.resource.follow('owner_url'))
+            else:
+                return Project(self.resource.follow('owner_url'))
+        except pycrunch.lemonpy.ClientError:
+            return owner_url
+
+    @owner.setter
+    def owner(self, _):
+        # Protect `owner` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the owner property'
+        )
+
+    def change_owner(self, user=None, project=None):
+        """
+        :param user: email or User object
+        :param project: id, name or Project object
+        :return:
+        """
+        if user and project:
+            raise AttributeError(
+                "Must provide user or project. Not both"
+            )
+        owner_url = None
+        if user:
+            if not isinstance(user, User):
+                user = get_user(user)
+            owner_url = user.url
+        if project:
+            if not isinstance(project, Project):
+                project = get_project(project)
+            owner_url = project.url
+
+        if not owner_url:
+            raise AttributeError("Can't set owner")
+
+        self.resource.patch({'owner': owner_url})
 
     @property
     def order(self):
@@ -845,8 +1051,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         Parameters
         ----------
         :param user:
-            The email address or the crunch url of the user who should be set
-            as the new current editor of the given dataset.
+            The email address, the crunch url or a User instance of the user
+            who should be set as the new current editor of the given dataset.
 
         :returns: None
         """
@@ -875,6 +1081,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         def _is_url(u):
             return u.startswith('https://') or u.startswith('http://')
 
+        if isinstance(user, User):
+            user = user.url
         user_url = user if _is_url(user) else _to_url(user)
 
         self.resource.patch({'current_editor': user_url})
