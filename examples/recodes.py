@@ -5,16 +5,15 @@ This example shows a more complex example using different recodes and combines
 to create new variables.
 """
 
+import os
 from examples import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in
 
-from getpass import getpass
 from scrunch import connect
 from scrunch.datasets import create_dataset
 
-HOST = 'https://alpha.crunch.io'
-
-username = raw_input("Enter email: ")
-password = getpass("Enter password for %s: " % username)
+HOST = os.environ['SCRUNCH_HOST']
+username = os.environ['SCRUNCH_USER']
+password = os.environ['SCRUNCH_PASS']
 
 site = connect(username, password, site_url='%s/api/' % HOST)
 
@@ -91,4 +90,4 @@ print('Created combination: %s' % over35.alias)
 # Export some rows
 dataset.export("recodes.csv")
 
-print('Visit on the web: %s' % dataset.web_url(HOST))
+print('Visit on the web: %s' % dataset.id)
