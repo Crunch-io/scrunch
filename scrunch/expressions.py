@@ -297,8 +297,7 @@ def parse_expr(expr):
                         op = CRUNCH_FUNC_MAP[_id]
                     elif _name == 'ops':
                         if len(_val) != 1:
-                            # TODO: what should be the right error message for this?
-                            raise ValueError
+                            raise ValueError('only one logical operator at a time')
                         op = _parse(_val[0], parent=node)
                     elif _name == 'comparators' or _name == 'args':  # right
                         if len(_val) == 0:
@@ -306,8 +305,7 @@ def parse_expr(expr):
 
                         if func_type == 'method':
                             if len(_val) > 1:
-                                # TODO: what should be the right error message for this?
-                                raise ValueError
+                                raise ValueError('1 argument expected, got {}'.format(len(_val)))
 
                             if op == 'duplicates':
                                 # No parameters allowed for 'duplicates'.
