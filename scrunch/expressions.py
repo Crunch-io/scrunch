@@ -218,7 +218,7 @@ def parse_expr(expr):
                 if not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
                     # Only list-of-int or list-of-str are currently supported
-                    raise ValueError
+                    raise ValueError('Only list-of-int or list-of-str are currently supported')
 
                 return {
                     'value': [
@@ -231,13 +231,23 @@ def parse_expr(expr):
                 # The variable.
                 _id_node = fields[0][1]
                 if not isinstance(_id_node, ast.Name):
-                    raise ValueError
+                    msg = (
+                        'calling methods of "{}" object not allowed, '
+                        'variable name expected.'
+                    ).format(type(_id_node).__name__)
+                    raise SyntaxError(msg)
+
                 _id = _parse(_id_node, parent=node)
 
                 # The 'method'.
                 method = fields[1][1]
                 if method not in CRUNCH_METHOD_MAP.keys():
-                    raise ValueError
+                    raise ValueError(
+                        'unknown method "{}", valid methods are: [{}]'.format(
+                            method,
+                            ', '.join(CRUNCH_METHOD_MAP.keys())
+                        )
+                    )
 
                 return _id, CRUNCH_METHOD_MAP[method]
 
@@ -282,11 +292,16 @@ def parse_expr(expr):
                         setattr(_val, '_func_type', func_type)
                         _id = _parse(_val, parent=node)
                         if _id not in CRUNCH_FUNC_MAP.keys():
-                            raise ValueError
+                            raise ValueError(
+                                'unknown method "{}", valid methods are: [{}]'.format(
+                                    _id,
+                                    ', '.join(CRUNCH_METHOD_MAP.keys())
+                                )
+                            )
                         op = CRUNCH_FUNC_MAP[_id]
                     elif _name == 'ops':
                         if len(_val) != 1:
-                            raise ValueError
+                            raise ValueError('only one logical operator at a time')
                         op = _parse(_val[0], parent=node)
                     elif _name == 'comparators' or _name == 'args':  # right
                         if len(_val) == 0:
@@ -294,11 +309,11 @@ def parse_expr(expr):
 
                         if func_type == 'method':
                             if len(_val) > 1:
-                                raise ValueError
+                                raise ValueError('1 argument expected, got {}'.format(len(_val)))
 
                             if op == 'duplicates':
                                 # No parameters allowed for 'duplicates'.
-                                raise ValueError
+                                raise ValueError('No parameters allowed for "duplicates"')
 
                         for arg in _val:
                             right = _parse(arg, parent=node)
@@ -307,13 +322,17 @@ def parse_expr(expr):
                             # parameters.
                             if _name == 'args' and func_type == 'method':
                                 if not isinstance(right.get('value'), list):
-                                    raise ValueError
+                                    raise ValueError(
+                                        'expected list, got "{}"'.format(
+                                            type(right.get('value'))
+                                        )
+                                    )
 
                             args.append(right)
 
                     elif _name in ('keywords', 'starargs', 'kwargs') and _val:
                         # We don't support these in function/method calls.
-                        raise ValueError
+                        raise ValueError('unsupported call with argument "{}"'.format(_name))
                     elif _name == 'operand' and isinstance(node, ast.UnaryOp):
                         right = _parse(_val, parent=node)
                         args.append(right)
