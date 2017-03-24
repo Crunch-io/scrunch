@@ -12,6 +12,12 @@ from scrunch.expressions import prettify
 
 class TestExpressionParsing(TestCase):
 
+    def test_any_of_str(self):
+        expr = '"age".any(1,2)'
+
+        with pytest.raises(SyntaxError) as err:
+            parse_expr(expr)
+
     def test_in_value_error(self):
         expr = "age in [{}, 1, 2]"
         with pytest.raises(ValueError) as err:
