@@ -231,8 +231,12 @@ def parse_expr(expr):
                 # The variable.
                 _id_node = fields[0][1]
                 if not isinstance(_id_node, ast.Name):
-                    # TODO: what should be the right error message for this?
-                    raise ValueError
+                    msg = (
+                        'calling methods of "{}" object not allowed, '
+                        'variable name expected.'
+                    ).format(type(_id_node).__name__)
+                    raise SyntaxError(msg)
+
                 _id = _parse(_id_node, parent=node)
 
                 # The 'method'.
