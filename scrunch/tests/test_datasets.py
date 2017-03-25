@@ -13,7 +13,7 @@ from pycrunch.variables import cast
 
 import scrunch
 from scrunch.datasets import (Dataset, Variable,
-                              User, Project)
+                              User, Project, Filter)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -55,7 +55,7 @@ class TestDatasetBase(object):
             'archived': False,
             'end_date': None,
             'start_date': None,
-        }
+        },
     }
 
     variables = {
@@ -3418,3 +3418,57 @@ class TestVariableIterator(TestDatasetBase):
         ds_mock = self._dataset_mock(variables=self.variables)
         ds = Dataset(ds_mock)
         assert isinstance(ds.values(), list)
+
+
+class TestFilter(TestDatasetBase, TestCase):
+
+    _filter = {
+        "element": "shoji:entity",
+        "self": "https://alpha.crunch.io/api/datasets/1/filters/1/",
+        "description": "Detail information for one filter",
+        "body": {
+            "name": "easy",
+            "is_public": True,
+            "expression": {
+                "function": "in",
+                    "args": [
+                        {
+                            "variable": "https://alpha.crunch.io/api/datasets/1/variables/1/"
+                        },
+                        {
+                            "value": 1
+                        }
+                    ],
+            "id": "326d5db5a40f4189a8a4cddfe06bb19c",
+            }
+        }
+    }
+
+    @mock.patch('scrunch.datasets.Dataset.filters')
+    def test_add_filter(self, filters):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        var = ds['var1_alias']
+
+        ds.add_filter(name='filter', expr='var1_alias != 0')
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'filter',
+                'is_public': False,
+                'expression': {
+                    'function': '!=',
+                    'args': [
+                        {'variable': var.url},  # Crunch needs variable URLs!
+                        {'value': 0}
+                    ]
+                }
+            }
+        }
+        ds.resource.filters.create.assert_called_with(expected_payload)
+
+    def test_filter_class(self):
+        filter = MagicMock(entity=self._filter)
+        mockfilter = Filter(filter)
+        assert mockfilter
