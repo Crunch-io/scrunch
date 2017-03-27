@@ -3427,6 +3427,7 @@ class TestFilter(TestDatasetBase, TestCase):
         "self": "https://alpha.crunch.io/api/datasets/1/filters/1/",
         "description": "Detail information for one filter",
         "body": {
+            "id": "326d5db5a40f4189a8a4cddfe06bb19c",
             "name": "easy",
             "is_public": True,
             "expression": {
@@ -3439,7 +3440,6 @@ class TestFilter(TestDatasetBase, TestCase):
                             "value": 1
                         }
                     ],
-            "id": "326d5db5a40f4189a8a4cddfe06bb19c",
             }
         }
     }
@@ -3460,13 +3460,20 @@ class TestFilter(TestDatasetBase, TestCase):
                 'expression': {
                     'function': '!=',
                     'args': [
-                        {'variable': var.url},  # Crunch needs variable URLs!
+                        {'variable': var.url},
                         {'value': 0}
                     ]
                 }
             }
         }
         ds.resource.filters.create.assert_called_with(expected_payload)
+
+    def test_edit_filter(self):
+        filter = EditableMock(entity=self._filter)
+        mockfilter = Filter(filter)
+        with pytest.raises(AttributeError):
+            mockfilter.edit(name='edited')
+            mockfilter.resource.edit.assert_called_with({'name': 'edited'})
 
     def test_filter_class(self):
         filter = MagicMock(entity=self._filter)

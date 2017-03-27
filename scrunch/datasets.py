@@ -1737,9 +1737,12 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         # add filter to rows if passed
         if filter:
-            payload['filter'] = process_expr(
-                parse_expr(filter), self.resource
-            )
+            if isinstance(filter, Filter):
+                payload['filter'] = {'filter': filter.resource.self}
+            else:
+                payload['filter'] = process_expr(
+                    parse_expr(filter), self.resource
+                )
 
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
