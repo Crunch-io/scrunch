@@ -1037,7 +1037,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     @filters.setter
     def filters(self, _):
         # Protect the `settings` property from external modifications.
-        raise TypeError('Use add_filter method or edit_filter to modify filters')
+        raise TypeError('Use add_filter method to add filters')
 
     def _load_settings(self):
         settings = self.resource.session.get(
