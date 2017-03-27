@@ -1266,7 +1266,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        responses_map = {}
+        responses_map = collections.OrderedDict()
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):
@@ -1849,8 +1849,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         Used to create new categorical variables using Crunchs's `case` function.
 
-         Will create either categorical variables or multiple response depending
-         on the `multiple` parameter.
+        Will create either categorical variables or multiple response depending
+        on the `multiple` parameter.
         """
         if multiple:
             return self.create_multiple_response(
