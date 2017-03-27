@@ -163,6 +163,28 @@ class TestUtilities(object):
         assert project.id == '614a7b2ebe9a4292bba54edce83563ae'
 
     @mock.patch('pycrunch.session')
+    def test_get_project_by_id(self, session):
+
+        shoji_entity = {
+            "element": "shoji:catalog",
+            "body": {
+                "name": "Y Team",
+                "id": "614a7b2ebe9a4292bba54edce83563ae"
+            }
+        }
+
+        site_mock = mock.MagicMock(**shoji_entity)
+        site_mock.entity = mock.MagicMock(**shoji_entity)
+        session.projects.by.side_effect = _by_side_effect(shoji_entity, site_mock)
+
+        project = get_project('614a7b2ebe9a4292bba54edce83563ae')
+        session.projects.by.assert_called_with('id')
+        assert isinstance(project, Project)
+
+        with pytest.raises(KeyError, message='Project invalidid not found.'):
+            get_project('invalidid')
+
+    @mock.patch('pycrunch.session')
     def test_get_user(self, session):
 
         shoji_entity = {
