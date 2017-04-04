@@ -815,6 +815,40 @@ class Order(object):
         return self.graph[item]
 
 
+class Filter:
+    """
+    A pycrunch.shoji.entity for Dataset filters
+    """
+    _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
+    _IMMUTABLE_ATTRIBUTES = {'id', }
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, shoji_tuple):
+        self.resource = shoji_tuple.entity
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]
+        raise AttributeError('Filter has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<Filter: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+    def edit(self, **kwargs):
+        for key in kwargs:
+            if key not in self._MUTABLE_ATTRIBUTES:
+                raise AttributeError("Can't edit attribute %s of 'filter' %s" % (
+                    key, self.name
+                ))
+        return self.resource.edit(**kwargs)
+
+    def remove(self):
+        self.resource.delete()
+
+
 class DatasetSettings(dict):
 
     def __readonly__(self, *args, **kwargs):
@@ -992,6 +1026,19 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # Protect the `settings` property from external modifications.
         raise TypeError('Unsupported operation on the settings property')
 
+    @property
+    def filters(self):
+        _filters = {}
+        for f in self.resource.filters.index.values():
+            filter_inst = Filter(f)
+            _filters[filter_inst.name] = filter_inst
+        return _filters
+
+    @filters.setter
+    def filters(self, _):
+        # Protect the `settings` property from external modifications.
+        raise TypeError('Use add_filter method to add filters')
+
     def _load_settings(self):
         settings = self.resource.session.get(
             self.resource.fragments.settings).payload
@@ -1156,6 +1203,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return None
         return prettify(self.resource.exclusion.body.expression, self)
 
+    def add_filter(self, name, expr, public=False):
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 expression=process_expr(parse_expr(expr), self.resource),
+                                 is_public=public))
+        new_filter = self.resource.filters.create(payload)
+        return self.filters[new_filter.body['name']]
+
     def create_single_response(self, categories, name, alias, description='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
@@ -1211,7 +1266,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        responses_map = {}
+        responses_map = collections.OrderedDict()
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):
@@ -1682,9 +1737,12 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         # add filter to rows if passed
         if filter:
-            payload['filter'] = process_expr(
-                parse_expr(filter), self.resource
-            )
+            if isinstance(filter, Filter):
+                payload['filter'] = {'filter': filter.resource.self}
+            else:
+                payload['filter'] = process_expr(
+                    parse_expr(filter), self.resource
+                )
 
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
@@ -1791,8 +1849,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         Used to create new categorical variables using Crunchs's `case` function.
 
-         Will create either categorical variables or multiple response depending
-         on the `multiple` parameter.
+        Will create either categorical variables or multiple response depending
+        on the `multiple` parameter.
         """
         if multiple:
             return self.create_multiple_response(
