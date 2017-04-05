@@ -17,7 +17,7 @@ HOST = os.environ['SCRUNCH_HOST']
 username = os.environ['SCRUNCH_USER']
 password = os.environ['SCRUNCH_PASS']
 
-site = connect(username, password, site_url='%s/api/' % HOST)
+site = connect(username, password, site_url=HOST)
 
 
 class TestRecodes(TestCase):
