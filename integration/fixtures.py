@@ -82,6 +82,14 @@ NEWS_DATASET = {
     }
 }
 
+RECODES_CSV_OUTPUT = """newssource_1,newssource_2,newssource_3,newssource_4,newssource_5,newssource_6,newssource_7,newssource_8,newssource_9,newssource_10,age,socialmedia_1,socialmedia_2,socialmedia_3,socialmedia_4,caseid,gender,agerange,origintype_4,origintype_1,origintype_2,origintype_3,origintype_copy_4,origintype_copy_1,origintype_copy_2,origintype_copy_3,onlinenewssource_1,onlinenewssource_2,over35
+1,2,1,1,2,2,2,2,2,2,25.0,1,1,2,2,1.0,1,3,2,1,2,2,2,1,2,2,1,2,1
+1,2,2,2,1,2,1,1,2,1,41.0,2,2,2,2,2.0,2,4,1,1,1,1,1,1,1,1,1,1,2
+1,1,1,1,2,1,1,1,2,2,33.0,1,1,1,1,3.0,2,3,1,1,1,1,1,1,1,1,1,1,1
+1,2,1,1,1,2,1,2,2,2,38.0,1,1,2,2,4.0,1,4,2,1,1,1,2,1,1,1,1,1,2
+2,2,2,2,1,1,2,2,1,1,50.0,2,2,2,2,5.0,1,4,1,2,1,1,1,2,1,1,2,1,2
+2,2,2,2,2,2,2,2,2,1,61.0,2,2,2,2,7.0,2,5,1,2,2,2,1,2,2,2,2,1,2"""
+
 
 NEWS_DATASET_ROWS = {
     "caseid": [1, 2, 3, 4, 5, 6, 7],
