@@ -13,4 +13,4 @@ pytest-cov
 requests
 tox
 backports.unittest_mock
-isodate
+isodate==0.5.4
