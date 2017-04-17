@@ -3419,6 +3419,35 @@ class TestVariableIterator(TestDatasetBase):
         ds = Dataset(ds_mock)
         assert isinstance(ds.values(), list)
 
+    def test_subvar_order(self):
+        subvars = {
+            # Intentionally unordered
+            '0003': {
+                'id': '0003',
+                'alias': 'subvar_3'
+            },
+            '0001': {
+                'id': '0001',
+                'alias': 'subvar_1'
+            },
+            '0004': {
+                'id': '0004',
+                'alias': 'subvar_4'
+            },
+            '0002': {
+                'id': '0002',
+                'alias': 'subvar_2'
+            },
+        }
+        ds = mock.MagicMock()
+        var_tuple = mock.MagicMock()
+        var_tuple.entity.subvariables.index = subvars
+
+        v = Variable(var_tuple=var_tuple, dataset=ds)
+
+        all_ids = [sv['id'] for sv in v]
+        assert all_ids == ['0001', '0002', '0003', '0004']
+
 
 class TestFilter(TestDatasetBase, TestCase):
 
