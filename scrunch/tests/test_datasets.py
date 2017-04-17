@@ -3102,6 +3102,68 @@ class TestHierarchicalOrder(TestCase):
         assert isinstance(ds.order['|'], scrunch.datasets.Group)
         assert ds._hier_calls == 2
 
+    def test_order_iteration(self):
+        ds = self.ds
+
+        # consume all items in the dataset order
+        items = [item for item in ds.order]
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_values(self):
+        ds = self.ds
+
+        items = ds.order.values()
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_itervalues(self):
+        ds = self.ds
+
+        items = [item for item in ds.order.itervalues()]
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_keys(self):
+        ds = self.ds
+
+        keys = ds.order.keys()
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+
+    def test_order_iteration_iterkeys(self):
+        ds = self.ds
+
+        keys = [k for k in ds.order.iterkeys()]
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+
+    def test_order_iteration_items(self):
+        ds = self.ds
+
+        keys = []
+        items = []
+        for k, v in ds.order.items():
+            keys.append(k)
+            items.append(v)
+
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
 
 class TestDatasetSettings(TestCase):
 

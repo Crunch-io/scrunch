@@ -397,6 +397,26 @@ class Group(object):
     def __repr__(self):
         return self.__str__()
 
+    def __iter__(self):
+        return self.itervalues()
+
+    def itervalues(self):
+        for item in self.elements.values():
+            yield item
+
+    def iterkeys(self):
+        for key in self.elements.keys():
+            yield key
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
     def __getitem__(self, path):
         if not isinstance(path, six.string_types):
             raise TypeError('arg 1 must be a string')
@@ -810,6 +830,24 @@ class Order(object):
 
     def __repr__(self):
         return self.__str__()
+
+    def __iter__(self):
+        return self.graph.itervalues()
+
+    def itervalues(self):
+        return self.graph.itervalues()
+
+    def iterkeys(self):
+        return self.graph.iterkeys()
+
+    def keys(self):
+        return self.graph.keys()
+
+    def values(self):
+        return self.graph.values()
+
+    def items(self):
+        return self.graph.items()
 
     def __getitem__(self, item):
         return self.graph[item]
