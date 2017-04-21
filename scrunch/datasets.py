@@ -17,7 +17,7 @@ from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
-                             subvar_alias)
+                             subvar_alias, _validate_category_rules)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
@@ -211,12 +211,6 @@ def create_dataset(name, variables, connection=None):
     }).refresh()
     return Dataset(shoji_ds)
 
-
-def _validate_category_rules(categories, rules):
-    if not ((len(categories) - 1) <= len(rules) <= len(categories)):
-        raise ValueError(
-            'Amount of rules should match categories (or categories -1)'
-        )
 
 
 class User:
