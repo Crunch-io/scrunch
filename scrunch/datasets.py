@@ -912,7 +912,7 @@ class DatasetVariablesMixin(collections.Mapping):
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
+            raise ValueError('Dataset %s has no variable with an alias %s' % (
                 self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
@@ -1908,8 +1908,9 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         subvariable = self.resource.subvariables.by('alias').get(item)
         if subvariable is None:
             # subvariable doesn't exists, must raise a ValueError
-            raise KeyError('Variable %s has no subvariable %s' % (
-                self.name, item))
+            raise KeyError(
+                'Variable %s has no subvariable with an alias %s' % (self.name,
+                                                                     item))
         # subvariable exists!, return the subvariable Instance
         return Variable(subvariable, self)
 
