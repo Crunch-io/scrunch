@@ -855,7 +855,7 @@ class Order(object):
 
 class Filter:
     """
-    A pycrunch.shoji.entity for Dataset filters
+    A pycrunch.shoji.Entity for Dataset filters
     """
     _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
     _IMMUTABLE_ATTRIBUTES = {'id', }
