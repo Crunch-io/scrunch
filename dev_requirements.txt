@@ -8,7 +8,7 @@ git+https://github.com/Crunch-io/pycrunch#pycrunch
 pandas
 mock
 pytest
-pytest-sugar
+pytest-sugar==0.8.0
 pytest-cov
 requests
 tox
