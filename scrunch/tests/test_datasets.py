@@ -3420,6 +3420,12 @@ class TestVariableIterator(TestDatasetBase):
         assert isinstance(ds.values(), list)
 
     def test_subvar_order(self):
+        subvars_order = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
         subvars = {
             # Intentionally unordered
             '0003': {
@@ -3439,8 +3445,15 @@ class TestVariableIterator(TestDatasetBase):
                 'alias': 'subvar_2'
             },
         }
+        body = dict(subvariables=subvars_order)
+
+        def getitem(key):
+            if key == 'body':
+                return body
+
         ds = mock.MagicMock()
         var_tuple = mock.MagicMock()
+        var_tuple.entity.__getitem__.side_effect = getitem
         var_tuple.entity.subvariables.index = subvars
 
         v = Variable(var_tuple=var_tuple, dataset=ds)

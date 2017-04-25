@@ -1879,11 +1879,9 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         """
         Iterable of subvariable aliases
         """
-        values = self.resource.subvariables.index.values()
-        sort_func = lambda x: x['id']
-
-        for svar in sorted(values, key=sort_func):
-            yield svar
+        sv_index = self.resource.subvariables.index
+        for sv in self.resource['body']['subvariables']:
+            yield sv_index[sv]
 
     def __len__(self):
         return len(self.resource.subvariables.index)
