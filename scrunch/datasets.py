@@ -1877,7 +1877,7 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
 
     def __iter__(self):
         """
-        Iterable of subvariable aliases
+        Iterable of ordered subvariables
         """
         sv_index = self.resource.subvariables.index
         for sv in self.resource['body']['subvariables']:
