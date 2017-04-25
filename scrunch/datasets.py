@@ -1250,7 +1250,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         return self.filters[new_filter.body['name']]
 
     def create_single_response(self, categories, name, alias, description='',
-                               notes='', missing=True):
+                               missing=True, notes=''):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1890,7 +1890,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def create_categorical(self, categories, alias, name, multiple,
                            description='', notes=''):
         """
-        Used to create new categorical variables using Crunchs's `case` func
+        Used to create new categorical variables using Crunchs's `case`
+        function
 
         Will create either categorical variables or multiple response depending
         on the `multiple` parameter.
