@@ -1915,10 +1915,11 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
 
     def __iter__(self):
         """
-        Iterable of subvariable aliases
+        Iterable of ordered subvariables
         """
-        for svar in self.resource.subvariables.index.values():
-            yield svar
+        sv_index = self.resource.subvariables.index
+        for sv in self.resource['body']['subvariables']:
+            yield sv_index[sv]
 
     def __len__(self):
         return len(self.resource.subvariables.index)
