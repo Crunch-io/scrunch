@@ -1364,6 +1364,7 @@ class TestRecode(TestDatasetBase):
             'element': 'shoji:entity',
             'body': {
                 'description': '',
+                'notes': '',
                 'alias': 'cat',
                 'name': 'My cat',
                 'expr': {
@@ -1484,6 +1485,7 @@ class TestRecode(TestDatasetBase):
             'body': {
                 'alias': 'mr',
                 'description': '',
+                'notes': '',
                 'name': 'my mr',
                 'derivation': {
                     'function': 'array',

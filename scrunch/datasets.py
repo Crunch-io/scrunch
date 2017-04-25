@@ -1249,7 +1249,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         new_filter = self.resource.filters.create(payload)
         return self.filters[new_filter.body['name']]
 
-    def create_single_response(self, categories, name, alias, description='', missing=True):
+    def create_single_response(self, categories, name, alias, description='',
+                               notes='', missing=True):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1291,7 +1292,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                        body=dict(alias=alias,
                                  name=name,
                                  expr=expr,
-                                 description=description))
+                                 description=description,
+                                 notes=notes))
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -1299,7 +1301,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(self, responses, name, alias, description=''):
+    def create_multiple_response(self, responses, name, alias, description='',
+                                 notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
@@ -1318,6 +1321,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'name': name,
                 'alias': alias,
                 'description': description,
+                'notes': notes,
                 'derivation': {
                     'function': 'array',
                     'args': [{
@@ -1883,19 +1887,22 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def create_categorical(self, categories, alias, name, multiple, description=''):
+    def create_categorical(self, categories, alias, name, multiple,
+                           description='', notes=''):
         """
-        Used to create new categorical variables using Crunchs's `case` function.
+        Used to create new categorical variables using Crunchs's `case` func
 
         Will create either categorical variables or multiple response depending
         on the `multiple` parameter.
         """
         if multiple:
             return self.create_multiple_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
         else:
             return self.create_single_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
