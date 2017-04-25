@@ -9,7 +9,7 @@ pandas
 mock
 pytest
 pytest-sugar
-pytest-cov
+pytest-cov==2.4.0
 requests
 tox
 backports.unittest_mock
