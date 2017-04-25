@@ -19,7 +19,15 @@ def validate_variable_url(url):
 
 def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
     subvars = variable.resource.subvariables.by('alias')
-    _supported_iterable_types = (list, tuple, range)
+
+
+    # In python 2.7, range(...) returns a list, starting from python 3,
+    # range is a python type
+    if six.PY2:
+        _supported_iterable_types = (list, tuple)
+    else:
+        _supported_iterable_types = (list, tuple, range)
+
     try:
         responses = [
             {
