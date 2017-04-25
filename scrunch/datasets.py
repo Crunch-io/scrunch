@@ -887,6 +887,146 @@ class Filter:
         self.resource.delete()
 
 
+class CrunchBox(object):
+    """
+    A CrunchBox representation of boxdata.
+
+    an instance cannot mutate it's metadata directly since boxdata doesn't
+    support PATCHing. Instead, simply create a new `CrunchBox` instance with
+    the same Filters and Variables. You'll get the same entity from the boxdata
+    index with the updated metadata.
+
+    :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
+    :param     dataset: scrunch.datasets.Dataset instance
+
+    NOTE: since the boxdata entity is different regarding the mapping of body
+          and metadata fields, methods etc... it is made `readonly`.
+          Since an `edit` method would need to return a new
+          instance (see above) the `__setattr__` method ist incorporated with
+          CrunchBox specific messages.
+
+          (an edit method returning an instance would most likely brake user
+          expectations)
+
+          In order to have a proper `remove` method we also need the Dataset
+          instance.
+    """
+
+    WIDGET_URL = 'https://s.crunch.io/widget/index.html#/ds/{id}/'
+    DIMENSIONS = dict(height=480, width=600)
+
+    # the attributes on entity.body.metadata
+    _METADATA_ATTRIBUTES = {'title', 'notes', 'header', 'footer'}
+
+    _MUTABLE_ATTRIBUTES = _METADATA_ATTRIBUTES
+
+    _IMMUTABLE_ATTRIBUTES = {
+            'id', 'user_id', 'creation_time', 'filters', 'variables'}
+
+    # removed `dataset` from the set above since it overlaps with the Dataset
+    # instance on self. `boxdata.dataset` simply points to the dataset url
+
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, shoji_tuple, dataset):
+        self.resource = shoji_tuple
+        self.url = shoji_tuple.entity_url
+        self.dataset = dataset
+
+    def __setattr__(self, attr, value):
+        """ known attributes should be readonly """
+
+        if attr in self._IMMUTABLE_ATTRIBUTES:
+            raise AttributeError(
+                "Can't edit attibute '%s'" % attr)
+        if attr in self._MUTABLE_ATTRIBUTES:
+            raise AttributeError(
+                "Can't edit '%s' of a CrunchBox. Create a new one with "
+                "the same filters and variables to update its metadata" % attr)
+        object.__setattr__(self, attr, value)
+
+    def __getattr__(self, attr):
+        if attr in self._METADATA_ATTRIBUTES:
+            return self.resource.metadata[attr]
+
+        if attr == 'filters':
+            # return a list of `Filters` instead of the filters expr on `body`
+            _filters = []
+            for obj in self.resource.filters:
+                f_url = obj['filter']
+                _filters.append(
+                    Filter(self.dataset.resource.filters.index[f_url]))
+            return _filters
+
+        if attr == 'variables':
+            # return a list of `Variables` instead of the where expr on `body`
+            _var_urls = []
+            _var_map = self.resource.where.args[0].map
+            for v in _var_map:
+                _var_urls.append(_var_map[v]['variable'])
+
+            return [
+                Variable(entity, self.dataset)
+                for url, entity in self.dataset._vars
+                if url in _var_urls
+            ]
+
+        # all other attributes not catched so far
+        if attr in self._ENTITY_ATTRIBUTES:
+            return self.resource[attr]
+        raise AttributeError('CrunchBox has no attribute %s' % attr)
+
+    def __repr__(self):
+        return "<CrunchBox: title='{}'; id='{}'>".format(
+            self.title, self.id)
+
+    def __str__(self):
+        return self.title
+
+    def remove(self):
+        self.dataset.resource.session.delete(self.url)
+
+    @property
+    def widget_url(self):
+        return self.WIDGET_URL.format(id=self.id)
+
+    @widget_url.setter
+    def widget_url(self, _):
+        """ prevent edits to the widget_url """
+        raise AttributeError("Can't edit 'widget_url' of a CrunchBox")
+
+    def iframe(self, logo=None, dimensions=None):
+        dimensions = dimensions or self.DIMENSIONS
+        widget_url = self.widget_url
+
+        if not isinstance(dimensions, dict):
+            raise TypeError('`dimensions` needs to be a dict')
+
+        def _figure(html):
+            return '<figure style="text-align:left;" class="content-list-'\
+                    'component image">\n' + '  {}\n'.format(html) + \
+                    '</figure>\n'
+
+        _iframe = (
+            '<iframe src="{widget_url}" width="{dimensions[width]}" '
+            'height="{dimensions[height]}" style="border: 1px solid #d3d3d3;">'
+            '</iframe>')
+
+        if logo:
+            _img = '<img src="{logo}" stype="height:auto; width:200px;'\
+                   ' margin-left:-4px"></img>'
+            _iframe = _figure(_img) + _iframe
+
+        elif self.title:
+            _div = '<div style="padding-bottom: 12px">\n'\
+                   '    <span style="font-size: 18px; color: #444444;'\
+                   ' line-height: 1;">' + self.title + '</span>\n'\
+                   '  </div>'
+            _iframe = _figure(_div) + _iframe
+
+        print(_iframe.format(**locals()))
+
+
 class DatasetSettings(dict):
 
     def __readonly__(self, *args, **kwargs):
@@ -1076,6 +1216,18 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def filters(self, _):
         # Protect the `settings` property from external modifications.
         raise TypeError('Use add_filter method to add filters')
+
+    @property
+    def crunchboxes(self):
+        _crunchboxes = []
+        for shoji_tuple in self.resource.boxdata.index.values():
+            _crunchboxes.append(CrunchBox(shoji_tuple, self))
+        return _crunchboxes
+
+    @crunchboxes.setter
+    def crunchboxes(self, _):
+        # Protect the `crunchboxes` property from direct modifications
+        raise TypeError('Use the `create_crunchbox` method to add one')
 
     def _load_settings(self):
         settings = self.resource.session.get(
@@ -1896,6 +2048,107 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         else:
             return self.create_single_response(
                 categories, alias=alias, name=name, description=description)
+
+    def create_crunchbox(
+            self, title=None, header=None, footer=None, notes=None,
+            filters=None, variables=None, force=False):
+        """
+        create a new boxdata entity for a CrunchBox.
+
+        NOTE: new boxdata is only created when there is a new combination of
+        where and filter data.
+
+        Args:
+            title       (str): Human friendly identifier
+            notes       (str): Other information relevent for this CrunchBox
+            header      (str): header information for the CrunchBox
+            footer      (str): footer information for the CrunchBox
+            filters    (list): list of filter names or `Filter` instances
+            where      (list): list of variable aliases or `Variable` instances
+                               If `None` all variables will be included.
+        Returns:
+            CrunchBox (instance)
+        """
+
+        if filters:
+            if not isinstance(filters, list):
+                raise TypeError('`filters` argument must be of type `list`')
+
+            # ensure we only have `Filter` instances
+            filters = [
+                f if isinstance(f, Filter) else self.filters[f]
+                for f in filters
+            ]
+
+            if any(not f.is_public
+                    for f in filters):
+                raise ValueError('filters need to be public')
+
+            filters = [
+                {'filter': f.resource.self}
+                for f in filters
+            ]
+
+        if variables:
+            if not isinstance(variables, list):
+                raise TypeError('`variables` argument must be of type `list`')
+
+            # ensure we only have `Variable` Tuples
+            # NOTE: if we want to check if variables are public we would have
+            # to use Variable instances instead of their Tuple representation.
+            # This would cause additional GET's
+            variables = [
+                var.shoji_tuple if isinstance(var, Variable)
+                else self.resource.variables.by('alias')[var]
+                for var in variables
+            ]
+
+            variables = dict(
+                function='select',
+                args=[
+                    {'map': {
+                        v.id: {'variable': v.entity_url}
+                        for v in variables
+                    }}
+                ])
+
+        if not title:
+            title = 'CrunchBox for {}'.format(str(self))
+
+        payload = dict(
+            element='shoji:entity',
+            body=dict(
+                where=variables,
+                filters=filters,
+                force=force,
+                title=title,
+                notes=notes,
+                header=header,
+                footer=footer)
+        )
+
+        # create the boxdata
+        self.resource.boxdata.create(payload)
+
+        # NOTE: the entity from the response is a bit different compared to
+        # others, i.e. no id, no delete method, different entity_url...
+        # For now, return the shoji_tuple from the index
+        for shoji_tuple in self.resource.boxdata.index.values():
+            if shoji_tuple.metadata.title == title:
+                return CrunchBox(shoji_tuple, self)
+
+    def delete_crunchbox(self, **kwargs):
+        """ deletes crunchboxes on matching kwargs """
+        match = False
+        for key in kwargs:
+            if match:
+                break
+            for crunchbox in self.crunchboxes:
+                attr = getattr(crunchbox, key, None)
+                if attr and attr == kwargs[key]:
+                    crunchbox.remove()
+                    match = True
+                    break
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
