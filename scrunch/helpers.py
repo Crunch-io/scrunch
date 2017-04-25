@@ -107,4 +107,3 @@ def _validate_category_rules(categories, rules):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
-

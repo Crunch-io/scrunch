@@ -16,8 +16,8 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
-                             subvar_alias, _validate_category_rules)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
@@ -210,7 +210,6 @@ def create_dataset(name, variables, connection=None):
         }
     }).refresh()
     return Dataset(shoji_ds)
-
 
 
 class User:

@@ -947,7 +947,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             ds['some_variable']
         assert str(err.value) == \
-            'Dataset %s has no variable some_variable' % ds.name
+            'Dataset %s has no variable with an alias some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
             ds.some_variable
