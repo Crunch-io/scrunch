@@ -947,7 +947,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             ds['some_variable']
         assert str(err.value) == \
-            'Dataset %s has no variable some_variable' % ds.name
+            'Dataset %s has no variable with an alias some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
             ds.some_variable
@@ -1364,6 +1364,7 @@ class TestRecode(TestDatasetBase):
             'element': 'shoji:entity',
             'body': {
                 'description': '',
+                'notes': '',
                 'alias': 'cat',
                 'name': 'My cat',
                 'expr': {
@@ -1484,6 +1485,7 @@ class TestRecode(TestDatasetBase):
             'body': {
                 'alias': 'mr',
                 'description': '',
+                'notes': '',
                 'name': 'my mr',
                 'derivation': {
                     'function': 'array',

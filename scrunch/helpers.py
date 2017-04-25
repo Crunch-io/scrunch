@@ -96,3 +96,14 @@ def case_expr(rules, name, alias):
     }
     expression['args'].append(rules)
     return expression
+
+
+def _validate_category_rules(categories, rules):
+    """
+    validate that rules and categories are of same size
+    """
+
+    if not ((len(categories) - 1) <= len(rules) <= len(categories)):
+        raise ValueError(
+            'Amount of rules should match categories (or categories -1)'
+        )

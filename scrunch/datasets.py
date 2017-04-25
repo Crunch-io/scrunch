@@ -16,8 +16,8 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
-                             subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
@@ -210,13 +210,6 @@ def create_dataset(name, variables, connection=None):
         }
     }).refresh()
     return Dataset(shoji_ds)
-
-
-def _validate_category_rules(categories, rules):
-    if not ((len(categories) - 1) <= len(rules) <= len(categories)):
-        raise ValueError(
-            'Amount of rules should match categories (or categories -1)'
-        )
 
 
 class User:
@@ -855,7 +848,7 @@ class Order(object):
 
 class Filter:
     """
-    A pycrunch.shoji.entity for Dataset filters
+    A pycrunch.shoji.Entity for Dataset filters
     """
     _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
     _IMMUTABLE_ATTRIBUTES = {'id', }
@@ -1052,7 +1045,7 @@ class DatasetVariablesMixin(collections.Mapping):
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
+            raise ValueError('Dataset %s has no variable with an alias %s' % (
                 self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
@@ -1401,7 +1394,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         new_filter = self.resource.filters.create(payload)
         return self.filters[new_filter.body['name']]
 
-    def create_single_response(self, categories, name, alias, description='', missing=True):
+    def create_single_response(self, categories, name, alias, description='',
+                               missing=True, notes=''):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -1443,7 +1437,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                        body=dict(alias=alias,
                                  name=name,
                                  expr=expr,
-                                 description=description))
+                                 description=description,
+                                 notes=notes))
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -1451,7 +1446,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(self, responses, name, alias, description=''):
+    def create_multiple_response(self, responses, name, alias, description='',
+                                 notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
@@ -1470,6 +1466,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'name': name,
                 'alias': alias,
                 'description': description,
+                'notes': notes,
                 'derivation': {
                     'function': 'array',
                     'args': [{
@@ -2035,19 +2032,23 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def create_categorical(self, categories, alias, name, multiple, description=''):
+    def create_categorical(self, categories, alias, name, multiple,
+                           description='', notes=''):
         """
-        Used to create new categorical variables using Crunchs's `case` function.
+        Used to create new categorical variables using Crunchs's `case`
+        function
 
         Will create either categorical variables or multiple response depending
         on the `multiple` parameter.
         """
         if multiple:
             return self.create_multiple_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
         else:
             return self.create_single_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
 
     def create_crunchbox(
             self, title=None, header=None, footer=None, notes=None,
@@ -2161,8 +2162,9 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         subvariable = self.resource.subvariables.by('alias').get(item)
         if subvariable is None:
             # subvariable doesn't exists, must raise a ValueError
-            raise KeyError('Variable %s has no subvariable %s' % (
-                self.name, item))
+            raise KeyError(
+                'Variable %s has no subvariable with an alias %s' % (self.name,
+                                                                     item))
         # subvariable exists!, return the subvariable Instance
         return Variable(subvariable, self)
 
