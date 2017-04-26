@@ -345,6 +345,7 @@ class TestRecode(TestCase):
                 'name': 'Sexuality 2',
                 'alias': 'sexuality2',
                 'description': '',
+                'notes': '',
                 'expr': {
                     'function': 'case',
                     'args': [{
@@ -445,7 +446,8 @@ class TestRecode(TestCase):
                 'type': 'multiple_response',
                 'id': '0001',
                 'categories': categories,
-                'description': 'Multiple Response Example'
+                'description': 'Multiple Response Example',
+                'notes': '',
             }
 
         })
@@ -454,6 +456,7 @@ class TestRecode(TestCase):
                 'id': '00001',
                 'alias': 'sexuality',
                 'type': 'categorical',
+                'notes': '',
                 'categories': categories
             }
         })
@@ -482,6 +485,7 @@ class TestRecode(TestCase):
             'body': {
                 'name': 'Q1_recoded',
                 'description': '',
+                'notes': '',
                 'alias': 'Q1_recoded',
                 'derivation': {
                     'function': 'array',
