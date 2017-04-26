@@ -16,8 +16,8 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
-                             subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
@@ -210,13 +210,6 @@ def create_dataset(name, variables, connection=None):
         }
     }).refresh()
     return Dataset(shoji_ds)
-
-
-def _validate_category_rules(categories, rules):
-    if not ((len(categories) - 1) <= len(rules) <= len(categories)):
-        raise ValueError(
-            'Amount of rules should match categories (or categories -1)'
-        )
 
 
 class User:
@@ -855,7 +848,7 @@ class Order(object):
 
 class Filter:
     """
-    A pycrunch.shoji.entity for Dataset filters
+    A pycrunch.shoji.Entity for Dataset filters
     """
     _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
     _IMMUTABLE_ATTRIBUTES = {'id', }
@@ -912,7 +905,7 @@ class DatasetVariablesMixin(collections.Mapping):
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
+            raise ValueError('Dataset %s has no variable with an alias %s' % (
                 self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
@@ -1908,17 +1901,19 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         subvariable = self.resource.subvariables.by('alias').get(item)
         if subvariable is None:
             # subvariable doesn't exists, must raise a ValueError
-            raise KeyError('Variable %s has no subvariable %s' % (
-                self.name, item))
+            raise KeyError(
+                'Variable %s has no subvariable with an alias %s' % (self.name,
+                                                                     item))
         # subvariable exists!, return the subvariable Instance
         return Variable(subvariable, self)
 
     def __iter__(self):
         """
-        Iterable of subvariable aliases
+        Iterable of ordered subvariables
         """
-        for svar in self.resource.subvariables.index.values():
-            yield svar
+        sv_index = self.resource.subvariables.index
+        for sv in self.resource['body']['subvariables']:
+            yield sv_index[sv]
 
     def __len__(self):
         return len(self.resource.subvariables.index)

@@ -112,6 +112,26 @@ class TestCombine(TestCase):
         # subvar_url * 4 because we used the same mock for all subvars
         assert modified_map[0]['combined_ids'] == [subvar1_url] * 4
 
+    def test_validate_integer(self):
+        test_map = {
+            1: 1
+        }
+        test_cats = {
+            1: "China"
+        }
+
+        ds_res_mock = mock.MagicMock()
+        variable_mock = mock.MagicMock()
+        subvar_mock = mock.MagicMock(entity_url=subvar1_url)
+        # mock the call to entity, this will happen on Variable.resource
+        variable_mock.entity.subvariables.by.return_value = {
+            'parent_1': subvar_mock
+        }
+        parent_var = Variable(variable_mock, ds_res_mock)
+        modified_map = responses_from_map(parent_var, test_map, test_cats, 'test', 'parent')
+        # subvar_url * 4 because we used the same mock for all subvars
+        assert modified_map[0]['combined_ids'] == [subvar1_url]
+
     def test_combine_categories_unknown_alias(self):
         resource = mock.MagicMock()
         resource.body = {'name': 'mocked_dataset'}
@@ -123,7 +143,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
-        assert 'Dataset mocked_dataset has no variable unknown' in str(err.value)
+        assert 'Dataset mocked_dataset has no variable with an alias unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()

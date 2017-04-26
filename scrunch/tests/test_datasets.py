@@ -947,7 +947,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             ds['some_variable']
         assert str(err.value) == \
-            'Dataset %s has no variable some_variable' % ds.name
+            'Dataset %s has no variable with an alias some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
             ds.some_variable
@@ -3480,6 +3480,48 @@ class TestVariableIterator(TestDatasetBase):
         ds_mock = self._dataset_mock(variables=self.variables)
         ds = Dataset(ds_mock)
         assert isinstance(ds.values(), list)
+
+    def test_subvar_order(self):
+        subvars_order = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subvars = {
+            # Intentionally unordered
+            '0003': {
+                'id': '0003',
+                'alias': 'subvar_3'
+            },
+            '0001': {
+                'id': '0001',
+                'alias': 'subvar_1'
+            },
+            '0004': {
+                'id': '0004',
+                'alias': 'subvar_4'
+            },
+            '0002': {
+                'id': '0002',
+                'alias': 'subvar_2'
+            },
+        }
+        body = dict(subvariables=subvars_order)
+
+        def getitem(key):
+            if key == 'body':
+                return body
+
+        ds = mock.MagicMock()
+        var_tuple = mock.MagicMock()
+        var_tuple.entity.__getitem__.side_effect = getitem
+        var_tuple.entity.subvariables.index = subvars
+
+        v = Variable(var_tuple=var_tuple, dataset=ds)
+
+        all_ids = [sv['id'] for sv in v]
+        assert all_ids == ['0001', '0002', '0003', '0004']
 
 
 class TestFilter(TestDatasetBase, TestCase):
