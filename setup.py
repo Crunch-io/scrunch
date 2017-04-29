@@ -43,8 +43,10 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
-        'git+https://github.com/Crunch-io/pycrunch/tarball/master#egg=pycrunch',
         'six',
+    ],
+    dependency_links=[
+        'git+https://github.com/Crunch-io/pycrunch/tarball/master#egg=pycrunch',
     ],
     tests_require=[
         'backports.unittest_mock',
