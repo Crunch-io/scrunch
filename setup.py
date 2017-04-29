@@ -43,7 +43,7 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
-        'pycrunch',
+        'git+https://github.com/Crunch-io/pycrunch/tarball/master#egg=pycrunch',
         'six',
     ],
     tests_require=[
