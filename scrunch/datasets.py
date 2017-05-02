@@ -997,8 +997,8 @@ class CrunchBox(object):
 
         def _figure(html):
             return '<figure style="text-align:left;" class="content-list-'\
-                    'component image">\n' + '  {}\n'.format(html) + \
-                    '</figure>\n'
+                    'component image">' + '  {}'.format(html) + \
+                    '</figure>'
 
         _iframe = (
             '<iframe src="{widget_url}" width="{dimensions[width]}" '
@@ -1011,13 +1011,13 @@ class CrunchBox(object):
             _iframe = _figure(_img) + _iframe
 
         elif self.title:
-            _div = '<div style="padding-bottom: 12px">\n'\
+            _div = '<div style="padding-bottom: 12px">'\
                    '    <span style="font-size: 18px; color: #444444;'\
-                   ' line-height: 1;">' + self.title + '</span>\n'\
+                   ' line-height: 1;">' + self.title + '</span>'\
                    '  </div>'
             _iframe = _figure(_div) + _iframe
 
-        print(_iframe.format(**locals()))
+        return _iframe.format(**locals())
 
 
 class DatasetSettings(dict):
