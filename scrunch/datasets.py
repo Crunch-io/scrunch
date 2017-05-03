@@ -914,7 +914,7 @@ class CrunchBox(object):
     _MUTABLE_ATTRIBUTES = _METADATA_ATTRIBUTES
 
     _IMMUTABLE_ATTRIBUTES = {
-            'id', 'user_id', 'creation_time', 'filters', 'variables'}
+        'id', 'user_id', 'creation_time', 'filters', 'variables'}
 
     # removed `dataset` from the set above since it overlaps with the Dataset
     # instance on self. `boxdata.dataset` simply points to the dataset url
@@ -997,8 +997,8 @@ class CrunchBox(object):
 
         def _figure(html):
             return '<figure style="text-align:left;" class="content-list-'\
-                    'component image">' + '  {}'.format(html) + \
-                    '</figure>'
+                   'component image">' + '  {}'.format(html) + \
+                   '</figure>'
 
         _iframe = (
             '<iframe src="{widget_url}" width="{dimensions[width]}" '
