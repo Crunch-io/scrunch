@@ -35,7 +35,9 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
+        'pandas',
         'pycrunch',
+        'requests',
         'six',
     ],
     dependency_links=[
