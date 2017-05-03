@@ -46,6 +46,9 @@ setup_params = dict(
         'pycrunch',
         'six',
     ],
+    dependency_links=[
+        'git+https://github.com/Crunch-io/pycrunch.git#egg=pycrunch-0.3.1',
+    ],
     tests_require=[
         'backports.unittest_mock',
         'isodate',
