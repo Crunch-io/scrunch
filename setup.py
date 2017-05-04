@@ -11,7 +11,7 @@ def get_long_desc():
     root_dir = os.path.dirname(__file__)
     if not root_dir:
         root_dir = '.'
-    readme_fn = os.path.join(root_dir, 'README.md')
+    readme_fn = os.path.join(root_dir, 'README.rst')
     with io.open(readme_fn, encoding='utf-8') as stream:
         return stream.read()
 
