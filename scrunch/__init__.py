@@ -1,5 +1,5 @@
 from pycrunch import connect
-from .datasets import get_dataset
+from .datasets import get_dataset, get_project
 
 from pkg_resources import get_distribution, DistributionNotFound
 try:
