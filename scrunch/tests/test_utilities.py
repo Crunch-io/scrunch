@@ -3,9 +3,9 @@ import mock
 
 import scrunch
 from scrunch.variables import validate_variable_url
+from scrunch import get_project
 from scrunch.datasets import (get_dataset, Dataset,
-                              get_user, get_project,
-                              Project, User)
+                              get_user, Project, User)
 
 
 @pytest.fixture(scope='function')
