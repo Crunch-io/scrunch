@@ -544,6 +544,11 @@ class TestRecode(TestCase):
                                     }
                                 }
                             }
+                        }, {
+                            'value': [
+                                '0001',
+                                '0002'
+                            ]
                         }]
                     }]
                 }
