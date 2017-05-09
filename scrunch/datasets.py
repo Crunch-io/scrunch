@@ -1453,12 +1453,19 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
          of the responses(subvariables).
         """
         responses_map = collections.OrderedDict()
+        responses_map_ids = []
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
-            responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
-                                                           alias='%s_%d' % (alias, resp['id']))
+
+            resp_id = '%04d' % resp['id']
+            responses_map_ids.append(resp_id)
+            responses_map[resp_id] = case_expr(
+                case,
+                name=resp['name'],
+                alias='%s_%d' % (alias, resp['id'])
+            )
 
         payload = {
             'element': 'shoji:entity',
@@ -1471,9 +1478,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                     'function': 'array',
                     'args': [{
                         'function': 'select',
-                        'args': [{
-                            'map': responses_map
-                        }]
+                        'args': [
+                            {'map': responses_map},
+                            {'value': responses_map_ids}
+                        ]
                     }]
                 }
             }
