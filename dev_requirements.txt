@@ -5,7 +5,6 @@ git+https://github.com/Crunch-io/pycrunch#pycrunch
 -e .
 
 #pycrunch
-pandas==0.19.2
 mock
 pytest
 pytest-sugar
