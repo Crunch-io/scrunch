@@ -35,7 +35,7 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
-        'pandas',
+        'pandas==0.19.2',
         'pycrunch>=0.4.0',
         'requests',
         'six',
@@ -44,7 +44,7 @@ setup_params = dict(
         'backports.unittest_mock',
         'isodate',
         'mock',
-        'pandas',
+        'pandas==0.19.2',
         'pytest',
         'pytest-cov',
         'pytest-sugar',
