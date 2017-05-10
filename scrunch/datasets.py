@@ -846,13 +846,14 @@ class Order(object):
         return self.graph[item]
 
 
-class Filter:
+class SubEntity(object):
     """
-    A pycrunch.shoji.Entity for Dataset filters
+    A pycrunch.shoji.Entity directly related to a Dataset.
+    For example; filters, decks
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
-    _IMMUTABLE_ATTRIBUTES = {'id', }
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _MUTABLE_ATTRIBUTES = set()
+    _IMMUTABLE_ATTRIBUTES = set()
+    _ENTITY_ATTRIBUTES = set()
 
     def __init__(self, shoji_tuple):
         self.resource = shoji_tuple.entity
@@ -860,10 +861,12 @@ class Filter:
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]
-        raise AttributeError('Filter has no attribute %s' % item)
+        raise AttributeError(
+            '{} has no attribute {}'.format(self.__class__.__name__, item))
 
     def __repr__(self):
-        return "<Filter: name='{}'; id='{}'>".format(self.name, self.id)
+        return "<{}: name='{}'; id='{}'>".format(
+            self.__class__.__name__, self.name, self.id)
 
     def __str__(self):
         return self.name
@@ -871,13 +874,30 @@ class Filter:
     def edit(self, **kwargs):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attribute %s of 'filter' %s" % (
-                    key, self.name
-                ))
+                raise AttributeError(
+                    "Can't edit attribute {} of {}".format(key, self.name))
         return self.resource.edit(**kwargs)
 
     def remove(self):
         self.resource.delete()
+
+
+class Filter(SubEntity):
+    """
+    A pycrunch.shoji.Entity for Dataset filters
+    """
+    _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
+    _IMMUTABLE_ATTRIBUTES = {'id', }
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+
+class Deck(SubEntity):
+    """
+    A pycrunch.shoji.Entity for Dataset decks
+    """
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'is_public', 'owner_id', 'owner_name'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
 
 class CrunchBox(object):
@@ -1207,8 +1227,21 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @filters.setter
     def filters(self, _):
-        # Protect the `settings` property from external modifications.
+        # Protect the `filters` property from external modifications.
         raise TypeError('Use add_filter method to add filters')
+
+    @property
+    def decks(self):
+        _decks = {}
+        for d in self.resource.decks.index.values():
+            deck_inst = Deck(d)
+            _decks[deck_inst.name] = deck_inst
+        return _decks
+
+    @decks.setter
+    def decks(self, _):
+        # Protect the `decks` property from external modifications.
+        raise TypeError('Use add_decks method to add a new deck')
 
     @property
     def crunchboxes(self):
@@ -1393,6 +1426,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  is_public=public))
         new_filter = self.resource.filters.create(payload)
         return self.filters[new_filter.body['name']]
+
+    def add_deck(self, name, description="", public=False):
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 description=description,
+                                 is_public=public))
+        new_deck = self.resource.decks.create(payload)
+        return self.filters[new_deck.body['name']]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
