@@ -13,7 +13,8 @@ from pycrunch.variables import cast
 
 import scrunch
 from scrunch.datasets import (Dataset, Variable,
-                              User, Project, Filter)
+                              User, Project, Filter,
+                              Deck)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -3593,62 +3594,45 @@ class TestFilter(TestDatasetBase, TestCase):
         assert mockfilter
 
 
-# class TestFilter(TestDatasetBase, TestCase):
-#
-#     _filter = {
-#         "element": "shoji:entity",
-#         "self": "https://alpha.crunch.io/api/datasets/1/filters/1/",
-#         "description": "Detail information for one filter",
-#         "body": {
-#             "id": "326d5db5a40f4189a8a4cddfe06bb19c",
-#             "name": "easy",
-#             "is_public": True,
-#             "expression": {
-#                 "function": "in",
-#                     "args": [
-#                         {
-#                             "variable": "https://alpha.crunch.io/api/datasets/1/variables/1/"
-#                         },
-#                         {
-#                             "value": 1
-#                         }
-#                     ],
-#             }
-#         }
-#     }
-#
-#     @mock.patch('scrunch.datasets.Dataset.filters')
-#     def test_add_filter(self, filters):
-#         ds_res = self._dataset_mock()
-#         ds = Dataset(ds_res)
-#         var = ds['var1_alias']
-#
-#         ds.add_filter(name='filter', expr='var1_alias != 0')
-#
-#         expected_payload = {
-#             'element': 'shoji:entity',
-#             'body': {
-#                 'name': 'filter',
-#                 'is_public': False,
-#                 'expression': {
-#                     'function': '!=',
-#                     'args': [
-#                         {'variable': var.url},
-#                         {'value': 0}
-#                     ]
-#                 }
-#             }
-#         }
-#         ds.resource.filters.create.assert_called_with(expected_payload)
-#
-#     def test_edit_filter(self):
-#         filter = EditableMock(entity=self._filter)
-#         mockfilter = Filter(filter)
-#         with pytest.raises(AttributeError):
-#             mockfilter.edit(name='edited')
-#             mockfilter.resource.edit.assert_called_with({'name': 'edited'})
-#
-#     def test_filter_class(self):
-#         filter = MagicMock(entity=self._filter)
-#         mockfilter = Filter(filter)
-#         assert mockfilter
+class TestDeck(TestDatasetBase, TestCase):
+
+    _deck = {
+        "element": "shoji:entity",
+        "self": "https://alpha.crunch.io/api/datasets/abc/decks/1/",
+        "description": "Detail information for one filter",
+        "body": {
+            "id": "326d5db5a40f4189a8a4cddfe06bb19b",
+            "name": "The deck",
+            "is_public": True,
+            "description": "description"
+        }
+    }
+
+    @mock.patch('scrunch.datasets.Dataset.decks')
+    def test_add_filter(self, decks):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+
+        ds.add_deck(name='mydeck', description='description')
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'mydeck',
+                'is_public': False,
+                'description': 'description'
+            }
+        }
+        ds.resource.decks.create.assert_called_with(expected_payload)
+
+    def test_edit_filter(self):
+        deck = EditableMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        with pytest.raises(AttributeError):
+            mockdeck.edit(name='edited')
+            mockdeck.resource.edit.assert_called_with({'name': 'edited'})
+
+    def test_filter_class(self):
+        deck = MagicMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        assert mockdeck

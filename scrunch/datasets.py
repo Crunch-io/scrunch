@@ -1433,7 +1433,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  description=description,
                                  is_public=public))
         new_deck = self.resource.decks.create(payload)
-        return self.filters[new_deck.body['name']]
+        return self.decks[new_deck.body['name']]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
