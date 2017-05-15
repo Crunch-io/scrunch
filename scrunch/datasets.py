@@ -20,6 +20,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
+from scrunch.subentity import Deck, Filter
 
 import pandas as pd
 
@@ -846,60 +847,6 @@ class Order(object):
         return self.graph[item]
 
 
-class SubEntity(object):
-    """
-    A pycrunch.shoji.Entity directly related to a Dataset.
-    For example; filters, decks
-    """
-    _MUTABLE_ATTRIBUTES = set()
-    _IMMUTABLE_ATTRIBUTES = set()
-    _ENTITY_ATTRIBUTES = set()
-
-    def __init__(self, shoji_tuple):
-        self.resource = shoji_tuple.entity
-
-    def __getattr__(self, item):
-        if item in self._ENTITY_ATTRIBUTES:
-            return self.resource.body[item]
-        raise AttributeError(
-            '{} has no attribute {}'.format(self.__class__.__name__, item))
-
-    def __repr__(self):
-        return "<{}: name='{}'; id='{}'>".format(
-            self.__class__.__name__, self.name, self.id)
-
-    def __str__(self):
-        return self.name
-
-    def edit(self, **kwargs):
-        for key in kwargs:
-            if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError(
-                    "Can't edit attribute {} of {}".format(key, self.name))
-        return self.resource.edit(**kwargs)
-
-    def remove(self):
-        self.resource.delete()
-
-
-class Filter(SubEntity):
-    """
-    A pycrunch.shoji.Entity for Dataset filters
-    """
-    _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
-    _IMMUTABLE_ATTRIBUTES = {'id', }
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-
-
-class Deck(SubEntity):
-    """
-    A pycrunch.shoji.Entity for Dataset decks
-    """
-    _MUTABLE_ATTRIBUTES = {'name', 'description', 'is_public', 'owner_id', 'owner_name'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time'}
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-
-
 class CrunchBox(object):
     """
     A CrunchBox representation of boxdata.
@@ -1235,13 +1182,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         _decks = {}
         for d in self.resource.decks.index.values():
             deck_inst = Deck(d)
-            _decks[deck_inst.name] = deck_inst
+            _decks[deck_inst.id] = deck_inst
         return _decks
 
     @decks.setter
     def decks(self, _):
         # Protect the `decks` property from external modifications.
-        raise TypeError('Use add_decks method to add a new deck')
+        raise TypeError('Use add_deck method to add a new deck')
 
     @property
     def crunchboxes(self):
