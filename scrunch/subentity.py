@@ -1,3 +1,5 @@
+import six.moves.urllib as urllib
+import json
 
 
 class SubEntity:
@@ -126,13 +128,16 @@ class Analysis:
         """
         :param: ds: Dataset() instance
         out of the current instance GET a cube query
+        :return: a shoji:view json instance
         """
-        shoji_obj = self['query']
-        resp = ds.resource.session.get(
-            ds.resource.views.cube,
-            params={'query': shoji_obj.json}
+        json_string = self['query'].json
+        # this process removes newlines
+        dict_obj = json.loads(json_string)
+        resp = ds.resource.follow(
+            'cube',
+            urllib.parse.urlencode({'query': json.dumps(dict_obj)})
         )
-        return resp
+        return resp.json
 
     def as_dataframe(self):
         """

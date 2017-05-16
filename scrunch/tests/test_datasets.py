@@ -3609,7 +3609,7 @@ class TestDeck(TestDatasetBase, TestCase):
     }
 
     @mock.patch('scrunch.datasets.Dataset.decks')
-    def test_add_filter(self, decks):
+    def test_add_deck(self, decks):
         ds_res = self._dataset_mock()
         ds = Dataset(ds_res)
 
@@ -3625,14 +3625,22 @@ class TestDeck(TestDatasetBase, TestCase):
         }
         ds.resource.decks.create.assert_called_with(expected_payload)
 
-    def test_edit_filter(self):
+    def test_deck_accessor(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+
+        deck = EditableMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        assert ds.decks == {}
+
+    def test_edit_deck(self):
         deck = EditableMock(entity=self._deck)
         mockdeck = Deck(deck)
         with pytest.raises(AttributeError):
             mockdeck.edit(name='edited')
             mockdeck.resource.edit.assert_called_with({'name': 'edited'})
 
-    def test_filter_class(self):
+    def test_deck_class(self):
         deck = MagicMock(entity=self._deck)
         mockdeck = Deck(deck)
         assert mockdeck
