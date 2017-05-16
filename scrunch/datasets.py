@@ -1332,19 +1332,20 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  {a: columns[a][x] for a in columns})
         return count
 
-    def push_rows(self, count):
+    def push_rows(self, count=None):
         """
         Batches in the rows that have been recently streamed. This forces
         the rows to appear in the dataset instead of waiting for crunch
         automatic batcher process.
         """
-        self.resource.batches.create({
-            'element': 'shoji:entity',
-            'body': {
-                'stream': count,
-                'type': 'ldjson'
-            }
-        })
+        if bool(self.resource.stream.body.pending_messages):
+            self.resource.batches.create({
+                'element': 'shoji:entity',
+                'body': {
+                    'stream': count,
+                    'type': 'ldjson'
+                }
+            })
 
     def exclude(self, expr=None):
         """
