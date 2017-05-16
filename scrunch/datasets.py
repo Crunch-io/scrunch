@@ -1338,13 +1338,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         the rows to appear in the dataset instead of waiting for crunch
         automatic batcher process.
         """
-        self.resource.batches.create({
-            'element': 'shoji:entity',
-            'body': {
-                'stream': count,
-                'type': 'ldjson'
-            }
-        })
+        if bool(self.resource.stream.body.pending_messages):
+            self.resource.batches.create({
+                'element': 'shoji:entity',
+                'body': {
+                    'stream': count,
+                    'type': 'ldjson'
+                }
+            })
 
     def exclude(self, expr=None):
         """
