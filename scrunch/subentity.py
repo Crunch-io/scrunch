@@ -71,23 +71,7 @@ class Deck(SubEntity):
         # Protect `slides` property from direct modifications.
         raise TypeError('Use add_decks method to add a new deck')
 
-    def add_slide(self, query, title='', subtitle=''):
-        """
-        :param analysis: A list of analysis (cube queries)
-        """
-        payload = {
-            "element": "shoji:entity",
-            "body": {
-                "title": title,
-                "subtitle": subtitle,
-                "analyses": Analysis.build_analyses(query)  # TODO
-            }
-        }
-        new_slide = self.resource.slides.create(payload)
-        return self.slides[new_slide.body['id']]
-
     def xlsx_export(self):
-        # TODO
         raise NotImplementedError
 
 
@@ -117,124 +101,42 @@ class Slide(SubEntity):
         # Protect `analyses` property from direct modifications.
         raise TypeError('Use add_decks method to add a new deck')
 
-    def add_analysis(self, query):
-        """
-        :param query: A cube query
-        """
-        # TODO
-        raise NotImplementedError
-
-    def as_dataframe(self):
-        """
-        Tries to generate a Dataframe from a Slide
-        """
-        # NOTE: Currently Slides only hold 1 analysis,
-        # this shouldn't be the case in the future
-        # TODO
-        raise NotImplementedError
-
 
 class Analysis:
     """
     A cube query JSON representation and transcriber
     """
 
-    measures = {}
-    dimensions = []
-    weight = None
-    query_environment = {}
-
     def __init__(self, shoji_tuple, id):
         self.resource = shoji_tuple.entity
         self.id = id
 
+    def __getitem__(self, item):
+        try:
+            return self.resource.body[item]
+        except AttributeError:
+            raise AttributeError(
+                '{} has no attribute {}'.format(
+                    self.__class__.__name__, item))
+
     def __repr__(self):
         return "<{}: id='{}'>".format(self.__class__.__name__, self.id)
 
-    def set_query_environment(self, q_env):
-        self.query_environment = q_env
-
-    def build_analyses(self, query):
+    def query_cube(self, ds):
         """
-        Puts all the structure together
-        :param query: A nice, human formatted lies of queries
-        :return: A list of analysis:
-            [
-                {
-                  "query": {},
-                  "query_environment": {},
-                  "display_settings": {}
-                },
-                {
-                  "query": {},
-                  "query_environment": {},
-                  "display_settings": {}
-                }
-            ]
+        :param: ds: Dataset() instance
+        out of the current instance GET a cube query
         """
-        raise NotImplementedError
-
-    def build_query(self, dimensions, measures, weight):
-        """
-        {
-            "measures": {
-                "count": {
-                    "function": "cube_count",
-                    "args": []
-                }
-            },
-            "dimensions": [
-                {"variable": "<var_url>"},
-                {"variable": "<var_url>"}
-            ],
-            "weight": null
-        },
-        :param dimensions: a list of variable names to include in the query
-        :param measures: What crunch measures to apply
-        """
-        structure = {
-            "measures": {},
-            "dimensions": [],
-            "weight": weight
-        }
-        return structure
-
-    def build_display_settings(self):
-        # Note: this seems to be a default
-        # TODO: need to look into more detail
-        return {
-            "percentageDirection": {
-                "value": "colPct"
-            },
-            "showEmpty": {
-                "value": False
-            },
-            "slicesOrGroups": {
-                "value": "groups"
-            },
-            "vizType": {
-                "value": "table"
-            },
-            "countsOrPercents": {
-                "value": "count"
-            },
-            "decimalPlaces": {
-                "value": 0
-            },
-            "showSignif": {
-                "value": False
-            },
-            "currentTab": {
-                "value": 0
-            },
-            "uiView": {
-                "value": "app.datasets.analyze"
-            }
-        }
+        shoji_obj = self['query']
+        resp = ds.resource.session.get(
+            ds.resource.views.cube,
+            params={'query': shoji_obj.json}
+        )
+        return resp
 
     def as_dataframe(self):
         """
-        It would be awesome to visualize a table or Analysis as a Dataframe
+        It would be awesome to visualize a table or Analysis
+        as a pandas.Dataframe or even Numpy Array
         """
-        # TODO
         raise NotImplementedError
