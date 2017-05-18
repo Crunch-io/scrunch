@@ -475,6 +475,38 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
+        def adapt_multiple_response(var_url, values):
+            # if variable is multiple_response
+            #       convert value --> column and change ids by aliases
+            var_id = variable_id(var_url)
+            aliases = []
+            for var in variables:
+                if variables[var]['id'] == var_id:
+                    for sub_var_id in variables[var]['subreferences']:
+                        # man this is deep dictionary
+                        aliases.append((
+                            sub_var_id,
+                            variables[var]['subreferences'][sub_var_id]['alias']))
+            cat_to_ids = [
+                tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
+            return [{'variable': var_url}, {'column': cat_to_ids}], False
+
+        def is_multiple_response(var_url):
+            # make sure the variable is multiple response
+            var_id = variable_id(var_url)
+            for var in variables:
+                if variables[var]['id'] == var_id:
+                    if variables[var]['type'] == 'multiple_response':
+                        return True
+            return False
+
+        # special case for multiple_response variables
+        if len(subitems) == 2:
+            if 'value' in subitems[1] and 'variable' in subitems[0]:
+                if is_multiple_response(subitems[0]['variable']):
+                    return adapt_multiple_response(
+                        subitems[0]['variable'], subitems[1]['value'])
+
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
                 var_id = variable_id(item['variable'])
@@ -482,13 +514,14 @@ def process_expr(obj, ds):
                 item['value'] = category_ids(var_id, item['value'])
             _subitems.append(item)
 
-        return _subitems
+        return _subitems, True
 
     def _process(obj, variables):
         op = None
         arrays = []
         values = []
         subvariables = []
+        needs_wrap = True
 
         for key, val in obj.items():
             if isinstance(val, dict):
@@ -510,7 +543,7 @@ def process_expr(obj, ds):
                 has_variable = any('variable' in item for item in subitems
                                    if not str(item).isdigit())
                 if has_value and has_variable:
-                    subitems = ensure_category_ids(subitems)
+                    subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
                 var = variables.get(val)
@@ -530,13 +563,14 @@ def process_expr(obj, ds):
                         ]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
+
             elif key == 'function':
                 op = val
 
         if subvariables:
             obj['subvariables'] = subvariables
 
-        if arrays and op in ('any', 'all', 'is_valid', 'is_missing'):
+        if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
 
             if len(arrays) != 1:
