@@ -2248,6 +2248,51 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_multiple_response_any(self):
+        var_id = '1'
+        var_alias = 'hobbies'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = 'hobbies.any([1])'
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'any',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'column': ['0001']
+                }
+            ]
+        }
+
 
 class TestExpressionPrettify(TestCase):
 
