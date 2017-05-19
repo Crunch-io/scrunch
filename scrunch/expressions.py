@@ -416,6 +416,20 @@ def get_dataset_variables(ds):
     return variables
 
 
+def adapt_multiple_response(ds, var_url, values):
+    # convert value --> column and change ids to aliases
+    subvariable_urls = ds.variables.index[var_url]['subvariables']
+    variable = ds.variables.index[var_url].entity
+    aliases = []
+    for sub_var in subvariable_urls:
+        subvar_id = variable.subvariables.index[sub_var]['id']
+        subvar_alias = variable.body.subreferences[sub_var]['alias']
+        aliases.append((subvar_id, subvar_alias))
+    cat_to_ids = [
+        tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
+    return [{'variable': var_url}, {'column': cat_to_ids}], False
+
+
 def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
@@ -475,37 +489,12 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
-        def adapt_multiple_response(var_url, values):
-            # if variable is multiple_response
-            #       convert value --> column and change ids by aliases
-            var_id = variable_id(var_url)
-            aliases = []
-            for var in variables:
-                if variables[var]['id'] == var_id:
-                    for sub_var_id in variables[var]['subreferences']:
-                        # man this is deep dictionary
-                        aliases.append((
-                            sub_var_id,
-                            variables[var]['subreferences'][sub_var_id]['alias']))
-            cat_to_ids = [
-                tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
-            return [{'variable': var_url}, {'column': cat_to_ids}], False
-
-        def is_multiple_response(var_url):
-            # make sure the variable is multiple response
-            var_id = variable_id(var_url)
-            for var in variables:
-                if variables[var]['id'] == var_id:
-                    if variables[var]['type'] == 'multiple_response':
-                        return True
-            return False
-
         # special case for multiple_response variables
         if len(subitems) == 2:
             if 'value' in subitems[1] and 'variable' in subitems[0]:
-                if is_multiple_response(subitems[0]['variable']):
-                    return adapt_multiple_response(
-                        subitems[0]['variable'], subitems[1]['value'])
+                var_url = subitems[0]['variable']
+                if ds.variables.index[var_url]['type'] == 'multiple_response':
+                    return adapt_multiple_response(ds, var_url, subitems[1]['value'])
 
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
@@ -523,6 +512,15 @@ def process_expr(obj, ds):
         subvariables = []
         needs_wrap = True
 
+        # inspect function, then inspect variable, if multiple_response,
+        # then change in --> any
+        if 'function' in obj and 'args' in obj:
+            if obj['function'] == 'in':
+                args = obj['args']
+                if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                    # then change in for any
+                    obj['function'] = 'any'
+
         for key, val in obj.items():
             if isinstance(val, dict):
                 obj[key] = _process(val, variables)
@@ -532,6 +530,7 @@ def process_expr(obj, ds):
                     if isinstance(subitem, dict):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
+
                             arrays.append(subitem.pop('subvariables'))
                         elif 'value' in subitem:
                             values.append(subitem)
