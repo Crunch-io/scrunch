@@ -417,6 +417,13 @@ def get_dataset_variables(ds):
 
 
 def adapt_multiple_response(ds, var_url, values):
+    """
+    Converts multiple response arguments
+    to column.
+    :return: tuple of the new args for multiple_response and
+    a flag to indicate we don't need recursive nesting of this
+    expression.
+    """
     # convert value --> column and change ids to aliases
     subvariable_urls = ds.variables.index[var_url]['subvariables']
     variable = ds.variables.index[var_url].entity
@@ -433,9 +440,11 @@ def adapt_multiple_response(ds, var_url, values):
 def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
-    (i.e. a Shoji entity), this function returns a new expression object
-    (or a list of new expression objects) with all variable aliases
-    transformed into variable URLs, just as the crunch API needs them to be.
+    (i.e. a Shoji entity), this function returns a tuple, the first element is
+    new expression object (or a list of new expression objects) with all
+    variable aliases transformed into variable URLs and the second element
+    of the tuple is a flag indicating if the expressions needs nesting/wrapping
+    in `or` functions (for the case when an array variable is passed).
     """
     base_url = ds.self
     variables = get_dataset_variables(ds)
