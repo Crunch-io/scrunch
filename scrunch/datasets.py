@@ -2150,6 +2150,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 footer=footer)
         )
 
+        for field in ('title', 'header', 'footer', 'notes'):
+            if payload['body'].get(field) is None:
+                payload['body'][field] = ''
+
         if min_base_size:
             payload['body'].setdefault('display_settings', {}).update(
                 dict(minBaseSize=dict(value=min_base_size)))
