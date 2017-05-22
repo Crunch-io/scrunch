@@ -522,13 +522,21 @@ def process_expr(obj, ds):
         needs_wrap = True
 
         # inspect function, then inspect variable, if multiple_response,
-        # then change in --> any
+        # then change in --> any, == --> all, != --> not all,
         if 'function' in obj and 'args' in obj:
-            if obj['function'] == 'in':
+            if obj['function'] in ['in', '==', '!=']:
                 args = obj['args']
-                if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                    # then change in for any
-                    obj['function'] = 'any'
+                if 'variable' in args[0]:
+                    if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                        if obj['function'] == 'in':
+                            obj['function'] = 'any'
+                        elif obj['function'] == '==':
+                            obj['function'] = 'all'
+                        # this case is complicated needs backpropagation
+                        # elif obj['function'] == '!=':
+                        #     obj['function'] = 'not'
+                        #     obj['args'] = obj
+                        #     obj['args'][1]['function'] = 'all'
 
         for key, val in obj.items():
             if isinstance(val, dict):
