@@ -2060,7 +2060,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 notes=notes)
 
     def create_crunchbox(
-            self, title=None, header=None, footer=None, notes=None,
+            self, title='', header='', footer='', notes='',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -2149,10 +2149,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 header=header,
                 footer=footer)
         )
-
-        for field in ('title', 'header', 'footer', 'notes'):
-            if payload['body'].get(field) is None:
-                payload['body'][field] = ''
 
         if min_base_size:
             payload['body'].setdefault('display_settings', {}).update(
