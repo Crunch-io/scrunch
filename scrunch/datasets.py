@@ -25,10 +25,10 @@ import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit, urljoin
+    from urlparse import urlsplit
 else:
     import configparser
-    from urllib.parse import urlsplit, urljoin
+    from urllib.parse import urlsplit
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
