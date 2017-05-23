@@ -133,14 +133,10 @@ class TestUtilities(object):
         projects.entity.datasets.by.side_effect = _by_side_effect(
             shoji_entity, ds_res)
 
-        ds = get_dataset('dataset_name', project='project_name')
+        ds = get_dataset('123456')
 
-        session.projects.by.assert_called_with('name')
-        projects.entity.datasets.by.assert_called_with('name')
-
+        session.projects.by.assert_called_with('id')
         assert isinstance(ds, Dataset)
-        assert ds.name == 'dataset_name'
-        assert ds.id == '123456'
 
     @mock.patch('pycrunch.session')
     def test_get_project(self, session):

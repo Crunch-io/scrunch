@@ -43,6 +43,7 @@ _MR_TYPE = 'multiple_response'
 
 LOG = logging.getLogger('scrunch')
 
+DEFAULT_CRUNCH_URL = "https://app.crunch.io/api/"
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -77,10 +78,16 @@ def _get_connection(file_path='crunch.ini'):
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
         LOG.debug("Found Crunch credentials on Environment")
-        return pycrunch.connect(username, password, site)
+        _session = pycrunch.connect(username, password, site)
+        # set the domain to use later in the session
+        _session.session.domain = site
+        return _session
     elif username and password:
         LOG.debug("Found Crunch credentials on Environment")
-        return pycrunch.connect(username, password)
+        _session = pycrunch.connect(username, password)
+        # set the domain to use later in the session
+        _session.session.domain = DEFAULT_CRUNCH_URL
+        return _session
     # try reading from .ini file
     config = configparser.ConfigParser()
     config.read(file_path)
@@ -96,20 +103,25 @@ def _get_connection(file_path='crunch.ini'):
     # now try to login with obtained creds
     if username and password and site:
         LOG.debug("Found Crunch credentials on crunch.ini")
-        return pycrunch.connect(username, password, site)
+        _session = pycrunch.connect(username, password, site)
+        # set the domain to use later in the session
+        _session.session.domain = site
+        return _session
     elif username and password:
         LOG.debug("Found Crunch credentials on crunch.ini")
-        return pycrunch.connect(username, password)
+        _session = pycrunch.connect(username, password)
+        # set the domain to use later in the session
+        _session.session.domain = DEFAULT_CRUNCH_URL
+        return _session
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
-def get_dataset(dataset, connection=None, editor=False, project=None):
+def get_dataset(dataset, connection=None, editor=False):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
-    and the user has access permissions to it. If you have access to the dataset
-    through a project you should do pass the project parameter.
+    and the user has access permissions to it.
 
     This method tries to use pycrunch singleton connection, environment variables
     or a crunch.ini config file if the optional "connection" parameter isn't provided.
@@ -127,22 +139,25 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
-    if project:
-        if isinstance(project, six.string_types):
-            project_obj = get_project(project, connection)
-            ds = project_obj.get_dataset(dataset)
-        else:
-            ds = project.get_dataset(dataset)
-    else:
+
+    try:
+        shoji_ds = root.datasets.by('name')[dataset].entity
+    except KeyError:
         try:
-            shoji_ds = root.datasets.by('name')[dataset].entity
+            shoji_ds = root.datasets.by('id')[dataset].entity
         except KeyError:
             try:
-                shoji_ds = root.datasets.by('id')[dataset].entity
-            except KeyError:
+                site = root.session.domain
+                # just make sure we got a slash
+                if not site.endswith('/'):
+                    site += '/'
+                dataset_url = site + 'datasets/' + dataset + '/'
+                shoji_ds = root.session.get(dataset_url).payload
+            except Exception as e:
+                print(e)
                 raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
-        ds = Dataset(shoji_ds)
+    ds = Dataset(shoji_ds)
 
     if editor is True:
         ds.change_editor(root.session.email)
