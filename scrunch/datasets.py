@@ -118,6 +118,10 @@ def get_dataset(dataset, connection=None, editor=False):
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
+
+    To get a Dataset from a Project we are building a url and making a request
+    through pycrunch.session object, we instead should use the /search endpoint
+    from crunch, but currently it's not working by id's.
     """
     if connection is None:
         connection = _get_connection()
