@@ -153,8 +153,7 @@ def get_dataset(dataset, connection=None, editor=False):
                     site += '/'
                 dataset_url = site + 'datasets/' + dataset + '/'
                 shoji_ds = root.session.get(dataset_url).payload
-            except Exception as e:
-                print(e)
+            except Exception:
                 raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
 
     ds = Dataset(shoji_ds)
