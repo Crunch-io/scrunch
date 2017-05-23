@@ -25,10 +25,10 @@ import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urljoin
 else:
     import configparser
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urljoin
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -43,7 +43,6 @@ _MR_TYPE = 'multiple_response'
 
 LOG = logging.getLogger('scrunch')
 
-DEFAULT_CRUNCH_URL = "https://app.crunch.io/api/"
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -78,16 +77,10 @@ def _get_connection(file_path='crunch.ini'):
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
         LOG.debug("Found Crunch credentials on Environment")
-        _session = pycrunch.connect(username, password, site)
-        # set the domain to use later in the session
-        _session.session.domain = site
-        return _session
+        return pycrunch.connect(username, password, site)
     elif username and password:
         LOG.debug("Found Crunch credentials on Environment")
-        _session = pycrunch.connect(username, password)
-        # set the domain to use later in the session
-        _session.session.domain = DEFAULT_CRUNCH_URL
-        return _session
+        return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
     config.read(file_path)
@@ -103,16 +96,10 @@ def _get_connection(file_path='crunch.ini'):
     # now try to login with obtained creds
     if username and password and site:
         LOG.debug("Found Crunch credentials on crunch.ini")
-        _session = pycrunch.connect(username, password, site)
-        # set the domain to use later in the session
-        _session.session.domain = site
-        return _session
+        return pycrunch.connect(username, password, site)
     elif username and password:
         LOG.debug("Found Crunch credentials on crunch.ini")
-        _session = pycrunch.connect(username, password)
-        # set the domain to use later in the session
-        _session.session.domain = DEFAULT_CRUNCH_URL
-        return _session
+        return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file or environment variables.")
@@ -147,11 +134,7 @@ def get_dataset(dataset, connection=None, editor=False):
             shoji_ds = root.datasets.by('id')[dataset].entity
         except KeyError:
             try:
-                site = root.session.domain
-                # just make sure we got a slash
-                if not site.endswith('/'):
-                    site += '/'
-                dataset_url = site + 'datasets/' + dataset + '/'
+                dataset_url = '{}datasets/{}/'.format(root.self, dataset)
                 shoji_ds = root.session.get(dataset_url).payload
             except Exception:
                 raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
