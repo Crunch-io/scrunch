@@ -254,6 +254,62 @@ class TestDatasets(TestDatasetBase, TestCase):
             }
         )
 
+    def test_create_crunchbox_full(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+
+        call_params = dict(
+            title='my title',
+            header='my header',
+            footer='my footer',
+            notes='my notes',
+            min_base_size=50,
+            palette={
+                "brand": ["#111111", "#222222", "#333333"],
+                "static_colors": ["#444444", "#555555", "#666666"],
+                "base": ["#777777", "#888888", "#999999"],
+            }
+        )
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'header': 'my header',
+                'footer': 'my footer',
+                'title': 'my title',
+                'display_settings': {'palette': {
+                    'base': ['#777777', '#888888', '#999999'],
+                    'brand': ['#111111', '#222222', '#333333'],
+                    'static_colors': ['#444444', '#555555', '#666666']},
+                    'minBaseSize': {'value': 50}
+                },
+                'filters': None,
+                'notes': 'my notes',
+                'force': False,
+                'where': None}
+        }
+
+        ds.create_crunchbox(**call_params)
+        ds_mock.boxdata.create.assert_called_with(expected_payload)
+
+    def test_create_crunchbox_defaults(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'header': '',
+                'footer': '',
+                'title': 'CrunchBox for test_dataset_name',
+                'filters': None,
+                'notes': '',
+                'force': False,
+                'where': None}
+        }
+
+        ds.create_crunchbox()
+        ds_mock.boxdata.create.assert_called_with(expected_payload)
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
 

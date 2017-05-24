@@ -2087,8 +2087,9 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 notes=notes)
 
     def create_crunchbox(
-            self, title=None, header=None, footer=None, notes=None,
-            filters=None, variables=None, force=False):
+            self, title='', header='', footer='', notes='',
+            filters=None, variables=None, force=False, min_base_size=None,
+            palette=None):
         """
         create a new boxdata entity for a CrunchBox.
 
@@ -2103,6 +2104,18 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             filters    (list): list of filter names or `Filter` instances
             where      (list): list of variable aliases or `Variable` instances
                                If `None` all variables will be included.
+            min_base_size (int): min sample size to display values in graph
+            palette     dict : dict of colors as documented at docs.crunch.io
+                i.e.
+                {
+                    "brand": ["#111111", "#222222", "#333333"],
+                    "static_colors": ["#444444", "#555555", "#666666"],
+                    "base": ["#777777", "#888888", "#999999"],
+                    "category_lookup": {
+                        "category name": "#aaaaaa",
+                        "another category:": "bbbbbb"
+                }
+
         Returns:
             CrunchBox (instance)
         """
@@ -2163,6 +2176,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 header=header,
                 footer=footer)
         )
+
+        if min_base_size:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(minBaseSize=dict(value=min_base_size)))
+        if palette:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(palette=palette))
 
         # create the boxdata
         self.resource.boxdata.create(payload)
