@@ -25,10 +25,10 @@ import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urljoin
 else:
     import configparser
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urljoin
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -110,7 +110,6 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
     and the user has access permissions to it. If you have access to the dataset
     through a project you should do pass the project parameter.
-
     This method tries to use pycrunch singleton connection, environment variables
     or a crunch.ini config file if the optional "connection" parameter isn't provided.
 
@@ -119,6 +118,10 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
+
+    To get a Dataset from a Project we are building a url and making a request
+    through pycrunch.session object, we instead should use the /search endpoint
+    from crunch, but currently it's not working by id's.
     """
     if connection is None:
         connection = _get_connection()
@@ -127,6 +130,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
+
     if project:
         if isinstance(project, six.string_types):
             project_obj = get_project(project, connection)
@@ -140,7 +144,13 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
             try:
                 shoji_ds = root.datasets.by('id')[dataset].entity
             except KeyError:
-                raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
+                try:
+                    dataset_url = urljoin(
+                        root.catalogs.datasets, '{}/'.format(dataset))
+                    shoji_ds = root.session.get(dataset_url).payload
+                except Exception:
+                    raise KeyError(
+                        "Dataset (name or id: %s) not found in context." % dataset)
 
         ds = Dataset(shoji_ds)
 
