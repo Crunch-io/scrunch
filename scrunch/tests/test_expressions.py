@@ -1035,19 +1035,48 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == expected
 
     def test_multiple_arithmetic_operations(self):
-        expr =  "1 * 2 + 3"
+        expr = "1 + 2 * 3"
         expr_obj = parse_expr(expr)
 
         assert expr_obj == {
             'function': '+', 'args': [
+                {'value': 1},
                 {
                     'function': '*',
                     'args': [
-                        {'value': 1},
-                        {'value': 2}
+                        {'value': 2},
+                        {'value': 3}
                     ]
                 },
-                {'value': 3}
+            ]
+        }
+
+    def test_multiple_arithmetic_operations_precedence(self):
+        expr = "1 + 2 / 3 - 4 * 5"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            'function': '-',
+            'args': [
+                {
+                    'function': '+',
+                    'args': [
+                        {'value': 1},
+                        {
+                            'function': '/',
+                            'args': [
+                                {'value': 2},
+                                {'value': 3}]
+                        }
+                    ]
+                },
+                {
+                    'function': '*',
+                    'args': [
+                        {'value': 4},
+                        {'value': 5}
+                    ]
+                }
             ]
         }
 
