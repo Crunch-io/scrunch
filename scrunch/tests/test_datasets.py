@@ -206,6 +206,54 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert ds.start_date == '2017-01-01'
         ds.resource._edit.assert_called_with(**changes)
 
+    def test_create_numeric(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'weekly_rent',
+                'name': 'Week rent',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
+        ds.resource = mock.MagicMock()
+
+        ds.create_numeric(
+            alias='monthly_rent',
+            name='Monthly rent',
+            description='Rent paid per month',
+            notes='All UK adults',
+            derivation='(weekly_rent * 52) / 12'
+        )
+
+        ds.resource.variables.create.assert_called_with(
+            {
+                'element': 'shoji:entity',
+                'body': {
+                    'alias': 'monthly_rent',
+                    'name': 'Monthly rent',
+                    'derivation': {
+                        'function': '/',
+                        'args': [
+                            {
+                                'function': '*',
+                                'args': [
+                                    {'variable': 'weekly_rent'},
+                                    {'value': 52}
+                                ]
+                            },
+                            {'value': 12}
+                        ]
+                    },
+                    'description': 'Rent paid per month',
+                    'notes': 'All UK adults'
+                }
+            }
+        )
+
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
 

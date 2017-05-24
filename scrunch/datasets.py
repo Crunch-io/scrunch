@@ -2041,6 +2041,33 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
+    def create_numeric(self, *, alias, name, derivation, description='', notes=''):
+        """
+        Used to create new numeric variables using Crunchs's derived expressions
+        """
+
+        expr = parse_expr(derivation)
+
+        if not hasattr(self.resource, 'variables'):
+            self.resource.refresh()
+
+        payload = dict(
+            element='shoji:entity',
+            body=dict(
+                alias=alias,
+                name=name,
+                derivation=expr,
+                description=description,
+                notes=notes
+            )
+        )
+
+        self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[alias]
+
     def create_categorical(self, categories, alias, name, multiple,
                            description='', notes=''):
         """
