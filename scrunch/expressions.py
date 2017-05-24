@@ -195,6 +195,26 @@ def parse_expr(expr):
                 return {
                     'value': _val
                 }
+            elif isinstance(node, ast.Add):
+                return '+'
+            elif isinstance(node, ast.Sub):
+                return '-'
+            elif isinstance(node, ast.Mult):
+                return '*'
+            elif isinstance(node, ast.Div):
+                return '/'
+            elif isinstance(node, ast.FloorDiv):
+                return '//'
+            elif isinstance(node, ast.Pow):
+                return '^'
+            elif isinstance(node, ast.Mod):
+                return '%'
+            elif isinstance(node, ast.BitAnd):
+                return '&'
+            elif isinstance(node, ast.BitOr):
+                return '|'
+            elif isinstance(node, ast.Invert):
+                return '~'
             elif isinstance(node, ast.Eq):
                 return '=='
             elif isinstance(node, ast.NotEq):
@@ -339,6 +359,10 @@ def parse_expr(expr):
                     elif isinstance(_val, list):
                         for arg in _val:
                             args.append(_parse(arg, parent=node))
+                    elif isinstance(_val, ast.BinOp):
+                        op = _parse(_val.op, _val)
+                        args.append(_parse(_val.left, _val))
+                        args.append(_parse(_val.right, _val))
 
                 if op:
                     if op is NOT_IN:
