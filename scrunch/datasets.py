@@ -25,10 +25,10 @@ import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urljoin
 else:
     import configparser
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urljoin
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -105,11 +105,11 @@ def _get_connection(file_path='crunch.ini'):
             "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
-def get_dataset(dataset, connection=None, editor=False):
+def get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
-    and the user has access permissions to it.
-
+    and the user has access permissions to it. If you have access to the dataset
+    through a project you should do pass the project parameter.
     This method tries to use pycrunch singleton connection, environment variables
     or a crunch.ini config file if the optional "connection" parameter isn't provided.
 
@@ -131,19 +131,28 @@ def get_dataset(dataset, connection=None, editor=False):
                 "config/environment variables")
     root = connection
 
-    try:
-        shoji_ds = root.datasets.by('name')[dataset].entity
-    except KeyError:
+    if project:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            ds = project_obj.get_dataset(dataset)
+        else:
+            ds = project.get_dataset(dataset)
+    else:
         try:
-            shoji_ds = root.datasets.by('id')[dataset].entity
+            shoji_ds = root.datasets.by('name')[dataset].entity
         except KeyError:
             try:
-                dataset_url = '{}datasets/{}/'.format(root.self, dataset)
-                shoji_ds = root.session.get(dataset_url).payload
-            except Exception:
-                raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
+                shoji_ds = root.datasets.by('id')[dataset].entity
+            except KeyError:
+                try:
+                    dataset_url = urljoin(
+                        root.catalogs.datasets, '{}/'.format(dataset))
+                    shoji_ds = root.session.get(dataset_url).payload
+                except Exception:
+                    raise KeyError(
+                        "Dataset (name or id: %s) not found in context." % dataset)
 
-    ds = Dataset(shoji_ds)
+        ds = Dataset(shoji_ds)
 
     if editor is True:
         ds.change_editor(root.session.email)
