@@ -1034,6 +1034,47 @@ class TestExpressionParsing(TestCase):
         expr_obj = parse_expr(expr)
         assert expr_obj == expected
 
+    def test_multiple_arithmetic_operations(self):
+        expr =  "1 * 2 + 3"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            'function': '+', 'args': [
+                {
+                    'function': '*',
+                    'args': [
+                        {'value': 1},
+                        {'value': 2}
+                    ]
+                },
+                {'value': 3}
+            ]
+        }
+
+    def test_multiple_arithmetic_operations_with_variable(self):
+        expr = "(weekly_rent * 52) + 12"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            "function": "+",
+            "args": [
+                {
+                    "function": "*",
+                    "args": [
+                        {
+                            "variable": "weekly_rent"
+                        },
+                        {
+                            "value": 52
+                        }
+                    ]
+                },
+                {
+                    "value": 12
+                }
+            ]
+        }
+
     def test_parse_helper_functions(self):
         # One variable.
         expr = "valid(birthyear)"
