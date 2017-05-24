@@ -2041,7 +2041,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def create_numeric(self, *, alias, name, derivation, description='', notes=''):
+    def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
         Used to create new numeric variables using Crunchs's derived expressions
         """
