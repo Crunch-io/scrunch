@@ -2290,19 +2290,6 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
-        expr = 'hobbies == [1, 2]'
-        expr_obj = process_expr(parse_expr(expr), ds)
-        assert expr_obj == {
-            'function': 'all',
-            'args': [
-                {
-                    'variable': var_url
-                },
-                {
-                    'column': ['0001', '0002']
-                }
-            ]
-        }
         expr = 'hobbies not in [1, 2]'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
