@@ -416,12 +416,35 @@ def get_dataset_variables(ds):
     return variables
 
 
+def adapt_multiple_response(ds, var_url, values):
+    """
+    Converts multiple response arguments
+    to column.
+    :return: tuple of the new args for multiple_response and
+    a flag to indicate we don't need recursive nesting of this
+    expression.
+    """
+    # convert value --> column and change ids to aliases
+    subvariable_urls = ds.variables.index[var_url]['subvariables']
+    variable = ds.variables.index[var_url].entity
+    aliases = []
+    for sub_var in subvariable_urls:
+        subvar_id = variable.subvariables.index[sub_var]['id']
+        subvar_alias = variable.body.subreferences[sub_var]['alias']
+        aliases.append((subvar_id, subvar_alias))
+    cat_to_ids = [
+        tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
+    return [{'variable': var_url}, {'column': cat_to_ids}], False
+
+
 def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
-    (i.e. a Shoji entity), this function returns a new expression object
-    (or a list of new expression objects) with all variable aliases
-    transformed into variable URLs, just as the crunch API needs them to be.
+    (i.e. a Shoji entity), this function returns a tuple, the first element is
+    new expression object (or a list of new expression objects) with all
+    variable aliases transformed into variable URLs and the second element
+    of the tuple is a flag indicating if the expressions needs nesting/wrapping
+    in `or` functions (for the case when an array variable is passed).
     """
     base_url = ds.self
     variables = get_dataset_variables(ds)
@@ -475,6 +498,13 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
+        # special case for multiple_response variables
+        if len(subitems) == 2:
+            if 'value' in subitems[1] and 'variable' in subitems[0]:
+                var_url = subitems[0]['variable']
+                if ds.variables.index[var_url]['type'] == 'multiple_response':
+                    return adapt_multiple_response(ds, var_url, subitems[1]['value'])
+
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
                 var_id = variable_id(item['variable'])
@@ -482,13 +512,23 @@ def process_expr(obj, ds):
                 item['value'] = category_ids(var_id, item['value'])
             _subitems.append(item)
 
-        return _subitems
+        return _subitems, True
 
     def _process(obj, variables):
         op = None
         arrays = []
         values = []
         subvariables = []
+        needs_wrap = True
+
+        # inspect function, then inspect variable, if multiple_response,
+        # then change in --> any
+        if 'function' in obj and 'args' in obj:
+            if obj['function'] == 'in':
+                args = obj['args']
+                if 'variable' in args[0]:
+                    if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                        obj['function'] = 'any'
 
         for key, val in obj.items():
             if isinstance(val, dict):
@@ -499,6 +539,7 @@ def process_expr(obj, ds):
                     if isinstance(subitem, dict):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
+
                             arrays.append(subitem.pop('subvariables'))
                         elif 'value' in subitem:
                             values.append(subitem)
@@ -510,7 +551,7 @@ def process_expr(obj, ds):
                 has_variable = any('variable' in item for item in subitems
                                    if not str(item).isdigit())
                 if has_value and has_variable:
-                    subitems = ensure_category_ids(subitems)
+                    subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
                 var = variables.get(val)
@@ -530,13 +571,14 @@ def process_expr(obj, ds):
                         ]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
+
             elif key == 'function':
                 op = val
 
         if subvariables:
             obj['subvariables'] = subvariables
 
-        if arrays and op in ('any', 'all', 'is_valid', 'is_missing'):
+        if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
 
             if len(arrays) != 1:
