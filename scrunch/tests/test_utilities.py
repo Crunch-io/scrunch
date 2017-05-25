@@ -137,6 +137,35 @@ class TestUtilities(object):
 
         session.projects.by.assert_called_with('name')
         projects.entity.datasets.by.assert_called_with('name')
+        assert isinstance(ds, Dataset)
+        assert ds.name == 'dataset_name'
+        assert ds.id == '123456'
+
+    @mock.patch('pycrunch.session')
+    def test_get_dataset_from_project_no_name(self, session):
+        shoji_entity = {
+            'element': 'shoji:entity',
+            'body': {
+                'id': '123456',
+                'name': 'dataset_name',
+            }
+        }
+
+        ds_res = mock.MagicMock(**shoji_entity)
+        ds_res.entity = mock.MagicMock(**shoji_entity)
+        session.datasets.by.side_effect = KeyError()
+
+        response = mock.MagicMock()
+        response.payload = ds_res
+
+        def _get(*args, **kwargs):
+            return response
+
+        session.session.get.side_effect = _get
+        session.catalogs.datasets = 'https://test.crunch.io/api/'
+
+        ds = get_dataset('123456')
+        session.session.get.assert_called_with('https://test.crunch.io/api/123456/')
 
         assert isinstance(ds, Dataset)
         assert ds.name == 'dataset_name'
