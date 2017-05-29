@@ -3053,6 +3053,46 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(ValueError):
             ds.order['|'].create_group('My new|Group')
 
+        ds.order['|Account'].create_group('New empty')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/',       # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
         with pytest.raises(ValueError):
             ds.order['|'].create_group(
                 'Very very very long name for the new Group which should not '
