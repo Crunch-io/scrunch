@@ -642,6 +642,12 @@ class Group(object):
 
     def create_group(self, name, alias=None):
         name = self._validate_name_arg(name)
+        # when we want to create an empty group
+        if not alias:
+            self.elements[name] = Group(
+                {name: []}, order=self.order, parent=self)
+            self.order.update()
+            return
         elements = self._validate_alias_arg(alias)
 
         # Locate all elements to move. All of them have to exist.
