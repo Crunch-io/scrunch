@@ -3501,12 +3501,14 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.csv')
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {'use_category_ids': True}
+        assert export_options == {
+            'options': {
+                'use_category_ids': True
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
@@ -3523,12 +3525,14 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.csv', options={'use_category_ids': False})
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {'use_category_ids': False}
+        assert export_options == {
+            'options': {
+                'use_category_ids': False
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
@@ -3545,15 +3549,15 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.sav', format='spss')
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'spss'
         assert export_options == {
-            'prefix_subvariables': False,
-            'var_label_field': 'description'
-        }
+            'options': {
+                'prefix_subvariables': False,
+                'var_label_field': 'description'
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
@@ -3570,14 +3574,15 @@ class TestDatasetExport(TestCase):
             }
         )
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'spss'
         assert export_options == {
-            'prefix_subvariables': True,
-            'var_label_field': 'name'}
+            'options': {
+                'var_label_field': 'name',
+                'prefix_subvariables': True
+        }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
