@@ -20,6 +20,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
+from scrunch.subentity import Deck, Filter
 
 import pandas as pd
 
@@ -862,40 +863,6 @@ class Order(object):
         return self.graph[item]
 
 
-class Filter:
-    """
-    A pycrunch.shoji.Entity for Dataset filters
-    """
-    _MUTABLE_ATTRIBUTES = {'name', 'expression', 'is_public', 'owner_id'}
-    _IMMUTABLE_ATTRIBUTES = {'id', }
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-
-    def __init__(self, shoji_tuple):
-        self.resource = shoji_tuple.entity
-
-    def __getattr__(self, item):
-        if item in self._ENTITY_ATTRIBUTES:
-            return self.resource.body[item]
-        raise AttributeError('Filter has no attribute %s' % item)
-
-    def __repr__(self):
-        return "<Filter: name='{}'; id='{}'>".format(self.name, self.id)
-
-    def __str__(self):
-        return self.name
-
-    def edit(self, **kwargs):
-        for key in kwargs:
-            if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attribute %s of 'filter' %s" % (
-                    key, self.name
-                ))
-        return self.resource.edit(**kwargs)
-
-    def remove(self):
-        self.resource.delete()
-
-
 class CrunchBox(object):
     """
     A CrunchBox representation of boxdata.
@@ -1223,8 +1190,21 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @filters.setter
     def filters(self, _):
-        # Protect the `settings` property from external modifications.
+        # Protect the `filters` property from external modifications.
         raise TypeError('Use add_filter method to add filters')
+
+    @property
+    def decks(self):
+        _decks = {}
+        for d in self.resource.decks.index.values():
+            deck_inst = Deck(d)
+            _decks[deck_inst.id] = deck_inst
+        return _decks
+
+    @decks.setter
+    def decks(self, _):
+        # Protect the `decks` property from external modifications.
+        raise TypeError('Use add_deck method to add a new deck')
 
     @property
     def crunchboxes(self):
@@ -1410,6 +1390,14 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  is_public=public))
         new_filter = self.resource.filters.create(payload)
         return self.filters[new_filter.body['name']]
+
+    def add_deck(self, name, description="", public=False):
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 description=description,
+                                 is_public=public))
+        new_deck = self.resource.decks.create(payload)
+        return self.decks[new_deck.self.split('/')[-2]]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
