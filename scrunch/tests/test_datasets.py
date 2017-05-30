@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import collections
 import json
 import copy
@@ -3061,6 +3063,48 @@ class TestHierarchicalOrder(TestCase):
 
         with pytest.raises(ValueError):
             ds.order['|Account'].create_group('@##$')
+
+        ds.order['|Account'].create_group('Gewürze / Inhaltsstoffe', alias=[
+            'music', 'religion'])
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',
+                '../000002/',
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',
+                                '../000006/',
+                                '../000007/'
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',
+                                '../000009/',
+                                '../000010/',
+                                '../000011/'
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',
+                                '../000004/'
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',
+                                '../000013/'
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
 
     def test_group_renaming(self):
         ds = self.ds
