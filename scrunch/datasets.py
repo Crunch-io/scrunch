@@ -1871,7 +1871,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             fork.entity.delete()
 
     def export(self, path, format='csv', filter=None, variables=None,
-               hidden=False, options=None, metadata_path=None):
+               hidden=False, options=None, metadata_path=None, timeout=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
@@ -1991,7 +1991,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
 
-        url = export_dataset(self.resource, payload, format=format)
+        progress_tracker = pycrunch.progress.DefaultProgressTracking(timeout)
+        url = export_dataset(
+            dataset=self.resource,
+            options=payload, 
+            format=format, 
+            progress_tracker=progress_tracker
+        )
         download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
