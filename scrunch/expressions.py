@@ -526,8 +526,9 @@ def process_expr(obj, ds):
         if len(subitems) == 2:
             if 'value' in subitems[1] and 'variable' in subitems[0]:
                 var_url = subitems[0]['variable']
-                if ds.variables.index[var_url]['type'] == 'multiple_response':
-                    return adapt_multiple_response(ds, var_url, subitems[1]['value'])
+                if var_url in ds.variables.index:
+                    if ds.variables.index[var_url]['type'] == 'multiple_response':
+                        return adapt_multiple_response(ds, var_url, subitems[1]['value'])
 
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
