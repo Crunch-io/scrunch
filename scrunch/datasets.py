@@ -2555,11 +2555,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
         target_group = self.dataset.order[str(path)]
-        target_group.insert(self.alias, position=position)
+        target_group.insert(
+            self.alias, position=position, before=before, after=after
+        )
