@@ -640,43 +640,20 @@ class Group(object):
 
         self.order.update()
 
-    def create_group(self, name, alias=None):
+    def create_group(self, name, alias=None, position=-1, before=None,
+                     after=None):
         name = self._validate_name_arg(name)
         elements = self._validate_alias_arg(alias)
+        position = 0 if (before or after) else position
 
-        # Locate all elements to move. All of them have to exist.
-        elements_to_move = collections.OrderedDict()
-        for element_name in elements:
-            current_group = self.order.graph.find(element_name)
-            if current_group and element_name in current_group.elements:
-                elements_to_move[element_name] = (current_group,)
-            else:
-                group_to_move = self.order.graph.find_group(element_name)
-                if group_to_move:
-                    elements_to_move[element_name] = group_to_move
-                else:
-                    raise ValueError(
-                        'Invalid alias/group name \'%s\'' % element_name
-                    )
-
-        # Make the modifications to the order structure.
+        # create the new Group obj and insert all `elements`
         new_group = Group({name: []}, order=self.order, parent=self)
-        for element_name, obj in elements_to_move.items():
-            if isinstance(obj, tuple):
-                current_group = obj[0]
-                new_group.elements[element_name] = \
-                    current_group.elements[element_name]
-                del current_group.elements[element_name]
-            else:
-                group_to_move = obj
-                orig_parent = group_to_move.parent
-                group_to_move.parent = new_group
-                new_group.elements[element_name] = group_to_move
-                del orig_parent.elements[element_name]
-        self.elements[name] = new_group
+        new_group.insert(elements)
 
-        # Update!
-        self.order.update()
+        # add the new Group to self.elements so that `insert` detects it
+        self.elements[name] = new_group
+        self.insert(new_group.name, position=position,
+                    before=before, after=after)
 
     def rename(self, name):
         name = self._validate_name_arg(name)
@@ -709,19 +686,22 @@ class Group(object):
         # Update!
         self.order.update()
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.order[str(path)]
+
         if target_group == self:
             raise InvalidPathError(
                 'Invalid path %s: cannot move Group into itself.' % path
             )
-        target_group.insert(self.name, position=position)
+        target_group.insert(
+            self.name, position=position, before=before, after=after
+        )
 
 
 class Order(object):
