@@ -449,8 +449,9 @@ def adapt_multiple_response(ds, var_url, values):
     expression.
     """
     # convert value --> column and change ids to aliases
-    subvariable_urls = ds.variables.index[var_url]['subvariables']
-    variable = ds.variables.index[var_url].entity
+    var_index = ds.variables.index
+    subvariable_urls = var_index[var_url]['subvariables']
+    variable = var_index[var_url].entity
     aliases = []
     for sub_var in subvariable_urls:
         subvar_id = variable.subvariables.index[sub_var]['id']
@@ -526,7 +527,8 @@ def process_expr(obj, ds):
         if len(subitems) == 2:
             if 'value' in subitems[1] and 'variable' in subitems[0]:
                 var_url = subitems[0]['variable']
-                if ds.variables.index[var_url]['type'] == 'multiple_response':
+                var_index = ds.variables.index
+                if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
                     return adapt_multiple_response(ds, var_url, subitems[1]['value'])
 
         for item in subitems:

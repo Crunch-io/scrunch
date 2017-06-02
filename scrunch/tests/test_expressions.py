@@ -2378,6 +2378,20 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+        # test subvariable references
+        expr = 'hobbies_1 == 1'
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'variable': var_url + 'subvariables/0001/'
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
 
 
 class TestExpressionPrettify(TestCase):
