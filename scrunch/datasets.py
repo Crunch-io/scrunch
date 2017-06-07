@@ -1164,6 +1164,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             raise AttributeError("Can't set owner")
 
         self.resource.patch({'owner': owner_url})
+        self.resource.refresh()
 
     @property
     def order(self):
