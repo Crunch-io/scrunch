@@ -1110,6 +1110,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @property
     def editor(self):
+        self.resource.refresh()
         try:
             return User(self.resource.follow('editor_url'))
         except pycrunch.lemonpy.ClientError:
