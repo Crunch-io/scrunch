@@ -3070,35 +3070,131 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',
-                '../000002/',
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000005/',
-                                '../000006/',
-                                '../000007/'
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',
-                                '../000009/',
-                                '../000010/',
-                                '../000011/'
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',
-                                '../000004/'
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
                             ]
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
-                                '../000012/',
-                                '../000013/'
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|User Information'].create_group('PII', alias=[
+            'first_name', 'last_name'], after='gender')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|Location'].create_group('PII', alias=[ 'address'],
+                                                   before='zip_code')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                {
+                                    'PII': [
+                                        '../000011/'       # address
+                                    ]
+                                },
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
                             ]
                         }
                     ]
