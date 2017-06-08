@@ -1110,7 +1110,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
     @property
     def editor(self):
-        self.resource.refresh()
         try:
             return User(self.resource.follow('editor_url'))
         except pycrunch.lemonpy.ClientError:
@@ -1308,6 +1307,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         user_url = user if _is_url(user) else _to_url(user)
 
         self.resource.patch({'current_editor': user_url})
+        self.resource.refresh()
 
     def stream_rows(self, columns):
         """
