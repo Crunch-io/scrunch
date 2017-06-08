@@ -488,7 +488,7 @@ class Group(object):
             raise ValueError(
                 'The pipe (|) character is not allowed.'
             )
-        if not re.match(r'^[\w\s]+$', name, re.UNICODE):
+        if not re.match(r'^(\s+)?\w+', name, re.UNICODE):
             raise ValueError(
                 'Invalid name %s: it contains characters that are not allowed.'
                 % name
@@ -641,7 +641,8 @@ class Group(object):
 
         self.order.update()
 
-    def create_group(self, name, alias=None):
+    def create_group(self, name, alias=None, position=-1, before=None,
+                     after=None):
         name = self._validate_name_arg(name)
         # when we want to create an empty group
         if not alias:
@@ -650,40 +651,16 @@ class Group(object):
             self.order.update()
             return
         elements = self._validate_alias_arg(alias)
+        position = 0 if (before or after) else position
 
-        # Locate all elements to move. All of them have to exist.
-        elements_to_move = collections.OrderedDict()
-        for element_name in elements:
-            current_group = self.order.graph.find(element_name)
-            if current_group and element_name in current_group.elements:
-                elements_to_move[element_name] = (current_group,)
-            else:
-                group_to_move = self.order.graph.find_group(element_name)
-                if group_to_move:
-                    elements_to_move[element_name] = group_to_move
-                else:
-                    raise ValueError(
-                        'Invalid alias/group name \'%s\'' % element_name
-                    )
-
-        # Make the modifications to the order structure.
+        # create the new Group obj and insert all `elements`
         new_group = Group({name: []}, order=self.order, parent=self)
-        for element_name, obj in elements_to_move.items():
-            if isinstance(obj, tuple):
-                current_group = obj[0]
-                new_group.elements[element_name] = \
-                    current_group.elements[element_name]
-                del current_group.elements[element_name]
-            else:
-                group_to_move = obj
-                orig_parent = group_to_move.parent
-                group_to_move.parent = new_group
-                new_group.elements[element_name] = group_to_move
-                del orig_parent.elements[element_name]
-        self.elements[name] = new_group
+        new_group.insert(elements)
 
-        # Update!
-        self.order.update()
+        # add the new Group to self.elements so that `insert` detects it
+        self.elements[name] = new_group
+        self.insert(new_group.name, position=position,
+                    before=before, after=after)
 
     def rename(self, name):
         name = self._validate_name_arg(name)
@@ -716,19 +693,22 @@ class Group(object):
         # Update!
         self.order.update()
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.order[str(path)]
+
         if target_group == self:
             raise InvalidPathError(
                 'Invalid path %s: cannot move Group into itself.' % path
             )
-        target_group.insert(self.name, position=position)
+        target_group.insert(
+            self.name, position=position, before=before, after=after
+        )
 
 
 class Order(object):
@@ -1157,6 +1137,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             raise AttributeError("Can't set owner")
 
         self.resource.patch({'owner': owner_url})
+        self.resource.refresh()
 
     @property
     def order(self):
@@ -1312,6 +1293,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         user_url = user if _is_url(user) else _to_url(user)
 
         self.resource.patch({'current_editor': user_url})
+        self.resource.refresh()
 
     def stream_rows(self, columns):
         """
@@ -2555,11 +2537,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
         target_group = self.dataset.order[str(path)]
-        target_group.insert(self.alias, position=position)
+        target_group.insert(
+            self.alias, position=position, before=before, after=after
+        )

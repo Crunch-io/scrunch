@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import collections
 import json
 import copy
@@ -3103,6 +3105,144 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(ValueError):
             ds.order['|Account'].create_group('@##$')
 
+        ds.order['|Account'].create_group('Gewürze / Inhaltsstoffe', alias=[
+            'music', 'religion'])
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|User Information'].create_group('PII', alias=[
+            'first_name', 'last_name'], after='gender')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|Location'].create_group('PII', alias=[ 'address'],
+                                                   before='zip_code')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                {
+                                    'PII': [
+                                        '../000011/'       # address
+                                    ]
+                                },
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
     def test_group_renaming(self):
         ds = self.ds
 
@@ -3237,6 +3377,70 @@ class TestHierarchicalOrder(TestCase):
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
             var.move('|Account|Invalid Group')
+
+        var.move('|Account', before='registration_time')
+        assert self._get_update_payload(var.dataset) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000001/',               # id
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        var.move('|', after='music')
+        assert self._get_update_payload(var.dataset) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000001/',                       # id
+                '../000013/'                        # religion
+            ]
+        }
 
     def test_order_synchronization(self):
         ds = self.ds
