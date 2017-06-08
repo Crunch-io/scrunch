@@ -1,5 +1,6 @@
-import six.moves.urllib as urllib
 import json
+
+import six.moves.urllib as urllib
 
 
 class SubEntity:

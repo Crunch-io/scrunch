@@ -6,9 +6,9 @@ import os
 import re
 import sys
 
+import pandas as pd
 import pycrunch
 import six
-
 from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
@@ -18,11 +18,9 @@ from scrunch.exceptions import (AuthenticationError, InvalidPathError,
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
+from scrunch.subentity import Deck, Filter
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-from scrunch.subentity import Deck, Filter
-
-import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -1964,8 +1962,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         progress_tracker = pycrunch.progress.DefaultProgressTracking(timeout)
         url = export_dataset(
             dataset=self.resource,
-            options=payload, 
-            format=format, 
+            options=payload,
+            format=format,
             progress_tracker=progress_tracker
         )
         download_file(url, path)

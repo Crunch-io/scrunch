@@ -3137,6 +3137,9 @@ class TestHierarchicalOrder(TestCase):
                             ]
                         },
                         {
+                            'New empty': []  # empty group
+                        },
+                        {
                             'Gewürze / Inhaltsstoffe': [
                                 '../000012/',       # music
                                 '../000013/'        # religion
@@ -3181,6 +3184,9 @@ class TestHierarchicalOrder(TestCase):
                                 '../000003/',       # registration_time
                                 '../000004/'        # last_login_time
                             ]
+                        },
+                        {
+                            'New empty': []  # empty group
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
@@ -3231,6 +3237,9 @@ class TestHierarchicalOrder(TestCase):
                                 '../000003/',       # registration_time
                                 '../000004/'        # last_login_time
                             ]
+                        },
+                        {
+                            'New empty': []  # empty group
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
