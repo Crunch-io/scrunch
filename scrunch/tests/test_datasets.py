@@ -3102,9 +3102,6 @@ class TestHierarchicalOrder(TestCase):
                 'be allowed at all'
             )
 
-        with pytest.raises(ValueError):
-            ds.order['|Account'].create_group('@##$')
-
         ds.order['|Account'].create_group('Gewürze / Inhaltsstoffe', alias=[
             'music', 'religion'])
 
@@ -3301,9 +3298,6 @@ class TestHierarchicalOrder(TestCase):
                 'Very very very long new name for the Group which should not '
                 'be allowed at all'
             )
-
-        with pytest.raises(ValueError):
-            ds.order['|Account'].rename('@##$.')
 
     def test_move_group(self):
         ds = self.ds

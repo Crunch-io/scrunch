@@ -486,11 +486,6 @@ class Group(object):
             raise ValueError(
                 'The pipe (|) character is not allowed.'
             )
-        if not re.match(r'^(\s+)?\w+', name, re.UNICODE):
-            raise ValueError(
-                'Invalid name %s: it contains characters that are not allowed.'
-                % name
-            )
         if name in self.elements:
             raise ValueError(
                 'A variable/sub-group named \'%s\' already exists.' % name
