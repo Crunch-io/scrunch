@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# custom scripts
+scrunch_play.py
+
 # C extensions
 *.so
 

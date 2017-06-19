@@ -1,8 +1,5 @@
-import json
-
 import pytest
-import mock
-from unittest import TestCase
+from unittest import TestCase, mock
 
 import scrunch
 from scrunch.datasets import parse_expr
@@ -11,6 +8,12 @@ from scrunch.expressions import prettify
 
 
 class TestExpressionParsing(TestCase):
+
+    def test_any_of_str(self):
+        expr = '"age".any(1,2)'
+
+        with pytest.raises(SyntaxError) as err:
+            parse_expr(expr)
 
     def test_in_value_error(self):
         expr = "age in [{}, 1, 2]"
@@ -1027,6 +1030,76 @@ class TestExpressionParsing(TestCase):
         }
         expr_obj = parse_expr(expr)
         assert expr_obj == expected
+
+    def test_multiple_arithmetic_operations(self):
+        expr = "1 + 2 * 3"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            'function': '+', 'args': [
+                {'value': 1},
+                {
+                    'function': '*',
+                    'args': [
+                        {'value': 2},
+                        {'value': 3}
+                    ]
+                },
+            ]
+        }
+
+    def test_multiple_arithmetic_operations_precedence(self):
+        expr = "1 + 2 / 3 - 4 * 5"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            'function': '-',
+            'args': [
+                {
+                    'function': '+',
+                    'args': [
+                        {'value': 1},
+                        {
+                            'function': '/',
+                            'args': [
+                                {'value': 2},
+                                {'value': 3}]
+                        }
+                    ]
+                },
+                {
+                    'function': '*',
+                    'args': [
+                        {'value': 4},
+                        {'value': 5}
+                    ]
+                }
+            ]
+        }
+
+    def test_multiple_arithmetic_operations_with_variable(self):
+        expr = "(weekly_rent * 52) + 12"
+        expr_obj = parse_expr(expr)
+
+        assert expr_obj == {
+            "function": "+",
+            "args": [
+                {
+                    "function": "*",
+                    "args": [
+                        {
+                            "variable": "weekly_rent"
+                        },
+                        {
+                            "value": 52
+                        }
+                    ]
+                },
+                {
+                    "value": 12
+                }
+            ]
+        }
 
     def test_parse_helper_functions(self):
         # One variable.
@@ -2240,6 +2313,82 @@ class TestExpressionProcessing(TestCase):
                 },
                 {
                     'value': [1, 2]
+                }
+            ]
+        }
+
+    @mock.patch('scrunch.expressions.adapt_multiple_response')
+    def test_multiple_response_any(self, adapter):
+        var_id = '239109dsad0912d'
+        var_alias = 'hobbies'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        adapter.return_value = (
+            [{'variable': var_url}, {'column': ['0001', '0002']}], False)
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+        }
+        subvariables = [
+            '0001',
+            '0002',
+        ]
+        body = {
+            'id': var_id,
+            'alias': var_alias,
+            'type': var_type,
+            'categories': [],
+            'subvariables': subvariables,
+            'subreferences': subreferences,
+        }
+        table_mock = mock.MagicMock(metadata={var_id: body})
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        ds.variables.index = {var_url: body}
+
+        expr = 'hobbies in [1, 2]'
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'any',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'column': ['0001', '0002']
+                }
+            ]
+        }
+        expr = 'hobbies not in [1, 2]'
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'not',
+            'args': [
+                {
+                    'function': 'any',
+                    'args': [
+                        {
+                            'variable': var_url
+                        },
+                        {
+                            'column': ['0001', '0002']
+                        }
+                    ]
+                }
+            ]
+        }
+        # test subvariable references
+        expr = 'hobbies_1 == 1'
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'variable': var_url + 'subvariables/0001/'
+                },
+                {
+                    'value': 1
                 }
             ]
         }

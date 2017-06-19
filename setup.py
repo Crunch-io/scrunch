@@ -3,33 +3,25 @@
 
 import os
 import io
-import re
 import sys
 from setuptools import setup, find_packages
-
-thisdir = os.path.abspath(os.path.dirname(__file__))
-
-
-with open(os.path.join(thisdir, 'scrunch', 'version.py')) as v_file:
-    VERSION = re.compile(
-        r".*__version__ = '(.*?)'",
-        re.S).match(v_file.read()).group(1)
 
 
 def get_long_desc():
     root_dir = os.path.dirname(__file__)
     if not root_dir:
         root_dir = '.'
-    readme_fn = os.path.join(root_dir, 'README.md')
+    readme_fn = os.path.join(root_dir, 'README.rst')
     with io.open(readme_fn, encoding='utf-8') as stream:
         return stream.read()
+
 
 needs_pytest = {'pytest', 'test'}.intersection(sys.argv)
 pytest_runner = ['pytest_runner'] if needs_pytest else []
 
 setup_params = dict(
     name='scrunch',
-    version=VERSION,
+    use_scm_version=True,
     description="Pythonic scripting library for cleaning data in Crunch",
     long_description=get_long_desc(),
     url='https://github.com/Crunch-io/scrunch',
@@ -43,7 +35,9 @@ setup_params = dict(
     author_email='dev@crunch.io',
     license='LGPL',
     install_requires=[
-        'pycrunch',
+        'pandas<0.20',
+        'pycrunch>=0.4.0',
+        'requests',
         'six',
         'tabulate',
     ],
@@ -51,12 +45,12 @@ setup_params = dict(
         'backports.unittest_mock',
         'isodate',
         'mock',
-        'pandas',
         'pytest',
         'pytest-cov',
         'pytest-sugar',
     ],
     setup_requires=[
+        'setuptools_scm'
     ] + pytest_runner,
     packages=find_packages(),
     namespace_packages=[],

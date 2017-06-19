@@ -4,10 +4,11 @@ import json
 import logging
 import os
 import re
+import sys
 
+import pandas as pd
 import pycrunch
 import six
-
 from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
@@ -15,20 +16,19 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, abs_url, case_expr, download_file,
-                             subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, subvar_alias)
+from scrunch.subentity import Deck, Filter
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-
 from tabulate import tabulate
-import pandas as pd
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
-    from urlparse import urlsplit
+    from urlparse import urlsplit, urljoin
 else:
     import configparser
-    from urllib.parse import urlsplit
+    from urllib.parse import urlsplit, urljoin
 
 _VARIABLE_PAYLOAD_TMPL = {
     'element': 'shoji:entity',
@@ -44,7 +44,27 @@ _MR_TYPE = 'multiple_response'
 LOG = logging.getLogger('scrunch')
 
 
-def _get_connection():
+def _set_debug_log():
+    # ref: http://docs.python-requests.org/en/master/api/#api-changes
+    #
+    #  These two lines enable debugging at httplib level
+    # (requests->urllib3->http.client)
+    # You will see the REQUEST, including HEADERS and DATA,
+    # and RESPONSE with HEADERS but without DATA.
+    # The only thing missing will be the response.body which is not logged.
+    try:
+        import http.client as http_client
+    except ImportError:
+        # Python 2
+        import httplib as http_client
+    http_client.HTTPConnection.debuglevel = 1
+    LOG.setLevel(logging.DEBUG)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True
+
+
+def _get_connection(file_path='crunch.ini'):
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
@@ -63,7 +83,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
-    config.read('crunch.ini')
+    config.read(file_path)
     try:
         username = config.get('DEFAULT', 'CRUNCH_USERNAME')
         password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
@@ -82,8 +102,7 @@ def _get_connection():
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
-            'Couldn\'t find existing session, crunch.ini file or environment '
-            'variables.')
+            "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
 def get_dataset(dataset, connection=None, editor=False, project=None):
@@ -91,7 +110,6 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
     and the user has access permissions to it. If you have access to the dataset
     through a project you should do pass the project parameter.
-
     This method tries to use pycrunch singleton connection, environment variables
     or a crunch.ini config file if the optional "connection" parameter isn't provided.
 
@@ -100,6 +118,10 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
+
+    To get a Dataset from a Project we are building a url and making a request
+    through pycrunch.session object, we instead should use the /search endpoint
+    from crunch, but currently it's not working by id's.
     """
     if connection is None:
         connection = _get_connection()
@@ -108,18 +130,29 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
+
     if project:
-        root = get_project(project, connection)
-
-    try:
-        shoji_ds = root.datasets.by('name')[dataset].entity
-    except KeyError:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            ds = project_obj.get_dataset(dataset)
+        else:
+            ds = project.get_dataset(dataset)
+    else:
         try:
-            shoji_ds = root.datasets.by('id')[dataset].entity
+            shoji_ds = root.datasets.by('name')[dataset].entity
         except KeyError:
-            raise KeyError("Dataset (name or id: %s) not found in context." % dataset)
+            try:
+                shoji_ds = root.datasets.by('id')[dataset].entity
+            except KeyError:
+                try:
+                    dataset_url = urljoin(
+                        root.catalogs.datasets, '{}/'.format(dataset))
+                    shoji_ds = root.session.get(dataset_url).payload
+                except Exception:
+                    raise KeyError(
+                        "Dataset (name or id: %s) not found in context." % dataset)
 
-    ds = Dataset(shoji_ds)
+        ds = Dataset(shoji_ds)
 
     if editor is True:
         ds.change_editor(root.session.email)
@@ -127,32 +160,56 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     return ds
 
 
-def get_project(project, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_project(project, connection=None):
+    """
+    :param project: Crunch project ID or Name
+    :param connection: An scrunch session object
+    :return: Project class instance
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     try:
-        ret = site.projects.by('name')[project].entity
+        ret = connection.projects.by('name')[project].entity
     except KeyError:
         try:
-            ret = site.projects.by('id')[project].entity
+            ret = connection.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project (name or id: %s) not found." % project)
-    return ret
+    return Project(ret)
 
 
-def create_dataset(name, variables, site=None):
-    if site is None:
-        site = _get_connection()
-        if not site:
+def get_user(user, connection=None):
+    """
+    :param user: Crunch user email address
+    :param connection: An scrunch session object
+    :return: User class instance
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    try:
+        ret = connection.users.by('email')[user].entity
+    except KeyError:
+        raise KeyError("User email '%s' not found." % user)
+    return User(ret)
+
+
+def create_dataset(name, variables, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
 
-    shoji_ds = site.datasets.create({
+    shoji_ds = connection.datasets.create({
         'element': 'shoji:entity',
         'body': {
             'name': name,
@@ -165,10 +222,106 @@ def create_dataset(name, variables, site=None):
     return Dataset(shoji_ds)
 
 
-def _validate_category_rules(categories, rules):
-    if not ((len(categories) - 1) <= len(rules) <= len(categories)):
-        raise ValueError(
-            'Amount of rules should match categories (or categories -1)'
+class User:
+    _MUTABLE_ATTRIBUTES = {'name', 'email'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, user_resource):
+        self.resource = user_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('User has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<User: email='{}'; id='{}'>".format(self.email, self.id)
+
+    def __str__(self):
+        return self.email
+
+
+class Project:
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, project_resource):
+        self.resource = project_resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]  # Has to exist
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Project has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<Project: name='{}'; id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+    def get_dataset(self, dataset):
+        try:
+            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+        except KeyError:
+            try:
+                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in project." % dataset)
+
+        ds = Dataset(shoji_ds)
+        return ds
+
+    @property
+    def users(self):
+        """
+        :return: dictionary of User instances
+        """
+        # TODO: return a dictionary keyed by email and values should be User
+        # instances, but when trying to got 403 from Crunch
+        return [e['email'] for e in self.resource.members.index.values()]
+        # return {val['email']: User(val.entity) for val in self.resource.members.index.values()}
+
+    def remove_user(self, user):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+
+        found_url = None
+        for url, tuple in self.resource.members.index.items():
+            if tuple['email'] == user.email:
+                found_url = url
+
+        if found_url:
+            self.resource.members.patch({found_url: None})
+        else:
+            raise KeyError("User %s not found in project %s" % (user.email, self.name))
+
+    def add_user(self, user, edit=False):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch({user.url: {'edit': edit}})
+
+    def edit_user(self, user, edit):
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch(
+            {user.url: {'permissions': {'edit': edit}}}
         )
 
 
@@ -247,6 +400,26 @@ class Group(object):
     def __repr__(self):
         return self.__str__()
 
+    def __iter__(self):
+        return self.itervalues()
+
+    def itervalues(self):
+        for item in self.elements.values():
+            yield item
+
+    def iterkeys(self):
+        for key in self.elements.keys():
+            yield key
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def values(self):
+        return list(self.itervalues())
+
+    def items(self):
+        return zip(self.iterkeys(), self.itervalues())
+
     def __getitem__(self, path):
         if not isinstance(path, six.string_types):
             raise TypeError('arg 1 must be a string')
@@ -313,11 +486,6 @@ class Group(object):
         if '|' in name:
             raise ValueError(
                 'The pipe (|) character is not allowed.'
-            )
-        if not re.match(r'^[\w\s]+$', name, re.UNICODE):
-            raise ValueError(
-                'Invalid name %s: it contains characters that are not allowed.'
-                % name
             )
         if name in self.elements:
             raise ValueError(
@@ -467,43 +635,26 @@ class Group(object):
 
         self.order.update()
 
-    def create_group(self, name, alias=None):
+    def create_group(self, name, alias=None, position=-1, before=None,
+                     after=None):
         name = self._validate_name_arg(name)
+        # when we want to create an empty group
+        if not alias:
+            self.elements[name] = Group(
+                {name: []}, order=self.order, parent=self)
+            self.order.update()
+            return
         elements = self._validate_alias_arg(alias)
+        position = 0 if (before or after) else position
 
-        # Locate all elements to move. All of them have to exist.
-        elements_to_move = collections.OrderedDict()
-        for element_name in elements:
-            current_group = self.order.graph.find(element_name)
-            if current_group and element_name in current_group.elements:
-                elements_to_move[element_name] = (current_group,)
-            else:
-                group_to_move = self.order.graph.find_group(element_name)
-                if group_to_move:
-                    elements_to_move[element_name] = group_to_move
-                else:
-                    raise ValueError(
-                        'Invalid alias/group name \'%s\'' % element_name
-                    )
-
-        # Make the modifications to the order structure.
+        # create the new Group obj and insert all `elements`
         new_group = Group({name: []}, order=self.order, parent=self)
-        for element_name, obj in elements_to_move.items():
-            if isinstance(obj, tuple):
-                current_group = obj[0]
-                new_group.elements[element_name] = \
-                    current_group.elements[element_name]
-                del current_group.elements[element_name]
-            else:
-                group_to_move = obj
-                orig_parent = group_to_move.parent
-                group_to_move.parent = new_group
-                new_group.elements[element_name] = group_to_move
-                del orig_parent.elements[element_name]
-        self.elements[name] = new_group
+        new_group.insert(elements)
 
-        # Update!
-        self.order.update()
+        # add the new Group to self.elements so that `insert` detects it
+        self.elements[name] = new_group
+        self.insert(new_group.name, position=position,
+                    before=before, after=after)
 
     def rename(self, name):
         name = self._validate_name_arg(name)
@@ -536,19 +687,22 @@ class Group(object):
         # Update!
         self.order.update()
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
-
         target_group = self.order[str(path)]
+
         if target_group == self:
             raise InvalidPathError(
                 'Invalid path %s: cannot move Group into itself.' % path
             )
-        target_group.insert(self.name, position=position)
+        target_group.insert(
+            self.name, position=position, before=before, after=after
+        )
 
 
 class Order(object):
@@ -661,8 +815,166 @@ class Order(object):
     def __repr__(self):
         return self.__str__()
 
+    def __iter__(self):
+        return self.graph.itervalues()
+
+    def itervalues(self):
+        return self.graph.itervalues()
+
+    def iterkeys(self):
+        return self.graph.iterkeys()
+
+    def keys(self):
+        return self.graph.keys()
+
+    def values(self):
+        return self.graph.values()
+
+    def items(self):
+        return self.graph.items()
+
     def __getitem__(self, item):
         return self.graph[item]
+
+
+class CrunchBox(object):
+    """
+    A CrunchBox representation of boxdata.
+
+    an instance cannot mutate it's metadata directly since boxdata doesn't
+    support PATCHing. Instead, simply create a new `CrunchBox` instance with
+    the same Filters and Variables. You'll get the same entity from the boxdata
+    index with the updated metadata.
+
+    :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
+    :param     dataset: scrunch.datasets.Dataset instance
+
+    NOTE: since the boxdata entity is different regarding the mapping of body
+          and metadata fields, methods etc... it is made `readonly`.
+          Since an `edit` method would need to return a new
+          instance (see above) the `__setattr__` method ist incorporated with
+          CrunchBox specific messages.
+
+          (an edit method returning an instance would most likely brake user
+          expectations)
+
+          In order to have a proper `remove` method we also need the Dataset
+          instance.
+    """
+
+    WIDGET_URL = 'https://s.crunch.io/widget/index.html#/ds/{id}/'
+    DIMENSIONS = dict(height=480, width=600)
+
+    # the attributes on entity.body.metadata
+    _METADATA_ATTRIBUTES = {'title', 'notes', 'header', 'footer'}
+
+    _MUTABLE_ATTRIBUTES = _METADATA_ATTRIBUTES
+
+    _IMMUTABLE_ATTRIBUTES = {
+        'id', 'user_id', 'creation_time', 'filters', 'variables'}
+
+    # removed `dataset` from the set above since it overlaps with the Dataset
+    # instance on self. `boxdata.dataset` simply points to the dataset url
+
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, shoji_tuple, dataset):
+        self.resource = shoji_tuple
+        self.url = shoji_tuple.entity_url
+        self.dataset = dataset
+
+    def __setattr__(self, attr, value):
+        """ known attributes should be readonly """
+
+        if attr in self._IMMUTABLE_ATTRIBUTES:
+            raise AttributeError(
+                "Can't edit attibute '%s'" % attr)
+        if attr in self._MUTABLE_ATTRIBUTES:
+            raise AttributeError(
+                "Can't edit '%s' of a CrunchBox. Create a new one with "
+                "the same filters and variables to update its metadata" % attr)
+        object.__setattr__(self, attr, value)
+
+    def __getattr__(self, attr):
+        if attr in self._METADATA_ATTRIBUTES:
+            return self.resource.metadata[attr]
+
+        if attr == 'filters':
+            # return a list of `Filters` instead of the filters expr on `body`
+            _filters = []
+            for obj in self.resource.filters:
+                f_url = obj['filter']
+                _filters.append(
+                    Filter(self.dataset.resource.filters.index[f_url]))
+            return _filters
+
+        if attr == 'variables':
+            # return a list of `Variables` instead of the where expr on `body`
+            _var_urls = []
+            _var_map = self.resource.where.args[0].map
+            for v in _var_map:
+                _var_urls.append(_var_map[v]['variable'])
+
+            return [
+                Variable(entity, self.dataset)
+                for url, entity in self.dataset._vars
+                if url in _var_urls
+            ]
+
+        # all other attributes not catched so far
+        if attr in self._ENTITY_ATTRIBUTES:
+            return self.resource[attr]
+        raise AttributeError('CrunchBox has no attribute %s' % attr)
+
+    def __repr__(self):
+        return "<CrunchBox: title='{}'; id='{}'>".format(
+            self.title, self.id)
+
+    def __str__(self):
+        return self.title
+
+    def remove(self):
+        self.dataset.resource.session.delete(self.url)
+
+    @property
+    def widget_url(self):
+        return self.WIDGET_URL.format(id=self.id)
+
+    @widget_url.setter
+    def widget_url(self, _):
+        """ prevent edits to the widget_url """
+        raise AttributeError("Can't edit 'widget_url' of a CrunchBox")
+
+    def iframe(self, logo=None, dimensions=None):
+        dimensions = dimensions or self.DIMENSIONS
+        widget_url = self.widget_url
+
+        if not isinstance(dimensions, dict):
+            raise TypeError('`dimensions` needs to be a dict')
+
+        def _figure(html):
+            return '<figure style="text-align:left;" class="content-list-'\
+                   'component image">' + '  {}'.format(html) + \
+                   '</figure>'
+
+        _iframe = (
+            '<iframe src="{widget_url}" width="{dimensions[width]}" '
+            'height="{dimensions[height]}" style="border: 1px solid #d3d3d3;">'
+            '</iframe>')
+
+        if logo:
+            _img = '<img src="{logo}" stype="height:auto; width:200px;'\
+                   ' margin-left:-4px"></img>'
+            _iframe = _figure(_img) + _iframe
+
+        elif self.title:
+            _div = '<div style="padding-bottom: 12px">'\
+                   '    <span style="font-size: 18px; color: #444444;'\
+                   ' line-height: 1;">' + self.title + '</span>'\
+                   '  </div>'
+            _iframe = _figure(_div) + _iframe
+
+        return _iframe.format(**locals())
 
 
 class DatasetSettings(dict):
@@ -690,8 +1002,8 @@ class DatasetVariablesMixin(collections.Mapping):
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
             # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable %s' % (
-                self.resource.body['name'], item))
+            raise ValueError('Dataset %s has no variable with an alias %s' % (
+                self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
@@ -735,7 +1047,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                            'archived', 'end_date', 'start_date'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight'}
+    _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
+                          'viewers_can_share'}
 
     def __init__(self, resource):
         """
@@ -753,16 +1066,72 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]  # Has to exist
-
-        # Attribute doesn't exists, must raise an AttributeError
-        raise AttributeError('Dataset %s has no attribute %s' % (
-            self.resource.body['name'], item))
+        # Default behaviour
+        return object.__getattribute__(self, item)
 
     def __repr__(self):
         return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
 
     def __str__(self):
         return self.name
+
+    @property
+    def editor(self):
+        try:
+            return User(self.resource.follow('editor_url'))
+        except pycrunch.lemonpy.ClientError:
+            return self.resource.body.current_editor
+
+    @editor.setter
+    def editor(self, _):
+        # Protect the `editor` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the editor property'
+        )
+
+    @property
+    def owner(self):
+        owner_url = self.resource.body.owner
+        try:
+            if '/users/' in owner_url:
+                return User(self.resource.follow('owner_url'))
+            else:
+                return Project(self.resource.follow('owner_url'))
+        except pycrunch.lemonpy.ClientError:
+            return owner_url
+
+    @owner.setter
+    def owner(self, _):
+        # Protect `owner` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the owner property'
+        )
+
+    def change_owner(self, user=None, project=None):
+        """
+        :param user: email or User object
+        :param project: id, name or Project object
+        :return:
+        """
+        if user and project:
+            raise AttributeError(
+                "Must provide user or project. Not both"
+            )
+        owner_url = None
+        if user:
+            if not isinstance(user, User):
+                user = get_user(user)
+            owner_url = user.url
+        if project:
+            if not isinstance(project, Project):
+                project = get_project(project)
+            owner_url = project.url
+
+        if not owner_url:
+            raise AttributeError("Can't set owner")
+
+        self.resource.patch({'owner': owner_url})
+        self.resource.refresh()
 
     @property
     def order(self):
@@ -785,6 +1154,44 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def settings(self, _):
         # Protect the `settings` property from external modifications.
         raise TypeError('Unsupported operation on the settings property')
+
+    @property
+    def filters(self):
+        _filters = {}
+        for f in self.resource.filters.index.values():
+            filter_inst = Filter(f)
+            _filters[filter_inst.name] = filter_inst
+        return _filters
+
+    @filters.setter
+    def filters(self, _):
+        # Protect the `filters` property from external modifications.
+        raise TypeError('Use add_filter method to add filters')
+
+    @property
+    def decks(self):
+        _decks = {}
+        for d in self.resource.decks.index.values():
+            deck_inst = Deck(d)
+            _decks[deck_inst.id] = deck_inst
+        return _decks
+
+    @decks.setter
+    def decks(self, _):
+        # Protect the `decks` property from external modifications.
+        raise TypeError('Use add_deck method to add a new deck')
+
+    @property
+    def crunchboxes(self):
+        _crunchboxes = []
+        for shoji_tuple in self.resource.boxdata.index.values():
+            _crunchboxes.append(CrunchBox(shoji_tuple, self))
+        return _crunchboxes
+
+    @crunchboxes.setter
+    def crunchboxes(self, _):
+        # Protect the `crunchboxes` property from direct modifications
+        raise TypeError('Use the `create_crunchbox` method to add one')
 
     def _load_settings(self):
         settings = self.resource.session.get(
@@ -845,8 +1252,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         Parameters
         ----------
         :param user:
-            The email address or the crunch url of the user who should be set
-            as the new current editor of the given dataset.
+            The email address, the crunch url or a User instance of the user
+            who should be set as the new current editor of the given dataset.
 
         :returns: None
         """
@@ -875,9 +1282,12 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         def _is_url(u):
             return u.startswith('https://') or u.startswith('http://')
 
+        if isinstance(user, User):
+            user = user.url
         user_url = user if _is_url(user) else _to_url(user)
 
         self.resource.patch({'current_editor': user_url})
+        self.resource.refresh()
 
     def stream_rows(self, columns):
         """
@@ -894,19 +1304,20 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  {a: columns[a][x] for a in columns})
         return count
 
-    def push_rows(self, count):
+    def push_rows(self, count=None):
         """
         Batches in the rows that have been recently streamed. This forces
         the rows to appear in the dataset instead of waiting for crunch
         automatic batcher process.
         """
-        self.resource.batches.create({
-            'element': 'shoji:entity',
-            'body': {
-                'stream': count,
-                'type': 'ldjson'
-            }
-        })
+        if bool(self.resource.stream.body.pending_messages):
+            self.resource.batches.create({
+                'element': 'shoji:entity',
+                'body': {
+                    'stream': count,
+                    'type': 'ldjson'
+                }
+            })
 
     def exclude(self, expr=None):
         """
@@ -948,7 +1359,24 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return None
         return prettify(self.resource.exclusion.body.expression, self)
 
-    def create_single_response(self, categories, name, alias, description='', missing=True):
+    def add_filter(self, name, expr, public=False):
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 expression=process_expr(parse_expr(expr), self.resource),
+                                 is_public=public))
+        new_filter = self.resource.filters.create(payload)
+        return self.filters[new_filter.body['name']]
+
+    def add_deck(self, name, description="", public=False):
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 description=description,
+                                 is_public=public))
+        new_deck = self.resource.decks.create(payload)
+        return self.decks[new_deck.self.split('/')[-2]]
+
+    def create_single_response(self, categories, name, alias, description='',
+                               missing=True, notes=''):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -990,7 +1418,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                        body=dict(alias=alias,
                                  name=name,
                                  expr=expr,
-                                 description=description))
+                                 description=description,
+                                 notes=notes))
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -998,18 +1427,26 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(self, responses, name, alias, description=''):
+    def create_multiple_response(self, responses, name, alias, description='',
+                                 notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
          of the responses(subvariables).
         """
-        responses_map = {}
+        responses_map = collections.OrderedDict()
+        responses_map_ids = []
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
-            responses_map['%04d' % resp['id']] = case_expr(case, name=resp['name'],
-                                                           alias='%s_%d' % (alias, resp['id']))
+
+            resp_id = '%04d' % resp['id']
+            responses_map_ids.append(resp_id)
+            responses_map[resp_id] = case_expr(
+                case,
+                name=resp['name'],
+                alias='%s_%d' % (alias, resp['id'])
+            )
 
         payload = {
             'element': 'shoji:entity',
@@ -1017,13 +1454,15 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'name': name,
                 'alias': alias,
                 'description': description,
+                'notes': notes,
                 'derivation': {
                     'function': 'array',
                     'args': [{
                         'function': 'select',
-                        'args': [{
-                            'map': responses_map
-                        }]
+                        'args': [
+                            {'map': responses_map},
+                            {'value': responses_map_ids}
+                        ]
                     }]
                 }
             }
@@ -1396,7 +1835,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             fork.entity.delete()
 
     def export(self, path, format='csv', filter=None, variables=None,
-               hidden=False, options=None):
+               hidden=False, options=None, metadata_path=None, timeout=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
@@ -1407,6 +1846,8 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         By default, categories in CSV exports are provided as id's.
         """
+        valid_options = ['use_category_ids', 'prefix_subvariables',
+                         'var_label_field', 'missing_values']
 
         # Only CSV and SPSS exports are currently supported.
         if format not in ('csv', 'spss'):
@@ -1431,14 +1872,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             raise ValueError(
                 'The options argument must be a dictionary.'
             )
-        invalid_options = set(options.keys()).difference(
-            set(export_options.keys())
-        )
-        if invalid_options:
-            raise ValueError(
-                'Invalid options for format "%s": %s.'
-                % (format, ','.join(invalid_options))
-            )
+
+        for k in options.keys():
+            if k not in valid_options:
+                raise ValueError(
+                    'Invalid options for format "%s": %s.'
+                    % (format, ','.join(k))
+                )
         if 'var_label_field' in options \
                 and not options['var_label_field'] in ('name', 'description'):
             raise ValueError(
@@ -1452,11 +1892,33 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # the payload should include all hidden variables by default
         payload = {'options': export_options}
 
+        # Option for exporting metadata as json
+        if metadata_path is not None:
+            metadata = self.resource.table['metadata']
+            if variables is not None:
+                if sys.version_info >= (3, 0):
+                    metadata = {
+                        key: value
+                        for key, value in metadata.items()
+                        if value['alias'] in variables
+                    }
+                else:
+                    metadata = {
+                        key: value
+                        for key, value in metadata.iteritems()
+                        if value['alias'] in variables
+                    }
+            with open(metadata_path, 'w+') as f:
+                json.dump(metadata, f, sort_keys=True)
+
         # add filter to rows if passed
         if filter:
-            payload['filter'] = process_expr(
-                parse_expr(filter), self.resource
-            )
+            if isinstance(filter, Filter):
+                payload['filter'] = {'filter': filter.resource.self}
+            else:
+                payload['filter'] = process_expr(
+                    parse_expr(filter), self.resource
+                )
 
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):
@@ -1493,7 +1955,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
 
-        url = export_dataset(self.resource, payload, format=format)
+        progress_tracker = pycrunch.progress.DefaultProgressTracking(timeout)
+        url = export_dataset(
+            dataset=self.resource,
+            options=payload,
+            format=format,
+            progress_tracker=progress_tracker
+        )
         download_file(url, path)
 
     def join(self, left_var, right_ds, right_var, columns=None,
@@ -1559,19 +2027,171 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def create_categorical(self, categories, alias, name, multiple, description=''):
+    def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
-        Used to create new categorical variables using Crunchs's `case` function.
+        Used to create new numeric variables using Crunchs's derived expressions
+        """
 
-         Will create either categorical variables or multiple response depending
-         on the `multiple` parameter.
+        expr = parse_expr(derivation)
+
+        if not hasattr(self.resource, 'variables'):
+            self.resource.refresh()
+
+        payload = dict(
+            element='shoji:entity',
+            body=dict(
+                alias=alias,
+                name=name,
+                derivation=expr,
+                description=description,
+                notes=notes
+            )
+        )
+
+        self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[alias]
+
+    def create_categorical(self, categories, alias, name, multiple,
+                           description='', notes=''):
+        """
+        Used to create new categorical variables using Crunchs's `case`
+        function
+
+        Will create either categorical variables or multiple response depending
+        on the `multiple` parameter.
         """
         if multiple:
             return self.create_multiple_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
         else:
             return self.create_single_response(
-                categories, alias=alias, name=name, description=description)
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
+
+    def create_crunchbox(
+            self, title='', header='', footer='', notes='',
+            filters=None, variables=None, force=False, min_base_size=None,
+            palette=None):
+        """
+        create a new boxdata entity for a CrunchBox.
+
+        NOTE: new boxdata is only created when there is a new combination of
+        where and filter data.
+
+        Args:
+            title       (str): Human friendly identifier
+            notes       (str): Other information relevent for this CrunchBox
+            header      (str): header information for the CrunchBox
+            footer      (str): footer information for the CrunchBox
+            filters    (list): list of filter names or `Filter` instances
+            where      (list): list of variable aliases or `Variable` instances
+                               If `None` all variables will be included.
+            min_base_size (int): min sample size to display values in graph
+            palette     dict : dict of colors as documented at docs.crunch.io
+                i.e.
+                {
+                    "brand": ["#111111", "#222222", "#333333"],
+                    "static_colors": ["#444444", "#555555", "#666666"],
+                    "base": ["#777777", "#888888", "#999999"],
+                    "category_lookup": {
+                        "category name": "#aaaaaa",
+                        "another category:": "bbbbbb"
+                }
+
+        Returns:
+            CrunchBox (instance)
+        """
+
+        if filters:
+            if not isinstance(filters, list):
+                raise TypeError('`filters` argument must be of type `list`')
+
+            # ensure we only have `Filter` instances
+            filters = [
+                f if isinstance(f, Filter) else self.filters[f]
+                for f in filters
+            ]
+
+            if any(not f.is_public
+                    for f in filters):
+                raise ValueError('filters need to be public')
+
+            filters = [
+                {'filter': f.resource.self}
+                for f in filters
+            ]
+
+        if variables:
+            if not isinstance(variables, list):
+                raise TypeError('`variables` argument must be of type `list`')
+
+            # ensure we only have `Variable` Tuples
+            # NOTE: if we want to check if variables are public we would have
+            # to use Variable instances instead of their Tuple representation.
+            # This would cause additional GET's
+            variables = [
+                var.shoji_tuple if isinstance(var, Variable)
+                else self.resource.variables.by('alias')[var]
+                for var in variables
+            ]
+
+            variables = dict(
+                function='select',
+                args=[
+                    {'map': {
+                        v.id: {'variable': v.entity_url}
+                        for v in variables
+                    }}
+                ])
+
+        if not title:
+            title = 'CrunchBox for {}'.format(str(self))
+
+        payload = dict(
+            element='shoji:entity',
+            body=dict(
+                where=variables,
+                filters=filters,
+                force=force,
+                title=title,
+                notes=notes,
+                header=header,
+                footer=footer)
+        )
+
+        if min_base_size:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(minBaseSize=dict(value=min_base_size)))
+        if palette:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(palette=palette))
+
+        # create the boxdata
+        self.resource.boxdata.create(payload)
+
+        # NOTE: the entity from the response is a bit different compared to
+        # others, i.e. no id, no delete method, different entity_url...
+        # For now, return the shoji_tuple from the index
+        for shoji_tuple in self.resource.boxdata.index.values():
+            if shoji_tuple.metadata.title == title:
+                return CrunchBox(shoji_tuple, self)
+
+    def delete_crunchbox(self, **kwargs):
+        """ deletes crunchboxes on matching kwargs """
+        match = False
+        for key in kwargs:
+            if match:
+                break
+            for crunchbox in self.crunchboxes:
+                attr = getattr(crunchbox, key, None)
+                if attr and attr == kwargs[key]:
+                    crunchbox.remove()
+                    match = True
+                    break
 
     def get_cube(self, dimensions=[], measures=None, filter=[], weight=None):
         """
@@ -1680,7 +2300,43 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         return self.resource.session.get(url + query).json()
 
 
-class Variable(ReadOnly):
+class DatasetSubvariablesMixin(DatasetVariablesMixin):
+    """
+    Handles a variable subvariables iteration in a dict-like way
+    """
+
+    def __getitem__(self, item):
+        # Check if the attribute corresponds to a variable alias
+        subvariable = self.resource.subvariables.by('alias').get(item)
+        if subvariable is None:
+            # subvariable doesn't exists, must raise a ValueError
+            raise KeyError(
+                'Variable %s has no subvariable with an alias %s' % (self.name,
+                                                                     item))
+        # subvariable exists!, return the subvariable Instance
+        return Variable(subvariable, self)
+
+    def __iter__(self):
+        """
+        Iterable of ordered subvariables
+        """
+        sv_index = self.resource.subvariables.index
+        for sv in self.resource['body']['subvariables']:
+            yield sv_index[sv]
+
+    def __len__(self):
+        return len(self.resource.subvariables.index)
+
+    def itervalues(self):
+        for _, var_tuple in self.resource.subvariables.index.items():
+            yield Variable(var_tuple, self)
+
+    def iterkeys(self):
+        for var in self.resource.subvariables.index.items():
+            yield var[1].name
+
+
+class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     """
@@ -1981,14 +2637,17 @@ class Variable(ReadOnly):
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
 
-    def move(self, path, position=-1):
+    def move(self, path, position=-1, before=None, after=None):
+        position = 0 if (before or after) else position
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
                 'Invalid path %s: only absolute paths are allowed.' % path
             )
         target_group = self.dataset.order[str(path)]
-        target_group.insert(self.alias, position=position)
+        target_group.insert(
+            self.alias, position=position, before=before, after=after
+        )
 
     def summary(self, names=False, tablefmt='psql'):
         dimensions = [{'variable': self.alias}]

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import collections
 import json
 import copy
@@ -12,7 +14,9 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Dataset, Variable
+from scrunch.datasets import (Dataset, Variable,
+                              User, Project, Filter,
+                              Deck)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -54,7 +58,7 @@ class TestDatasetBase(object):
             'archived': False,
             'end_date': None,
             'start_date': None,
-        }
+        },
     }
 
     variables = {
@@ -205,6 +209,110 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert ds.start_date == '2017-01-01'
         ds.resource._edit.assert_called_with(**changes)
 
+    def test_create_numeric(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'weekly_rent',
+                'name': 'Week rent',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = Dataset(ds_mock)
+
+        ds.resource = mock.MagicMock()
+
+        ds.create_numeric(
+            alias='monthly_rent',
+            name='Monthly rent',
+            description='Rent paid per month',
+            notes='All UK adults',
+            derivation='(weekly_rent * 52) / 12'
+        )
+
+        ds.resource.variables.create.assert_called_with(
+            {
+                'element': 'shoji:entity',
+                'body': {
+                    'alias': 'monthly_rent',
+                    'name': 'Monthly rent',
+                    'derivation': {
+                        'function': '/',
+                        'args': [
+                            {
+                                'function': '*',
+                                'args': [
+                                    {'variable': 'weekly_rent'},
+                                    {'value': 52}
+                                ]
+                            },
+                            {'value': 12}
+                        ]
+                    },
+                    'description': 'Rent paid per month',
+                    'notes': 'All UK adults'
+                }
+            }
+        )
+
+    def test_create_crunchbox_full(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+
+        call_params = dict(
+            title='my title',
+            header='my header',
+            footer='my footer',
+            notes='my notes',
+            min_base_size=50,
+            palette={
+                "brand": ["#111111", "#222222", "#333333"],
+                "static_colors": ["#444444", "#555555", "#666666"],
+                "base": ["#777777", "#888888", "#999999"],
+            }
+        )
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'header': 'my header',
+                'footer': 'my footer',
+                'title': 'my title',
+                'display_settings': {'palette': {
+                    'base': ['#777777', '#888888', '#999999'],
+                    'brand': ['#111111', '#222222', '#333333'],
+                    'static_colors': ['#444444', '#555555', '#666666']},
+                    'minBaseSize': {'value': 50}
+                },
+                'filters': None,
+                'notes': 'my notes',
+                'force': False,
+                'where': None}
+        }
+
+        ds.create_crunchbox(**call_params)
+        ds_mock.boxdata.create.assert_called_with(expected_payload)
+
+    def test_create_crunchbox_defaults(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'header': '',
+                'footer': '',
+                'title': 'CrunchBox for test_dataset_name',
+                'filters': None,
+                'notes': '',
+                'force': False,
+                'where': None}
+        }
+
+        ds.create_crunchbox()
+        ds_mock.boxdata.create.assert_called_with(expected_payload)
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
 
@@ -946,12 +1054,12 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             ds['some_variable']
         assert str(err.value) == \
-            'Dataset %s has no variable some_variable' % ds.name
+            'Dataset %s has no variable with an alias some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
             ds.some_variable
         assert str(err.value) == \
-            'Dataset %s has no attribute some_variable' % ds.name
+               "'Dataset' object has no attribute 'some_variable'"
 
     def test_variable_cast(self):
         variable = MagicMock()
@@ -1043,6 +1151,32 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
 
         ds_res.patch.assert_called_with({
             'current_editor': self.user_url
+        })
+
+
+class TestCurrentOwner(TestDatasetBase, TestCase):
+    user_url = 'https://test.crunch.io/api/users/12345/'
+    user_email = 'test@crunch.com'
+    project_url = 'https://test.crunch.io/api/projects/12345/'
+
+    def test_change_owner_exception(self):
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        with pytest.raises(AttributeError) as e:
+            ds.change_owner(user=self.user_url, project=self.project_url)
+            assert e.message == "Must provide user or project. Not both"
+
+    @mock.patch('scrunch.datasets.get_user')
+    def test_change_owner(self, mocked_get_user):
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        ds_mock = self._dataset_mock()
+        ds = Dataset(ds_mock)
+        ds.change_owner(user=user)
+        ds_mock.patch.assert_called_with({
+            'owner': self.user_url
         })
 
 
@@ -1337,6 +1471,7 @@ class TestRecode(TestDatasetBase):
             'element': 'shoji:entity',
             'body': {
                 'description': '',
+                'notes': '',
                 'alias': 'cat',
                 'name': 'My cat',
                 'expr': {
@@ -1457,6 +1592,7 @@ class TestRecode(TestDatasetBase):
             'body': {
                 'alias': 'mr',
                 'description': '',
+                'notes': '',
                 'name': 'my mr',
                 'derivation': {
                     'function': 'array',
@@ -1561,6 +1697,12 @@ class TestRecode(TestDatasetBase):
                                     }]
                                 }
                             }
+                        }, {
+                            'value': [
+                                '0001',
+                                '0002',
+                                '0003'
+                            ]
                         }]
                     }]
                 }
@@ -2914,14 +3056,198 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(ValueError):
             ds.order['|'].create_group('My new|Group')
 
+        ds.order['|Account'].create_group('New empty')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/',       # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/',                       # religion
+            ]
+        }
+
         with pytest.raises(ValueError):
             ds.order['|'].create_group(
                 'Very very very long name for the new Group which should not '
                 'be allowed at all'
             )
 
-        with pytest.raises(ValueError):
-            ds.order['|Account'].create_group('@##$')
+        ds.order['|Account'].create_group('Gewürze / Inhaltsstoffe', alias=[
+            'music', 'religion'])
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/'        # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|User Information'].create_group('PII', alias=[
+            'first_name', 'last_name'], after='gender')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/',       # address
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
+        ds.order['|Account|Location'].create_group('PII', alias=[ 'address'],
+                                                   before='zip_code')
+
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000001/',                       # id
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                '../000007/',       # gender
+                                {
+                                    'PII': [
+                                        '../000005/',       # first_name
+                                        '../000006/',       # last_name
+                                    ]
+                                },
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                {
+                                    'PII': [
+                                        '../000011/'       # address
+                                    ]
+                                },
+                                '../000010/',       # zip_code
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                '../000003/',       # registration_time
+                                '../000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                '../000012/',       # music
+                                '../000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
 
     def test_group_renaming(self):
         ds = self.ds
@@ -2972,9 +3298,6 @@ class TestHierarchicalOrder(TestCase):
                 'Very very very long new name for the Group which should not '
                 'be allowed at all'
             )
-
-        with pytest.raises(ValueError):
-            ds.order['|Account'].rename('@##$.')
 
     def test_move_group(self):
         ds = self.ds
@@ -3058,6 +3381,70 @@ class TestHierarchicalOrder(TestCase):
         with pytest.raises(scrunch.exceptions.InvalidPathError):
             var.move('|Account|Invalid Group')
 
+        var.move('|Account', before='registration_time')
+        assert self._get_update_payload(var.dataset) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000001/',               # id
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000013/'                        # religion
+            ]
+        }
+
+        var.move('|', after='music')
+        assert self._get_update_payload(var.dataset) == {
+            'element': 'shoji:order',
+            'graph': [
+                '../000002/',                       # hobbies
+                {
+                    'Account': [
+                        '../000003/',               # registration_time
+                        '../000004/',               # last_login_time
+                        {
+                            'User Information': [
+                                '../000005/',       # first_name
+                                '../000006/',       # last_name
+                                '../000007/',       # gender
+                            ]
+                        },
+                        {
+                            'Location': [
+                                '../000008/',       # country
+                                '../000009/',       # city
+                                '../000010/',       # zip_code
+                                '../000011/'        # address
+                            ]
+                        }
+                    ]
+                },
+                '../000012/',                       # music
+                '../000001/',                       # id
+                '../000013/'                        # religion
+            ]
+        }
+
     def test_order_synchronization(self):
         ds = self.ds
 
@@ -3074,6 +3461,68 @@ class TestHierarchicalOrder(TestCase):
         ds._revision = 'two'
         assert isinstance(ds.order['|'], scrunch.datasets.Group)
         assert ds._hier_calls == 2
+
+    def test_order_iteration(self):
+        ds = self.ds
+
+        # consume all items in the dataset order
+        items = [item for item in ds.order]
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_values(self):
+        ds = self.ds
+
+        items = ds.order.values()
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_itervalues(self):
+        ds = self.ds
+
+        items = [item for item in ds.order.itervalues()]
+
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
+
+    def test_order_iteration_keys(self):
+        ds = self.ds
+
+        keys = ds.order.keys()
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+
+    def test_order_iteration_iterkeys(self):
+        ds = self.ds
+
+        keys = [k for k in ds.order.iterkeys()]
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+
+    def test_order_iteration_items(self):
+        ds = self.ds
+
+        keys = []
+        items = []
+        for k, v in ds.order.items():
+            keys.append(k)
+            items.append(v)
+
+        assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
+        assert isinstance(items[0], mock.MagicMock)  # id
+        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[3], mock.MagicMock)  # music
+        assert isinstance(items[4], mock.MagicMock)  # religion
 
 
 class TestDatasetSettings(TestCase):
@@ -3152,7 +3601,8 @@ class TestDatasetSettings(TestCase):
         assert _headers == {'Content-Type': 'application/json'}
 
         ds.change_settings(
-            viewers_can_export=True, viewers_can_change_weight=True
+            viewers_can_export=True, viewers_can_change_weight=True,
+            viewers_can_share=False
         )
         _url = ds.resource.session.patch.call_args_list[-1][0][0]
         _payload = json.loads(ds.resource.session.patch.call_args_list[-1][0][1])
@@ -3160,7 +3610,8 @@ class TestDatasetSettings(TestCase):
         assert _url == self.ds_url + 'settings/'
         assert _payload == {
             'viewers_can_export': True,
-            'viewers_can_change_weight': True
+            'viewers_can_change_weight': True,
+            'viewers_can_share': False
         }
         assert _headers == {'Content-Type': 'application/json'}
 
@@ -3258,14 +3709,23 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.csv')
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {'use_category_ids': True}
+        assert export_options == {
+            'options': {
+                'use_category_ids': True
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
+
+    def test_basic_json_export(self, export_ds_mock, dl_file_mock):
+        ds = self.ds
+        ds.resource.table.__getitem__.return_value = 'json serializable'
+        ds.export('export.csv', metadata_path='metadata.json')
+
+        ds.resource.table.__getitem__.assert_called_with('metadata')
 
     def test_csv_export_options(self, export_ds_mock, dl_file_mock):
         ds = self.ds
@@ -3273,12 +3733,14 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.csv', options={'use_category_ids': False})
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'csv'
-        assert export_options == {'use_category_ids': False}
+        assert export_options == {
+            'options': {
+                'use_category_ids': False
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.csv')
 
@@ -3295,15 +3757,15 @@ class TestDatasetExport(TestCase):
 
         ds.export('export.sav', format='spss')
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'spss'
         assert export_options == {
-            'prefix_subvariables': False,
-            'var_label_field': 'description'
-        }
+            'options': {
+                'prefix_subvariables': False,
+                'var_label_field': 'description'
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
@@ -3320,15 +3782,15 @@ class TestDatasetExport(TestCase):
             }
         )
 
-        export_payload = export_ds_mock.call_args_list[0][0][1]
         export_format = export_ds_mock.call_args_list[0][1].get('format')
-        export_options = export_payload.get('options', {})
+        export_options = export_ds_mock.call_args_list[0][1].get('options', {})
 
         assert export_format == 'spss'
         assert export_options == {
-            'prefix_subvariables': True,
-            'var_label_field': 'name'
-        }
+            'options': {
+                'var_label_field': 'name',
+                'prefix_subvariables': True
+        }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
@@ -3383,3 +3845,158 @@ class TestVariableIterator(TestDatasetBase):
         ds_mock = self._dataset_mock(variables=self.variables)
         ds = Dataset(ds_mock)
         assert isinstance(ds.values(), list)
+
+    def test_subvar_order(self):
+        subvars_order = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subvars = {
+            # Intentionally unordered
+            '0003': {
+                'id': '0003',
+                'alias': 'subvar_3'
+            },
+            '0001': {
+                'id': '0001',
+                'alias': 'subvar_1'
+            },
+            '0004': {
+                'id': '0004',
+                'alias': 'subvar_4'
+            },
+            '0002': {
+                'id': '0002',
+                'alias': 'subvar_2'
+            },
+        }
+        body = dict(subvariables=subvars_order)
+
+        def getitem(key):
+            if key == 'body':
+                return body
+
+        ds = mock.MagicMock()
+        var_tuple = mock.MagicMock()
+        var_tuple.entity.__getitem__.side_effect = getitem
+        var_tuple.entity.subvariables.index = subvars
+
+        v = Variable(var_tuple=var_tuple, dataset=ds)
+
+        all_ids = [sv['id'] for sv in v]
+        assert all_ids == ['0001', '0002', '0003', '0004']
+
+
+class TestFilter(TestDatasetBase, TestCase):
+
+    _filter = {
+        "element": "shoji:entity",
+        "self": "https://alpha.crunch.io/api/datasets/1/filters/1/",
+        "description": "Detail information for one filter",
+        "body": {
+            "id": "326d5db5a40f4189a8a4cddfe06bb19c",
+            "name": "easy",
+            "is_public": True,
+            "expression": {
+                "function": "in",
+                    "args": [
+                        {
+                            "variable": "https://alpha.crunch.io/api/datasets/1/variables/1/"
+                        },
+                        {
+                            "value": 1
+                        }
+                    ],
+            }
+        }
+    }
+
+    @mock.patch('scrunch.datasets.Dataset.filters')
+    def test_add_filter(self, filters):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        var = ds['var1_alias']
+
+        ds.add_filter(name='filter', expr='var1_alias != 0')
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'filter',
+                'is_public': False,
+                'expression': {
+                    'function': '!=',
+                    'args': [
+                        {'variable': var.url},
+                        {'value': 0}
+                    ]
+                }
+            }
+        }
+        ds.resource.filters.create.assert_called_with(expected_payload)
+
+    def test_edit_filter(self):
+        filter = EditableMock(entity=self._filter)
+        mockfilter = Filter(filter)
+        with pytest.raises(AttributeError):
+            mockfilter.edit(name='edited')
+            mockfilter.resource.edit.assert_called_with({'name': 'edited'})
+
+    def test_filter_class(self):
+        filter = MagicMock(entity=self._filter)
+        mockfilter = Filter(filter)
+        assert mockfilter
+
+
+class TestDeck(TestDatasetBase, TestCase):
+
+    _deck = {
+        "element": "shoji:entity",
+        "self": "https://alpha.crunch.io/api/datasets/abc/decks/1/",
+        "description": "Detail information for one filter",
+        "body": {
+            "id": "326d5db5a40f4189a8a4cddfe06bb19b",
+            "name": "The deck",
+            "is_public": True,
+            "description": "description"
+        }
+    }
+
+    @mock.patch('scrunch.datasets.Dataset.decks')
+    def test_add_deck(self, decks):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+
+        ds.add_deck(name='mydeck', description='description')
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'mydeck',
+                'is_public': False,
+                'description': 'description'
+            }
+        }
+        ds.resource.decks.create.assert_called_with(expected_payload)
+
+    def test_deck_accessor(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+
+        deck = EditableMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        assert ds.decks == {}
+
+    def test_edit_deck(self):
+        deck = EditableMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        with pytest.raises(AttributeError):
+            mockdeck.edit(name='edited')
+            mockdeck.resource.edit.assert_called_with({'name': 'edited'})
+
+    def test_deck_class(self):
+        deck = MagicMock(entity=self._deck)
+        mockdeck = Deck(deck)
+        assert mockdeck

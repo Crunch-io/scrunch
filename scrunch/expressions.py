@@ -45,7 +45,6 @@ import copy
 
 import scrunch
 import six
-
 from scrunch.variables import validate_variable_url
 
 if six.PY2:
@@ -195,6 +194,26 @@ def parse_expr(expr):
                 return {
                     'value': _val
                 }
+            elif isinstance(node, ast.Add):
+                return '+'
+            elif isinstance(node, ast.Sub):
+                return '-'
+            elif isinstance(node, ast.Mult):
+                return '*'
+            elif isinstance(node, ast.Div):
+                return '/'
+            elif isinstance(node, ast.FloorDiv):
+                return '//'
+            elif isinstance(node, ast.Pow):
+                return '^'
+            elif isinstance(node, ast.Mod):
+                return '%'
+            elif isinstance(node, ast.BitAnd):
+                return '&'
+            elif isinstance(node, ast.BitOr):
+                return '|'
+            elif isinstance(node, ast.Invert):
+                return '~'
             elif isinstance(node, ast.Eq):
                 return '=='
             elif isinstance(node, ast.NotEq):
@@ -218,7 +237,7 @@ def parse_expr(expr):
                 if not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
                     # Only list-of-int or list-of-str are currently supported
-                    raise ValueError
+                    raise ValueError('Only list-of-int or list-of-str are currently supported')
 
                 return {
                     'value': [
@@ -231,13 +250,23 @@ def parse_expr(expr):
                 # The variable.
                 _id_node = fields[0][1]
                 if not isinstance(_id_node, ast.Name):
-                    raise ValueError
+                    msg = (
+                        'calling methods of "{}" object not allowed, '
+                        'variable name expected.'
+                    ).format(type(_id_node).__name__)
+                    raise SyntaxError(msg)
+
                 _id = _parse(_id_node, parent=node)
 
                 # The 'method'.
                 method = fields[1][1]
                 if method not in CRUNCH_METHOD_MAP.keys():
-                    raise ValueError
+                    raise ValueError(
+                        'unknown method "{}", valid methods are: [{}]'.format(
+                            method,
+                            ', '.join(CRUNCH_METHOD_MAP.keys())
+                        )
+                    )
 
                 return _id, CRUNCH_METHOD_MAP[method]
 
@@ -282,11 +311,16 @@ def parse_expr(expr):
                         setattr(_val, '_func_type', func_type)
                         _id = _parse(_val, parent=node)
                         if _id not in CRUNCH_FUNC_MAP.keys():
-                            raise ValueError
+                            raise ValueError(
+                                'unknown method "{}", valid methods are: [{}]'.format(
+                                    _id,
+                                    ', '.join(CRUNCH_METHOD_MAP.keys())
+                                )
+                            )
                         op = CRUNCH_FUNC_MAP[_id]
                     elif _name == 'ops':
                         if len(_val) != 1:
-                            raise ValueError
+                            raise ValueError('only one logical operator at a time')
                         op = _parse(_val[0], parent=node)
                     elif _name == 'comparators' or _name == 'args':  # right
                         if len(_val) == 0:
@@ -294,11 +328,11 @@ def parse_expr(expr):
 
                         if func_type == 'method':
                             if len(_val) > 1:
-                                raise ValueError
+                                raise ValueError('1 argument expected, got {}'.format(len(_val)))
 
                             if op == 'duplicates':
                                 # No parameters allowed for 'duplicates'.
-                                raise ValueError
+                                raise ValueError('No parameters allowed for "duplicates"')
 
                         for arg in _val:
                             right = _parse(arg, parent=node)
@@ -307,19 +341,27 @@ def parse_expr(expr):
                             # parameters.
                             if _name == 'args' and func_type == 'method':
                                 if not isinstance(right.get('value'), list):
-                                    raise ValueError
+                                    raise ValueError(
+                                        'expected list, got "{}"'.format(
+                                            type(right.get('value'))
+                                        )
+                                    )
 
                             args.append(right)
 
                     elif _name in ('keywords', 'starargs', 'kwargs') and _val:
                         # We don't support these in function/method calls.
-                        raise ValueError
+                        raise ValueError('unsupported call with argument "{}"'.format(_name))
                     elif _name == 'operand' and isinstance(node, ast.UnaryOp):
                         right = _parse(_val, parent=node)
                         args.append(right)
                     elif isinstance(_val, list):
                         for arg in _val:
                             args.append(_parse(arg, parent=node))
+                    elif isinstance(_val, ast.BinOp):
+                        op = _parse(_val.op, _val)
+                        args.append(_parse(_val.left, _val))
+                        args.append(_parse(_val.right, _val))
 
                 if op:
                     if op is NOT_IN:
@@ -397,12 +439,36 @@ def get_dataset_variables(ds):
     return variables
 
 
+def adapt_multiple_response(ds, var_url, values):
+    """
+    Converts multiple response arguments
+    to column.
+    :return: tuple of the new args for multiple_response and
+    a flag to indicate we don't need recursive nesting of this
+    expression.
+    """
+    # convert value --> column and change ids to aliases
+    var_index = ds.variables.index
+    subvariable_urls = var_index[var_url]['subvariables']
+    variable = var_index[var_url].entity
+    aliases = []
+    for sub_var in subvariable_urls:
+        subvar_id = variable.subvariables.index[sub_var]['id']
+        subvar_alias = variable.body.subreferences[sub_var]['alias']
+        aliases.append((subvar_id, subvar_alias))
+    cat_to_ids = [
+        tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
+    return [{'variable': var_url}, {'column': cat_to_ids}], False
+
+
 def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
-    (i.e. a Shoji entity), this function returns a new expression object
-    (or a list of new expression objects) with all variable aliases
-    transformed into variable URLs, just as the crunch API needs them to be.
+    (i.e. a Shoji entity), this function returns a tuple, the first element is
+    new expression object (or a list of new expression objects) with all
+    variable aliases transformed into variable URLs and the second element
+    of the tuple is a flag indicating if the expressions needs nesting/wrapping
+    in `or` functions (for the case when an array variable is passed).
     """
     base_url = ds.self
     variables = get_dataset_variables(ds)
@@ -456,6 +522,14 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
+        # special case for multiple_response variables
+        if len(subitems) == 2:
+            if 'value' in subitems[1] and 'variable' in subitems[0]:
+                var_url = subitems[0]['variable']
+                var_index = ds.variables.index
+                if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
+                    return adapt_multiple_response(ds, var_url, subitems[1]['value'])
+
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
                 var_id = variable_id(item['variable'])
@@ -463,13 +537,23 @@ def process_expr(obj, ds):
                 item['value'] = category_ids(var_id, item['value'])
             _subitems.append(item)
 
-        return _subitems
+        return _subitems, True
 
     def _process(obj, variables):
         op = None
         arrays = []
         values = []
         subvariables = []
+        needs_wrap = True
+
+        # inspect function, then inspect variable, if multiple_response,
+        # then change in --> any
+        if 'function' in obj and 'args' in obj:
+            if obj['function'] == 'in':
+                args = obj['args']
+                if 'variable' in args[0]:
+                    if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                        obj['function'] = 'any'
 
         for key, val in obj.items():
             if isinstance(val, dict):
@@ -480,6 +564,7 @@ def process_expr(obj, ds):
                     if isinstance(subitem, dict):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
+
                             arrays.append(subitem.pop('subvariables'))
                         elif 'value' in subitem:
                             values.append(subitem)
@@ -491,7 +576,7 @@ def process_expr(obj, ds):
                 has_variable = any('variable' in item for item in subitems
                                    if not str(item).isdigit())
                 if has_value and has_variable:
-                    subitems = ensure_category_ids(subitems)
+                    subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
                 var = variables.get(val)
@@ -511,13 +596,14 @@ def process_expr(obj, ds):
                         ]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
+
             elif key == 'function':
                 op = val
 
         if subvariables:
             obj['subvariables'] = subvariables
 
-        if arrays and op in ('any', 'all', 'is_valid', 'is_missing'):
+        if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
 
             if len(arrays) != 1:
