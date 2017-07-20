@@ -57,12 +57,14 @@ ARRAY_TYPES = ('categorical_array', 'multiple_response')
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
     'missing': 'is_missing',
+    'bin': 'bin'
 }
 
 CRUNCH_METHOD_MAP = {
     'any': 'any',
     'all': 'all',
-    'duplicates': 'duplicates'
+    'duplicates': 'duplicates',
+    'bin': 'bin'
 }
 
 # according to http://docs.crunch.io/#function-terms
@@ -95,7 +97,6 @@ COMPARISSON_OPERATORS = [
 ]
 
 COMPARISSON_FUNCS = [
-
     # 'between',
     'all',
     'any',
@@ -405,6 +406,11 @@ def parse_expr(expr):
                         obj = _nest(obj['args'], op, concatenator='or')
                     else:
                         obj = _nest(args, op)
+
+            # special case when te expr is just a variable
+            # make sure we parse it's content
+            if not obj and isinstance(node, ast.Expression):
+                return _parse(node.body)
 
         return obj
 

@@ -18,7 +18,7 @@ from scrunch.exceptions import (AuthenticationError, InvalidPathError,
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
-from scrunch.subentity import Deck, Filter
+from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
@@ -1181,6 +1181,19 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         raise TypeError('Use add_deck method to add a new deck')
 
     @property
+    def multitables(self):
+        _multitables = {}
+        for mt in self.resource.multitables.index.values():
+            mt_instance = Multitable(mt)
+            _multitables[mt_instance.name] = mt_instance
+        return _multitables
+    
+    @multitables.setter
+    def multitables(self, _):
+        # Protect the `multitables` property from direct modifications
+        raise TypeError('Use the `create_multitable` method to add one')
+
+    @property
     def crunchboxes(self):
         _crunchboxes = []
         for shoji_tuple in self.resource.boxdata.index.values():
@@ -1373,6 +1386,52 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  is_public=public))
         new_deck = self.resource.decks.create(payload)
         return self.decks[new_deck.self.split('/')[-2]]
+
+    def create_multitable(self, name, template, is_public=False):
+        """
+        template: List of dictionaries with the following keys
+        {"query": <query>, "transform": <transform>|optional}.
+        A query is a variable or a function on a variable: 
+        {"query": bin(birthyr)}
+
+        If transform is specified it must have the form
+        {
+            "query": var_x, 
+            "transform": {"categories": [
+                {
+                    "missing": false,  --> default: False
+                    "hide": true,      --> default: True
+                    "id": 1,
+                    "name": "not asked"
+                },
+                {
+                    "missing": false,
+                    "hide": true,
+                    "id": 4,
+                    "name": "skipped"
+                }
+            ]}
+        }
+        """
+        # build template payload
+        parsed_template = []
+        for q in template:
+            # sometimes q is not a dict but simply a string, convert it to a dict
+            if isinstance(q, str):
+                q = {"query": q}
+            as_json = {}
+            parsed_q = process_expr(parse_expr(q['query']), self.resource)
+            # wrap the query in a list of one dict element
+            as_json['query'] = [parsed_q]
+            if 'transform' in q.keys():
+                as_json['transform'] = q['transform']
+            parsed_template.append(as_json)
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 is_public=is_public,
+                                 template=parsed_template))
+        new_multi = self.resource.multitables.create(payload)
+        return self.multitables[new_multi.body['name']]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
