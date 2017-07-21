@@ -127,9 +127,8 @@ class Multitable(SubEntity):
                 endpoint, 
                 json.dumps(payload), 
                 headers={'Accept': 'application/json'})
-            print(r.headers)
-            return r.json()
-        r = session.post(endpoint, json.dumps(payload))
+        else:
+            r = session.post(endpoint, json.dumps(payload))
         dest_file = URL(r.headers['Location'], '')
         if r.status_code == 202:
             try:
@@ -158,7 +157,7 @@ class Multitable(SubEntity):
         if format not in ['xlsx', 'json']:
             raise  ValueError("Format can only be 'json' or 'xlxs'")
         progress_tracker = DefaultProgressTracking(timeout)
-        url_or_json = self.export_tabbook(
+        url = self.export_tabbook(
             format=format,
             progress_tracker=progress_tracker,
             filter=filter,
@@ -166,9 +165,7 @@ class Multitable(SubEntity):
             options=options,
             weight=weight
         )
-        if format == 'json':
-            return url_or_json
-        download_file(url_or_json, path)
+        download_file(url, path)
 
 
 class Deck(SubEntity):
