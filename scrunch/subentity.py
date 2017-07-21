@@ -150,11 +150,10 @@ class Multitable(SubEntity):
         Exports data as csv to the given path or as a JSON response
         :params: http://docs.crunch.io/#post-body-parameters
         :path: Local Filesystem path to save the file to
-        :filter: Name or Filter instance of a Dataset's filter
+        :filter: Name of Filter instance of a Dataset's filter
         :where: list of variables to include; ['varA', 'varB']
         :options: Display options as python dictionary
         :weight: Name of the weight_variable
-        :return: URL instance containing the url for the final file download
         """
         if format not in ['xlsx', 'json']:
             raise  ValueError("Format can only be 'json' or 'xlxs'")
