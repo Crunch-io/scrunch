@@ -1184,7 +1184,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     def multitables(self):
         _multitables = {}
         for mt in self.resource.multitables.index.values():
-            mt_instance = Multitable(mt)
+            mt_instance = Multitable(mt, self)
             _multitables[mt_instance.name] = mt_instance
         return _multitables
     
@@ -1432,6 +1432,19 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                                  template=parsed_template))
         new_multi = self.resource.multitables.create(payload)
         return self.multitables[new_multi.body['name']]
+
+    def import_multitable(self, name, multi):
+        """
+        Copies a multitable from another Dataset into this one:
+        As described at http://docs.crunch.io/#post176
+        :name: Name of the new multitable
+        :multi: Multitable instance to clone into this Dataset
+        """
+        payload = dict(element='shoji:entity',
+                       body=dict(name=name,
+                                 multitable=multi.resource.self))
+        new_mt = self.resource.multitables.create(payload)
+        return self.multitables[name]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
@@ -1975,8 +1988,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 payload['filter'] = {'filter': filter.resource.self}
             else:
                 payload['filter'] = process_expr(
-                    parse_expr(filter), self.resource
-                )
+                    parse_expr(filter), self.resource)
 
         # convert variable list to crunch identifiers
         if variables and isinstance(variables, list):

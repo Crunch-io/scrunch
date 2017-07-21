@@ -7,6 +7,8 @@ from pycrunch.progress import DefaultProgressTracking
 from pycrunch.lemonpy import URL
 from pycrunch.shoji import wait_progress
 
+from scrunch.helpers import download_file
+
 
 class SubEntity:
     """
@@ -67,30 +69,67 @@ class Multitable(SubEntity):
     _IMMUTABLE_ATTRIBUTES = {'id', }
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
+    def __init__(self, shoji_tuple, ds):
+        self.resource = shoji_tuple.entity
+        # a dataset instance to make things simpler
+        self.ds = ds
+
     def query_cube(self):
         """
         http://docs.crunch.io/#more-complex-multitable-templates
         """
         raise NotImplementedError
 
-    def export_tabbook(self, format='xlsx', progress_tracker=None, filter=None,
-            where=None, options=None, weight=None):
+    def export_tabbook(self, format, progress_tracker=None, filter=None,
+                       where=None, options=None, weight=None):
         """
         An adaption of https://github.com/Crunch-io/pycrunch/blob/master/pycrunch/exporting.py
         to Multitables exports (tabbboks)
-        :params: http://docs.crunch.io/#post-body-parameters
-        :filter: Name of a dataset filter
-        :where: scrunch expression; 'varA > varB'
-        :options: Display options as JSON
-        :weight: URL of a dataset's weight
-        :return: URL instance containing the url for the final file download
         """
-        if format not in ['xlsx', 'json']:
-            raise  ValueError("Format can only be 'json' or 'xlxs'")
+        payload = {}
+
+        # add filter to multitable
+        if filter:
+            if isinstance(filter, Filter):
+                payload['filter'] = [{'filter': filter.resource.self}]
+            else:
+                raise ValueError("filter param must be a Filter instance")
+
+        if options and isinstance(options, dict):
+            payload['options'] = options
+
+        if where:
+            if isinstance(where, list):
+                id_vars = []
+                for var in where:
+                    id_vars.append(self.ds[var].url)
+                # Now build the payload with selected variables
+                payload['where'] = {
+                    'function': 'select',
+                    'args': [{
+                        'map': {
+                            x: {'variable': x} for x in id_vars
+                        }
+                    }]
+                }
+            else:
+                raise ValueError("where param must be a list of variable names")
+
+        if weight:
+            payload['weight'] = self.ds[weight].url
 
         session = self.resource.session
         endpoint = self.resource.views['tabbook']
-        r = session.post(endpoint, json.dumps(options))
+
+        # in case of json format, we need to return the json response
+        if format == 'json':
+            r = session.post(
+                endpoint, 
+                json.dumps(payload), 
+                headers={'Accept': 'application/json'})
+            print(r.headers)
+            return r.json()
+        r = session.post(endpoint, json.dumps(payload))
         dest_file = URL(r.headers['Location'], '')
         if r.status_code == 202:
             try:
@@ -104,19 +143,33 @@ class Multitable(SubEntity):
                 wait_progress(r, session, progress_tracker)
         return dest_file
 
-    def export(self, path, timeout=None):
+    def export(self, path, format='xlsx', timeout=None, filter=None,
+               where=None, options=None, weight=None):
         """
         A tabbook export: http://docs.crunch.io/#tab-books
-        Exports data as csv to the given path
+        Exports data as csv to the given path or as a JSON response
+        :params: http://docs.crunch.io/#post-body-parameters
+        :path: Local Filesystem path to save the file to
+        :filter: Name or Filter instance of a Dataset's filter
+        :where: list of variables to include; ['varA', 'varB']
+        :options: Display options as python dictionary
+        :weight: Name of the weight_variable
+        :return: URL instance containing the url for the final file download
         """
+        if format not in ['xlsx', 'json']:
+            raise  ValueError("Format can only be 'json' or 'xlxs'")
         progress_tracker = DefaultProgressTracking(timeout)
-        url = export_dataset(
-            dataset=self.resource,
-            options=payload,
+        url_or_json = self.export_tabbook(
             format=format,
-            progress_tracker=progress_tracker
+            progress_tracker=progress_tracker,
+            filter=filter,
+            where=where,
+            options=options,
+            weight=weight
         )
-        download_file(url, path)
+        if format == 'json':
+            return url_or_json
+        download_file(url_or_json, path)
 
 
 class Deck(SubEntity):
