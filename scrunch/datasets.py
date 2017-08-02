@@ -1000,9 +1000,11 @@ class DatasetVariablesMixin(collections.Mapping):
         # Check if the attribute corresponds to a variable alias
         variable = self.resource.variables.by('alias').get(item)
         if variable is None:
-            # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable with an alias %s' % (
-                self.name, item))
+            variable = self.resource.variables.by('name').get(item)
+            if variable is None:
+                # Variable doesn't exists, must raise a ValueError
+                raise ValueError('Dataset %s has no variable with a name or alias %s' % (
+                    self.name, item))
         # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
@@ -1025,8 +1027,17 @@ class DatasetVariablesMixin(collections.Mapping):
             yield Variable(var_tuple, self)
 
     def iterkeys(self):
+        """
+        Yield variable alias, since they are unique
+        """
         for var in self._vars:
-            yield var[1].name
+            yield var[1].alias
+
+    def variable_names(self):
+        """
+        Simply return a list of all variable names in the Dataset
+        """
+        return [var[1].name for var in self._vars]
 
     def keys(self):
         return list(self.iterkeys())
@@ -2202,10 +2213,12 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
         # Check if the attribute corresponds to a variable alias
         subvariable = self.resource.subvariables.by('alias').get(item)
         if subvariable is None:
-            # subvariable doesn't exists, must raise a ValueError
-            raise KeyError(
-                'Variable %s has no subvariable with an alias %s' % (self.name,
-                                                                     item))
+            subvariable = self.resource.subvariables.by('name').get(item)
+            if subvariable is None:
+                # subvariable doesn't exists, must raise a ValueError
+                raise KeyError(
+                    'Variable %s has no subvariable with an alias %s' % (
+                        self.name, item))
         # subvariable exists!, return the subvariable Instance
         return Variable(subvariable, self)
 
@@ -2220,13 +2233,22 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
     def __len__(self):
         return len(self.resource.subvariables.index)
 
+    def variable_names(self):
+        """
+        Simply return a list of all subvariable names in the Dataset
+        """
+        sv_names = []
+        for var in self.resource.subvariables.index.items():
+            sv_names.append(var[1].name)
+        return sv_names
+
     def itervalues(self):
         for _, var_tuple in self.resource.subvariables.index.items():
             yield Variable(var_tuple, self)
 
     def iterkeys(self):
         for var in self.resource.subvariables.index.items():
-            yield var[1].name
+            yield var[1].alias
 
 
 class Variable(ReadOnly, DatasetSubvariablesMixin):

@@ -143,7 +143,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
-        assert 'Dataset mocked_dataset has no variable with an alias unknown' in str(err.value)
+        assert 'Dataset mocked_dataset has no variable with a name or alias unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()
