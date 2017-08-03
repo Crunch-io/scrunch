@@ -16,6 +16,7 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
+from scrunch.mutable_dataset import MutableMixin
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
 from scrunch.subentity import Deck, Filter
@@ -1049,7 +1050,7 @@ class DatasetVariablesMixin(collections.Mapping):
         return zip(self.iterkeys(), self.itervalues())
 
 
-class Dataset(ReadOnly, DatasetVariablesMixin):
+class Dataset(ReadOnly, DatasetVariablesMixin, MutableMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
     """
