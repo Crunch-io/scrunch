@@ -706,8 +706,8 @@ class Group(object):
 
 class Order(object):
 
-    def __init__(self, ds):
-        self.ds = ds
+    def __init__(self, resource):
+        self.resource = resource
         self._hier = None
         self._vars = None
         self._graph = None
@@ -715,13 +715,13 @@ class Order(object):
         self._revision = None
 
     def _load_hier(self):
-        self._hier = self.ds.resource.session.get(
-            self.ds.resource.variables.orders.hier
+        self._hier = self.resource.session.get(
+            self.resource.variables.orders.hier
         ).payload
         return self._hier
 
     def _load_vars(self):
-        self._vars = self.ds.resource.variables.by('id')
+        self._vars = self.resource.variables.by('id')
         return self._vars
 
     def _load_graph(self):
@@ -761,8 +761,8 @@ class Order(object):
     def get(self):
         # Returns the synchronized hierarchical order graph.
         if self._sync:
-            ds_state = self.ds.resource.session.get(
-                self.ds.resource.self + 'state/'
+            ds_state = self.resource.session.get(
+                self.resource.self + 'state/'
             ).payload
             if self._revision is None:
                 self._revision = ds_state.body.revision
@@ -1057,7 +1057,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         self._settings = None
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
-        self._order = Order(self)
+        self._order = Order(self.resource)
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
