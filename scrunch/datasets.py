@@ -13,6 +13,7 @@ from pycrunch.exporting import export_dataset
 from pycrunch.importing import Importer
 from pycrunch.shoji import wait_progress
 from scrunch.categories import CategoryList
+from scrunch.cube import get_cube
 from scrunch.exceptions import (AuthenticationError, InvalidPathError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
@@ -21,6 +22,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
+from tabulate import tabulate
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -2612,3 +2614,56 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         target_group.insert(
             self.alias, position=position, before=before, after=after
         )
+
+    def summary(self, names=False, tablefmt='psql'):
+        dimensions = [{'variable': self.alias}]
+        cube = get_cube(self.dataset, dimensions=dimensions)
+        cube_result = cube['value']['result']
+        counts = cube_result['counts']
+        param = 'name' if names else 'alias'
+        valid_formats = 'plain simple grid fancy_grid pipe orgtbl jira psql ' \
+                        'rst mediawiki moinmoin html latex latex_booktabs ' \
+                        'textile'.split(' ')
+        if tablefmt not in valid_formats:
+            raise ValueError(
+                'format must be one of: %s' % ', '.join(valid_formats))
+
+        subvars = self.shoji_tuple.get('subvariables')
+        if subvars:
+            refs = cube_result['dimensions'][1]['references']
+            subrefs = refs['subreferences']
+            categories = cube_result['dimensions'][1]['type']['categories']
+
+            table = []
+            i = 0
+            for ref in subrefs:
+                row = [ref[param]]
+                for c in categories:
+                    row.append(counts[i])
+                    i += 1
+                table.append(row)
+            headers = [param] + [c['id'] for c in categories]
+
+        else:
+            refs = cube_result['dimensions'][0]['references']
+            categories = cube_result['dimensions'][0]['type']['categories']
+
+            table = []
+            for num, c in enumerate(categories):
+                table.append([c['name'], counts[num]])
+            headers = ['category', 'count']
+
+        print('\n      alias: {alias}, id: {id}\n'
+              '       type: {type}\n'
+              'description: {description}'.format(**self.shoji_tuple))
+        if subvars:
+            print('\ncategories:')
+            cat_table = [[c['id'], c['name']] for c in categories]
+            cat_table_header = ['id', 'name']
+            print(tabulate(cat_table,
+                           headers=cat_table_header,
+                           tablefmt=tablefmt))
+        print('\nSummary:')
+        print(tabulate(table,
+                       headers=headers,
+                       tablefmt=tablefmt))

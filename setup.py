@@ -39,6 +39,7 @@ setup_params = dict(
         'pycrunch>=0.4.0',
         'requests',
         'six',
+        'tabulate',
     ],
     tests_require=[
         'backports.unittest_mock',
