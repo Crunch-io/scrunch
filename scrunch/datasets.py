@@ -252,6 +252,7 @@ class Project:
     def __init__(self, project_resource):
         self.resource = project_resource
         self.url = self.resource.self
+        self._order = Order(self.resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -323,6 +324,17 @@ class Project:
             {user.url: {'permissions': {'edit': edit}}}
         )
 
+    @property
+    def order(self):
+        return self._order.get()
+
+    @order.setter
+    def order(self, _):
+        # Protect the `order` from external modifications.
+        raise TypeError(
+            'Unsupported operation on the Hierarchical Order property'
+        )
+
 
 class Path(object):
     def __init__(self, path):
@@ -371,12 +383,23 @@ class Group(object):
         # Load all the elements.
         for element in obj[self.name]:
             if isinstance(element, six.string_types):
-                _id = element.split('/')[-2]
-                var = self.order.vars.get(_id)
-                if var:
-                    self.elements[var['alias']] = var
+                if 'datasets' not in element or 'variables' in element:
+                    # 1. relative variable URL: ../<id>/
+                    # 2. compl variable URL: /api/datasets/<id>/variables/<id>/
+                    _id = element.split('/')[-2]
+                    var = self.order.vars.get(_id)
+                    if var:
+                        self.elements[var['alias']] = var
+                elif 'datasets' in element and 'variables' not in element:
+                    # 3. it's a dataset URL
+                    _id = element.split('/')[-2]
+                    dataset = self.order.datasets.get(_id)
+                    if dataset:
+                        self.elements[dataset.id] = dataset
             elif isinstance(element, Variable):
                 self.elements[element.alias] = element
+            elif isinstance(element, Dataset):
+                self.elements[element.id] = element
             else:
                 subgroup = Group(element, order=self.order, parent=self)
                 self.elements[subgroup.name] = subgroup
@@ -465,11 +488,13 @@ class Group(object):
             alias = [alias]
         if not isinstance(alias, collections.Iterable):
             raise ValueError(
-                'Invalid list of aliases/groups to be inserted into the Group.'
+                'Invalid list of aliases/ids/groups to be inserted'
+                ' into the Group.'
             )
         if not all(isinstance(a, six.string_types) for a in alias):
             raise ValueError(
-                'Only string references to aliases/group names are allowed.'
+                'Only string references to aliases/ids/group names'
+                ' are allowed.'
             )
         return alias
 
@@ -710,19 +735,29 @@ class Order(object):
         self.resource = resource
         self._hier = None
         self._vars = None
+        self._datasets = None
         self._graph = None
         self._sync = True
         self._revision = None
 
     def _load_hier(self):
-        self._hier = self.resource.session.get(
-            self.resource.variables.orders.hier
-        ).payload
+        if hasattr(self.resource, 'variables'):
+            self._hier = self.resource.session.get(
+                self.resource.variables.orders.hier).payload
+        elif hasattr(self.resource, 'datasets'):
+            self._hier = self.resource.session.get(
+                self.resource.datasets.order.self).payload
         return self._hier
 
     def _load_vars(self):
-        self._vars = self.resource.variables.by('id')
+        if hasattr(self.resource, 'variables'):
+            self._vars = self.resource.variables.by('id')
         return self._vars
+
+    def _load_datasets(self):
+        if hasattr(self.resource, 'datasets'):
+            self._datasets = self.resource.datasets.by('id')
+        return self._datasets
 
     def _load_graph(self):
         self._graph = Group({'__root__': self.hier.graph}, order=self)
@@ -749,6 +784,16 @@ class Order(object):
         raise TypeError('Unsupported assignment operation')
 
     @property
+    def datasets(self):
+        if self._datasets is None:
+            self._load_datasets()
+        return self._datasets
+
+    @datasets.setter
+    def datasets(self, _):
+        raise TypeError('Unsupported assignment operation')
+
+    @property
     def graph(self):
         if self._graph is None:
             self._load_graph()
@@ -761,15 +806,19 @@ class Order(object):
     def get(self):
         # Returns the synchronized hierarchical order graph.
         if self._sync:
-            ds_state = self.resource.session.get(
-                self.resource.self + 'state/'
-            ).payload
-            if self._revision is None:
-                self._revision = ds_state.body.revision
-            elif self._revision != ds_state.body.revision:
-                # There's a new dataset revision. Reload the
-                # hierarchical order.
-                self._revision = ds_state.body.revision
+            if hasattr(self.resource, 'variables'):
+                ds_state = self.resource.session.get(
+                    self.resource.self + 'state/'
+                ).payload
+                if self._revision is None:
+                    self._revision = ds_state.body.revision
+                elif self._revision != ds_state.body.revision:
+                    # There's a new dataset revision. Reload the
+                    # hierarchical order.
+                    self._revision = ds_state.body.revision
+                    self._load_hier()
+                    self._load_graph()
+            elif hasattr(self.resource, 'datasets'):
                 self._load_hier()
                 self._load_graph()
         return self
@@ -1243,6 +1292,26 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
         self.resource.delete()
         logging.debug("Deleted dataset.")
+
+    def move(self, path, position=-1, before=None, after=None):
+        """
+        if the owner of this Dataset is a Project we can move inside the
+        projects order hierarchy
+        """
+        if not isinstance(self.owner, Project):
+            raise RuntimeError(
+                'Dataset %s is not assinged to a project' % self.id)
+
+        position = 0 if (before or after) else position
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        target_group = self.owner.order[str(path)]
+        target_group.insert(
+            self.id, position=position, before=before, after=after
+        )
 
     def change_editor(self, user):
         """
