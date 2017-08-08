@@ -1976,7 +1976,7 @@ class TestHierarchicalOrder(TestCase):
         ds = self.ds
 
         assert isinstance(ds.order, scrunch.datasets.Order)
-        assert isinstance(ds.order.graph, scrunch.datasets.Group)  # root group
+        assert isinstance(ds.order.graph, scrunch.order.Group)  # root group
 
     def test_order_property_is_protected_from_modifications(self):
         ds = self.ds
@@ -1994,17 +1994,17 @@ class TestHierarchicalOrder(TestCase):
 
         # The "root" Group.
         root_group = ds.order['|']
-        assert isinstance(root_group, scrunch.datasets.Group)
+        assert isinstance(root_group, scrunch.order.Group)
         assert root_group.is_root
 
         # Sub-groups
         group = ds.order['|Account']
-        assert isinstance(group, scrunch.datasets.Group)
+        assert isinstance(group, scrunch.order.Group)
         assert group.name == 'Account'
         assert group.parent == ds.order.graph
 
         group = ds.order['|Account|User Information|']
-        assert isinstance(group, scrunch.datasets.Group)
+        assert isinstance(group, scrunch.order.Group)
         assert group.name == 'User Information'
         assert group.parent == ds.order['|Account']
 
@@ -2018,12 +2018,12 @@ class TestHierarchicalOrder(TestCase):
         ds = self.ds
 
         acct_group = ds.order['Account']
-        assert isinstance(acct_group, scrunch.datasets.Group)
+        assert isinstance(acct_group, scrunch.order.Group)
         assert acct_group.name == 'Account'
         assert acct_group.parent == ds.order.graph
 
         usr_info_group = acct_group['User Information']
-        assert isinstance(usr_info_group, scrunch.datasets.Group)
+        assert isinstance(usr_info_group, scrunch.order.Group)
         assert usr_info_group.name == 'User Information'
         assert usr_info_group.parent == acct_group
 
@@ -2072,7 +2072,7 @@ class TestHierarchicalOrder(TestCase):
                 'Music',
                 'Religion'
             ],
-            indent=scrunch.datasets.Group.INDENT_SIZE
+            indent=scrunch.order.Group.INDENT_SIZE
         )
 
         # Test sub-group str representation.
@@ -2096,7 +2096,7 @@ class TestHierarchicalOrder(TestCase):
                     ]
                 }
             ],
-            indent=scrunch.datasets.Group.INDENT_SIZE
+            indent=scrunch.order.Group.INDENT_SIZE
         )
 
         assert str(ds.order['|Account|User Information']) == json.dumps(
@@ -2105,7 +2105,7 @@ class TestHierarchicalOrder(TestCase):
                 'Last Name',
                 'Gender'
             ],
-            indent=scrunch.datasets.Group.INDENT_SIZE
+            indent=scrunch.order.Group.INDENT_SIZE
         )
 
     def test_update_hierarchy_order(self):
@@ -3451,15 +3451,15 @@ class TestHierarchicalOrder(TestCase):
         # Only one call to the hierarchical order endpoint should be done as
         # long as the dataset revision doesn't change. More details at
         # .setUp().
-        assert isinstance(ds.order['|'], scrunch.datasets.Group)
-        assert isinstance(ds.order['|Account'], scrunch.datasets.Group)
-        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|'], scrunch.order.Group)
+        assert isinstance(ds.order['|Account'], scrunch.order.Group)
+        assert isinstance(ds.order['|'], scrunch.order.Group)
         assert ds._hier_calls == 1
 
         # Simulate the dataset having a new revision so that the
         # synchronization mechanism kicks in. More details at .setUp().
         ds._revision = 'two'
-        assert isinstance(ds.order['|'], scrunch.datasets.Group)
+        assert isinstance(ds.order['|'], scrunch.order.Group)
         assert ds._hier_calls == 2
 
     def test_order_iteration(self):
@@ -3470,7 +3470,7 @@ class TestHierarchicalOrder(TestCase):
 
         assert isinstance(items[0], mock.MagicMock)  # id
         assert isinstance(items[1], mock.MagicMock)  # hobbies
-        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[2], scrunch.order.Group)  # Account
         assert isinstance(items[3], mock.MagicMock)  # music
         assert isinstance(items[4], mock.MagicMock)  # religion
 
@@ -3481,7 +3481,7 @@ class TestHierarchicalOrder(TestCase):
 
         assert isinstance(items[0], mock.MagicMock)  # id
         assert isinstance(items[1], mock.MagicMock)  # hobbies
-        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[2], scrunch.order.Group)  # Account
         assert isinstance(items[3], mock.MagicMock)  # music
         assert isinstance(items[4], mock.MagicMock)  # religion
 
@@ -3492,7 +3492,7 @@ class TestHierarchicalOrder(TestCase):
 
         assert isinstance(items[0], mock.MagicMock)  # id
         assert isinstance(items[1], mock.MagicMock)  # hobbies
-        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[2], scrunch.order.Group)  # Account
         assert isinstance(items[3], mock.MagicMock)  # music
         assert isinstance(items[4], mock.MagicMock)  # religion
 
@@ -3520,7 +3520,7 @@ class TestHierarchicalOrder(TestCase):
         assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
         assert isinstance(items[0], mock.MagicMock)  # id
         assert isinstance(items[1], mock.MagicMock)  # hobbies
-        assert isinstance(items[2], scrunch.datasets.Group)  # Account
+        assert isinstance(items[2], scrunch.order.Group)  # Account
         assert isinstance(items[3], mock.MagicMock)  # music
         assert isinstance(items[4], mock.MagicMock)  # religion
 
