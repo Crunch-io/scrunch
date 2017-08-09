@@ -409,7 +409,6 @@ class Order(object):
         self._hier = None
         self._graph = None
         self._sync = True
-        self._revision = None
 
     def _load_hier(self):
         """
@@ -508,6 +507,7 @@ class DatasetVariablesOrder(Order):
     def __init__(self, resource):
         super(DatasetVariablesOrder, self).__init__(resource)
         self._vars = None
+        self._revision = None
 
     def _load_hier(self):
         self._hier = self.resource.session.get(
