@@ -407,7 +407,6 @@ class Order(object):
     def __init__(self, resource):
         self.resource = resource
         self._hier = None
-        self._datasets = None
         self._graph = None
         self._sync = True
         self._revision = None
@@ -548,6 +547,7 @@ class DatasetVariablesOrder(Order):
 class ProjectDatasetsOrder(Order):
     def __init__(self, resource):
         super(ProjectDatasetsOrder, self).__init__(resource)
+        self._datasets = None
 
     def _load_hier(self):
         self._hier = self.resource.session.get(
