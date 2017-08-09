@@ -1114,6 +1114,25 @@ class TestVariables(TestDatasetBase, TestCase):
         assert var.view == dict(show_counts=True)
         var.resource._edit.assert_called_with(**changes)
 
+    def test_integrate_variables(self):
+        ds_mock = mock.MagicMock()
+        var_tuple = mock.MagicMock()
+
+        body = dict(derived=False)
+        def getitem(key):
+            return body[key]
+
+        var_tuple.__getitem__.side_effect = getitem
+        var = Variable(var_tuple, ds_mock)
+        var.integrate()
+        # check we don't call `edit` for base variables
+        assert not var_tuple.entity.edit.called
+
+        # check we call `edit` for derived variables
+        body['derived'] = True
+        var.integrate()
+        var_tuple.entity.edit.assert_called_once_with(derived=False)
+
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'
