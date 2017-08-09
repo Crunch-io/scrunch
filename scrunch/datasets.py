@@ -17,10 +17,10 @@ from scrunch.exceptions import AuthenticationError, InvalidPathError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, subvar_alias)
+from scrunch.order import DatasetVariablesOrder, Path, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-from scrunch.order import Path, DatasetVariablesOrder, ProjectDatasetsOrder
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser

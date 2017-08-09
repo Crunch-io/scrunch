@@ -3,10 +3,10 @@ import json
 import re
 
 import pycrunch
-import six
-from scrunch.exceptions import (InvalidReferenceError, InvalidPathError,
-                                OrderUpdateError)
 import scrunch.datasets
+import six
+from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
+                                OrderUpdateError)
 
 
 class Path(object):
@@ -532,7 +532,8 @@ class DatasetVariablesOrder(Order):
     def get(self):
         # Returns the synchronized hierarchical order graph.
         if self._sync:
-            ds_state = self.resource.session.get(self.resource.state).payload
+            ds_state = self.resource.session.get(
+                self.resource.state.self).payload
             if self._revision is None:
                 self._revision = ds_state.body.revision
             elif self._revision != ds_state.body.revision:

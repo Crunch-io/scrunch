@@ -1965,7 +1965,7 @@ class TestHierarchicalOrder(TestCase):
 
         ds_resource = MagicMock()
         ds_resource.self = self.ds_url
-        ds_resource.state = self.ds_url + 'state/'
+        ds_resource.state.self = self.ds_url + 'state/'
         ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
         ds_resource.variables.by.return_value = variables
         ds_resource.session.get.side_effect = _session_get
