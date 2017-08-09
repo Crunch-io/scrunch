@@ -8,6 +8,7 @@ from scrunch.exceptions import (InvalidReferenceError, InvalidPathError,
                                 OrderUpdateError)
 import scrunch.datasets
 
+
 class Path(object):
     def __init__(self, path):
         if not isinstance(path, six.string_types):
@@ -406,30 +407,17 @@ class Order(object):
     def __init__(self, resource):
         self.resource = resource
         self._hier = None
-        self._vars = None
         self._datasets = None
         self._graph = None
         self._sync = True
         self._revision = None
 
     def _load_hier(self):
-        if hasattr(self.resource, 'variables'):
-            self._hier = self.resource.session.get(
-                self.resource.variables.orders.hier).payload
-        elif hasattr(self.resource, 'datasets'):
-            self._hier = self.resource.session.get(
-                self.resource.datasets.order.self).payload
+        """
+        subclasses need to overwrite this method in order to get the updated
+        order hierarchy
+        """
         return self._hier
-
-    def _load_vars(self):
-        if hasattr(self.resource, 'variables'):
-            self._vars = self.resource.variables.by('id')
-        return self._vars
-
-    def _load_datasets(self):
-        if hasattr(self.resource, 'datasets'):
-            self._datasets = self.resource.datasets.by('id')
-        return self._datasets
 
     def _load_graph(self):
         self._graph = Group({'__root__': self.hier.graph}, order=self)
@@ -446,26 +434,6 @@ class Order(object):
         raise TypeError('Unsupported assignment operation')
 
     @property
-    def vars(self):
-        if self._vars is None:
-            self._load_vars()
-        return self._vars
-
-    @vars.setter
-    def vars(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    @property
-    def datasets(self):
-        if self._datasets is None:
-            self._load_datasets()
-        return self._datasets
-
-    @datasets.setter
-    def datasets(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    @property
     def graph(self):
         if self._graph is None:
             self._load_graph()
@@ -474,26 +442,6 @@ class Order(object):
     @graph.setter
     def graph(self, _):
         raise TypeError('Unsupported assignment operation')
-
-    def get(self):
-        # Returns the synchronized hierarchical order graph.
-        if self._sync:
-            if hasattr(self.resource, 'variables'):
-                ds_state = self.resource.session.get(
-                    self.resource.self + 'state/'
-                ).payload
-                if self._revision is None:
-                    self._revision = ds_state.body.revision
-                elif self._revision != ds_state.body.revision:
-                    # There's a new dataset revision. Reload the
-                    # hierarchical order.
-                    self._revision = ds_state.body.revision
-                    self._load_hier()
-                    self._load_graph()
-            elif hasattr(self.resource, 'datasets'):
-                self._load_hier()
-                self._load_graph()
-        return self
 
     def _build_graph_structure(self):
 
@@ -557,3 +505,71 @@ class Order(object):
         return self.graph[item]
 
 
+class DatasetVariablesOrder(Order):
+    def __init__(self, resource):
+        super(DatasetVariablesOrder, self).__init__(resource)
+        self._vars = None
+
+    def _load_hier(self):
+        self._hier = self.resource.session.get(
+            self.resource.variables.orders.hier).payload
+        return self._hier
+
+    def _load_vars(self):
+        self._vars = self.resource.variables.by('id')
+        return self._vars
+
+    @property
+    def vars(self):
+        if self._vars is None:
+            self._load_vars()
+        return self._vars
+
+    @vars.setter
+    def vars(self, _):
+        raise TypeError('Unsupported assignment operation')
+
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            ds_state = self.resource.session.get(self.resource.state).payload
+            if self._revision is None:
+                self._revision = ds_state.body.revision
+            elif self._revision != ds_state.body.revision:
+                # There's a new dataset revision. Reload the
+                # hierarchical order.
+                self._revision = ds_state.body.revision
+                self._load_hier()
+                self._load_graph()
+        return self
+
+
+class ProjectDatasetsOrder(Order):
+    def __init__(self, resource):
+        super(ProjectDatasetsOrder, self).__init__(resource)
+
+    def _load_hier(self):
+        self._hier = self.resource.session.get(
+            self.resource.datasets.order.self).payload
+        return self._hier
+
+    def _load_datasets(self):
+        self._datasets = self.resource.datasets.by('id')
+        return self._datasets
+
+    @property
+    def datasets(self):
+        if self._datasets is None:
+            self._load_datasets()
+        return self._datasets
+
+    @datasets.setter
+    def datasets(self, _):
+        raise TypeError('Unsupported assignment operation')
+
+    def get(self):
+        # Returns the synchronized hierarchical order graph.
+        if self._sync:
+            self._load_hier()
+            self._load_graph()
+        return self

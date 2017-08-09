@@ -1965,6 +1965,7 @@ class TestHierarchicalOrder(TestCase):
 
         ds_resource = MagicMock()
         ds_resource.self = self.ds_url
+        ds_resource.state = self.ds_url + 'state/'
         ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
         ds_resource.variables.by.return_value = variables
         ds_resource.session.get.side_effect = _session_get
@@ -1975,7 +1976,7 @@ class TestHierarchicalOrder(TestCase):
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
 
-        assert isinstance(ds.order, scrunch.datasets.Order)
+        assert isinstance(ds.order, scrunch.order.DatasetVariablesOrder)
         assert isinstance(ds.order.graph, scrunch.order.Group)  # root group
 
     def test_order_property_is_protected_from_modifications(self):

@@ -20,7 +20,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
 from scrunch.subentity import Deck, Filter
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-from scrunch.order import Order, Path
+from scrunch.order import Path, DatasetVariablesOrder, ProjectDatasetsOrder
 
 if six.PY2:  # pragma: no cover
     import ConfigParser as configparser
@@ -252,7 +252,7 @@ class Project:
     def __init__(self, project_resource):
         self.resource = project_resource
         self.url = self.resource.self
-        self._order = Order(self.resource)
+        self._order = ProjectDatasetsOrder(self.resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -557,7 +557,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         self._settings = None
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
-        self._order = Order(self.resource)
+        self._order = DatasetVariablesOrder(self.resource)
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
