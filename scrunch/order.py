@@ -56,26 +56,33 @@ class Group(object):
         # Load all the elements.
         for element in obj[self.name]:
             if isinstance(element, six.string_types):
+                _id = element.split('/')[-2]
+                # NOTE: instantiating Variable/Dataset here seems overkill to
+                # me. While its as simple as `Dataset(dataset.entity)` for the
+                # `dataset` tuple below, for the Variable we would first need
+                # to instantiate it's `Dataset`, going through all this order
+                # machinery again...
                 if 'datasets' not in element or 'variables' in element:
                     # 1. relative variable URL: ../<id>/
                     # 2. compl variable URL: /api/datasets/<id>/variables/<id>/
-                    _id = element.split('/')[-2]
                     var = self.order.vars.get(_id)
                     if var:
-                        self.elements[var['alias']] = var
+                        self.elements[var.alias] = var
                 elif 'datasets' in element and 'variables' not in element:
                     # 3. it's a dataset URL
-                    _id = element.split('/')[-2]
                     dataset = self.order.datasets.get(_id)
                     if dataset:
                         self.elements[dataset.id] = dataset
+            elif isinstance(element, dict):
+                subgroup = Group(element, order=self.order, parent=self)
+                self.elements[subgroup.name] = subgroup
+            # TODO unreached code
             elif isinstance(element, scrunch.datasets.Variable):
                 self.elements[element.alias] = element
             elif isinstance(element, scrunch.datasets.Dataset):
                 self.elements[element.id] = element
             else:
-                subgroup = Group(element, order=self.order, parent=self)
-                self.elements[subgroup.name] = subgroup
+                raise TypeError('Invalid OrderObject %s' % element)
 
     def __str__(self):
         def _get_elements(group):
@@ -83,10 +90,12 @@ class Group(object):
             for key, obj in list(group.elements.items()):
                 if isinstance(obj, Group):
                     elements.append({key: _get_elements(obj)})
-                elif isinstance(obj, scrunch.datasets.Variable):
+                # TODO unreached code
+                elif isinstance(obj, (scrunch.datasets.Variable,
+                                      scrunch.datasets.Dataset)):
                     elements.append(obj.name)
                 else:
-                    elements.append(obj['name'])
+                    elements.append(obj.name)
             return elements
 
         str_elements = _get_elements(self)
@@ -255,20 +264,20 @@ class Group(object):
                 elements_to_move[element_name] = \
                     (self.elements[element_name], '__move__')
             else:
-                current_group = self.order.graph.find(element_name)
+                current_group = self.order.group.find(element_name)
                 if current_group:
                     # A variable.
                     elements_to_move[element_name] = \
-                        (current_group, '__migrate_var__')
+                        (current_group, '__migrate_element__')
                 else:
                     # Not a variable. A group, maybe?
-                    group_to_move = self.order.graph.find_group(element_name)
+                    group_to_move = self.order.group.find_group(element_name)
                     if group_to_move:
                         elements_to_move[element_name] = \
                             (group_to_move, '__migrate_group__')
                     else:
                         raise ValueError(
-                            'Invalid alias/group name \'%s\'' % element_name
+                            'Invalid alias/id/group name \'%s\'' % element_name
                         )
 
         # Make all necessary changes to the order structure.
@@ -290,7 +299,7 @@ class Group(object):
 
                     if operation == '__move__':
                         _elements[element_name] = obj
-                    elif operation == '__migrate_var__':
+                    elif operation == '__migrate_element__':
                         current_group = obj
                         element = current_group.elements[element_name]
                         del current_group.elements[element_name]
@@ -403,45 +412,53 @@ class Group(object):
 
 
 class Order(object):
+    """
+    How do you expect to use this class?
 
-    def __init__(self, resource):
-        self.resource = resource
-        self._hier = None
-        self._graph = None
-        self._sync = True
+    examples:
+        $ Project.order
+        ...
+        $ Project.order['|'].create_group(
+            'FirstGroup',entities=[ds1.id, ds2.id], before..., after...)
+        $ Project.order['|'].create_group('2ndGroup')
+    """
 
-    def _load_hier(self):
+    def __init__(self, catalog, order):
+        self.catalog = catalog
+        self.order = order
+        self.load(refresh=False)
+
+    def load(self, refresh=True):
+        if refresh:
+            self.catalog.refresh()
+            self.order.refresh()
+        self.group = Group({'__root__': self.order.graph}, order=self)
+
+    def place(self, entity, path, position=-1, before=None, after=None):
         """
-        subclasses need to overwrite this method in order to get the updated
-        order hierarchy
+        place an entity into a specific place in the order hierarchy
         """
-        return self._hier
+        position = 0 if (before or after) else position
+        path = Path(path)
+        if not path.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        target_group = self.group[str(path)]
+        if isinstance(entity, scrunch.datasets.Variable):
+            element = entity.alias
+        elif isinstance(entity, scrunch.datasets.Dataset):
+            element = entity.id
+        else:
+            raise TypeError('entity must be a `Variable` or `Dataset`')
 
-    def _load_graph(self):
-        self._graph = Group({'__root__': self.hier.graph}, order=self)
-        return self._graph
+        target_group.insert(element, position=position,
+                            before=before, after=after)
 
-    @property
-    def hier(self):
-        if self._hier is None:
-            self._load_hier()
-        return self._hier
-
-    @hier.setter
-    def hier(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    @property
-    def graph(self):
-        if self._graph is None:
-            self._load_graph()
-        return self._graph
-
-    @graph.setter
-    def graph(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    def _build_graph_structure(self):
+    def _prepare_shoji_graph(self):
+        """
+        returns shoji:graph ready for the server
+        """
 
         def _get(group):
             _elements = []
@@ -451,126 +468,64 @@ class Order(object):
                         obj.name: _get(obj)
                     })
                 else:
-                    if isinstance(obj, scrunch.datasets.Variable):
-                        _id = obj.id
-                    else:
-                        _id = obj['id']
-                    _elements.append('../%s/' % _id)
+                    url = obj.entity.self
+                    _elements.append(url)
             return _elements
 
-        return _get(self.graph)
+        return _get(self.group)
 
     def update(self):
         updated_order = {
-            'element': 'shoji:order',
-            'graph': self._build_graph_structure()
+            'element': 'shoji:Order',
+            'graph': self._prepare_shoji_graph()
         }
         try:
-            self.hier.put(updated_order)
-        except (pycrunch.ClientError, pycrunch.ServerError) as e:
+            # NOTE: Order has no Attribute edit
+            self.order.put(updated_order)
+        except pycrunch.ClientError as e:
             # Our update to the Hierarchical Order failed. Better reload.
-            self._hier = self._vars = self._graph = None
-            self._load_graph()
+            self.load(refresh=True)
             raise OrderUpdateError(str(e))
 
     # Proxy methods for the __root__ Group
 
     def __str__(self):
-        return str(self.graph)
+        return str(self.group)
 
     def __repr__(self):
         return self.__str__()
 
     def __iter__(self):
-        return self.graph.itervalues()
+        return self.group.itervalues()
 
     def itervalues(self):
-        return self.graph.itervalues()
+        return self.group.itervalues()
 
     def iterkeys(self):
-        return self.graph.iterkeys()
+        return self.group.iterkeys()
 
     def keys(self):
-        return self.graph.keys()
+        return self.group.keys()
 
     def values(self):
-        return self.graph.values()
+        return self.group.values()
 
     def items(self):
-        return self.graph.items()
+        return self.group.items()
 
     def __getitem__(self, item):
-        return self.graph[item]
+        return self.group[item]
 
 
 class DatasetVariablesOrder(Order):
-    def __init__(self, resource):
-        super(DatasetVariablesOrder, self).__init__(resource)
-        self._vars = None
-        self._revision = None
 
-    def _load_hier(self):
-        self._hier = self.resource.session.get(
-            self.resource.variables.orders.hier).payload
-        return self._hier
-
-    def _load_vars(self):
-        self._vars = self.resource.variables.by('id')
-        return self._vars
-
-    @property
-    def vars(self):
-        if self._vars is None:
-            self._load_vars()
-        return self._vars
-
-    @vars.setter
-    def vars(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    def get(self):
-        # Returns the synchronized hierarchical order graph.
-        if self._sync:
-            ds_state = self.resource.session.get(
-                self.resource.state.self).payload
-            if self._revision is None:
-                self._revision = ds_state.body.revision
-            elif self._revision != ds_state.body.revision:
-                # There's a new dataset revision. Reload the
-                # hierarchical order.
-                self._revision = ds_state.body.revision
-                self._load_hier()
-                self._load_graph()
-        return self
+    def load(self, refresh=True):
+        self.vars = self.catalog.by('id')
+        super(DatasetVariablesOrder, self).load(refresh=refresh)
 
 
 class ProjectDatasetsOrder(Order):
-    def __init__(self, resource):
-        super(ProjectDatasetsOrder, self).__init__(resource)
-        self._datasets = None
 
-    def _load_hier(self):
-        self._hier = self.resource.session.get(
-            self.resource.datasets.order.self).payload
-        return self._hier
-
-    def _load_datasets(self):
-        self._datasets = self.resource.datasets.by('id')
-        return self._datasets
-
-    @property
-    def datasets(self):
-        if self._datasets is None:
-            self._load_datasets()
-        return self._datasets
-
-    @datasets.setter
-    def datasets(self, _):
-        raise TypeError('Unsupported assignment operation')
-
-    def get(self):
-        # Returns the synchronized hierarchical order graph.
-        if self._sync:
-            self._load_hier()
-            self._load_graph()
-        return self
+    def load(self, refresh=True):
+        self.datasets = self.catalog.by('id')
+        super(ProjectDatasetsOrder, self).load(refresh=refresh)

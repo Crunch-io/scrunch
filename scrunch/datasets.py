@@ -252,7 +252,8 @@ class Project:
     def __init__(self, project_resource):
         self.resource = project_resource
         self.url = self.resource.self
-        self._order = ProjectDatasetsOrder(self.resource)
+        self.order = ProjectDatasetsOrder(
+            self.resource.datasets, self.resource.datasets.order)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -322,17 +323,6 @@ class Project:
             user = get_user(user)
         self.resource.members.patch(
             {user.url: {'permissions': {'edit': edit}}}
-        )
-
-    @property
-    def order(self):
-        return self._order.get()
-
-    @order.setter
-    def order(self, _):
-        # Protect the `order` from external modifications.
-        raise TypeError(
-            'Unsupported operation on the Hierarchical Order property'
         )
 
 
@@ -511,7 +501,13 @@ class DatasetVariablesMixin(collections.Mapping):
         Helper that takes care of updating self._vars on init and
         whenever the dataset adds a variable
         """
-        self._vars = self.resource.variables.index.items()
+        variables = self.resource.variables
+        order = variables.hier
+        self._vars = variables.index.items()
+
+        # The `order` property, which provides a high-level API for
+        # manipulating the "Hierarchical Order" structure of a Dataset.
+        self.order = DatasetVariablesOrder(variables, order)
 
     def __iter__(self):
         for var in self._vars:
@@ -555,9 +551,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         super(Dataset, self).__init__(resource)
         self._settings = None
-        # The `order` property, which provides a high-level API for
-        # manipulating the "Hierarchical Order" structure of a Dataset.
-        self._order = DatasetVariablesOrder(self.resource)
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
@@ -631,17 +624,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         self.resource.patch({'owner': owner_url})
         self.resource.refresh()
-
-    @property
-    def order(self):
-        return self._order.get()
-
-    @order.setter
-    def order(self, _):
-        # Protect the `order` from external modifications.
-        raise TypeError(
-            'Unsupported operation on the Hierarchical Order property'
-        )
 
     @property
     def settings(self):
@@ -743,26 +725,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
         self.resource.delete()
         logging.debug("Deleted dataset.")
-
-    def move(self, path, position=-1, before=None, after=None):
-        """
-        if the owner of this Dataset is a Project we can move inside the
-        projects order hierarchy
-        """
-        if not isinstance(self.owner, Project):
-            raise RuntimeError(
-                'Dataset %s is not assinged to a project' % self.id)
-
-        position = 0 if (before or after) else position
-        path = Path(path)
-        if not path.is_absolute:
-            raise InvalidPathError(
-                'Invalid path %s: only absolute paths are allowed.' % path
-            )
-        target_group = self.owner.order[str(path)]
-        target_group.insert(
-            self.id, position=position, before=before, after=after
-        )
 
     def change_editor(self, user):
         """
@@ -2051,13 +2013,5 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         raise NotImplementedError("Use edit_combination")
 
     def move(self, path, position=-1, before=None, after=None):
-        position = 0 if (before or after) else position
-        path = Path(path)
-        if not path.is_absolute:
-            raise InvalidPathError(
-                'Invalid path %s: only absolute paths are allowed.' % path
-            )
-        target_group = self.dataset.order[str(path)]
-        target_group.insert(
-            self.alias, position=position, before=before, after=after
-        )
+        self.dataset.order.place(self, path, position=position,
+                                 before=before, after=after)
