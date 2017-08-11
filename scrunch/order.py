@@ -476,7 +476,7 @@ class Order(object):
 
     def update(self):
         updated_order = {
-            'element': 'shoji:Order',
+            'element': 'shoji:order',
             'graph': self._prepare_shoji_graph()
         }
         try:

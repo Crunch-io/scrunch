@@ -20,6 +20,11 @@ from scrunch.datasets import (Dataset, Variable,
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
+class AttributeDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttributeDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
@@ -1798,197 +1803,174 @@ class TestHierarchicalOrder(TestCase):
     @staticmethod
     def _get_update_payload(ds):
         try:
-            return ds.order.hier.put.call_args_list[-1][0][0]
+            return ds.order.order.put.call_args_list[-1][0][0]
         except IndexError:
             return None
 
     def setUp(self):
         variable_defs = [
-            {
-                'id': '000001',
-                'alias': 'id',
-                'name': 'ID',
-                'type': 'numeric',
-                'is_subvar': False
-            },
-            {
-                'id': '000002',
-                'alias': 'hobbies',
-                'name': 'Hobbies',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000003',
-                'alias': 'registration_time',
-                'name': 'Registration Time',
-                'type': 'numeric',
-                'is_subvar': False
-            },
-            {
-                'id': '000004',
-                'alias': 'last_login_time',
-                'name': 'Last Login Time',
-                'type': 'numeric',
-                'is_subvar': False
-            },
-            {
-                'id': '000005',
-                'alias': 'first_name',
-                'name': 'First Name',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000006',
-                'alias': 'last_name',
-                'name': 'Last Name',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000007',
-                'alias': 'gender',
-                'name': 'Gender',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000008',
-                'alias': 'country',
-                'name': 'Country',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000009',
-                'alias': 'city',
-                'name': 'City',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000010',
-                'alias': 'zip_code',
-                'name': 'Zip Code',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000011',
-                'alias': 'address',
-                'name': 'Address',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000012',
-                'alias': 'music',
-                'name': 'Music',
-                'type': 'text',
-                'is_subvar': False
-            },
-            {
-                'id': '000013',
-                'alias': 'religion',
-                'name': 'Religion',
-                'type': 'text',
-                'is_subvar': False
-            }
+            AttributeDict(
+                id='000001',
+                alias='id',
+                name='ID',
+                type='numeric',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000002',
+                alias='hobbies',
+                name='Hobbies',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000003',
+                alias='registration_time',
+                name='Registration Time',
+                type='numeric',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000004',
+                alias='last_login_time',
+                name='Last Login Time',
+                type='numeric',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000005',
+                alias='first_name',
+                name='First Name',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000006',
+                alias='last_name',
+                name='Last Name',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000007',
+                alias='gender',
+                name='Gender',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000008',
+                alias='country',
+                name='Country',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000009',
+                alias='city',
+                name='City',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000010',
+                alias='zip_code',
+                name='Zip Code',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000011',
+                alias='address',
+                name='Address',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000012',
+                alias='music',
+                name='Music',
+                type='text',
+                is_subvar=False
+            ),
+            AttributeDict(
+                id='000013',
+                alias='religion',
+                name='Religion',
+                type='text',
+                is_subvar=False
+            )
         ]
+
         table = {
             'element': 'crunch:table',
             'self': '%stable/' % self.ds_url,
             'metadata': collections.OrderedDict()
         }
-        variables = dict()
-        hier_order = {
-            'element': 'shoji:order',
-            'self': '%svariables/hier/' % self.ds_url,
-            'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                {
-                    'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
-                        {
-                            'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
-                            ]
-                        },
-                        {
-                            'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
-                            ]
-                        }
-                    ]
-                },
-                '../000012/',                       # music
-                '../000013/'                        # religion
-            ]
+
+        hier_order = AttributeDict()
+        hier_order.put = MagicMock()
+        hier_order.element = 'shoji:order'
+        hier_order.self = '%svariables/hier/' % self.ds_url
+        hier_order.graph = [
+            'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+            'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+            {
+                'Account': [
+                    'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                    'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
+                    {
+                        'User Information': [
+                            'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                            'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                            'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
+                        ]
+                    },
+                    {
+                        'Location': [
+                            'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                            'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                            'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                            'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
+                        ]
+                    }
+                ]
+            },
+            'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+            'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
+        ]
+
+        index = {
+            '%svariables/%s/' % (self.ds_url, var['id']): var
+            for var in variable_defs
         }
 
+        _variables = AttributeDict()
         for var in variable_defs:
-            var_url = '%svariables/%s/' % (self.ds_url, var['id'])
-            _get_func = _build_get_func(var)
-            _var_mock = MagicMock()
-            _var_mock.__getitem__.side_effect = _get_func
-            _var_mock.get.side_effect = _get_func
-            _var_mock.entity.self = var_url
-            _var_mock.entity.body.__getitem__.side_effect = _get_func
-            _var_mock.entity.body.get.side_effect = _get_func
-            table['metadata'][var['id']] = _var_mock
-            variables[var['id']] = _var_mock     # for .variables.by('id')
-            variables[var['alias']] = _var_mock  # for .variables.by('alias')
+            var.entity = AttributeDict()
+            var.entity.self = '{}variables/{}/'.format(self.ds_url, var.id)
+            var.entity_url = '{}variables/{}/'.format(self.ds_url, var.id)
+            table['metadata'][var['id']] = var
+            _variables[var['id']] = var  # for .variables.by('id')
+            _variables[var['alias']] = var  # for .variables.by('alias')
 
-        def _session_get(*args):
-            if args[0] == '{}table/'.format(self.ds_url):
-                return _CrunchPayload(table)
-            elif args[0] == '{}variables/hier/'.format(self.ds_url):
-                self.ds._hier_calls += 1
-                return _CrunchPayload(hier_order)
-            if args[0] == '{}state/'.format(self.ds_url):
-                return _CrunchPayload({
-                    'element': 'shoji:entity',
-                    'self': '%sstate/' % self.ds_url,
-                    'body': _CrunchPayload({
-                        'revision': self.ds._revision
-                    })
-                })
-            return _CrunchPayload()
+        variables = AttributeDict()
+        variables.by = MagicMock(return_value=_variables)
+        variables.index = index
+        variables.hier = hier_order
+        variables.orders = AttributeDict()
+        variables.orders.hier = hier_order
 
         ds_resource = MagicMock()
         ds_resource.self = self.ds_url
-        ds_resource.state.self = self.ds_url + 'state/'
-        ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
-        ds_resource.variables.by.return_value = variables
-        ds_resource.session.get.side_effect = _session_get
+        ds_resource.variables = variables
         self.ds = Dataset(ds_resource)
-        self.ds._revision = 'one'
-        self.ds._hier_calls = 0
 
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
 
         assert isinstance(ds.order, scrunch.order.DatasetVariablesOrder)
-        assert isinstance(ds.order.graph, scrunch.order.Group)  # root group
-
-    def test_order_property_is_protected_from_modifications(self):
-        ds = self.ds
-
-        # The `order` property must be protected from modifications.
-        with pytest.raises(TypeError):
-            ds.order = False
-
-        # The "root" Group must also be protected from modifications.
-        with pytest.raises(TypeError):
-            ds.order.graph = None
+        assert isinstance(ds.order.group, scrunch.order.Group)  # root group
 
     def test_access_with_absolute_paths(self):
         ds = self.ds
@@ -2002,7 +1984,7 @@ class TestHierarchicalOrder(TestCase):
         group = ds.order['|Account']
         assert isinstance(group, scrunch.order.Group)
         assert group.name == 'Account'
-        assert group.parent == ds.order.graph
+        assert group.parent == ds.order.group
 
         group = ds.order['|Account|User Information|']
         assert isinstance(group, scrunch.order.Group)
@@ -2021,7 +2003,7 @@ class TestHierarchicalOrder(TestCase):
         acct_group = ds.order['Account']
         assert isinstance(acct_group, scrunch.order.Group)
         assert acct_group.name == 'Account'
-        assert acct_group.parent == ds.order.graph
+        assert acct_group.parent == ds.order.group
 
         usr_info_group = acct_group['User Information']
         assert isinstance(usr_info_group, scrunch.order.Group)
@@ -2115,31 +2097,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2150,31 +2132,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
             ]
         }
 
@@ -2182,31 +2164,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000013/',                       # religion
-                '../000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
             ]
         }
 
@@ -2214,27 +2196,27 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
@@ -2248,29 +2230,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2280,29 +2262,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000001/',                       # id
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
             ]
         }
 
@@ -2312,29 +2294,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                '../000013/',                       # religion
-                '../000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
             ]
         }
 
@@ -2342,31 +2324,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000002/',                       # hobbies
-                '../000013/',                       # religion
-                '../000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
             ]
         }
 
@@ -2377,31 +2359,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         },
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2409,31 +2391,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         },
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2441,31 +2423,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                         {
                             'Location': [
-                                '../000009/',       # city
-                                '../000011/',       # address
-                                '../000008/',       # country
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2473,31 +2455,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000009/',       # city
-                                '../000008/',       # country
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2505,31 +2487,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000009/',       # city
-                                '../000008/',       # country
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2537,31 +2519,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000009/',       # city
-                                '../000008/',       # country
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
-                        '../000004/',               # last_login_time
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2569,31 +2551,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
-                        '../000004/',               # last_login_time
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000007/',       # gender
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -2604,31 +2586,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
             ]
         }
 
@@ -2636,31 +2618,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
             ]
         }
 
@@ -2668,31 +2650,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
-                '../000004/',                       # last_login_time
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000004/',                       # last_login_time
                 {
                     'Location': [
-                        '../000008/',               # country
-                        '../000009/',               # city
-                        '../000010/',               # zip_code
+                        'http://test.crunch.local/api/datasets/123/variables/000008/',               # country
+                        'http://test.crunch.local/api/datasets/123/variables/000009/',               # city
+                        'http://test.crunch.local/api/datasets/123/variables/000010/',               # zip_code
                     ]
                 },
                 {
                     'Account': [
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
             ]
         }
 
@@ -2702,29 +2684,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'User Information': [
-                        '../000005/',              # first_name
-                        '../000006/',              # last_name
+                        'http://test.crunch.local/api/datasets/123/variables/000005/',              # first_name
+                        'http://test.crunch.local/api/datasets/123/variables/000006/',              # last_name
                     ]
                 },
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
-                '../000004/',                       # last_login_time
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000004/',                       # last_login_time
                 {
                     'Location': [
-                        '../000009/',               # city
-                        '../000010/',               # zip_code
+                        'http://test.crunch.local/api/datasets/123/variables/000009/',               # city
+                        'http://test.crunch.local/api/datasets/123/variables/000010/',               # zip_code
                     ]
                 },
                 {
                     'Account': [
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
             ]
         }
 
@@ -2734,29 +2716,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'User Information': [
-                        '../000005/',              # first_name
-                        '../000006/',              # last_name
+                        'http://test.crunch.local/api/datasets/123/variables/000005/',              # first_name
+                        'http://test.crunch.local/api/datasets/123/variables/000006/',              # last_name
                     ]
                 },
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
-                '../000004/',                       # last_login_time
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000004/',                       # last_login_time
                 {
                     'Location': [
-                        '../000009/',               # city
+                        'http://test.crunch.local/api/datasets/123/variables/000009/',               # city
                     ]
                 },
                 {
                     'Account': [
-                        '../000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2766,29 +2748,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'User Information': [
-                        '../000005/',              # first_name
-                        '../000006/',              # last_name
+                        'http://test.crunch.local/api/datasets/123/variables/000005/',              # first_name
+                        'http://test.crunch.local/api/datasets/123/variables/000006/',              # last_name
                     ]
                 },
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Location': [
-                        '../000009/',               # city
+                        'http://test.crunch.local/api/datasets/123/variables/000009/',               # city
                     ]
                 },
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000007/',                       # gender
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000007/',                       # gender
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2798,29 +2780,29 @@ class TestHierarchicalOrder(TestCase):
             'graph': [
                 {
                     'User Information': [
-                        '../000005/',              # first_name
-                        '../000006/',              # last_name
-                        '../000007/',              # gender
+                        'http://test.crunch.local/api/datasets/123/variables/000005/',              # first_name
+                        'http://test.crunch.local/api/datasets/123/variables/000006/',              # last_name
+                        'http://test.crunch.local/api/datasets/123/variables/000007/',              # gender
                     ]
                 },
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Location': [
-                        '../000009/',               # city
+                        'http://test.crunch.local/api/datasets/123/variables/000009/',               # city
                     ]
                 },
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2828,31 +2810,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000011/',                       # address
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000011/',                       # address
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2860,31 +2842,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000008/',                       # country
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000008/',                       # country
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2892,31 +2874,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000011/',       # address
-                                '../000009/',       # city,
-                                '../000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city,
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
-                '../000010/',                       # zip_code
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000010/',                       # zip_code
             ]
         }
 
@@ -2927,27 +2909,27 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
@@ -2964,29 +2946,29 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         },
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                     ]
                 },
             ]
@@ -3019,35 +3001,35 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',       # registration_time
-                                '../000004/',       # last_login_time
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/',       # last_login_time
                             ]
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -3062,29 +3044,29 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',       # registration_time
-                                '../000004/',       # last_login_time
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/',       # last_login_time
                             ]
                         },
                         {
@@ -3092,8 +3074,8 @@ class TestHierarchicalOrder(TestCase):
                         },
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
             ]
         }
 
@@ -3109,29 +3091,29 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',       # registration_time
-                                '../000004/'        # last_login_time
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/'        # last_login_time
                             ]
                         },
                         {
@@ -3139,8 +3121,8 @@ class TestHierarchicalOrder(TestCase):
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
-                                '../000012/',       # music
-                                '../000013/'        # religion
+                                'http://test.crunch.local/api/datasets/123/variables/000012/',       # music
+                                'http://test.crunch.local/api/datasets/123/variables/000013/'        # religion
                             ]
                         }
                     ]
@@ -3154,33 +3136,33 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                                 {
                                     'PII': [
-                                        '../000005/',       # first_name
-                                        '../000006/',       # last_name
+                                        'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                        'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                                     ]
                                 },
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',       # registration_time
-                                '../000004/'        # last_login_time
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/'        # last_login_time
                             ]
                         },
                         {
@@ -3188,8 +3170,8 @@ class TestHierarchicalOrder(TestCase):
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
-                                '../000012/',       # music
-                                '../000013/'        # religion
+                                'http://test.crunch.local/api/datasets/123/variables/000012/',       # music
+                                'http://test.crunch.local/api/datasets/123/variables/000013/'        # religion
                             ]
                         }
                     ]
@@ -3203,37 +3185,37 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
                         {
                             'User Information': [
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                                 {
                                     'PII': [
-                                        '../000005/',       # first_name
-                                        '../000006/',       # last_name
+                                        'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                        'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
                                     ]
                                 },
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
                                 {
                                     'PII': [
-                                        '../000011/'       # address
+                                        'http://test.crunch.local/api/datasets/123/variables/000011/'       # address
                                     ]
                                 },
-                                '../000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
                             ]
                         },
                         {
                             'Login Details': [
-                                '../000003/',       # registration_time
-                                '../000004/'        # last_login_time
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/'        # last_login_time
                             ]
                         },
                         {
@@ -3241,8 +3223,8 @@ class TestHierarchicalOrder(TestCase):
                         },
                         {
                             'Gewürze / Inhaltsstoffe': [
-                                '../000012/',       # music
-                                '../000013/'        # religion
+                                'http://test.crunch.local/api/datasets/123/variables/000012/',       # music
+                                'http://test.crunch.local/api/datasets/123/variables/000013/'        # religion
                             ]
                         }
                     ]
@@ -3257,31 +3239,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Info': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/'        # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/'                        # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
             ]
         }
 
@@ -3309,29 +3291,29 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                '../000001/',                       # id
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/',       # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/',       # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/',                       # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/',                       # religion
                 {
                     'User Information': [
-                        '../000005/',       # first_name
-                        '../000006/',       # last_name
-                        '../000007/',       # gender
+                        'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                        'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                        'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                     ]
                 },
             ]
@@ -3351,31 +3333,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(var.dataset) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
-                                '../000001/',       # id
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000001/',       # id
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/'                        # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
             ]
         }
 
@@ -3386,31 +3368,31 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(var.dataset) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000001/',               # id
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000001/',               # id
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000013/'                        # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
             ]
         }
 
@@ -3418,50 +3400,33 @@ class TestHierarchicalOrder(TestCase):
         assert self._get_update_payload(var.dataset) == {
             'element': 'shoji:order',
             'graph': [
-                '../000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
                 {
                     'Account': [
-                        '../000003/',               # registration_time
-                        '../000004/',               # last_login_time
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
                         {
                             'User Information': [
-                                '../000005/',       # first_name
-                                '../000006/',       # last_name
-                                '../000007/',       # gender
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
                             ]
                         },
                         {
                             'Location': [
-                                '../000008/',       # country
-                                '../000009/',       # city
-                                '../000010/',       # zip_code
-                                '../000011/'        # address
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
                             ]
                         }
                     ]
                 },
-                '../000012/',                       # music
-                '../000001/',                       # id
-                '../000013/'                        # religion
+                'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
             ]
         }
-
-    def test_order_synchronization(self):
-        ds = self.ds
-
-        # Only one call to the hierarchical order endpoint should be done as
-        # long as the dataset revision doesn't change. More details at
-        # .setUp().
-        assert isinstance(ds.order['|'], scrunch.order.Group)
-        assert isinstance(ds.order['|Account'], scrunch.order.Group)
-        assert isinstance(ds.order['|'], scrunch.order.Group)
-        assert ds._hier_calls == 1
-
-        # Simulate the dataset having a new revision so that the
-        # synchronization mechanism kicks in. More details at .setUp().
-        ds._revision = 'two'
-        assert isinstance(ds.order['|'], scrunch.order.Group)
-        assert ds._hier_calls == 2
 
     def test_order_iteration(self):
         ds = self.ds
@@ -3469,33 +3434,36 @@ class TestHierarchicalOrder(TestCase):
         # consume all items in the dataset order
         items = [item for item in ds.order]
 
-        assert isinstance(items[0], mock.MagicMock)  # id
-        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert items[0].name == 'ID'
+        assert items[1].name == 'Hobbies'
         assert isinstance(items[2], scrunch.order.Group)  # Account
-        assert isinstance(items[3], mock.MagicMock)  # music
-        assert isinstance(items[4], mock.MagicMock)  # religion
+        assert items[2].name == 'Account'
+        assert items[3].name == 'Music'
+        assert items[4].name == 'Religion'
 
     def test_order_iteration_values(self):
         ds = self.ds
 
         items = ds.order.values()
 
-        assert isinstance(items[0], mock.MagicMock)  # id
-        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert items[0].name == 'ID'
+        assert items[1].name == 'Hobbies'
         assert isinstance(items[2], scrunch.order.Group)  # Account
-        assert isinstance(items[3], mock.MagicMock)  # music
-        assert isinstance(items[4], mock.MagicMock)  # religion
+        assert items[2].name == 'Account'
+        assert items[3].name == 'Music'
+        assert items[4].name == 'Religion'
 
     def test_order_iteration_itervalues(self):
         ds = self.ds
 
         items = [item for item in ds.order.itervalues()]
 
-        assert isinstance(items[0], mock.MagicMock)  # id
-        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert items[0].name == 'ID'
+        assert items[1].name == 'Hobbies'
         assert isinstance(items[2], scrunch.order.Group)  # Account
-        assert isinstance(items[3], mock.MagicMock)  # music
-        assert isinstance(items[4], mock.MagicMock)  # religion
+        assert items[2].name == 'Account'
+        assert items[3].name == 'Music'
+        assert items[4].name == 'Religion'
 
     def test_order_iteration_keys(self):
         ds = self.ds
@@ -3519,11 +3487,12 @@ class TestHierarchicalOrder(TestCase):
             items.append(v)
 
         assert keys == ['id', 'hobbies', 'Account', 'music', 'religion']
-        assert isinstance(items[0], mock.MagicMock)  # id
-        assert isinstance(items[1], mock.MagicMock)  # hobbies
+        assert items[0].name == 'ID'
+        assert items[1].name == 'Hobbies'
         assert isinstance(items[2], scrunch.order.Group)  # Account
-        assert isinstance(items[3], mock.MagicMock)  # music
-        assert isinstance(items[4], mock.MagicMock)  # religion
+        assert items[2].name == 'Account'
+        assert items[3].name == 'Music'
+        assert items[4].name == 'Religion'
 
 
 class TestDatasetSettings(TestCase):
