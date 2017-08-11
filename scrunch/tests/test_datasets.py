@@ -14,9 +14,7 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import (Dataset, Variable,
-                              User, Project, Filter,
-                              Deck)
+from scrunch.datasets import (Dataset, Variable, Project, Filter, Deck)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -1795,8 +1793,439 @@ def test_hide_unhide():
     var.unhide()
     var_res.entity.edit.assert_called_with(discarded=False)
 
+class TestProjectsHierarchicalOrder(TestCase):
 
-class TestHierarchicalOrder(TestCase):
+    ds_base = 'http://test.crunch.local/api/datasets/'
+
+    @staticmethod
+    def _get_update_payload(project):
+        try:
+            return project.order.order.put.call_args_list[-1][0][0]
+        except IndexError:
+            return None
+
+    def setUp(self):
+        dataset_defs = [
+            AttributeDict(
+                id='12345',
+                name='test_dataset1',
+                notes='',
+                description='',
+                is_published=False,
+                archived=False,
+                end_date=None,
+                start_date=None,
+            ),
+            AttributeDict(
+                id='67890',
+                name='test_dataset2',
+                notes='',
+                description='',
+                is_published=False,
+                archived=False,
+                end_date=None,
+                start_date=None,
+            )
+        ]
+
+        hier_order = AttributeDict()
+        hier_order.put = MagicMock()
+        hier_order.element = 'shoji:order'
+        hier_order.self = '%svariables/hier/' % self.ds_base
+        hier_order.graph = [
+            {
+                'GroupA': []
+            },
+            '{}{}/'.format(self.ds_base, dataset_defs[0].id),
+            '{}{}/'.format(self.ds_base, dataset_defs[1].id)
+        ]
+
+        _datasets = AttributeDict()
+        for ds in dataset_defs:
+            ds.entity = AttributeDict()
+            ds.self = '{}{}/'.format(self.ds_base, ds.id)
+            ds.entity.self = '{}{}/'.format(self.ds_base, ds.id)
+            ds.entity_url = '{}{}/'.format(self.ds_base, ds.id)
+            ds.body = ds
+            ds.variables = MagicMock()
+            _datasets[ds.id] = ds
+            _datasets[ds.name] = ds
+
+        # we only need one Dataset to move around
+        self.ds = Dataset(_datasets['12345'])
+
+        datasets = AttributeDict()
+        datasets.by = MagicMock(return_value=_datasets)
+        datasets.order = hier_order
+
+        proj_resource = MagicMock()
+        proj_resource.self = 'http://test.crunch.local/api/projects/42/'
+        proj_resource.datasets = datasets
+        self.proj = Project(proj_resource)
+
+    def test_datasets_project_order_loaded_correctly(self):
+        proj = self.proj
+
+        assert isinstance(proj.order, scrunch.order.ProjectDatasetsOrder)
+        assert isinstance(proj.order.group, scrunch.order.Group)
+        assert proj.order.group.name == '__root__'
+
+    def test_update_hierarchy_order(self):
+        """ this marks the initial order of all tests """
+
+        proj = self.proj
+        proj.order.update()
+
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+    def test_access_with_absolute_paths(self):
+        proj = self.proj
+
+        root_group = proj.order['|']
+        assert isinstance(root_group, scrunch.order.Group)
+        assert root_group.is_root
+
+        a_group = proj.order['|GroupA']
+        assert isinstance(a_group, scrunch.order.Group)
+        assert a_group.name == 'GroupA'
+
+    def test_access_with_relative_paths(self):
+        proj = self.proj
+
+        a_group = proj.order['GroupA']
+        assert isinstance(a_group, scrunch.order.Group)
+        assert a_group.name == 'GroupA'
+
+    def test_access_with_the_in_operator(self):
+        proj = self.proj
+
+        assert 'GroupA' in proj.order['|']
+        assert 'Invalid Group' not in proj.order['|']
+
+    def test_element_str_representation(self):
+        proj = self.proj
+
+        # Test first-level str representation.
+        assert str(proj.order) == json.dumps(
+            [
+                {
+                    'GroupA': []
+                },
+                'test_dataset1',
+                'test_dataset2'
+            ],
+            indent=scrunch.order.Group.INDENT_SIZE
+        )
+
+    def test_datasets_movements(self):
+        proj = self.proj
+        proj.order['|'].append('12345')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                'http://test.crunch.local/api/datasets/12345/'
+            ]
+        }
+
+        proj.order.place(self.ds, '|GroupA')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': ['http://test.crunch.local/api/datasets/12345/']
+                },
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+        proj.order.place(self.ds, '|', before='67890')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+        proj.order.place(self.ds, '|', after='67890')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                'http://test.crunch.local/api/datasets/12345/'
+            ]
+        }
+
+        proj.order.place(self.ds, '|', position=0)
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                'http://test.crunch.local/api/datasets/12345/',
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+        proj.order.place(self.ds, '|', position=1)
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+    def test_group_renaming(self):
+        proj = self.proj
+
+        proj.order['|GroupA'].rename('GroupB')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupB': []
+                },
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+        with pytest.raises(ValueError):
+            proj.order['|'].rename('Root')
+
+        with pytest.raises(ValueError):
+            proj.order['|Account'].rename('id')
+
+        with pytest.raises(ValueError):
+            proj.order['|Account'].rename('My new|Group')
+
+        with pytest.raises(ValueError):
+            proj.order['|Account'].rename(
+                'Very very very long new name for the Group which should not '
+                'be allowed at all'
+            )
+
+    def test_create_group(self):
+        proj = self.proj
+
+        proj.order['|'].create_group('GroupB')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupB': []
+                }
+            ]
+        }
+
+        proj.order['|GroupB'].create_group('GroupC', alias='12345')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupB': [
+                        {
+                            'GroupC': ['http://test.crunch.local/api/datasets/12345/']
+                        }
+                    ]
+                }
+            ]
+        }
+
+        proj.order['|GroupB'].create_group('GroupD', before='GroupC')
+        # FIXME
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupB': [
+                        {
+                            'GroupC': ['http://test.crunch.local/api/datasets/12345/']
+                        },
+                        {
+                            'GroupD': []
+                        }
+                    ]
+                }
+            ]
+        }
+
+    def test_move_group(self):
+        proj = self.proj
+
+        group = proj.order['|GroupA']
+        group.move('|', after='12345')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                'http://test.crunch.local/api/datasets/12345/',
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/'
+            ]
+        }
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            proj.order['|Account|Location'].move('|Invalid Group|')
+
+        with pytest.raises(scrunch.exceptions.InvalidPathError):
+            proj.order['|Account|Location'].move('|Account|Location')
+
+    def test_cross_group_movements(self):
+        proj = self.proj
+
+        # prepare initial state
+        proj.order['|'].create_group('GroupB')
+        proj.order.place(self.ds, '|GroupA')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': ['http://test.crunch.local/api/datasets/12345/']
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupB': []
+                }
+            ]
+        }
+
+        # test
+        proj.order.place(self.ds, '|GroupB')
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                {
+                    'GroupA': []
+                },
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupB': ['http://test.crunch.local/api/datasets/12345/']
+                }
+            ]
+        }
+
+    def test_group_level_reordering(self):
+        proj = self.proj
+
+        proj.order['|'].reorder(['12345', '67890', 'GroupA'])
+        assert self._get_update_payload(proj) == {
+            'element': 'shoji:order',
+            'graph': [
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/',
+                {
+                    'GroupA': []
+                }
+            ]
+        }
+
+    def test_find_group(self):
+        proj = self.proj
+
+        group = proj.order['|'].find_group('GroupA')
+        assert isinstance(group, scrunch.order.Group)
+        assert group.name == 'GroupA'
+
+    def test_find_group_of_dataset(self):
+        proj = self.proj
+
+        group = proj.order['|'].find('12345')
+        assert isinstance(group, scrunch.order.Group)
+        assert group.name == '__root__'
+
+    def test_order_iteration(self):
+        proj = self.proj
+
+        # consume all items in the dataset order
+        items = [item for item in proj.order]
+
+        assert isinstance(items[0], scrunch.order.Group)  # GroupA
+        assert items[1].name == 'test_dataset1'
+        assert items[2].name == 'test_dataset2'
+
+    def test_order_iteration_values(self):
+        proj = self.proj
+
+        items = proj.order.values()
+        assert isinstance(items[0], scrunch.order.Group)  # GroupA
+        assert items[1].name == 'test_dataset1'
+        assert items[2].name == 'test_dataset2'
+
+    def test_order_iteration_itervalues(self):
+        proj = self.proj
+
+        items = [item for item in proj.order.itervalues()]
+        assert isinstance(items[0], scrunch.order.Group)  # GroupA
+        assert items[1].name == 'test_dataset1'
+        assert items[2].name == 'test_dataset2'
+
+    def test_order_iteration_keys(self):
+        proj = self.proj
+
+        keys = proj.order.keys()
+        assert keys == ['GroupA', '12345', '67890']
+
+    def test_order_iteration_iterkeys(self):
+        proj = self.proj
+
+        keys = [k for k in proj.order.iterkeys()]
+        assert keys == ['GroupA', '12345', '67890']
+
+    def test_order_iteration_items(self):
+        proj = self.proj
+
+        keys = []
+        items = []
+        for k, v in proj.order.items():
+            keys.append(k)
+            items.append(v)
+
+        assert keys == ['GroupA', '12345', '67890']
+        assert isinstance(items[0], scrunch.order.Group)  # GroupA
+        assert items[1].name == 'test_dataset1'
+        assert items[2].name == 'test_dataset2'
+
+
+class TestDatasetsHierarchicalOrder(TestCase):
 
     ds_url = 'http://test.crunch.local/api/datasets/123/'
 
@@ -1971,6 +2400,7 @@ class TestHierarchicalOrder(TestCase):
 
         assert isinstance(ds.order, scrunch.order.DatasetVariablesOrder)
         assert isinstance(ds.order.group, scrunch.order.Group)  # root group
+        assert ds.order.group.name == '__root__'
 
     def test_access_with_absolute_paths(self):
         ds = self.ds
@@ -3179,7 +3609,7 @@ class TestHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['|Account|Location'].create_group('PII', alias=[ 'address'],
+        ds.order['|Account|Location'].create_group('PII', alias=['address'],
                                                    before='zip_code')
 
         assert self._get_update_payload(ds) == {
@@ -3231,6 +3661,63 @@ class TestHierarchicalOrder(TestCase):
                 }
             ]
         }
+
+        ds.order['|Account|User Information'].create_group('FIXME', before='PII')
+
+        # FIXME
+        assert self._get_update_payload(ds) == {
+            'element': 'shoji:order',
+            'graph': [
+                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
+                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                {
+                    'Account': [
+                        {
+                            'User Information': [
+                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
+                                {
+                                    'PII': [
+                                        'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
+                                        'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
+                                    ]
+                                },
+                                {
+                                    'FIXME': []
+                                }
+                            ]
+                        },
+                        {
+                            'Location': [
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
+                                {
+                                    'PII': [
+                                        'http://test.crunch.local/api/datasets/123/variables/000011/'       # address
+                                    ]
+                                },
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
+                            ]
+                        },
+                        {
+                            'Login Details': [
+                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
+                                'http://test.crunch.local/api/datasets/123/variables/000004/'        # last_login_time
+                            ]
+                        },
+                        {
+                            'New empty': []  # empty group
+                        },
+                        {
+                            'Gewürze / Inhaltsstoffe': [
+                                'http://test.crunch.local/api/datasets/123/variables/000012/',       # music
+                                'http://test.crunch.local/api/datasets/123/variables/000013/'        # religion
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+
 
     def test_group_renaming(self):
         ds = self.ds
