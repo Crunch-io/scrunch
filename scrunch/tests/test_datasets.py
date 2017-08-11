@@ -1913,31 +1913,31 @@ class TestHierarchicalOrder(TestCase):
         hier_order.element = 'shoji:order'
         hier_order.self = '%svariables/hier/' % self.ds_url
         hier_order.graph = [
-            'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
-            'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+            '../000001/',                       # id
+            '../000002/',                       # hobbies
             {
                 'Account': [
-                    'http://test.crunch.local/api/datasets/123/variables/000003/',               # registration_time
-                    'http://test.crunch.local/api/datasets/123/variables/000004/',               # last_login_time
+                    '../000003/',               # registration_time
+                    '../000004/',               # last_login_time
                     {
                         'User Information': [
-                            'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
-                            'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
-                            'http://test.crunch.local/api/datasets/123/variables/000007/'        # gender
+                            '../000005/',       # first_name
+                            '../000006/',       # last_name
+                            '../000007/'        # gender
                         ]
                     },
                     {
                         'Location': [
-                            'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
-                            'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
-                            'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
-                            'http://test.crunch.local/api/datasets/123/variables/000011/'        # address
+                            '../000008/',       # country
+                            '../000009/',       # city
+                            '../000010/',       # zip_code
+                            '../000011/'        # address
                         ]
                     }
                 ]
             },
-            'http://test.crunch.local/api/datasets/123/variables/000012/',                       # music
-            'http://test.crunch.local/api/datasets/123/variables/000013/'                        # religion
+            '../000012/',                       # music
+            '../000013/'                        # religion
         ]
 
         index = {
