@@ -999,14 +999,13 @@ class DatasetVariablesMixin(collections.Mapping):
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
+        variable = self._catalog.by('alias').get(item)
         if variable is None:
-            variable = self.resource.variables.by('name').get(item)
+            variable = self._catalog.by('name').get(item)
             if variable is None:
                 # Variable doesn't exists, must raise a ValueError
-                raise ValueError('Dataset %s has no variable with a name or alias %s' % (
+                raise ValueError('Entity %s has no (sub)variable with a name or alias %s' % (
                     self.name, item))
-        # Variable exists!, return the variable Instance
         return Variable(variable, self)
 
     def _reload_variables(self):
@@ -1014,7 +1013,7 @@ class DatasetVariablesMixin(collections.Mapping):
         Helper that takes care of updating self._vars on init and
         whenever the dataset adds a variable
         """
-        self._vars = self.resource.variables.index.items()
+        self._vars = self._catalog.index.items()
 
     def __iter__(self):
         for var in self._vars:
@@ -1072,6 +1071,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin, MutableMixin):
         self._order = Order(self)
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
+        self._catalog = self.resource.variables
         self._reload_variables()
 
     def __getattr__(self, item):
@@ -2276,56 +2276,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin, MutableMixin):
                     break
 
 
-class DatasetSubvariablesMixin(DatasetVariablesMixin):
-    """
-    Handles a variable subvariables iteration in a dict-like way
-    """
-
-    def __getitem__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        subvariable = self.resource.subvariables.by('alias').get(item)
-        if subvariable is None:
-            subvariable = self.resource.subvariables.by('name').get(item)
-            if subvariable is None:
-                # subvariable doesn't exists, must raise a ValueError
-                raise KeyError(
-                    'Variable %s has no subvariable with an alias %s' % (
-                        self.name, item))
-        # subvariable exists!, return the subvariable Instance
-        return Variable(subvariable, self)
-
-    def __iter__(self):
-        """
-        Iterable of ordered subvariables
-        """
-        sv_index = self.resource.subvariables.index
-        for sv in self.resource['body']['subvariables']:
-            yield sv_index[sv]
-
-    def __len__(self):
-        return len(self.resource.subvariables.index)
-
-    def variable_names(self):
-        """
-        Simply return a list of all subvariable names in the Dataset
-        """
-        sv_names = []
-        for var in self.resource.subvariables.index.items():
-            sv_names.append(var[1].name)
-        return sv_names
-
-    def itervalues(self):
-        for _, var_tuple in self.resource.subvariables.index.items():
-            yield Variable(var_tuple, self)
-
-    def iterkeys(self):
-        for var in self.resource.subvariables.index.items():
-            yield var[1].alias
-
-
-class Variable(ReadOnly, DatasetSubvariablesMixin):
+class Variable(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
+    DatasetVariablesMixin provides for subvariable interactions.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
@@ -2347,6 +2301,8 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self._resource = None
         self.url = var_tuple.entity_url
         self.dataset = dataset
+        self._catalog = self.resource.subvariables
+        self._reload_variables()
 
     @property
     def resource(self):
@@ -2387,215 +2343,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         return CategoryList._from(self.resource)
 
     def hide(self):
-        LOG.debug("HIDING")
         self.resource.edit(discarded=True)
 
     def unhide(self):
-        LOG.debug("UNHIDING")
         self.resource.edit(discarded=False)
-
-    def combine(self, alias=None, map=None, names=None, default='missing',
-                name=None, description=None):
-        # DEPRECATED - USE Dataset.combine*
-        """
-        Implements SPSS-like recode functionality for Crunch variables.
-
-        This method combines Crunch's `combine_categories` and
-        `combine_responses` in a single method when applied to a variable
-        that is deemed as ~categorical~ by the user.
-        """
-        if alias is None:
-            raise TypeError('Missing alias for the recoded variable')
-        if map is None:
-            raise TypeError('Missing recode map')
-        if not isinstance(map, dict) or not map:
-            raise ValueError('Invalid recode map')
-        if default not in ('missing', 'copy'):
-            raise ValueError(
-                'The "default" argument must be either "missing" or "copy"'
-            )
-
-        if 'body' not in self.resource:
-            self.resource.refresh()
-
-        if self.resource.body.type not in ('categorical', 'categorical_array',
-                                           _MR_TYPE):
-            raise TypeError(
-                'Only categorical, categorical_array and multiple_response '
-                'variables are supported'
-            )
-
-        if name is None:
-            name = self.resource.body.name + ' (recoded)'
-
-        if description is None:
-            description = self.resource.body.description
-
-        if self.resource.body.type in ('categorical', 'categorical_array'):
-            # On this case perform a `combine_categories` operation
-
-            if names is None:
-                raise TypeError('Missing category names')
-
-            processed_categories = list()
-            category_defs = list()
-            category_defs_by_id = dict()
-            default_name = 'Missing'
-            existing_categories_by_id = dict()
-            existing_categories_by_name = dict()
-            for existing_category in self.resource.body.get('categories', []):
-                _id = existing_category['id']
-                _name = existing_category['name']
-                existing_categories_by_id[_id] = existing_category
-                existing_categories_by_id[_name] = existing_category
-
-            # 1. Basic category definitions.
-            for _id, value in map.items():
-                if isinstance(_id, int):
-                    if not isinstance(value, (list, tuple, int,
-                                              six.string_types, range)):
-                        raise ValueError('Invalid mapped value')
-                    if isinstance(value, (int, six.string_types)):
-                        value = [value]
-
-                    processed_value = []
-                    for element in value:
-                        if isinstance(element, six.string_types):
-                            try:
-                                element = existing_categories_by_name[element]
-                            except KeyError:
-                                raise ValueError(
-                                    'Invalid category name %s' % element
-                                )
-                            assert isinstance(element, int)
-                        if isinstance(element, int):
-                            if element not in existing_categories_by_id:
-                                raise ValueError(
-                                    'Invalid numeric code %s' % element
-                                )
-                        else:
-                            raise ValueError(
-                                'Invalid mapped value %s' % element
-                            )
-                        processed_value.append(element)
-
-                    category = {
-                        'id': _id,
-                        'name': str(_id),
-                        'missing': False,
-                        'combined_ids': processed_value
-                    }
-                    category_defs.append(category)
-                    category_defs_by_id[_id] = category
-                    processed_categories.extend(list(value))
-            category_defs = sorted(category_defs, key=lambda c: c['id'])
-
-            # 2. Add category names (if defined).
-            if type(names) in (list, tuple):
-                for i, category_name in enumerate(names):
-                    if i < len(category_defs):
-                        category_defs[i]['name'] = category_name
-                    elif i == len(category_defs):
-                        default_name = category_name
-            elif isinstance(names, dict):
-                for _id, category_name in names.items():
-                    if _id in category_defs_by_id:
-                        category_defs_by_id[_id]['name'] = category_name
-
-            # 3. Add the "missing" stuff.
-            missing_category = {
-                'id': max(category_defs_by_id.keys()) + 1,
-                'name': default_name,
-                'missing': True,
-                'combined_ids': []
-            }
-            for existing_category in self.resource.body.get('categories', []):
-                _id = existing_category['id']
-                if _id not in processed_categories:
-                    if default == 'missing':
-                        missing_category['combined_ids'].append(_id)
-                    elif default == 'copy':
-                        category = {
-                            'id': _id,
-                            'name': existing_category['name'],
-                            'missing': existing_category['missing'],
-                            'combined_ids': [_id]
-                        }
-                        category_defs.append(category)
-                        category_defs_by_id[_id] = category
-                    processed_categories.append(_id)
-
-            if default == 'missing':
-                category_defs.append(missing_category)
-
-            # 4. Create the recoded variable.
-            payload = _VARIABLE_PAYLOAD_TMPL.copy()
-            payload['body']['name'] = name
-            payload['body']['alias'] = alias
-            payload['body']['description'] = description
-            payload['body']['expr']['function'] = 'combine_categories'
-            payload['body']['expr']['args'] = [
-                {
-                    'variable': self.resource['self']
-                },
-                {
-                    'value': category_defs
-                }
-            ]
-        else:  # multiple_response
-            # Perform a `combine_responses` derivation
-            subreferences = self.resource.body.get('subreferences', [])
-            subvariables = self.resource.body.get('subvariables', [])
-            assert len(subreferences) == len(subvariables)
-
-            # 1. Gather the URLs of the subvariables.
-            subvar_urls = {
-                subvar['alias']: subvariables[i]
-                for i, subvar in enumerate(subreferences)
-            }
-
-            # 2. Generate the list of response definitions for the recoded
-            #    variable.
-            response_defs = list()
-            for new_subvar_name in sorted(map):
-                value = map[new_subvar_name]
-                if not isinstance(value, (list, tuple, six.string_types)):
-                    raise ValueError
-                if isinstance(value, six.string_types):
-                    value = [value]
-                try:
-                    response = {
-                        'name': new_subvar_name,
-                        'combined_ids': [
-                            subvar_urls[_alias] for _alias in value
-                        ]
-                    }
-                    response_defs.append(response)
-                except KeyError:
-                    raise ValueError(
-                        'Invalid subvariable alias(es) in %s' % value
-                    )
-
-            # 3. Create the recoded variable.
-            payload = _VARIABLE_PAYLOAD_TMPL.copy()
-            payload['body']['name'] = name
-            payload['body']['alias'] = alias
-            payload['body']['description'] = description
-            payload['body']['expr']['function'] = 'combine_responses'
-            payload['body']['expr']['args'] = [
-                {
-                    'variable': self.resource['self']
-                },
-                {
-                    'value': response_defs
-                }
-            ]
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self.dataset._reload_variables()
-        # return an instance of Variable
-        return self.dataset[new_var['body']['alias']]
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -2619,7 +2370,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             body=dict(expr=expr)
         )
         # patch the variable with the new payload
-        return self.resource.patch(payload)
+        resp = self.resource.patch(payload)
+        self._reload_variables()
+        return resp
 
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
