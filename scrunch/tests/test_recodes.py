@@ -143,7 +143,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
-        assert 'Dataset mocked_dataset has no variable with a name or alias unknown' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable with a name or alias unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()
@@ -157,7 +157,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_categories_from_entity(self):
         resource = mock.MagicMock()
@@ -177,7 +177,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_responses_unknown_alias(self):
         resource = mock.MagicMock()
@@ -237,7 +237,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_responses_by_entity(self):
         resource = mock.MagicMock()
@@ -270,7 +270,7 @@ class TestCombine(TestCase):
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response(entity_mock, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
 
 class TestRecode(TestCase):

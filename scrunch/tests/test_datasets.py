@@ -1054,7 +1054,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(ValueError) as err:
             ds['some_variable']
         assert str(err.value) == \
-            'Dataset %s has no variable with a name or alias some_variable' % ds.name
+            'Entity %s has no (sub)variable with a name or alias some_variable' % ds.name
 
         with pytest.raises(AttributeError) as err:
             ds.some_variable
@@ -1466,7 +1466,7 @@ class TestRecode(TestDatasetBase):
         ]
         with pytest.raises(ValueError) as err:
             ds.create_categorical(responses, alias='cat', name='My cat', multiple=False)
-        assert 'Dataset test_dataset_name has no variable' in str(err.value)
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1586,7 +1586,7 @@ class TestRecode(TestDatasetBase):
         ]
         with pytest.raises(ValueError) as err:
             ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
-        assert 'Dataset test_dataset_name has no variable' in str(err.value)
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -3691,80 +3691,6 @@ class TestDatasetJoins(TestCase):
             expected_payload)
 
 
-class TestMutableMixin(TestDatasetBase):
-
-    variables = {
-        'var_a': {
-            'id': '001',
-            'alias': 'var_a',
-            'name': 'Variable A',
-            'type': 'numeric',
-            'is_subvar': False
-        },
-        'var_b': {
-            'id': '002',
-            'alias': 'var_b',
-            'name': 'Variable B',
-            'type': 'categorical',
-            'is_subvar': False
-        }
-    }
-
-    variables_b = {
-        'var_a': {
-            'id': '003',
-            'alias': 'var_a',
-            'name': 'Variable A',
-            'type': 'numeric',
-            'is_subvar': False
-        },
-        'var_b': {
-            'id': '004',
-            'alias': 'var_b',
-            'name': 'Variable B',
-            'type': 'categorical',
-            'is_subvar': False
-        }
-    }
-
-    def test_compare_datasets(self):
-        ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = Dataset(ds_a_mock)
-        ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = Dataset(ds_b_mock)
-        diff = ds_b.compare_dataset(ds_a)
-        expected_diff = {
-            'variables': {
-                'by_type': [],
-                'by_alias': []
-            },
-            'categories': {},
-            'subvariables': {}
-        }
-        assert diff == expected_diff
-
-    def test_append_dataset(self):
-        ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = Dataset(ds_a_mock)
-        ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = Dataset(ds_b_mock)
-
-        with pytest.raises(ValueError) as e:
-            ds_b.append_dataset(ds_a)
-            assert e.message == 'Cannot append dataset to self'
-
-        # edit url
-        ds_a.url = 'http://test.crunch.io/api/datasets/123/'
-        expected_payload = {
-            "element": "shoji:entity",
-            "autorollback": True,
-            "body": {
-                'dataset': ds_a.url
-        }}
-        ds_b.append_dataset(ds_a)
-        ds_b.resource.batches.create.assert_called_with(expected_payload)
-        
-
 @mock.patch('scrunch.datasets.download_file')
 @mock.patch('scrunch.datasets.export_dataset')
 class TestDatasetExport(TestCase):
@@ -3955,12 +3881,13 @@ class TestVariableIterator(TestDatasetBase):
         ds = mock.MagicMock()
         var_tuple = mock.MagicMock()
         var_tuple.entity.__getitem__.side_effect = getitem
-        var_tuple.entity.subvariables.index = subvars
+        # mock it as variables to mimick a subvariables catalog
+        var_tuple.entity.variables.index = subvars
 
         v = Variable(var_tuple=var_tuple, dataset=ds)
 
-        all_ids = [sv['id'] for sv in v]
-        assert all_ids == ['0001', '0002', '0003', '0004']
+        all_ids = [sv[0] for sv in v]
+        assert sorted(all_ids) == ['0001', '0002', '0003', '0004']
 
 
 class TestFilter(TestDatasetBase, TestCase):
@@ -4184,3 +4111,77 @@ class TestMultitable(TestDatasetBase, TestCase):
                 'https://test.crunch.io/api/datasets/123456/multitables/0001/tabbooks/',
                 data=json.dumps(expected_payload)
             )
+
+
+class TestMutableMixin(TestDatasetBase):
+
+    variables = {
+        'var_a': {
+            'id': '001',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'numeric',
+            'is_subvar': False
+        },
+        'var_b': {
+            'id': '002',
+            'alias': 'var_b',
+            'name': 'Variable B',
+            'type': 'categorical',
+            'is_subvar': False
+        }
+    }
+
+    variables_b = {
+        'var_a': {
+            'id': '003',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'numeric',
+            'is_subvar': False
+        },
+        'var_b': {
+            'id': '004',
+            'alias': 'var_b',
+            'name': 'Variable B',
+            'type': 'categorical',
+            'is_subvar': False
+        }
+    }
+
+    def test_compare_datasets(self):
+        ds_a_mock = self._dataset_mock(variables=self.variables)
+        ds_a = Dataset(ds_a_mock)
+        ds_b_mock = self._dataset_mock(variables=self.variables_b)
+        ds_b = Dataset(ds_b_mock)
+        diff = ds_b.compare_dataset(ds_a)
+        expected_diff = {
+            'variables': {
+                'by_type': [],
+                'by_alias': []
+            },
+            'categories': {},
+            'subvariables': {}
+        }
+        assert diff == expected_diff
+
+    def test_append_dataset(self):
+        ds_a_mock = self._dataset_mock(variables=self.variables)
+        ds_a = Dataset(ds_a_mock)
+        ds_b_mock = self._dataset_mock(variables=self.variables_b)
+        ds_b = Dataset(ds_b_mock)
+
+        with pytest.raises(ValueError) as e:
+            ds_b.append_dataset(ds_a)
+            assert e.message == 'Cannot append dataset to self'
+
+        # edit url
+        ds_a.url = 'http://test.crunch.io/api/datasets/123/'
+        expected_payload = {
+            "element": "shoji:entity",
+            "autorollback": True,
+            "body": {
+                'dataset': ds_a.url
+        }}
+        ds_b.append_dataset(ds_a)
+        ds_b.resource.batches.create.assert_called_with(expected_payload)

@@ -1013,6 +1013,12 @@ class DatasetVariablesMixin(collections.Mapping):
         Helper that takes care of updating self._vars on init and
         whenever the dataset adds a variable
         """
+        # this try except block is needed to update the 
+        # subvar or var catalogs once the Entity is modified
+        try:
+            self._catalog = self.resource.variables
+        except AttributeError:
+            self._catalog = self.resource.subvariables
         self._vars = self._catalog.index.items()
 
     def __iter__(self):
@@ -1071,7 +1077,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin, MutableMixin):
         self._order = Order(self)
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
-        self._catalog = self.resource.variables
         self._reload_variables()
 
     def __getattr__(self, item):
@@ -2301,8 +2306,11 @@ class Variable(ReadOnly, DatasetVariablesMixin):
         self._resource = None
         self.url = var_tuple.entity_url
         self.dataset = dataset
-        self._catalog = self.resource.subvariables
-        self._reload_variables()
+        # for Variables with subvariables
+        try:
+            self._reload_variables()
+        except AttributeError:
+            pass
 
     @property
     def resource(self):
