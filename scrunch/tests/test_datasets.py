@@ -16,7 +16,7 @@ from pycrunch.variables import cast
 import scrunch
 from scrunch.datasets import (Dataset, Variable,
                               User, Project, Filter,
-                              Deck)
+                              Deck, Multitable)
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -4074,3 +4074,113 @@ class TestDeck(TestDatasetBase, TestCase):
         deck = MagicMock(entity=self._deck)
         mockdeck = Deck(deck)
         assert mockdeck
+
+
+class TestMultitable(TestDatasetBase, TestCase):
+
+    _multitable = {
+        "element": "shoji:entity",
+        "self": "https://test.crunch.io/api/datasets/123456/multitables/0001/",
+        "session": MagicMock(spec=ElementSession),
+        "views": {
+            "tabbook": "https://test.crunch.io/api/datasets/123456/multitables/0001/tabbook/"},
+        "body": {
+            "id": "326d5db5a40f4189a8a4cddfe06bb19b",
+            "name": "Test multitable",
+            "is_public": True,
+            'template': [
+                {
+                    'query': [
+                        {'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
+                    ]
+                }
+            ]
+        }
+    }
+
+    @mock.patch('scrunch.datasets.Dataset.multitables')
+    def test_add_multitable(self, multitables):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        ds.create_multitable(name='mymulti', template=['var1_alias'])
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'mymulti',
+                'is_public': False,
+                'template': [
+                    {
+                        'query': [
+                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
+                        ]
+                    }
+                ]
+            }
+        }
+        ds.resource.multitables.create.assert_called_with(expected_payload)
+
+    def test_multitable_accessor(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        mt = EditableMock(entity=self._multitable)
+        mockmulti = Multitable(mt, ds)
+        assert type(ds.multitables) == dict
+
+    def test_edit_multitable(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        mt = EditableMock(entity=self._multitable)
+        mockmulti = Multitable(mt, ds)
+        with pytest.raises(AttributeError):
+            mockmulti.edit(name='edited')
+            mockmulti.resource.edit.assert_called_with({'name': 'edited'})
+
+    def test_multitable_class(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        mt = MagicMock(entity=self._multitable)
+        mockmulti = Multitable(mt, ds)
+        assert mockmulti
+
+    def test_multitable_import(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        mt = EditableMock(entity=self._multitable)
+        mockmulti = Multitable(mt, ds)
+        ds_2 = Dataset(ds_res)
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'copied',
+                'multitable': 'https://test.crunch.io/api/datasets/123456/multitables/0001/'
+            }
+        }
+        with pytest.raises(AttributeError):
+            ds_2.import_multitable('copied', mockmulti)
+            ds_2.resource.multitables.create.assert_called_with(expected_payload)
+
+    def test_export_tabbook(self):
+        ds_res = self._dataset_mock()
+        ds = Dataset(ds_res)
+        mt = EditableMock(entity=self._multitable)
+        mockmulti = Multitable(mt, ds)
+        expected_payload = {
+            'weight': 'https://test.crunch.io/api/datasets/123456/variables/0001/',
+            'where': {
+                'args': [
+                    {
+                        'map': {
+                            'https://test.crunch.io/api/datasets/123456/variables/0001/': {
+                            'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
+                        }
+                    }
+                ],
+                'function': 'select'
+            }
+        }
+        with pytest.raises(AttributeError):
+            mockmulti.export_tabbook(format='xlsx', where=['var1_alias'], weight='var1_alias')
+            ds.resource.session.post.assert_called_once_with(
+                'https://test.crunch.io/api/datasets/123456/multitables/0001/tabbooks/',
+                data=json.dumps(expected_payload)
+            )
