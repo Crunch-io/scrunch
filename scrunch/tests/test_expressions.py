@@ -2574,7 +2574,7 @@ class TestExpressionPrettify(TestCase):
         }
 
         ds = mock.MagicMock()
-        ds.__class__ = scrunch.datasets.Dataset
+        ds.__class__ = scrunch.mutable_dataset.MutableDataset
         response = mock.MagicMock()
         response.payload.body.alias = 'age'
 

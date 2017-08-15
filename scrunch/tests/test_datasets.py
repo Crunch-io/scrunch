@@ -14,9 +14,9 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import (Dataset, Variable,
-                              User, Project, Filter,
-                              Deck, Multitable)
+from scrunch.datasets import Variable
+from scrunch.subentity import Filter, Multitable, Deck
+from scrunch.mutable_dataset import MutableDataset
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -163,9 +163,9 @@ class TestDatasetBase(object):
 
 class TestDatasets(TestDatasetBase, TestCase):
 
-    def test_edit_Dataset(self):
+    def test_edit_dataset(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         assert ds.name == 'test_dataset_name'
         changes = dict(name='changed')
@@ -220,7 +220,7 @@ class TestDatasets(TestDatasetBase, TestCase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         ds.resource = mock.MagicMock()
 
@@ -259,7 +259,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def test_create_crunchbox_full(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         call_params = dict(
             title='my title',
@@ -297,7 +297,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def test_create_crunchbox_defaults(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         expected_payload = {
             'element': 'shoji:entity',
@@ -314,6 +314,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds.create_crunchbox()
         ds_mock.boxdata.create.assert_called_with(expected_payload)
 
+
 class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_apply_exclusion(self):
@@ -322,7 +323,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         apply an exclusion filter to a dataset.
         """
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         var = ds['var1_alias']
 
         # Action!
@@ -352,7 +353,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         clear (i.e. remove) the exclusion filter from a dataset.
         """
         ds_res = MagicMock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         ds.exclude()
 
         ds.resource.session.patch.assert_called_once_with(
@@ -367,7 +368,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_gt(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias > 5')
@@ -384,7 +385,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_in(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in [32766]')
@@ -402,7 +403,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_in_multiple(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in (32766, 32767)')
@@ -435,7 +436,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         }
 
         ds_mock = self._dataset_mock(variables=variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var1 = ds['disposition']
         var2 = ds['exit_status']
 
@@ -482,7 +483,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_any(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766])')
@@ -506,7 +507,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_any(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.any([32766])')
@@ -535,7 +536,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_any_multiple(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766, 32767])')
@@ -560,7 +561,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_all(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([32767])')
@@ -582,7 +583,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_all(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.all([32767])')
@@ -611,7 +612,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_all_or_all(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([1]) or var1_alias.all([2])')
@@ -653,7 +654,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_all_or_all(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not(var1_alias.all([1]) or var1_alias.all([2]))')
@@ -700,7 +701,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_duplicates(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.duplicates()')
@@ -719,7 +720,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_valid(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'valid(var1_alias)')
@@ -738,7 +739,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_valid(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not valid(var1_alias)')
@@ -762,7 +763,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_missing(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'missing(var1_alias)')
@@ -781,7 +782,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_missing(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not missing(var1_alias)')
@@ -805,7 +806,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_equal(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias == 1')
@@ -841,7 +842,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             )
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var1 = ds['disposition']
         var2 = ds['exit_status']
 
@@ -962,7 +963,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_dict_expr(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         expr = {
             "args": [
@@ -985,7 +986,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 
     def test_Dataset_attribute_writes(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         assert ds.name == 'test_dataset_name'
 
         with pytest.raises(AttributeError, message=self.error_msg):
@@ -1018,7 +1019,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 
     def test_Variable_attribute_writes(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         with pytest.raises(AttributeError, message=self.error_msg):
@@ -1045,7 +1046,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 class TestVariables(TestDatasetBase, TestCase):
     def test_variable_as_member(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         assert ds.name == self.ds_shoji['body']['name']
         assert ds.id == self.ds_shoji['body']['id']
 
@@ -1059,7 +1060,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(AttributeError) as err:
             ds.some_variable
         assert str(err.value) == \
-               "'Dataset' object has no attribute 'some_variable'"
+            "'MutableDataset' object has no attribute 'some_variable'"
 
     def test_variable_cast(self):
         variable = MagicMock()
@@ -1081,7 +1082,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_edit_Variables(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         var = ds['var1_alias']
 
         assert var.name == 'var1_name'
@@ -1121,7 +1122,7 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
 
     def test_change_editor(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         ds.change_editor(self.user_url)
 
         ds_mock.patch.assert_called_with({
@@ -1146,7 +1147,7 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
         ds_res = MagicMock(session=sess)
         ds_res.self = self.ds_url
         ds_res.patch = MagicMock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         ds.change_editor('jane.doe@crunch.io')
 
         ds_res.patch.assert_called_with({
@@ -1161,7 +1162,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
 
     def test_change_owner_exception(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         with pytest.raises(AttributeError) as e:
             ds.change_owner(user=self.user_url, project=self.project_url)
             assert e.message == "Must provide user or project. Not both"
@@ -1173,7 +1174,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         user.url = self.user_url
         mocked_get_user.return_value = user
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         ds.change_owner(user=user)
         ds_mock.patch.assert_called_with({
             'owner': self.user_url
@@ -1188,7 +1189,7 @@ class TestSavepoints(TestCase):
         sess = MagicMock()
         ds_res = MagicMock(session=sess)
         ds_res.savepoints = MagicMock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         ds.create_savepoint('savepoint description')
         ds_res.savepoints.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1206,7 +1207,7 @@ class TestSavepoints(TestCase):
                 'description': 'savepoint description'
             }
         }
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
@@ -1219,7 +1220,7 @@ class TestSavepoints(TestCase):
                 'description': 'savepoint description'
             }
         }
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
@@ -1228,7 +1229,7 @@ class TestSavepoints(TestCase):
         ds_res = MagicMock(session=sess)
         ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {}
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         with pytest.raises(KeyError):
             ds.load_savepoint('savepoint')
 
@@ -1247,7 +1248,7 @@ class TestForks(TestCase):
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         f = ds.fork()
         ds_res.forks.create.assert_called_with({
             'body': {
@@ -1268,7 +1269,7 @@ class TestForks(TestCase):
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         f = ds.fork(preserve_owner=True)
         f.resource.patch.assert_called_with({'owner': user_id})
 
@@ -1283,7 +1284,7 @@ class TestForks(TestCase):
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         f = ds.fork()
         f.resource.patch.assert_called_with({'owner': project_id})
 
@@ -1300,7 +1301,7 @@ class TestForks(TestCase):
             'abc3': f3
         }
 
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         ds.delete_forks()
 
         assert f1.entity.delete.call_count == 1
@@ -1325,7 +1326,7 @@ class TestForks(TestCase):
             'abc1': f1
         }
 
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         df = ds.forks_dataframe()
         assert isinstance(df, DataFrame)
         keys = [k for k in df.keys()]
@@ -1340,7 +1341,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
 
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         df = ds.forks_dataframe()
 
         assert df is None
@@ -1371,7 +1372,7 @@ class TestForks(TestCase):
                 'id': 'ghi',
             }
         }
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
 
         expected_call = {
             'dataset': fork1_url,
@@ -1455,7 +1456,7 @@ class TestRecode(TestDatasetBase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
@@ -1577,7 +1578,7 @@ class TestRecode(TestDatasetBase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
@@ -1716,7 +1717,7 @@ class TestCopyVariable(TestCase):
         var_res = mock.MagicMock()
         var_res.entity.body = {'type': 'numeric'}
         var_res.entity.self = '/variable/url/'
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
@@ -1752,7 +1753,7 @@ class TestCopyVariable(TestCase):
                 }]
             }}
         var_res.entity.self = '/variable/url/'
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
@@ -1968,7 +1969,7 @@ class TestHierarchicalOrder(TestCase):
         ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
         ds_resource.variables.by.return_value = variables
         ds_resource.session.get.side_effect = _session_get
-        self.ds = Dataset(ds_resource)
+        self.ds = MutableDataset(ds_resource)
         self.ds._revision = 'one'
         self.ds._hier_calls = 0
 
@@ -3550,7 +3551,7 @@ class TestDatasetSettings(TestCase):
         ds_resource.self = self.ds_url
         ds_resource.fragments.settings = '%ssettings/' % self.ds_url
         ds_resource.session.get.side_effect = _session_get
-        self.ds = Dataset(ds_resource)
+        self.ds = MutableDataset(ds_resource)
 
     def test_settings_are_displayed_as_dict_obj(self):
         ds = self.ds
@@ -3654,7 +3655,7 @@ class TestDatasetJoins(TestCase):
         left_ds_res = MagicMock()
         left_ds_res.self = self.left_ds_url
         left_ds_res.variables.by.return_value = left_variable
-        self.left_ds = Dataset(left_ds_res)
+        self.left_ds = MutableDataset(left_ds_res)
 
         # setup for right dataset
         _right_var_mock = self._variable_mock(self.right_ds_url, var)
@@ -3663,7 +3664,7 @@ class TestDatasetJoins(TestCase):
         right_ds_res = MagicMock()
         right_ds_res.self = self.right_ds_url
         right_ds_res.variables.by.return_value = right_variable
-        self.right_ds = Dataset(right_ds_res)
+        self.right_ds = MutableDataset(right_ds_res)
 
     def test_dataset_joins(self):
         left_ds = self.left_ds
@@ -3701,7 +3702,7 @@ class TestDatasetExport(TestCase):
     def setUp(self):
         ds_resource = mock.MagicMock()
         ds_resource.self = self.ds_url
-        self.ds = Dataset(ds_resource)
+        self.ds = MutableDataset(ds_resource)
 
     def test_basic_csv_export(self, export_ds_mock, dl_file_mock):
         ds = self.ds
@@ -3838,12 +3839,12 @@ class TestVariableIterator(TestDatasetBase):
 
     def test_ds_keys(self):
         ds_mock = self._dataset_mock(variables=self.variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         assert isinstance(ds.keys(), list)
 
     def test_ds_values(self):
         ds_mock = self._dataset_mock(variables=self.variables)
-        ds = Dataset(ds_mock)
+        ds = MutableDataset(ds_mock)
         assert isinstance(ds.values(), list)
 
     def test_subvar_order(self):
@@ -3914,10 +3915,10 @@ class TestFilter(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.datasets.Dataset.filters')
+    @mock.patch('scrunch.mutable_dataset.MutableDataset.filters')
     def test_add_filter(self, filters):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         var = ds['var1_alias']
 
         ds.add_filter(name='filter', expr='var1_alias != 0')
@@ -3965,10 +3966,10 @@ class TestDeck(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.datasets.Dataset.decks')
+    @mock.patch('scrunch.mutable_dataset.MutableDataset.decks')
     def test_add_deck(self, decks):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
 
         ds.add_deck(name='mydeck', description='description')
 
@@ -3984,10 +3985,10 @@ class TestDeck(TestDatasetBase, TestCase):
 
     def test_deck_accessor(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
 
         deck = EditableMock(entity=self._deck)
-        mockdeck = Deck(deck)
+        Deck(deck)
         assert ds.decks == {}
 
     def test_edit_deck(self):
@@ -4025,10 +4026,10 @@ class TestMultitable(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.datasets.Dataset.multitables')
+    @mock.patch('scrunch.mutable_dataset.MutableDataset.multitables')
     def test_add_multitable(self, multitables):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         ds.create_multitable(name='mymulti', template=['var1_alias'])
         expected_payload = {
             'element': 'shoji:entity',
@@ -4048,14 +4049,14 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_multitable_accessor(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         mt = EditableMock(entity=self._multitable)
-        mockmulti = Multitable(mt, ds)
+        Multitable(mt, ds)
         assert type(ds.multitables) == dict
 
     def test_edit_multitable(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         with pytest.raises(AttributeError):
@@ -4064,17 +4065,17 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_multitable_class(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         mt = MagicMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         assert mockmulti
 
     def test_multitable_import(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
-        ds_2 = Dataset(ds_res)
+        ds_2 = MutableDataset(ds_res)
         expected_payload = {
             'element': 'shoji:entity',
             'body': {
@@ -4088,7 +4089,7 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_export_tabbook(self):
         ds_res = self._dataset_mock()
-        ds = Dataset(ds_res)
+        ds = MutableDataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         expected_payload = {
@@ -4151,9 +4152,9 @@ class TestMutableMixin(TestDatasetBase):
 
     def test_compare_datasets(self):
         ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = Dataset(ds_a_mock)
+        ds_a = MutableDataset(ds_a_mock)
         ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = Dataset(ds_b_mock)
+        ds_b = MutableDataset(ds_b_mock)
         diff = ds_b.compare_dataset(ds_a)
         expected_diff = {
             'variables': {
@@ -4167,9 +4168,9 @@ class TestMutableMixin(TestDatasetBase):
 
     def test_append_dataset(self):
         ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = Dataset(ds_a_mock)
+        ds_a = MutableDataset(ds_a_mock)
         ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = Dataset(ds_b_mock)
+        ds_b = MutableDataset(ds_b_mock)
 
         with pytest.raises(ValueError) as e:
             ds_b.append_dataset(ds_a)
