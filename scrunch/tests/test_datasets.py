@@ -2065,25 +2065,22 @@ class TestProjectsHierarchicalOrder(TestCase):
             ]
         }
 
-        proj.order['|GroupB'].create_group('GroupD', before='GroupC')
-        # FIXME
+    @pytest.mark.xfail
+    def test_create_group_before_group(self):
+        proj = self.proj
+
+        proj.order['|'].create_group('GroupB', before='GroupA')
         assert self._get_update_payload(proj) == {
             'element': 'shoji:order',
             'graph': [
                 {
+                    'GroupB': []
+                },
+                {
                     'GroupA': []
                 },
-                'http://test.crunch.local/api/datasets/67890/',
-                {
-                    'GroupB': [
-                        {
-                            'GroupC': ['http://test.crunch.local/api/datasets/12345/']
-                        },
-                        {
-                            'GroupD': []
-                        }
-                    ]
-                }
+                'http://test.crunch.local/api/datasets/12345/',
+                'http://test.crunch.local/api/datasets/67890/'
             ]
         }
 
@@ -3662,62 +3659,45 @@ class TestDatasetsHierarchicalOrder(TestCase):
             ]
         }
 
-        ds.order['|Account|User Information'].create_group('FIXME', before='PII')
 
-        # FIXME
+    @pytest.mark.xfail
+    def test_create_group_before_group(self):
+        ds = self.ds
+
+        ds.order['|Account'].create_group('Login Details', before='User Information')
         assert self._get_update_payload(ds) == {
             'element': 'shoji:order',
             'graph': [
-                'http://test.crunch.local/api/datasets/123/variables/000001/',                       # id
-                'http://test.crunch.local/api/datasets/123/variables/000002/',                       # hobbies
+                'http://test.crunch.local/api/datasets/123/variables/000001/',
+                'http://test.crunch.local/api/datasets/123/variables/000002/',
                 {
                     'Account': [
+                        'http://test.crunch.local/api/datasets/123/variables/000003/',
+                        'http://test.crunch.local/api/datasets/123/variables/000004/',
+                        {
+                            'Login Details': []
+                        },
                         {
                             'User Information': [
-                                'http://test.crunch.local/api/datasets/123/variables/000007/',       # gender
-                                {
-                                    'PII': [
-                                        'http://test.crunch.local/api/datasets/123/variables/000005/',       # first_name
-                                        'http://test.crunch.local/api/datasets/123/variables/000006/',       # last_name
-                                    ]
-                                },
-                                {
-                                    'FIXME': []
-                                }
+                                'http://test.crunch.local/api/datasets/123/variables/000005/',
+                                'http://test.crunch.local/api/datasets/123/variables/000006/',
+                                'http://test.crunch.local/api/datasets/123/variables/000007/'
                             ]
                         },
                         {
                             'Location': [
-                                'http://test.crunch.local/api/datasets/123/variables/000008/',       # country
-                                'http://test.crunch.local/api/datasets/123/variables/000009/',       # city
-                                {
-                                    'PII': [
-                                        'http://test.crunch.local/api/datasets/123/variables/000011/'       # address
-                                    ]
-                                },
-                                'http://test.crunch.local/api/datasets/123/variables/000010/',       # zip_code
-                            ]
-                        },
-                        {
-                            'Login Details': [
-                                'http://test.crunch.local/api/datasets/123/variables/000003/',       # registration_time
-                                'http://test.crunch.local/api/datasets/123/variables/000004/'        # last_login_time
-                            ]
-                        },
-                        {
-                            'New empty': []  # empty group
-                        },
-                        {
-                            'Gewürze / Inhaltsstoffe': [
-                                'http://test.crunch.local/api/datasets/123/variables/000012/',       # music
-                                'http://test.crunch.local/api/datasets/123/variables/000013/'        # religion
+                                'http://test.crunch.local/api/datasets/123/variables/000008/',
+                                'http://test.crunch.local/api/datasets/123/variables/000009/',
+                                'http://test.crunch.local/api/datasets/123/variables/000010/',
+                                'http://test.crunch.local/api/datasets/123/variables/000011/'
                             ]
                         }
                     ]
-                }
+                },
+                'http://test.crunch.local/api/datasets/123/variables/000012/',
+                'http://test.crunch.local/api/datasets/123/variables/000013/'
             ]
         }
-
 
     def test_group_renaming(self):
         ds = self.ds
