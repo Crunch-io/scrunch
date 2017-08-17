@@ -462,7 +462,6 @@ class TestRecode(TestCase):
             }
         })
         ds_res = mock.MagicMock()
-        Variable(var_res, ds_res)
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
         dataset = MutableDataset(ds_res)
