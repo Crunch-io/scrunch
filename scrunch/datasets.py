@@ -1853,6 +1853,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         LOG.debug("UNHIDING")
         self.resource.edit(discarded=False)
 
+    def integrate(self):
+        if self.derived:
+            self.resource.edit(derived=False)
+
     def combine(self, alias=None, map=None, names=None, default='missing',
                 name=None, description=None):
         # DEPRECATED - USE Dataset.combine*
