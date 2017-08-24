@@ -16,7 +16,7 @@ from scrunch.exceptions import (InvalidPathError, AuthenticationError,
                                 InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules,
-                             download_file, shoji_wrapper,
+                             download_file, shoji_entity_wrapper,
                              abs_url, case_expr, subvar_alias)
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -1260,7 +1260,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         expr = dict(function='case', args=args + more_args)
 
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             alias=alias,
             name=name,
             expr=expr,
@@ -1293,7 +1293,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 alias='%s_%d' % (alias, resp['id'])
             )
 
-        payload = shoji_wrapper({
+        payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
@@ -1325,7 +1325,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
 
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             alias=alias,
             name=name,
             derivation=expr,
@@ -1384,7 +1384,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             derivation = abs_url(variable.resource.body['derivation'],
                                  variable.resource.self)
             derivation.pop('references', None)
-            payload = shoji_wrapper({
+            payload = shoji_entity_wrapper({
                 'name': name,
                 'alias': alias,
                 'derivation': derivation})
@@ -1403,7 +1403,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                             subvar['references']['alias'] = subref['alias']
                             break
         else:
-            payload = shoji_wrapper({
+            payload = shoji_entity_wrapper({
                 'name': name,
                 'alias': alias,
                 'derivation': {
@@ -1461,7 +1461,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         # TODO: Implement `default` parameter in Crunch API
         combinations = combinations_from_map(map, categories or {}, missing or [])
-        payload = shoji_wrapper({
+        payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
@@ -1498,7 +1498,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # TODO: Implement `default` parameter in Crunch API
         responses = responses_from_map(variable, map, categories or {}, alias,
                                        parent_alias)
-        payload = shoji_wrapper({
+        payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
@@ -1527,7 +1527,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     " exists.".format(description)
                 )
 
-        self.resource.savepoints.create(shoji_wrapper({'description': description}))
+        self.resource.savepoints.create(shoji_entity_wrapper({'description': description}))
 
     def load_savepoint(self, description=None):
         """
@@ -1651,7 +1651,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if not title:
             title = 'CrunchBox for {}'.format(str(self))
 
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             where=variables,
             filters=filters,
             force=force,
@@ -1892,7 +1892,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return prettify(expr, self) if expr else None
 
     def add_filter(self, name, expr, public=False):
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             name=name,
             expression=process_expr(parse_expr(expr), self.resource),
             is_public=public))
@@ -1900,7 +1900,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.filters[new_filter.body['name']]
 
     def add_deck(self, name, description="", public=False):
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             name=name,
             description=description,
             is_public=public))
@@ -1945,7 +1945,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if preserve_owner or '/api/projects/' in self.resource.body.owner:
             body['owner'] = self.resource.body.owner
         # not returning a dataset
-        payload = shoji_wrapper(body)
+        payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         return BaseDataset(_fork)
 
@@ -2030,7 +2030,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if 'transform' in q.keys():
                 as_json['transform'] = q['transform']
             parsed_template.append(as_json)
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             name=name,
             is_public=is_public,
             template=parsed_template))
@@ -2044,7 +2044,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :name: Name of the new multitable
         :multi: Multitable instance to clone into this Dataset
         """
-        payload = shoji_wrapper(dict(
+        payload = shoji_entity_wrapper(dict(
             name=name,
             multitable=multi.resource.self))
         self.resource.multitables.create(payload)
@@ -2153,7 +2153,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
-        payload = shoji_wrapper(dict(expr=expr))
+        payload = shoji_entity_wrapper(dict(expr=expr))
         # patch the variable with the new payload
         resp = self.resource.patch(payload)
         self._reload_variables()

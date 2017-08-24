@@ -1,6 +1,6 @@
 from pycrunch.importing import Importer
 from scrunch.datasets import BaseDataset, _get_dataset
-from scrunch.helpers import shoji_wrapper
+from scrunch.helpers import shoji_entity_wrapper
 from scrunch.exceptions import InvalidDatasetTypeError
 
 
@@ -48,7 +48,7 @@ class StreamingDataset(BaseDataset):
         """
         if bool(self.resource.stream.body.pending_messages):
             self.resource.batches.create(
-                shoji_wrapper({
+                shoji_entity_wrapper({
                     'stream': count,
                     'type': 'ldjson'}
                 ))

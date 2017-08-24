@@ -1,7 +1,7 @@
 from pycrunch.shoji import wait_progress
 
 from scrunch.expressions import parse_expr, process_expr
-from scrunch.helpers import shoji_wrapper
+from scrunch.helpers import shoji_entity_wrapper
 from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.datasets import (BaseDataset, _get_connection, _get_dataset,
                               Variable, CrunchBox)
@@ -32,7 +32,7 @@ def create_dataset(name, variables, connection=None):
                 "config/environment variables")
 
     shoji_ds = connection.datasets.create(
-        shoji_wrapper({
+        shoji_entity_wrapper({
             'name': name,
             'table': {
                 'element': 'crunch:table',
@@ -85,7 +85,7 @@ class MutableDataset(BaseDataset):
         }
 
         # wrap the adapter method on a shoji and body entity
-        payload = shoji_wrapper(adapter)
+        payload = shoji_entity_wrapper(adapter)
 
         if columns and isinstance(columns, list):
             # overwrite body to new format
