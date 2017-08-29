@@ -108,7 +108,7 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
 
-    To get a Dataset from a Project we are building a url and making a request
+    To get a.BaseDataset from a Project we are building a url and making a request
     through pycrunch.session object, we instead should use the /search endpoint
     from crunch, but currently it's not working by id's.
     """
@@ -282,7 +282,7 @@ class CrunchBox(object):
     index with the updated metadata.
 
     :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
-    :param     dataset: scrunch.datasets.Dataset instance
+    :param     dataset: scrunch.datasets.BaseDataset instance
 
     NOTE: since the boxdata entity is different regarding the mapping of body
           and metadata fields, methods etc... it is made `readonly`.
@@ -1409,7 +1409,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             dataset. If the owner of the parent dataset is a Crunch project,
             then it will be preserved regardless of this parameter.
 
-        :returns _fork: scrunch.datasets.Dataset
+        :returns _fork: scrunch.datasets.BaseDataset
             The forked dataset.
         """
         nforks = len(self.resource.forks.index)

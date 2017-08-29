@@ -14,7 +14,7 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Variable, BaseDataset
+from scrunch.datasets import Variable, BaseDataset, Project
 from scrunch.subentity import Filter, Multitable, Deck
 from scrunch.mutable_dataset import MutableDataset
 from scrunch.streaming_dataset import StreamingDataset
@@ -1888,7 +1888,7 @@ class TestProjectsHierarchicalOrder(TestCase):
             _datasets[ds.name] = ds
 
         # we only need one Dataset to move around
-        self.ds = Dataset(_datasets['12345'])
+        self.ds = StreamingDataset(_datasets['12345'])
 
         datasets = AttributeDict()
         datasets.by = MagicMock(return_value=_datasets)
@@ -2425,12 +2425,8 @@ class TestDatasetsHierarchicalOrder(TestCase):
 
         ds_resource = MagicMock()
         ds_resource.self = self.ds_url
-        ds_resource.variables.orders.hier = '%svariables/hier/' % self.ds_url
-        ds_resource.variables.by.return_value = variables
-        ds_resource.session.get.side_effect = _session_get
-        self.ds = StreamingDataset(ds_resource)
-        self.ds._revision = 'one'
-        self.ds._hier_calls = 0
+        ds_resource.variables = variables
+        self.ds = BaseDataset(ds_resource)
 
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
@@ -4000,6 +3996,7 @@ class TestDatasetsHierarchicalOrder(TestCase):
         assert items[2].name == 'Account'
         assert items[3].name == 'Music'
         assert items[4].name == 'Religion'
+
 
 
 class TestDatasetSettings(TestCase):
