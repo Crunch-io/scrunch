@@ -1,13 +1,12 @@
 # coding: utf-8
 import json
 
-import six.moves.urllib as urllib
-
-from pycrunch.progress import DefaultProgressTracking
 from pycrunch.lemonpy import URL
+from pycrunch.progress import DefaultProgressTracking
 from pycrunch.shoji import wait_progress
-
 from scrunch.helpers import download_file
+
+import six.moves.urllib as urllib
 
 
 class SubEntity:
@@ -124,15 +123,15 @@ class Multitable(SubEntity):
         # in case of json format, we need to return the json response
         if format == 'json':
             r = session.post(
-                endpoint, 
-                json.dumps(payload), 
+                endpoint,
+                json.dumps(payload),
                 headers={'Accept': 'application/json'})
         else:
             r = session.post(endpoint, json.dumps(payload))
         dest_file = URL(r.headers['Location'], '')
         if r.status_code == 202:
             try:
-                progress_url = r.payload['value']
+                r.payload['value']
             except:
                 # Not a progress API just return the incomplete entity.
                 # User will refresh it.
@@ -155,7 +154,7 @@ class Multitable(SubEntity):
         :weight: Name of the weight_variable
         """
         if format not in ['xlsx', 'json']:
-            raise  ValueError("Format can only be 'json' or 'xlxs'")
+            raise ValueError("Format can only be 'json' or 'xlxs'")
         progress_tracker = DefaultProgressTracking(timeout)
         url = self.export_tabbook(
             format=format,
