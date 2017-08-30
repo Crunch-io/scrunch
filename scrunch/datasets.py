@@ -200,7 +200,7 @@ def get_user(user, connection=None):
     return User(ret)
 
 
-def create_dataset(name, variables, connection=None):
+def create_dataset(name, variables, connection=None, **kwargs):
     if connection is None:
         connection = _get_connection()
         if not connection:
@@ -208,7 +208,7 @@ def create_dataset(name, variables, connection=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
 
-    shoji_ds = connection.datasets.create({
+    dataset_doc = {
         'element': 'shoji:entity',
         'body': {
             'name': name,
@@ -217,7 +217,10 @@ def create_dataset(name, variables, connection=None):
                 'metadata': variables
             }
         }
-    }).refresh()
+    }
+    dataset_doc['body'].update(**kwargs)
+
+    shoji_ds = connection.datasets.create(dataset_doc).refresh()
     return Dataset(shoji_ds)
 
 
