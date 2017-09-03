@@ -4075,8 +4075,10 @@ class TestDatasetSettings(TestCase):
         assert _headers == {'Content-Type': 'application/json'}
 
         ds.change_settings(
-            viewers_can_export=True, viewers_can_change_weight=True,
-            viewers_can_share=False
+            viewers_can_export=True, 
+            viewers_can_change_weight=True,
+            viewers_can_share=False, 
+            dashboard_deck='https://test.crunch.io/datasets/123/decks/123'
         )
         _url = ds.resource.session.patch.call_args_list[-1][0][0]
         _payload = json.loads(ds.resource.session.patch.call_args_list[-1][0][1])
@@ -4085,7 +4087,8 @@ class TestDatasetSettings(TestCase):
         assert _payload == {
             'viewers_can_export': True,
             'viewers_can_change_weight': True,
-            'viewers_can_share': False
+            'viewers_can_share': False,
+            'dashboard_deck': 'https://test.crunch.io/datasets/123/decks/123'
         }
         assert _headers == {'Content-Type': 'application/json'}
 

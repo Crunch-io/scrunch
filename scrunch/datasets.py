@@ -503,7 +503,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
-                          'viewers_can_share'}
+                          'viewers_can_share', 'dashboard_deck'}
 
     def __init__(self, resource):
         """
@@ -674,6 +674,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 'Invalid or read-only settings: %s'
                 % ','.join(list(invalid_settings))
             )
+
+        if 'dashboard_deck' in kwargs:
+            ddeck = kwargs['dashboard_deck']
+            if isinstance(ddeck, Deck):
+                kwargs['dashboard_deck'] = ddeck.resource.self
 
         settings_payload = {
             setting: kwargs[setting] for setting in incoming_settings
