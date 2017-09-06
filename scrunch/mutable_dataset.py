@@ -8,7 +8,7 @@ from scrunch.datasets import (BaseDataset, _get_connection, _get_dataset,
 from scrunch.subentity import Filter
 
 
-def get_dataset(dataset, connection=None, editor=False):
+def get_mutable_dataset(dataset, connection=None, editor=False):
     """
     A simple wrapper of _get_dataset with streaming=False
     """

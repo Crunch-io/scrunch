@@ -276,7 +276,7 @@ class TestCombine(TestCase):
 
 class TestRecode(TestCase):
 
-    @mock.patch('scrunch.mutable_dataset.get_dataset')
+    @mock.patch('scrunch.mutable_dataset.get_mutable_dataset')
     def test_recode_categoricals(self, get_dataset_mock):
         categories = [
             {
@@ -378,7 +378,7 @@ class TestRecode(TestCase):
             }
         })
 
-    @mock.patch('scrunch.mutable_dataset.get_dataset')
+    @mock.patch('scrunch.mutable_dataset.get_mutable_dataset')
     def test_recode_multiple_responses(self, get_dataset_mock):
         dataset_id = '123'
         categories = [
