@@ -1147,10 +1147,18 @@ class TestVariables(TestDatasetBase, TestCase):
         put_side_effect = lambda *x, **y: AttributeDict({'status_code': 204})
         var._resource.session.put.side_effect = put_side_effect
         var.set_missing_rules({"skipped": 9, "not asked": 8})
-        var._resource.session.put.assert_called_with(
-            var._resource.fragments.missing_rules,
-            '{"rules": {"skipped": 9, "not asked": 8}}'
-        )
+        var._resource.session.put.assert_called_once()
+
+        call = var._resource.session.put.call_args_list[0]
+        args, kwargs = [el for el in call]
+        assert kwargs == {}
+        assert args[0] == var._resource.fragments.missing_rules
+        assert json.loads(args[1]) == {
+            "rules": {
+                "skipped": 9,
+                "not asked": 8
+            }
+        }
 
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
