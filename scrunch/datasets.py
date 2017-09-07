@@ -2110,7 +2110,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             - {'value': v}: Entries which match the given value will be
                 marked as missing for the given reason.
 
-            - {'set': [v1, v2, …]}: Entries which are present in the given set
+            - {'set': [v1, v2, ...]}: Entries which are present in the given set
                 will be marked as missing for the given reason.
 
             - {'range': [lower, upper], 'inclusive': [true, false]}: Entries
@@ -2118,7 +2118,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 missing for the given reason. If either “inclusive” element
                 is null, the corresponding boundary is unbounded.
 
-            - {'function': '…', 'args': […]}: Entries which match the given
+            - {'function': '...', 'args': [...]}: Entries which match the given
                 filter function will be marked as missing for the given
                 reason. This is typically a tree of simple rules
                 logical-OR'd together.
