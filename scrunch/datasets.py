@@ -1680,3 +1680,58 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def move(self, path, position=-1, before=None, after=None):
         self.dataset.order.place(self, path, position=position,
                                  before=before, after=after)
+
+    @property
+    def missing_rules(self):
+        result = self.resource.session.get(
+            self.resource.fragments.missing_rules
+        )
+
+        assert result.status_code == 200
+
+        return result.json()['body']['rules']
+
+    def set_missing_rules(self, rules):
+        """Updates the variable's missing rules.
+
+        :param rules: a dictionary of rules for missing values, missing reason
+                as key, rule as value. The rule can be one of:
+
+            - {'value': v}: Entries which match the given value will be
+                marked as missing for the given reason.
+
+            - {'set': [v1, v2, ...]}: Entries which are present in the given set
+                will be marked as missing for the given reason.
+
+            - {'range': [lower, upper], 'inclusive': [true, false]}: Entries
+                which exist between the given boundaries will be marked as
+                missing for the given reason. If either "inclusive" element
+                is null, the corresponding boundary is unbounded.
+
+            - {'function': '...', 'args': [...]}: Entries which match the given
+                filter function will be marked as missing for the given
+                reason. This is typically a tree of simple rules
+                logical-OR'd together.
+
+        Sample:
+
+            missing_rules = {
+                "not asked": {
+                    "value": 9999
+                },
+                "skipped": {
+                    "value": 9998
+                }
+            }
+
+            ds['varname'].set_missing_rules(missing_rules)
+
+        """
+        result = self.resource.session.put(
+            self.resource.fragments.missing_rules,
+            json.dumps({'rules': rules})
+        )
+
+        assert result.status_code == 204
+
+
