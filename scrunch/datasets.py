@@ -139,6 +139,19 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
     return shoji_ds, root
 
 
+# FIXME: to be deprecated in flavor or get_streaming_dataset and 
+# get_mutable_dataset
+def get_dataset(dataset, connection=None, editor=False):
+    """
+    A simple wrapper of _get_dataset with streaming=False
+    """
+    shoji_ds, root = _get_dataset(dataset, connection, editor, streaming=False)
+    ds = Dataset(shoji_ds)
+    if editor is True:
+        ds.change_editor(root.session.email)
+    return ds
+
+
 def get_project(project, connection=None):
     """
     :param project: Crunch project ID or Name
@@ -1536,6 +1549,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             multitable=multi.resource.self))
         self.resource.multitables.create(payload)
         return self.multitables[name]
+
+
+# FIXME: This class to be deprecated
+class Dataset(BaseDataset):
+
+    def __init__(self, resource):
+        LOG.warning("""Dataset is deprecated, instead use now
+            mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset 
+            with it's corresponding get_mutable_dataset and get_streaming_dataset 
+            functions""")
+        super(Dataset, self).__init__(resource)
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
