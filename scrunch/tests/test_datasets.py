@@ -1142,7 +1142,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_update_missing_rules(self):
         ds_mock = self._dataset_mock()
-        ds = Dataset(ds_mock)
+        ds = BaseDataset(ds_mock)
         var = ds['var1_alias']
 
         assert var.name == 'var1_name'
