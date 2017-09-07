@@ -7,7 +7,9 @@ import isodate
 import pycrunch
 from pycrunch import pandaslib
 
-from scrunch.datasets import Dataset, Variable
+from scrunch.datasets import Variable
+from scrunch.streaming_dataset import StreamingDataset
+
 
 CRUNCH_URL = os.environ.get('CRUNCH_TEST_URL')
 CRUNCH_USER = os.environ.get('CRUNCH_TEST_USER')
@@ -341,7 +343,7 @@ def main():
     # Create the test dataset.
     dataset_resource = site.datasets.create(DATASET_DOC).refresh()
     assert isinstance(dataset_resource, pycrunch.shoji.Entity)
-    dataset = Dataset(dataset_resource)
+    dataset = StreamingDataset(dataset_resource)
 
     try:
         # Load initial data.

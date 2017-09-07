@@ -2,43 +2,36 @@ import collections
 import datetime
 import json
 import logging
-import os
 import re
+import os
 import sys
+import six
 
 import pandas as pd
 import pycrunch
-import six
 from pycrunch.exporting import export_dataset
-from pycrunch.importing import Importer
-from pycrunch.shoji import wait_progress
+
 from scrunch.categories import CategoryList
-from scrunch.exceptions import AuthenticationError
+from scrunch.exceptions import (InvalidPathError, AuthenticationError,
+                                InvalidReferenceError, OrderUpdateError)
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
-                             case_expr, download_file, subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules,
+                             download_file, shoji_entity_wrapper,
+                             abs_url, case_expr, subvar_alias)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
+_MR_TYPE = 'multiple_response'
+
 if six.PY2:  # pragma: no cover
+    from urlparse import urljoin
     import ConfigParser as configparser
-    from urlparse import urlsplit, urljoin
 else:
     import configparser
-    from urllib.parse import urlsplit, urljoin
+    from urllib.parse import urljoin
 
-_VARIABLE_PAYLOAD_TMPL = {
-    'element': 'shoji:entity',
-    'body': {
-        'name': 'name',
-        'description': 'description',
-        'alias': 'alias'
-    }
-}
-
-_MR_TYPE = 'multiple_response'
 
 LOG = logging.getLogger('scrunch')
 
@@ -75,10 +68,8 @@ def _get_connection(file_path='crunch.ini'):
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
-        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        LOG.debug("Found Crunch credentials on Environment")
         return pycrunch.connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
@@ -94,18 +85,17 @@ def _get_connection(file_path='crunch.ini'):
         site = None
     # now try to login with obtained creds
     if username and password and site:
-        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password, site)
     elif username and password:
-        LOG.debug("Found Crunch credentials on crunch.ini")
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
-def get_dataset(dataset, connection=None, editor=False, project=None):
+def _get_dataset(dataset, connection=None, editor=False, streaming=False):
     """
+    Helper method for specific get_dataset and get_streaming_dataset methods.
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
     and the user has access permissions to it. If you have access to the dataset
     through a project you should do pass the project parameter.
@@ -118,7 +108,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
 
-    To get a Dataset from a Project we are building a url and making a request
+    To get a.BaseDataset from a Project we are building a url and making a request
     through pycrunch.session object, we instead should use the /search endpoint
     from crunch, but currently it's not working by id's.
     """
@@ -129,34 +119,24 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
-
-    if project:
-        if isinstance(project, six.string_types):
-            project_obj = get_project(project, connection)
-            ds = project_obj.get_dataset(dataset)
-        else:
-            ds = project.get_dataset(dataset)
-    else:
+    root_datasets = root.datasets
+    # search by dataset name
+    try:
+        shoji_ds = root_datasets.by('name')[dataset].entity
+    except KeyError:
+        # search by dataset id
         try:
-            shoji_ds = root.datasets.by('name')[dataset].entity
+            shoji_ds = root_datasets.by('id')[dataset].entity
         except KeyError:
+            # search by id on any project
             try:
-                shoji_ds = root.datasets.by('id')[dataset].entity
-            except KeyError:
-                try:
-                    dataset_url = urljoin(
-                        root.catalogs.datasets, '{}/'.format(dataset))
-                    shoji_ds = root.session.get(dataset_url).payload
-                except Exception:
-                    raise KeyError(
-                        "Dataset (name or id: %s) not found in context." % dataset)
-
-        ds = Dataset(shoji_ds)
-
-    if editor is True:
-        ds.change_editor(root.session.email)
-
-    return ds
+                dataset_url = urljoin(
+                    root.catalogs.datasets, '{}/'.format(dataset))
+                shoji_ds = root.session.get(dataset_url).payload
+            except Exception:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in context." % dataset)
+    return shoji_ds, root
 
 
 def get_project(project, connection=None):
@@ -190,35 +170,14 @@ def get_user(user, connection=None):
     if connection is None:
         connection = _get_connection()
         if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+            raise AuthenticationError(
+                "Unable to find crunch session, crunch.ini file or \
+                environment variables.")
     try:
         ret = connection.users.by('email')[user].entity
     except KeyError:
         raise KeyError("User email '%s' not found." % user)
     return User(ret)
-
-
-def create_dataset(name, variables, connection=None):
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
-
-    shoji_ds = connection.datasets.create({
-        'element': 'shoji:entity',
-        'body': {
-            'name': name,
-            'table': {
-                'element': 'crunch:table',
-                'metadata': variables
-            }
-        }
-    }).refresh()
-    return Dataset(shoji_ds)
 
 
 class User:
@@ -268,26 +227,13 @@ class Project:
     def __str__(self):
         return self.name
 
-    def get_dataset(self, dataset):
-        try:
-            shoji_ds = self.resource.datasets.by('name')[dataset].entity
-        except KeyError:
-            try:
-                shoji_ds = self.resource.datasets.by('id')[dataset].entity
-            except KeyError:
-                raise KeyError(
-                    "Dataset (name or id: %s) not found in project." % dataset)
-
-        ds = Dataset(shoji_ds)
-        return ds
-
     @property
     def users(self):
         """
         :return: dictionary of User instances
         """
         # TODO: return a dictionary keyed by email and values should be User
-        # instances, but when trying to got 403 from Crunch
+        # instances, but when trying got 403 from Crunch
         return [e['email'] for e in self.resource.members.index.values()]
         # return {val['email']: User(val.entity) for val in self.resource.members.index.values()}
 
@@ -336,7 +282,7 @@ class CrunchBox(object):
     index with the updated metadata.
 
     :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
-    :param     dataset: scrunch.datasets.Dataset instance
+    :param     dataset: scrunch.datasets.BaseDataset instance
 
     NOTE: since the boxdata entity is different regarding the mapping of body
           and metadata fields, methods etc... it is made `readonly`.
@@ -488,26 +434,30 @@ class DatasetVariablesMixin(collections.Mapping):
 
     def __getitem__(self, item):
         # Check if the attribute corresponds to a variable alias
-        variable = self.resource.variables.by('alias').get(item)
+        variable = self._catalog.by('alias').get(item)
         if variable is None:
-            # Variable doesn't exists, must raise a ValueError
-            raise ValueError('Dataset %s has no variable with an alias %s' % (
-                self.name, item))
-        # Variable exists!, return the variable Instance
+            variable = self._catalog.by('name').get(item)
+            if variable is None:
+                # Variable doesn't exists, must raise a ValueError
+                raise ValueError('Entity %s has no (sub)variable with a name or alias %s' % (
+                    self.name, item))
         return Variable(variable, self)
+
+    def _set_catalog(self):
+        self._catalog = self.resource.variables
 
     def _reload_variables(self):
         """
         Helper that takes care of updating self._vars on init and
         whenever the dataset adds a variable
         """
-        variables = self.resource.variables
-        order = variables.hier
-        self._vars = variables.index.items()
+        self._set_catalog()
+        self._vars = self._catalog.index.items()
+        order = self._catalog.hier
 
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
-        self.order = DatasetVariablesOrder(variables, order)
+        self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
         for var in self._vars:
@@ -521,8 +471,17 @@ class DatasetVariablesMixin(collections.Mapping):
             yield Variable(var_tuple, self)
 
     def iterkeys(self):
+        """
+        Yield variable alias, since they are unique
+        """
         for var in self._vars:
-            yield var[1].name
+            yield var[1].alias
+
+    def variable_names(self):
+        """
+        Simply return a list of all variable names in the Dataset
+        """
+        return [var[1].name for var in self._vars]
 
     def keys(self):
         return list(self.iterkeys())
@@ -534,22 +493,23 @@ class DatasetVariablesMixin(collections.Mapping):
         return zip(self.iterkeys(), self.itervalues())
 
 
-class Dataset(ReadOnly, DatasetVariablesMixin):
+class BaseDataset(ReadOnly, DatasetVariablesMixin):
     """
-    A pycrunch.shoji.Entity wrapper that provides dataset-specific methods.
+    A pycrunch.shoji.Entity wrapper that provides basic dataset methods.
     """
+
     _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
                            'archived', 'end_date', 'start_date'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
-                          'viewers_can_share'}
+                          'viewers_can_share', 'dashboard_deck'}
 
     def __init__(self, resource):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        super(Dataset, self).__init__(resource)
+        super(BaseDataset, self).__init__(resource)
         self._settings = None
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
@@ -577,9 +537,20 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
     @editor.setter
     def editor(self, _):
         # Protect the `editor` from external modifications.
-        raise TypeError(
-            'Unsupported operation on the editor property'
-        )
+        raise TypeError('Unsupported operation on the editor property')
+
+    def change_editor(self, user):
+        """
+        Change the current editor of the Crunch dataset.
+
+        :param user:
+            The email or a User instance of the user who should 
+            be set as the new current editor of the given dataset.
+        """
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.patch({'current_editor': user.url})
+        self.resource.refresh()
 
     @property
     def owner(self):
@@ -704,6 +675,11 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 % ','.join(list(invalid_settings))
             )
 
+        if 'dashboard_deck' in kwargs:
+            ddeck = kwargs['dashboard_deck']
+            if isinstance(ddeck, Deck):
+                kwargs['dashboard_deck'] = ddeck.resource.self
+
         settings_payload = {
             setting: kwargs[setting] for setting in incoming_settings
         }
@@ -716,6 +692,9 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             self._settings = None
 
     def edit(self, **kwargs):
+        """
+        Edit main Dataset attributes
+        """
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
                 raise AttributeError("Can't edit attibute %s of variable %s" % (
@@ -728,205 +707,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 kwargs[key] = kwargs[key].isoformat()
 
         return self.resource.edit(**kwargs)
-
-    def delete(self):
-        """
-        Delete a dataset.
-        TODO: Shouldn't be possible if this is a streamed dataset.
-        :return:
-        """
-        logging.debug("Deleting dataset %s (%s)." % (self.name, self.id))
-        self.resource.delete()
-        logging.debug("Deleted dataset.")
-
-    def change_editor(self, user):
-        """
-        Change the current editor of the Crunch dataset.
-
-        Parameters
-        ----------
-        :param user:
-            The email address, the crunch url or a User instance of the user
-            who should be set as the new current editor of the given dataset.
-
-        :returns: None
-        """
-
-        def _host_from_url(url):
-            resolved = urlsplit(url)
-            return resolved.hostname
-
-        def _to_url(email):
-            api_users = 'https://{}/api/users/'.format(
-                _host_from_url(self.resource.self)
-            )
-            user_url = None
-
-            users = self.resource.session.get(api_users).payload['index']
-
-            for url, user in six.iteritems(users):
-                if user['email'] == email:
-                    user_url = url
-                    self.resource.patch({'current_editor': url})
-                    break
-            assert user_url is not None, 'Unable to resolve user url'
-
-            return user_url
-
-        def _is_url(u):
-            return u.startswith('https://') or u.startswith('http://')
-
-        if isinstance(user, User):
-            user = user.url
-        user_url = user if _is_url(user) else _to_url(user)
-
-        self.resource.patch({'current_editor': user_url})
-        self.resource.refresh()
-
-    def stream_rows(self, columns):
-        """
-        Receives a dict with columns of values to add and streams them
-         into the dataset. Client must call .push_rows(n) later or wait until
-         Crunch automatically processes the batch.
-
-        Returns the total of rows streamed
-        """
-        importer = Importer()
-        count = len(list(columns.values())[0])
-        for x in range(count):
-            importer.stream_rows(self.resource,
-                                 {a: columns[a][x] for a in columns})
-        return count
-
-    def push_rows(self, count=None):
-        """
-        Batches in the rows that have been recently streamed. This forces
-        the rows to appear in the dataset instead of waiting for crunch
-        automatic batcher process.
-        """
-        if bool(self.resource.stream.body.pending_messages):
-            self.resource.batches.create({
-                'element': 'shoji:entity',
-                'body': {
-                    'stream': count,
-                    'type': 'ldjson'
-                }
-            })
-
-    def exclude(self, expr=None):
-        """
-        Given a dataset object, apply an exclusion filter to it (defined as an
-        expression string).
-
-        If the `expr` parameter is None, an empty expression object is sent
-        as part of the PATCH request, which effectively removes the exclusion
-        filter (if any).
-
-        Exclusion filters express logic that defines a set of rows that should be
-        dropped from the dataset. The rows aren't permanently deleted---you can
-        recover them at any time by removing the exclusion filter---but they are
-        omitted from all views and calculations, as if they had been deleted.
-
-        Note that exclusion filters work opposite from how "normal" filters work.
-        That is, a regular filter expression defines the subset of rows to operate
-        on: it says "keep these rows." An exclusion filter defines which rows to
-        omit. Applying a filter expression as a query filter will have the
-        opposite effect if applied as an exclusion. Indeed, applying it as both
-        query filter and exclusion at the same time will result in 0 rows.
-        """
-        if isinstance(expr, six.string_types):
-            expr_obj = parse_expr(expr)
-            expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
-        elif expr is None:
-            expr_obj = {}
-        else:
-            expr_obj = expr
-        return self.resource.session.patch(
-            self.resource.fragments.exclusion,
-            data=json.dumps(dict(expression=expr_obj))
-        )
-
-    def get_exclusion(self):
-        # make sure there is an expression
-        expr = self.resource.exclusion.get('body').get('expression')
-        if not expr:
-            return None
-        return prettify(self.resource.exclusion.body.expression, self)
-
-    def add_filter(self, name, expr, public=False):
-        payload = dict(element='shoji:entity',
-                       body=dict(name=name,
-                                 expression=process_expr(parse_expr(expr), self.resource),
-                                 is_public=public))
-        new_filter = self.resource.filters.create(payload)
-        return self.filters[new_filter.body['name']]
-
-    def add_deck(self, name, description="", public=False):
-        payload = dict(element='shoji:entity',
-                       body=dict(name=name,
-                                 description=description,
-                                 is_public=public))
-        new_deck = self.resource.decks.create(payload)
-        return self.decks[new_deck.self.split('/')[-2]]
-
-    def create_multitable(self, name, template, is_public=False):
-        """
-        template: List of dictionaries with the following keys
-        {"query": <query>, "transform": <transform>|optional}.
-        A query is a variable or a function on a variable:
-        {"query": bin(birthyr)}
-
-        If transform is specified it must have the form
-        {
-            "query": var_x,
-            "transform": {"categories": [
-                {
-                    "missing": false,  --> default: False
-                    "hide": true,      --> default: True
-                    "id": 1,
-                    "name": "not asked"
-                },
-                {
-                    "missing": false,
-                    "hide": true,
-                    "id": 4,
-                    "name": "skipped"
-                }
-            ]}
-        }
-        """
-        # build template payload
-        parsed_template = []
-        for q in template:
-            # sometimes q is not a dict but simply a string, convert it to a dict
-            if isinstance(q, str):
-                q = {"query": q}
-            as_json = {}
-            parsed_q = process_expr(parse_expr(q['query']), self.resource)
-            # wrap the query in a list of one dict element
-            as_json['query'] = [parsed_q]
-            if 'transform' in q.keys():
-                as_json['transform'] = q['transform']
-            parsed_template.append(as_json)
-        payload = dict(element='shoji:entity',
-                       body=dict(name=name,
-                                 is_public=is_public,
-                                 template=parsed_template))
-        new_multi = self.resource.multitables.create(payload)
-        return self.multitables[new_multi.body['name']]
-
-    def import_multitable(self, name, multi):
-        """
-        Copies a multitable from another Dataset into this one:
-        As described at http://docs.crunch.io/#post176
-        :name: Name of the new multitable
-        :multi: Multitable instance to clone into this Dataset
-        """
-        payload = dict(element='shoji:entity',
-                       body=dict(name=name,
-                                 multitable=multi.resource.self))
-        self.resource.multitables.create(payload)
-        return self.multitables[name]
 
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
@@ -967,12 +747,12 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         expr = dict(function='case', args=args + more_args)
 
-        payload = dict(element='shoji:entity',
-                       body=dict(alias=alias,
-                                 name=name,
-                                 expr=expr,
-                                 description=description,
-                                 notes=notes))
+        payload = shoji_entity_wrapper(dict(
+            alias=alias,
+            name=name,
+            expr=expr,
+            description=description,
+            notes=notes))
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -980,11 +760,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(self, responses, name, alias, description='',
-                                 notes=''):
+    def create_multiple_response(self, responses, name, alias, description='', notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
-         of the responses(subvariables).
+        of the responses(subvariables).
         """
         responses_map = collections.OrderedDict()
         responses_map_ids = []
@@ -1001,25 +780,22 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 alias='%s_%d' % (alias, resp['id'])
             )
 
-        payload = {
-            'element': 'shoji:entity',
-            'body': {
-                'name': name,
-                'alias': alias,
-                'description': description,
-                'notes': notes,
-                'derivation': {
-                    'function': 'array',
-                    'args': [{
-                        'function': 'select',
-                        'args': [
-                            {'map': responses_map},
-                            {'value': responses_map_ids}
-                        ]
-                    }]
-                }
+        payload = shoji_entity_wrapper({
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'derivation': {
+                'function': 'array',
+                'args': [{
+                    'function': 'select',
+                    'args': [
+                        {'map': responses_map},
+                        {'value': responses_map_ids}
+                    ]
+                }]
             }
-        }
+        })
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -1027,8 +803,49 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
+    def create_numeric(self, alias, name, derivation, description='', notes=''):
+        """
+        Used to create new numeric variables using Crunchs's derived expressions
+        """
+        expr = parse_expr(derivation)
+
+        if not hasattr(self.resource, 'variables'):
+            self.resource.refresh()
+
+        payload = shoji_entity_wrapper(dict(
+            alias=alias,
+            name=name,
+            derivation=expr,
+            description=description,
+            notes=notes
+        ))
+
+        self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[alias]
+
+    def create_categorical(self, categories, alias, name, multiple,
+                           description='', notes=''):
+        """
+        Used to create new categorical variables using Crunchs's `case`
+        function
+
+        Will create either categorical variables or multiple response depending
+        on the `multiple` parameter.
+        """
+        if multiple:
+            return self.create_multiple_response(
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
+        else:
+            return self.create_single_response(
+                categories, alias=alias, name=name, description=description,
+                notes=notes)
+
     def copy_variable(self, variable, name, alias):
-        SUBVAR_ALIAS = re.compile(r'.+_(\d+)$')
+        _subvar_alias = re.compile(r'.+_(\d+)$')
 
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
@@ -1037,7 +854,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             _subreferences = []
             for subvar in _variable.resource.subvariables.index.values():
                 sv_alias = subvar['alias']
-                match = SUBVAR_ALIAS.match(sv_alias)
+                match = _subvar_alias.match(sv_alias)
                 if match:  # Does this var have the subvar pattern?
                     suffix = int(match.groups()[0], 10)  # Keep the position
                     sv_alias = subvar_alias(_alias, suffix)
@@ -1054,14 +871,10 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             derivation = abs_url(variable.resource.body['derivation'],
                                  variable.resource.self)
             derivation.pop('references', None)
-            payload = {
-                'element': 'shoji:entity',
-                'body': {
-                    'name': name,
-                    'alias': alias,
-                    'derivation': derivation
-                }
-            }
+            payload = shoji_entity_wrapper({
+                'name': name,
+                'alias': alias,
+                'derivation': derivation})
 
             if variable.type == _MR_TYPE:
                 # We are re-executing a multiple_response derivation.
@@ -1077,19 +890,16 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                             subvar['references']['alias'] = subref['alias']
                             break
         else:
-            payload = {
-                'element': 'shoji:entity',
-                'body': {
-                    'name': name,
-                    'alias': alias,
-                    'derivation': {
-                        'function': 'copy_variable',
-                        'args': [{
-                            'variable': variable.resource.self
-                        }]
-                    }
+            payload = shoji_entity_wrapper({
+                'name': name,
+                'alias': alias,
+                'derivation': {
+                    'function': 'copy_variable',
+                    'args': [{
+                        'variable': variable.resource.self
+                    }]
                 }
-            }
+            })
             if variable.type == _MR_TYPE:
                 subreferences = subrefs(variable, alias)
                 payload['body']['derivation']['references'] = {
@@ -1138,13 +948,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
 
         # TODO: Implement `default` parameter in Crunch API
         combinations = combinations_from_map(map, categories or {}, missing or [])
-        payload = _VARIABLE_PAYLOAD_TMPL.copy()
-        payload['body']['name'] = name
-        payload['body']['alias'] = alias
-        payload['body']['description'] = description
-        payload['body']['derivation'] = combine_categories_expr(
-            variable.resource.self, combinations)
-
+        payload = shoji_entity_wrapper({
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'derivation': combine_categories_expr(
+                variable.resource.self, combinations)
+        })
         # this returns an entity
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
@@ -1157,7 +967,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
-
             map={
                 1: 1,
                 2: [2, 3, 4]
@@ -1166,7 +975,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 1: "online",
                 2: "notonline"
             }
-
         """
         if isinstance(variable, six.string_types):
             parent_alias = variable
@@ -1177,13 +985,13 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         # TODO: Implement `default` parameter in Crunch API
         responses = responses_from_map(variable, map, categories or {}, alias,
                                        parent_alias)
-        payload = _VARIABLE_PAYLOAD_TMPL.copy()
-        payload['body']['name'] = name
-        payload['body']['alias'] = alias
-        payload['body']['description'] = description
-        payload['body']['derivation'] = combine_responses_expr(
-            variable.resource.self, responses)
-
+        payload = shoji_entity_wrapper({
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'derivation': combine_responses_expr(
+                variable.resource.self, responses)
+        })
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
         self._reload_variables()
@@ -1198,8 +1006,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             The description that should be given to the new savepoint. This
             function will not let you create a new savepoint with the same
             description as any other savepoint.
-
-        :returns: None
         """
         if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes('description'):
@@ -1208,10 +1014,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                     " exists.".format(description)
                 )
 
-        self.resource.savepoints.create({
-            'element': 'shoji:entity',
-            'body': {'description': description}
-        })
+        self.resource.savepoints.create(shoji_entity_wrapper({'description': description}))
 
     def load_savepoint(self, description=None):
         """
@@ -1221,10 +1024,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             The description that identifies which savepoint to be loaded.
             When loading a savepoint, all savepoints that were saved after
             the loaded savepoint will be destroyed permanently.
-
-        :returns: None
         """
-
         if description is None:
             description = 'initial import'
         elif description not in self.savepoint_attributes('description'):
@@ -1250,103 +1050,133 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
                 'user_name'
                 'version'
         """
-
-        if len(self.resource.savepoints.index) == 0:
-            return []
-        else:
+        svpoints = self.resource.savepoints
+        if len(svpoints.index) != 0:
             attribs = [
                 cp[attrib]
-                for url, cp in six.iteritems(self.resource.savepoints.index)
+                for url, cp in six.iteritems(svpoints.index)
+            ]
+            return attribs
+        return []
+
+    def create_crunchbox(
+            self, title='', header='', footer='', notes='',
+            filters=None, variables=None, force=False, min_base_size=None,
+            palette=None):
+        """
+        create a new boxdata entity for a CrunchBox.
+
+        NOTE: new boxdata is only created when there is a new combination of
+        where and filter data.
+
+        Args:
+            title       (str): Human friendly identifier
+            notes       (str): Other information relevent for this CrunchBox
+            header      (str): header information for the CrunchBox
+            footer      (str): footer information for the CrunchBox
+            filters    (list): list of filter names or `Filter` instances
+            where      (list): list of variable aliases or `Variable` instances
+                               If `None` all variables will be included.
+            min_base_size (int): min sample size to display values in graph
+            palette     dict : dict of colors as documented at docs.crunch.io
+                i.e.
+                {
+                    "brand": ["#111111", "#222222", "#333333"],
+                    "static_colors": ["#444444", "#555555", "#666666"],
+                    "base": ["#777777", "#888888", "#999999"],
+                    "category_lookup": {
+                        "category name": "#aaaaaa",
+                        "another category:": "bbbbbb"
+                }
+
+        Returns:
+            CrunchBox (instance)
+        """
+
+        if filters:
+            if not isinstance(filters, list):
+                raise TypeError('`filters` argument must be of type `list`')
+
+            # ensure we only have `Filter` instances
+            filters = [
+                f if isinstance(f, Filter) else self.filters[f]
+                for f in filters
             ]
 
-            return attribs
+            if any(not f.is_public
+                    for f in filters):
+                raise ValueError('filters need to be public')
 
-    def fork(self, description=None, name=None, is_published=False,
-             preserve_owner=False, **kwargs):
-        """
-        Create a fork of ds and add virgin savepoint.
+            filters = [
+                {'filter': f.resource.self}
+                for f in filters
+            ]
 
-        :param description: str, default=None
-            If given, the description to be applied to the fork. If not
-            given the description will be copied from ds.
-        :param name: str, default=None
-            If given, the name to be applied to the fork. If not given a
-            default name will be created which numbers the fork based on
-            how many other forks there are on ds.
-        :param is_published: bool, default=False
-            If True, the fork will be visible to viewers of ds. If False it
-            will only be viewable to editors of ds.
-        :param preserve_owner: bool, default=False
-            If True, the owner of the fork will be the same as the parent
-            dataset. If the owner of the parent dataset is a Crunch project,
-            then it will be preserved regardless of this parameter.
+        if variables:
+            if not isinstance(variables, list):
+                raise TypeError('`variables` argument must be of type `list`')
 
-        :returns _fork: scrunch.datasets.Dataset
-            The forked dataset.
-        """
+            # ensure we only have `Variable` Tuples
+            # NOTE: if we want to check if variables are public we would have
+            # to use Variable instances instead of their Tuple representation.
+            # This would cause additional GET's
+            variables = [
+                var.shoji_tuple if isinstance(var, Variable)
+                else self.resource.variables.by('alias')[var]
+                for var in variables
+            ]
 
-        nforks = len(self.resource.forks.index)
-        if name is None:
-            name = "FORK #{} of {}".format(nforks + 1, self.resource.body.name)
-        if description is None:
-            description = self.resource.body.description
+            variables = dict(
+                function='select',
+                args=[
+                    {'map': {
+                        v.id: {'variable': v.entity_url}
+                        for v in variables
+                    }}
+                ])
 
-        body = dict(
-            name=name,
-            description=description,
-            is_published=is_published,
-            **kwargs
+        if not title:
+            title = 'CrunchBox for {}'.format(str(self))
+
+        payload = shoji_entity_wrapper(dict(
+            where=variables,
+            filters=filters,
+            force=force,
+            title=title,
+            notes=notes,
+            header=header,
+            footer=footer)
         )
-        # not returning a dataset
-        _fork = self.resource.forks.create({"body": body}).refresh()
-        fork = Dataset(_fork)
 
-        if preserve_owner or '/api/projects/' in self.resource.body.owner:
-            try:
-                _fork.patch({'owner': self.resource.body.owner})
-                _fork.refresh()
-            except (pycrunch.ClientError, pycrunch.ServerError):
-                # Don't fail if the fork's owner cannot be set to be the same
-                # as the parent dataset.
-                pass
+        if min_base_size:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(minBaseSize=dict(value=min_base_size)))
+        if palette:
+            payload['body'].setdefault('display_settings', {}).update(
+                dict(palette=palette))
 
-        return fork
+        # create the boxdata
+        self.resource.boxdata.create(payload)
 
-    def merge(self, fork_id=None, autorollback=True):
-        """
-        :param fork_id: str or int
-            can either be the fork id, name or its number as string or int
+        # NOTE: the entity from the response is a bit different compared to
+        # others, i.e. no id, no delete method, different entity_url...
+        # For now, return the shoji_tuple from the index
+        for shoji_tuple in self.resource.boxdata.index.values():
+            if shoji_tuple.metadata.title == title:
+                return CrunchBox(shoji_tuple, self)
 
-        :param autorollback: bool, default=True
-            if True the original dataset is rolled back to the previous state
-            in case of a merge conflict.
-            if False the dataset and fork are beeing left 'dirty'
-        """
-        if isinstance(fork_id, int) or (
-                isinstance(fork_id, six.string_types) and
-                fork_id.isdigit()):
-            fork_id = "FORK #{} of {}".format(fork_id, self.resource.body.name)
-
-        elif fork_id is None:
-            raise ValueError('fork id, name or number missing')
-
-        fork_index = self.resource.forks.index
-
-        forks = [f for f in fork_index
-                 if fork_index[f].get('name') == fork_id or
-                 fork_index[f].get('id') == fork_id]
-        if len(forks) == 1:
-            fork_url = forks[0]
-        else:
-            raise ValueError(
-                "Couldn't find a (unique) fork. "
-                "Please try again using its id")
-
-        body = dict(
-            dataset=fork_url,
-            autorollback=autorollback
-        )
-        self.resource.actions.post(body)
+    def delete_crunchbox(self, **kwargs):
+        """ deletes crunchboxes on matching kwargs """
+        match = False
+        for key in kwargs:
+            if match:
+                break
+            for crunchbox in self.crunchboxes:
+                attr = getattr(crunchbox, key, None)
+                if attr and attr == kwargs[key]:
+                    crunchbox.remove()
+                    match = True
+                    break
 
     def forks_dataframe(self):
         """
@@ -1378,14 +1208,6 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
             _forks.sort(columns='creation_time', inplace=True)
 
             return _forks
-
-    def delete_forks(self):
-        """
-        Deletes all the forks on the dataset. CANNOT BE UNDONE!
-        """
-
-        for fork in six.itervalues(self.resource.forks.index):
-            fork.entity.delete()
 
     def export(self, path, format='csv', filter=None, variables=None,
                hidden=False, options=None, metadata_path=None, timeout=None):
@@ -1516,275 +1338,224 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         )
         download_file(url, path)
 
-    def join(self, left_var, right_ds, right_var, columns=None,
-             filter=None, wait=True):
+    def exclude(self, expr=None):
         """
-        Joins a given variable. In crunch joins are left joins, where
-        left is the dataset variable and right is other dataset variable.
-        For more information see:
-        http://docs.crunch.io/?http#merging-and-joining-datasets
+        Given a dataset object, apply an exclusion filter to it (defined as an
+        expression string).
 
-        :param: columns: Specify a list of variables from right dataset
-        to bring in the merge:
-        http://docs.crunch.io/?http#joining-a-subset-of-variables
+        If the `expr` parameter is None, an empty expression object is sent
+        as part of the PATCH request, which effectively removes the exclusion
+        filter (if any).
 
-        :param: wait: Wait for the join progress to finish by polling
-        or simply return a url to the progress resource
+        Exclusion filters express logic that defines a set of rows that should be
+        dropped from the dataset. The rows aren't permanently deleted---you can
+        recover them at any time by removing the exclusion filter---but they are
+        omitted from all views and calculations, as if they had been deleted.
 
-        :param: filter: Filters out rows based on the given expression,
-        or on a given url for an existing filter. TODO: for the moment
-        we only allow expressions
+        Note that exclusion filters work opposite from how "normal" filters work.
+        That is, a regular filter expression defines the subset of rows to operate
+        on: it says "keep these rows." An exclusion filter defines which rows to
+        omit. Applying a filter expression as a query filter will have the
+        opposite effect if applied as an exclusion. Indeed, applying it as both
+        query filter and exclusion at the same time will result in 0 rows.
         """
-        right_var_url = right_ds[right_var].url
-        left_var_url = self[left_var].url
-        # this dictionary sets the main part of the join
-        adapter = {
-            'function': 'adapt',
-            'args': [
-                {'dataset': right_ds.url},
-                {'variable': right_var_url},
-                {'variable': left_var_url}
-            ]
-        }
-
-        # wrap the adapter method on a shoji and body entity
-        payload = {
-            'element': 'shoji:entity',
-            'body': adapter
-        }
-
-        if columns and isinstance(columns, list):
-            # overwrite body to new format
-            payload['body'] = {
-                'frame': adapter,
-                'function': 'select',
-                'args': [
-                    {'map': {}}
-                ]
-            }
-            # add the individual variable columns to the payload
-            for var in columns:
-                var_url = right_ds[var].url
-                payload['body']['args'][0]['map'][var_url] = {'variable': var_url}
-
-        if filter:
-            # in the case of a filter, convert it to crunch
-            # and attach the filter to the payload
-            expr = process_expr(parse_expr(filter), right_ds)
-            payload['body']['filter'] = {'expression': expr}
-
-        progress = self.resource.variables.post(payload)
-        # poll for progress to finish or return the url to progress
-        if wait:
-            return wait_progress(r=progress, session=self.resource.session, entity=self)
-        return progress.json()['value']
-
-    def create_numeric(self, alias, name, derivation, description='', notes=''):
-        """
-        Used to create new numeric variables using Crunchs's derived expressions
-        """
-
-        expr = parse_expr(derivation)
-
-        if not hasattr(self.resource, 'variables'):
-            self.resource.refresh()
-
-        payload = dict(
-            element='shoji:entity',
-            body=dict(
-                alias=alias,
-                name=name,
-                derivation=expr,
-                description=description,
-                notes=notes
-            )
-        )
-
-        self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return the variable instance
-        return self[alias]
-
-    def create_categorical(self, categories, alias, name, multiple,
-                           description='', notes=''):
-        """
-        Used to create new categorical variables using Crunchs's `case`
-        function
-
-        Will create either categorical variables or multiple response depending
-        on the `multiple` parameter.
-        """
-        if multiple:
-            return self.create_multiple_response(
-                categories, alias=alias, name=name, description=description,
-                notes=notes)
+        if isinstance(expr, six.string_types):
+            expr_obj = parse_expr(expr)
+            expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
+        elif expr is None:
+            expr_obj = {}
         else:
-            return self.create_single_response(
-                categories, alias=alias, name=name, description=description,
-                notes=notes)
-
-    def create_crunchbox(
-            self, title='', header='', footer='', notes='',
-            filters=None, variables=None, force=False, min_base_size=None,
-            palette=None):
-        """
-        create a new boxdata entity for a CrunchBox.
-
-        NOTE: new boxdata is only created when there is a new combination of
-        where and filter data.
-
-        Args:
-            title       (str): Human friendly identifier
-            notes       (str): Other information relevent for this CrunchBox
-            header      (str): header information for the CrunchBox
-            footer      (str): footer information for the CrunchBox
-            filters    (list): list of filter names or `Filter` instances
-            where      (list): list of variable aliases or `Variable` instances
-                               If `None` all variables will be included.
-            min_base_size (int): min sample size to display values in graph
-            palette     dict : dict of colors as documented at docs.crunch.io
-                i.e.
-                {
-                    "brand": ["#111111", "#222222", "#333333"],
-                    "static_colors": ["#444444", "#555555", "#666666"],
-                    "base": ["#777777", "#888888", "#999999"],
-                    "category_lookup": {
-                        "category name": "#aaaaaa",
-                        "another category:": "bbbbbb"
-                }
-
-        Returns:
-            CrunchBox (instance)
-        """
-
-        if filters:
-            if not isinstance(filters, list):
-                raise TypeError('`filters` argument must be of type `list`')
-
-            # ensure we only have `Filter` instances
-            filters = [
-                f if isinstance(f, Filter) else self.filters[f]
-                for f in filters
-            ]
-
-            if any(not f.is_public
-                    for f in filters):
-                raise ValueError('filters need to be public')
-
-            filters = [
-                {'filter': f.resource.self}
-                for f in filters
-            ]
-
-        if variables:
-            if not isinstance(variables, list):
-                raise TypeError('`variables` argument must be of type `list`')
-
-            # ensure we only have `Variable` Tuples
-            # NOTE: if we want to check if variables are public we would have
-            # to use Variable instances instead of their Tuple representation.
-            # This would cause additional GET's
-            variables = [
-                var.shoji_tuple if isinstance(var, Variable)
-                else self.resource.variables.by('alias')[var]
-                for var in variables
-            ]
-
-            variables = dict(
-                function='select',
-                args=[
-                    {'map': {
-                        v.id: {'variable': v.entity_url}
-                        for v in variables
-                    }}
-                ])
-
-        if not title:
-            title = 'CrunchBox for {}'.format(str(self))
-
-        payload = dict(
-            element='shoji:entity',
-            body=dict(
-                where=variables,
-                filters=filters,
-                force=force,
-                title=title,
-                notes=notes,
-                header=header,
-                footer=footer)
+            expr_obj = expr
+        return self.resource.session.patch(
+            self.resource.fragments.exclusion,
+            data=json.dumps(dict(expression=expr_obj))
         )
 
-        if min_base_size:
-            payload['body'].setdefault('display_settings', {}).update(
-                dict(minBaseSize=dict(value=min_base_size)))
-        if palette:
-            payload['body'].setdefault('display_settings', {}).update(
-                dict(palette=palette))
+    def get_exclusion(self):
+        exclusion = self.resource.exclusion
+        if 'body' not in exclusion:
+            return None
+        expr = exclusion['body'].get('expression')
+        return prettify(expr, self) if expr else None
 
-        # create the boxdata
-        self.resource.boxdata.create(payload)
+    def add_filter(self, name, expr, public=False):
+        payload = shoji_entity_wrapper(dict(
+            name=name,
+            expression=process_expr(parse_expr(expr), self.resource),
+            is_public=public))
+        new_filter = self.resource.filters.create(payload)
+        return self.filters[new_filter.body['name']]
 
-        # NOTE: the entity from the response is a bit different compared to
-        # others, i.e. no id, no delete method, different entity_url...
-        # For now, return the shoji_tuple from the index
-        for shoji_tuple in self.resource.boxdata.index.values():
-            if shoji_tuple.metadata.title == title:
-                return CrunchBox(shoji_tuple, self)
+    def add_deck(self, name, description="", public=False):
+        payload = shoji_entity_wrapper(dict(
+            name=name,
+            description=description,
+            is_public=public))
+        new_deck = self.resource.decks.create(payload)
+        return self.decks[new_deck.self.split('/')[-2]]
 
-    def delete_crunchbox(self, **kwargs):
-        """ deletes crunchboxes on matching kwargs """
-        match = False
-        for key in kwargs:
-            if match:
-                break
-            for crunchbox in self.crunchboxes:
-                attr = getattr(crunchbox, key, None)
-                if attr and attr == kwargs[key]:
-                    crunchbox.remove()
-                    match = True
-                    break
+    def fork(self, description=None, name=None, is_published=False,
+             preserve_owner=False, **kwargs):
+        """
+        Create a fork of ds and add virgin savepoint.
+
+        :param description: str, default=None
+            If given, the description to be applied to the fork. If not
+            given the description will be copied from ds.
+        :param name: str, default=None
+            If given, the name to be applied to the fork. If not given a
+            default name will be created which numbers the fork based on
+            how many other forks there are on ds.
+        :param is_published: bool, default=False
+            If True, the fork will be visible to viewers of ds. If False it
+            will only be viewable to editors of ds.
+        :param preserve_owner: bool, default=False
+            If True, the owner of the fork will be the same as the parent
+            dataset. If the owner of the parent dataset is a Crunch project,
+            then it will be preserved regardless of this parameter.
+
+        :returns _fork: scrunch.datasets.BaseDataset
+            The forked dataset.
+        """
+        nforks = len(self.resource.forks.index)
+        if name is None:
+            name = "FORK #{} of {}".format(nforks + 1, self.resource.body.name)
+        if description is None:
+            description = self.resource.body.description
+
+        body = dict(
+            name=name,
+            description=description,
+            is_published=is_published,
+            **kwargs)
+
+        if preserve_owner or '/api/projects/' in self.resource.body.owner:
+            body['owner'] = self.resource.body.owner
+        # not returning a dataset
+        payload = shoji_entity_wrapper(body)
+        _fork = self.resource.forks.create(payload).refresh()
+        return BaseDataset(_fork)
+
+    def merge(self, fork_id=None, autorollback=True):
+        """
+        :param fork_id: str or int
+            can either be the fork id, name or its number as string or int
+
+        :param autorollback: bool, default=True
+            if True the original dataset is rolled back to the previous state
+            in case of a merge conflict.
+            if False the dataset and fork are beeing left 'dirty'
+        """
+        if isinstance(fork_id, int) or (
+                isinstance(fork_id, six.string_types) and
+                fork_id.isdigit()):
+            fork_id = "FORK #{} of {}".format(fork_id, self.resource.body.name)
+
+        elif fork_id is None:
+            raise ValueError('fork id, name or number missing')
+
+        fork_index = self.resource.forks.index
+
+        forks = [f for f in fork_index
+                 if fork_index[f].get('name') == fork_id or
+                 fork_index[f].get('id') == fork_id]
+        if len(forks) == 1:
+            fork_url = forks[0]
+        else:
+            raise ValueError(
+                "Couldn't find a (unique) fork. "
+                "Please try again using its id")
+
+        body = dict(
+            dataset=fork_url,
+            autorollback=autorollback)
+        self.resource.actions.create(body)
+
+    def delete_forks(self):
+        """
+        Deletes all the forks on the dataset. CANNOT BE UNDONE!
+        """
+        for fork in six.itervalues(self.resource.forks.index):
+            fork.entity.delete()
+
+    def create_multitable(self, name, template, is_public=False):
+        """
+        template: List of dictionaries with the following keys
+        {"query": <query>, "transform": <transform>|optional}.
+        A query is a variable or a function on a variable:
+        {"query": bin(birthyr)}
+
+        If transform is specified it must have the form
+        {
+            "query": var_x,
+            "transform": {"categories": [
+                {
+                    "missing": false,  --> default: False
+                    "hide": true,      --> default: True
+                    "id": 1,
+                    "name": "not asked"
+                },
+                {
+                    "missing": false,
+                    "hide": true,
+                    "id": 4,
+                    "name": "skipped"
+                }
+            ]}
+        }
+        """
+        # build template payload
+        parsed_template = []
+        for q in template:
+            # sometimes q is not a dict but simply a string, convert it to a dict
+            if isinstance(q, str):
+                q = {"query": q}
+            as_json = {}
+            parsed_q = process_expr(parse_expr(q['query']), self.resource)
+            # wrap the query in a list of one dict element
+            as_json['query'] = [parsed_q]
+            if 'transform' in q.keys():
+                as_json['transform'] = q['transform']
+            parsed_template.append(as_json)
+        payload = shoji_entity_wrapper(dict(
+            name=name,
+            is_public=is_public,
+            template=parsed_template))
+        new_multi = self.resource.multitables.create(payload)
+        return self.multitables[new_multi.body['name']]
+
+    def import_multitable(self, name, multi):
+        """
+        Copies a multitable from another Dataset into this one:
+        As described at http://docs.crunch.io/#post176
+        :name: Name of the new multitable
+        :multi: Multitable instance to clone into this Dataset
+        """
+        payload = shoji_entity_wrapper(dict(
+            name=name,
+            multitable=multi.resource.self))
+        self.resource.multitables.create(payload)
+        return self.multitables[name]
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
-    """
-    Handles a variable subvariables iteration in a dict-like way
-    """
 
-    def __getitem__(self, item):
-        # Check if the attribute corresponds to a variable alias
-        subvariable = self.resource.subvariables.by('alias').get(item)
-        if subvariable is None:
-            # subvariable doesn't exists, must raise a ValueError
-            raise KeyError(
-                'Variable %s has no subvariable with an alias %s' % (self.name,
-                                                                     item))
-        # subvariable exists!, return the subvariable Instance
-        return Variable(subvariable, self)
-
-    def __iter__(self):
+    def _reload_variables(self):
         """
-        Iterable of ordered subvariables
+        Helper that takes care of updating self._vars on init and
+        whenever the dataset adds a variable
         """
-        sv_index = self.resource.subvariables.index
-        for sv in self.resource['body']['subvariables']:
-            yield sv_index[sv]
-
-    def __len__(self):
-        return len(self.resource.subvariables.index)
-
-    def itervalues(self):
-        for _, var_tuple in self.resource.subvariables.index.items():
-            yield Variable(var_tuple, self)
-
-    def iterkeys(self):
-        for var in self.resource.subvariables.index.items():
-            yield var[1].name
+        self._vars = []
+        self._catalog = {}
+        if getattr(self.resource, 'subvariables', None):
+            self._catalog = self.resource.subvariables
+            self._vars = self._catalog.index.items()
 
 
 class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
+    DatasetSubvariablesMixin provides for subvariable interactions.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format'}
@@ -1799,13 +1570,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def __init__(self, var_tuple, dataset):
         """
         :param var_tuple: A Shoji Tuple for a dataset variable
-        :param dataset: a Dataset() object instance
+        :param dataset: a Dataset object instance
         """
         self.shoji_tuple = var_tuple
         self.is_instance = False
         self._resource = None
         self.url = var_tuple.entity_url
         self.dataset = dataset
+        self._reload_variables()
 
     @property
     def resource(self):
@@ -1846,220 +1618,15 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         return CategoryList._from(self.resource)
 
     def hide(self):
-        LOG.debug("HIDING")
         self.resource.edit(discarded=True)
 
     def unhide(self):
-        LOG.debug("UNHIDING")
         self.resource.edit(discarded=False)
 
     def integrate(self):
         if self.derived:
             self.resource.edit(derived=False)
-
-    def combine(self, alias=None, map=None, names=None, default='missing',
-                name=None, description=None):
-        # DEPRECATED - USE Dataset.combine*
-        """
-        Implements SPSS-like recode functionality for Crunch variables.
-
-        This method combines Crunch's `combine_categories` and
-        `combine_responses` in a single method when applied to a variable
-        that is deemed as ~categorical~ by the user.
-        """
-        if alias is None:
-            raise TypeError('Missing alias for the recoded variable')
-        if map is None:
-            raise TypeError('Missing recode map')
-        if not isinstance(map, dict) or not map:
-            raise ValueError('Invalid recode map')
-        if default not in ('missing', 'copy'):
-            raise ValueError(
-                'The "default" argument must be either "missing" or "copy"'
-            )
-
-        if 'body' not in self.resource:
-            self.resource.refresh()
-
-        if self.resource.body.type not in ('categorical', 'categorical_array',
-                                           _MR_TYPE):
-            raise TypeError(
-                'Only categorical, categorical_array and multiple_response '
-                'variables are supported'
-            )
-
-        if name is None:
-            name = self.resource.body.name + ' (recoded)'
-
-        if description is None:
-            description = self.resource.body.description
-
-        if self.resource.body.type in ('categorical', 'categorical_array'):
-            # On this case perform a `combine_categories` operation
-
-            if names is None:
-                raise TypeError('Missing category names')
-
-            processed_categories = list()
-            category_defs = list()
-            category_defs_by_id = dict()
-            default_name = 'Missing'
-            existing_categories_by_id = dict()
-            existing_categories_by_name = dict()
-            for existing_category in self.resource.body.get('categories', []):
-                _id = existing_category['id']
-                _name = existing_category['name']
-                existing_categories_by_id[_id] = existing_category
-                existing_categories_by_id[_name] = existing_category
-
-            # 1. Basic category definitions.
-            for _id, value in map.items():
-                if isinstance(_id, int):
-                    if not isinstance(value, (list, tuple, int,
-                                              six.string_types, range)):
-                        raise ValueError('Invalid mapped value')
-                    if isinstance(value, (int, six.string_types)):
-                        value = [value]
-
-                    processed_value = []
-                    for element in value:
-                        if isinstance(element, six.string_types):
-                            try:
-                                element = existing_categories_by_name[element]
-                            except KeyError:
-                                raise ValueError(
-                                    'Invalid category name %s' % element
-                                )
-                            assert isinstance(element, int)
-                        if isinstance(element, int):
-                            if element not in existing_categories_by_id:
-                                raise ValueError(
-                                    'Invalid numeric code %s' % element
-                                )
-                        else:
-                            raise ValueError(
-                                'Invalid mapped value %s' % element
-                            )
-                        processed_value.append(element)
-
-                    category = {
-                        'id': _id,
-                        'name': str(_id),
-                        'missing': False,
-                        'combined_ids': processed_value
-                    }
-                    category_defs.append(category)
-                    category_defs_by_id[_id] = category
-                    processed_categories.extend(list(value))
-            category_defs = sorted(category_defs, key=lambda c: c['id'])
-
-            # 2. Add category names (if defined).
-            if type(names) in (list, tuple):
-                for i, category_name in enumerate(names):
-                    if i < len(category_defs):
-                        category_defs[i]['name'] = category_name
-                    elif i == len(category_defs):
-                        default_name = category_name
-            elif isinstance(names, dict):
-                for _id, category_name in names.items():
-                    if _id in category_defs_by_id:
-                        category_defs_by_id[_id]['name'] = category_name
-
-            # 3. Add the "missing" stuff.
-            missing_category = {
-                'id': max(category_defs_by_id.keys()) + 1,
-                'name': default_name,
-                'missing': True,
-                'combined_ids': []
-            }
-            for existing_category in self.resource.body.get('categories', []):
-                _id = existing_category['id']
-                if _id not in processed_categories:
-                    if default == 'missing':
-                        missing_category['combined_ids'].append(_id)
-                    elif default == 'copy':
-                        category = {
-                            'id': _id,
-                            'name': existing_category['name'],
-                            'missing': existing_category['missing'],
-                            'combined_ids': [_id]
-                        }
-                        category_defs.append(category)
-                        category_defs_by_id[_id] = category
-                    processed_categories.append(_id)
-
-            if default == 'missing':
-                category_defs.append(missing_category)
-
-            # 4. Create the recoded variable.
-            payload = _VARIABLE_PAYLOAD_TMPL.copy()
-            payload['body']['name'] = name
-            payload['body']['alias'] = alias
-            payload['body']['description'] = description
-            payload['body']['expr']['function'] = 'combine_categories'
-            payload['body']['expr']['args'] = [
-                {
-                    'variable': self.resource['self']
-                },
-                {
-                    'value': category_defs
-                }
-            ]
-        else:  # multiple_response
-            # Perform a `combine_responses` derivation
-            subreferences = self.resource.body.get('subreferences', [])
-            subvariables = self.resource.body.get('subvariables', [])
-            assert len(subreferences) == len(subvariables)
-
-            # 1. Gather the URLs of the subvariables.
-            subvar_urls = {
-                subvar['alias']: subvariables[i]
-                for i, subvar in enumerate(subreferences)
-            }
-
-            # 2. Generate the list of response definitions for the recoded
-            #    variable.
-            response_defs = list()
-            for new_subvar_name in sorted(map):
-                value = map[new_subvar_name]
-                if not isinstance(value, (list, tuple, six.string_types)):
-                    raise ValueError
-                if isinstance(value, six.string_types):
-                    value = [value]
-                try:
-                    response = {
-                        'name': new_subvar_name,
-                        'combined_ids': [
-                            subvar_urls[_alias] for _alias in value
-                        ]
-                    }
-                    response_defs.append(response)
-                except KeyError:
-                    raise ValueError(
-                        'Invalid subvariable alias(es) in %s' % value
-                    )
-
-            # 3. Create the recoded variable.
-            payload = _VARIABLE_PAYLOAD_TMPL.copy()
-            payload['body']['name'] = name
-            payload['body']['alias'] = alias
-            payload['body']['description'] = description
-            payload['body']['expr']['function'] = 'combine_responses'
-            payload['body']['expr']['args'] = [
-                {
-                    'variable': self.resource['self']
-                },
-                {
-                    'value': response_defs
-                }
-            ]
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self.dataset._reload_variables()
-        # return an instance of Variable
-        return self.dataset[new_var['body']['alias']]
-
+            
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
         _validate_category_rules(categories, rules)
@@ -2077,12 +1644,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
-        payload = dict(
-            element='shoji:entity',
-            body=dict(expr=expr)
-        )
+        payload = shoji_entity_wrapper(dict(expr=expr))
         # patch the variable with the new payload
-        return self.resource.patch(payload)
+        resp = self.resource.patch(payload)
+        self._reload_variables()
+        return resp
 
     def edit_derived(self, variable, mapper):
         raise NotImplementedError("Use edit_combination")
