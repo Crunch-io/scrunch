@@ -139,7 +139,7 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
     return shoji_ds, root
 
 
-# FIXME: to be deprecated in flavor or get_streaming_dataset and 
+# FIXME: to be deprecated in favor of get_streaming_dataset and 
 # get_mutable_dataset
 def get_dataset(dataset, connection=None, editor=False):
     """
@@ -1011,6 +1011,54 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
+    def cast(self, variable, cast_type, categories=None):
+        """
+        Casts a variable to numeric, text or categorical. If the variable
+        is going to be casted to a categorical type then additional information
+        for the categories is needed.
+
+        @param variable: variable alias in the dataset to cast from.
+        @param cast_type: one of ['numeric', 'text', 'categorical']
+        @param categories: a list of categories in the form:
+            categories = [                 
+                {"id": 1, "name": "one", "missing": false, "numeric_value": null},
+                {"id": 2, "name": "two", "missing": false, "numeric_value": null},
+                {"id": -1, "name": "No Data", "missing": true, "numeric_value": null},
+            ]
+        }
+        """
+        assert cast_type in ['numeric', 'text', 'categorical'], "Cast type not allowed"
+        payload = {
+            'function': 'cast',
+            'args': []
+        }
+
+        var_url = self[variable].resource.self
+
+        if cast_type == 'categorical':
+            if not categories:
+                raise AttributeError("Cast to categorical require the categories parameter")
+            payload['args'] = [
+                {'variable': var_url},
+                {
+                    'value': {
+                        'class': cast_type,
+                        'categories': categories
+                    }
+                }
+            ]
+        else:
+            payload['args'] = [
+                {'variable': var_url},
+                {'value': cast_type}
+            ]
+
+        print(payload)
+
+        return self.resource.session.post(
+            self[variable].resource.views.cast,
+            data=json.dumps(payload))
+
     def create_savepoint(self, description):
         """
         Creates a savepoint on the dataset.
@@ -1072,8 +1120,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return attribs
         return []
 
-    def create_crunchbox(
-            self, title='', header='', footer='', notes='',
+    def create_crunchbox(self, title='', header='', footer='', notes='',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
