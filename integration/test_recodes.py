@@ -23,7 +23,7 @@ site = connect(username, password, site_url=HOST)
 class TestRecodes(TestCase):
     def test_recodes(self):
         # Create a dataset for usage
-        dataset = create_dataset("Recodes example", NEWS_DATASET)
+        dataset = create_dataset("Recodes example", NEWS_DATASET, streaming='streaming')
         print("Dataset %s created" % dataset.id)
 
         # Add data rows

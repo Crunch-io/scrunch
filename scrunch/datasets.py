@@ -557,7 +557,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Change the current editor of the Crunch dataset.
 
         :param user:
-            The email or a User instance of the user who should 
+            The email or a User instance of the user who should
             be set as the new current editor of the given dataset.
         """
         if not isinstance(user, User):
@@ -1650,7 +1650,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def integrate(self):
         if self.derived:
             self.resource.edit(derived=False)
-            
+
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
         _validate_category_rules(categories, rules)
