@@ -23,7 +23,7 @@ def get_dataset(dataset, connection=None, editor=False):
     return ds
 
 
-def create_dataset(name, variables, connection=None):
+def create_dataset(name, variables, connection=None, **kwargs):
     if connection is None:
         connection = _get_connection()
         if not connection:
@@ -31,14 +31,16 @@ def create_dataset(name, variables, connection=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
 
-    shoji_ds = connection.datasets.create(
-        shoji_entity_wrapper({
-            'name': name,
-            'table': {
-                'element': 'crunch:table',
-                'metadata': variables
-            }
-        })).refresh()
+    dataset_doc = {
+        'name': name,
+        'table': {
+            'element': 'crunch:table',
+            'metadata': variables
+        }
+    }
+    dataset_doc.update(**kwargs)
+
+    shoji_ds = connection.datasets.create(shoji_entity_wrapper(dataset_doc)).refresh()
     return MutableDataset(shoji_ds)
 
 
