@@ -2,7 +2,8 @@ import mock
 from unittest import TestCase
 
 import pytest
-from scrunch.datasets import Dataset, Variable
+from scrunch.datasets import Variable
+from scrunch.mutable_dataset import MutableDataset
 from scrunch.variables import responses_from_map
 from scrunch.helpers import subvar_alias
 
@@ -70,22 +71,22 @@ RECODES_PAYLOAD = {
 }
 
 COMBINE_RESPONSES_PAYLOAD = {
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'name',
-                'description': '',
-                'alias': 'alias',
-                'derivation': {
-                    'function': 'combine_responses',
-                    'args': [
-                        {'variable': var_url},
-                        {'value': [
-                            {'alias': 'alias_1', 'combined_ids': [subvar1_url, subvar2_url], 'name': 'online'}
-                        ]}
-                    ]
-                }
-            }
+    'element': 'shoji:entity',
+    'body': {
+        'name': 'name',
+        'description': '',
+        'alias': 'alias',
+        'derivation': {
+            'function': 'combine_responses',
+            'args': [
+                {'variable': var_url},
+                {'value': [
+                    {'alias': 'alias_1', 'combined_ids': [subvar1_url, subvar2_url], 'name': 'online'}
+                ]}
+            ]
         }
+    }
+}
 
 
 class TestCombine(TestCase):
@@ -139,11 +140,11 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock
         }
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
-        assert 'Dataset mocked_dataset has no variable with an alias unknown' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable with a name or alias unknown' in str(err.value)
 
     def test_combine_categories_from_alias(self):
         resource = mock.MagicMock()
@@ -153,11 +154,11 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock,
         }
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_categories_from_entity(self):
         resource = mock.MagicMock()
@@ -173,11 +174,11 @@ class TestCombine(TestCase):
         tuple_mock.entity.self = var_url
 
         entity = Variable(tuple_mock, resource)
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_responses_unknown_alias(self):
         resource = mock.MagicMock()
@@ -203,7 +204,7 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
 
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
 
@@ -233,11 +234,11 @@ class TestCombine(TestCase):
         }
 
         # make the actual response call
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_responses_by_entity(self):
         resource = mock.MagicMock()
@@ -265,17 +266,17 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
 
-        ds = Dataset(resource)
+        ds = MutableDataset(resource)
 
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response(entity_mock, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
-        assert 'Dataset mocked_dataset has no variable' in str(err.value)
+        assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
 
 class TestRecode(TestCase):
 
-    @mock.patch('scrunch.datasets.get_dataset')
+    @mock.patch('scrunch.mutable_dataset.get_mutable_dataset')
     def test_recode_categoricals(self, get_dataset_mock):
         categories = [
             {
@@ -333,7 +334,7 @@ class TestRecode(TestCase):
         ds_res = mock.MagicMock()
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
-        dataset = Dataset(ds_res)
+        dataset = MutableDataset(ds_res)
         dataset.create_categorical([
             {'id': 1, 'name': 'Straight', 'case': 'sexuality.any([1])'},
             {'id': 2, 'name': 'LGBTQ+', 'case': 'sexuality.any([2, 3, 4, 5])'}
@@ -377,7 +378,7 @@ class TestRecode(TestCase):
             }
         })
 
-    @mock.patch('scrunch.datasets.get_dataset')
+    @mock.patch('scrunch.mutable_dataset.get_mutable_dataset')
     def test_recode_multiple_responses(self, get_dataset_mock):
         dataset_id = '123'
         categories = [
@@ -461,10 +462,9 @@ class TestRecode(TestCase):
             }
         })
         ds_res = mock.MagicMock()
-        Variable(var_res, ds_res)
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
-        dataset = Dataset(ds_res)
+        dataset = MutableDataset(ds_res)
         subvar_mock = mock.MagicMock()
         subvar_mock.self = var_url
         subvar_mock.id = 'subvar'

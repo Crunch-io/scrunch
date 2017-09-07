@@ -16,3 +16,7 @@ class InvalidPathError(ValueError):
 
 class InvalidReferenceError(ValueError):
     pass
+
+
+class InvalidDatasetTypeError(Exception):
+    pass

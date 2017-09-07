@@ -107,3 +107,14 @@ def _validate_category_rules(categories, rules):
         raise ValueError(
             'Amount of rules should match categories (or categories -1)'
         )
+
+
+def shoji_entity_wrapper(payload):
+    """
+    receives a dictionary and wraps its content on a body keyed dictionary
+    with the appropiate shoji:<class> attribute
+    """
+    return {
+        'element': 'shoji:entity',
+        'body': payload
+    }
