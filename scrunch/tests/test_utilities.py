@@ -3,9 +3,9 @@ import mock
 
 import scrunch
 from scrunch.variables import validate_variable_url
-from scrunch import get_project
-from scrunch.datasets import (get_dataset, Dataset,
-                              get_user, Project, User)
+from scrunch import get_project, get_dataset, get_user
+from scrunch.datasets import Project, User
+from scrunch.mutable_dataset import MutableDataset
 
 
 @pytest.fixture(scope='function')
@@ -97,6 +97,7 @@ class TestUtilities(object):
             'body': {
                 'id': '123456',
                 'name': 'dataset_name',
+                'streaming': 'no'
             }
         }
 
@@ -106,40 +107,8 @@ class TestUtilities(object):
 
         ds = get_dataset('dataset_name')
         session.datasets.by.assert_called_with('name')
-        assert isinstance(ds, Dataset)
+        assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
-
-    @mock.patch('pycrunch.session')
-    def test_get_dataset_from_project(self, session):
-        shoji_entity = {
-            'element': 'shoji:entity',
-            'body': {
-                'id': '123456',
-                'name': 'project_name',
-            }
-        }
-
-        projects = mock.MagicMock(**shoji_entity)
-        session.projects.by.side_effect = _by_side_effect(
-            shoji_entity, projects)
-
-        assert session.projects.by('name')['project_name'] == projects
-        assert session.projects.by('id')['123456'] == projects
-
-        # Dataset
-        shoji_entity['body']['name'] = 'dataset_name'
-        ds_res = mock.MagicMock(**shoji_entity)
-        ds_res.entity = mock.MagicMock(**shoji_entity)
-        projects.entity.datasets.by.side_effect = _by_side_effect(
-            shoji_entity, ds_res)
-
-        ds = get_dataset('dataset_name', project='project_name')
-
-        session.projects.by.assert_called_with('name')
-        projects.entity.datasets.by.assert_called_with('name')
-        assert isinstance(ds, Dataset)
-        assert ds.name == 'dataset_name'
-        assert ds.id == '123456'
 
     @mock.patch('pycrunch.session')
     def test_get_dataset_from_project_no_name(self, session):
@@ -148,6 +117,7 @@ class TestUtilities(object):
             'body': {
                 'id': '123456',
                 'name': 'dataset_name',
+                'streaming': 'no'
             }
         }
 
@@ -167,7 +137,7 @@ class TestUtilities(object):
         ds = get_dataset('123456')
         session.session.get.assert_called_with('https://test.crunch.io/api/123456/')
 
-        assert isinstance(ds, Dataset)
+        assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
         assert ds.id == '123456'
 
