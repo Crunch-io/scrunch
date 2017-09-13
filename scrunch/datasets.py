@@ -1011,53 +1011,39 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
-    def cast(self, variable, cast_type, categories=None):
+    def cast_summary(self, variable, cast_type):
         """
-        Casts a variable to numeric, text or categorical. If the variable
-        is going to be casted to a categorical type then additional information
-        for the categories is needed.
+        Returns a summary of the given variable when trying
+        to cast it's type to "cast_type".
+        :return: A json payload indicating success on the cast intention or
+        an possible error on it. It will raise an error
+        """
+        try:
+            resp = self.resource.session.get(
+                self[variable].resource.views.cast,
+                params={'cast_as': cast_type}
+            )
+        except pycrunch.lemonpy.ClientError as e:
+            return 'Impossible to cast var "%s" to type "%s". Error: %s' % (
+                variable, cast_type, e)
+        return resp.content
 
-        @param variable: variable alias in the dataset to cast from.
+    def cast(self, variable, cast_type):
+        """
+        Casts a variable to numeric, text or categorical.
+        @param variable: variable alias in the dataset to cast.
         @param cast_type: one of ['numeric', 'text', 'categorical']
-        @param categories: a list of categories in the form:
-            categories = [                 
-                {"id": 1, "name": "one", "missing": false, "numeric_value": null},
-                {"id": 2, "name": "two", "missing": false, "numeric_value": null},
-                {"id": -1, "name": "No Data", "missing": true, "numeric_value": null},
-            ]
-        }
+        :return: the casted variable or an error
         """
         assert cast_type in ['numeric', 'text', 'categorical'], "Cast type not allowed"
-        payload = {
-            'function': 'cast',
-            'args': []
-        }
-
-        var_url = self[variable].resource.self
-
-        if cast_type == 'categorical':
-            if not categories:
-                raise AttributeError("Cast to categorical require the categories parameter")
-            payload['args'] = [
-                {'variable': var_url},
-                {
-                    'value': {
-                        'class': cast_type,
-                        'categories': categories
-                    }
-                }
-            ]
-        else:
-            payload['args'] = [
-                {'variable': var_url},
-                {'value': cast_type}
-            ]
-
-        print(payload)
-
-        return self.resource.session.post(
+        payload = {'cast_as': cast_type}
+        # try casting the variable in place
+        resp = self.resource.session.post(
             self[variable].resource.views.cast,
             data=json.dumps(payload))
+        # make sure to update the dataset variables with the casted one
+        self._reload_variables()
+        return self[variable]
 
     def create_savepoint(self, description):
         """
