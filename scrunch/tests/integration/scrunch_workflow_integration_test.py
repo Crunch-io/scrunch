@@ -353,6 +353,20 @@ def main():
         df = pandaslib.dataframe(dataset.resource)
         assert len(df) == len(ROWS) - 1  # excluding the header
 
+        # 0. Start by updating the missing rules for the `identity` variable
+        identity_missing_rules = {
+            "not asked": {
+                "value": 9999
+            },
+            "skipped": {
+                "value": 9998
+            }
+        }
+
+        assert dataset['identity'].missing_rules == {}
+        dataset['identity'].set_missing_rules(identity_missing_rules)
+        assert dataset['identity'].missing_rules == identity_missing_rules
+
         # 1. Exclusion Filter Integration Tests
 
         # 1.1 Set a simple exclusion filter.

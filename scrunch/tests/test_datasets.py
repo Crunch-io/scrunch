@@ -1140,6 +1140,29 @@ class TestVariables(TestDatasetBase, TestCase):
         var.integrate()
         var_tuple.entity.edit.assert_called_once_with(derived=False)
 
+    def test_update_missing_rules(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var1_alias']
+
+        assert var.name == 'var1_name'
+
+        put_side_effect = lambda *x, **y: AttributeDict({'status_code': 204})
+        var._resource.session.put.side_effect = put_side_effect
+        var.set_missing_rules({"skipped": 9, "not asked": 8})
+        var._resource.session.put.assert_called_once()
+
+        call = var._resource.session.put.call_args_list[0]
+        args, kwargs = [el for el in call]
+        assert kwargs == {}
+        assert args[0] == var._resource.fragments.missing_rules
+        assert json.loads(args[1]) == {
+            "rules": {
+                "skipped": 9,
+                "not asked": 8
+            }
+        }
+
 
 class TestCurrentEditor(TestDatasetBase, TestCase):
     ds_url = 'https://test.crunch.io/api/datasets/123456/'

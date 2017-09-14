@@ -11,19 +11,31 @@ from unittest import TestCase
 
 from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT
 from scrunch import connect
-from scrunch.datasets import create_dataset
+from scrunch.streaming_dataset import get_streaming_dataset
 
 HOST = os.environ['SCRUNCH_HOST']
 username = os.environ['SCRUNCH_USER']
 password = os.environ['SCRUNCH_PASS']
 
-site = connect(username, password, site_url=HOST)
+
+site = connect(username, password, HOST)
 
 
 class TestRecodes(TestCase):
     def test_recodes(self):
         # Create a dataset for usage
-        dataset = create_dataset("Recodes example", NEWS_DATASET)
+        ds = site.datasets.create({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'test_recodes',
+                'table': {
+                    'element': 'crunch:table',
+                    'metadata': NEWS_DATASET
+                },
+                'streaming': 'streaming'
+            }
+        }).refresh()
+        dataset = get_streaming_dataset(ds.body.id, site)
         print("Dataset %s created" % dataset.id)
 
         # Add data rows
@@ -99,4 +111,4 @@ class TestRecodes(TestCase):
         dataset.export(output.name)
         self.assertEqual([l.strip() for l in output.read().strip().split('\n')], RECODES_CSV_OUTPUT.split('\n'))
         output.close()
-        dataset.delete()
+        ds.delete()
