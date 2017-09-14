@@ -12,8 +12,7 @@ import pycrunch
 from pycrunch.exporting import export_dataset
 
 from scrunch.categories import CategoryList
-from scrunch.exceptions import (InvalidPathError, AuthenticationError,
-                                InvalidReferenceError, OrderUpdateError)
+from scrunch.exceptions import AuthenticationError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules,
                              download_file, shoji_entity_wrapper,
@@ -93,7 +92,7 @@ def _get_connection(file_path='crunch.ini'):
             "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
-def _get_dataset(dataset, connection=None, editor=False, streaming=False):
+def _get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Helper method for specific get_dataset and get_streaming_dataset methods.
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
@@ -120,33 +119,41 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
                 "config/environment variables")
     root = connection
     root_datasets = root.datasets
-    # search by dataset name
-    try:
-        shoji_ds = root_datasets.by('name')[dataset].entity
-    except KeyError:
-        # search by dataset id
+    # search on project if specifed
+    if project:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            shoji_ds = project_obj.get_dataset(dataset).resource
+        else:
+            shoji_ds = project.get_dataset(dataset).resource
+    else:
+        # search by dataset name
         try:
-            shoji_ds = root_datasets.by('id')[dataset].entity
+            shoji_ds = root_datasets.by('name')[dataset].entity
         except KeyError:
-            # search by id on any project
+            # search by dataset id
             try:
-                dataset_url = urljoin(
-                    root.catalogs.datasets, '{}/'.format(dataset))
-                shoji_ds = root.session.get(dataset_url).payload
-            except Exception:
-                raise KeyError(
-                    "Dataset (name or id: %s) not found in context." % dataset)
+                shoji_ds = root_datasets.by('id')[dataset].entity
+            except KeyError:
+                # search by id on any project
+                try:
+                    dataset_url = urljoin(
+                        root.catalogs.datasets, '{}/'.format(dataset))
+                    shoji_ds = root.session.get(dataset_url).payload
+                except Exception:
+                    raise KeyError(
+                        "Dataset (name or id: %s) not found in context." % dataset)
     return shoji_ds, root
 
 
-# FIXME: to be deprecated in favor of get_streaming_dataset and 
+# FIXME: to be deprecated in favor of get_streaming_dataset and
 # get_mutable_dataset
-def get_dataset(dataset, connection=None, editor=False):
+def get_dataset(dataset, connection=None, editor=False, project=None):
     """
     A simple wrapper of _get_dataset with streaming=False
     """
-    shoji_ds, root = _get_dataset(dataset, connection, editor, streaming=False)
-    ds = Dataset(shoji_ds)
+    shoji_ds, root = _get_dataset(dataset, connection, editor, project)
+    ds = BaseDataset(shoji_ds)
     if editor is True:
         ds.change_editor(root.session.email)
     return ds
@@ -283,6 +290,18 @@ class Project:
         self.resource.members.patch(
             {user.url: {'permissions': {'edit': edit}}}
         )
+
+    def get_dataset(self, dataset):
+        try:
+            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+        except KeyError:
+            try:
+                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in project." % dataset)
+        ds = BaseDataset(shoji_ds)
+        return ds
 
 
 class CrunchBox(object):
