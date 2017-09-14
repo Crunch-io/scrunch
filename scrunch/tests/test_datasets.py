@@ -1225,7 +1225,6 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         })
 
 
-# PIZZA
 class TestCast(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
