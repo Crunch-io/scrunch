@@ -1202,6 +1202,21 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         })
 
 
+# PIZZA
+class TestCast(TestCase):
+
+    ds_url = 'http://test.crunch.io/api/datasets/123/'
+
+    def test_cast_not_allowed(self):
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.views.cast = MagicMock()
+        ds = StreamingDataset(ds_res)
+        with pytest.raises(AssertionError, message="Cast type not allowed"):
+            ds.cast('var_a', 'not_allowed')
+            ds_res.resource.session.post.assert_called_with(
+                {'cast_as': 'not_allowed'})
+
 class TestSavepoints(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
@@ -1828,6 +1843,7 @@ def test_hide_unhide():
     var_res.entity.edit.assert_called_with(discarded=True)
     var.unhide()
     var_res.entity.edit.assert_called_with(discarded=False)
+
 
 class TestProjectsHierarchicalOrder(TestCase):
 
@@ -3996,7 +4012,6 @@ class TestDatasetsHierarchicalOrder(TestCase):
         assert items[2].name == 'Account'
         assert items[3].name == 'Music'
         assert items[4].name == 'Religion'
-
 
 
 class TestDatasetSettings(TestCase):

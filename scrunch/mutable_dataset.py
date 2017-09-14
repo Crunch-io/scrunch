@@ -3,16 +3,14 @@ from pycrunch.shoji import wait_progress
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
 from scrunch.exceptions import InvalidDatasetTypeError
-from scrunch.datasets import (BaseDataset, _get_connection, _get_dataset,
-                              Variable, CrunchBox)
-from scrunch.subentity import Filter
+from scrunch.datasets import BaseDataset, _get_connection, _get_dataset
 
 
-def get_dataset(dataset, connection=None, editor=False):
+def get_mutable_dataset(dataset, connection=None, editor=False, project=None):
     """
     A simple wrapper of _get_dataset with streaming=False
     """
-    shoji_ds, root = _get_dataset(dataset, connection, editor, streaming=False)
+    shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     # make sure the Dataset is of type streaming != "streaming"
     if shoji_ds['body'].get('streaming') == 'streaming':
         raise InvalidDatasetTypeError("Dataset %s is of type 'streaming',\

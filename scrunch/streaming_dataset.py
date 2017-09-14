@@ -4,11 +4,11 @@ from scrunch.helpers import shoji_entity_wrapper
 from scrunch.exceptions import InvalidDatasetTypeError
 
 
-def get_streaming_dataset(dataset, connection=None, editor=False):
+def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
     """
     A simple wrapper of _get_dataset with streaming=True
     """
-    shoji_ds, root = _get_dataset(dataset, connection, editor, streaming=True)
+    shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     # make sure the Dataset is of type streaming != "streaming"
     if shoji_ds['body'].get('streaming') == 'streaming':
         raise InvalidDatasetTypeError("Dataset %s is of type 'streaming',\

@@ -12,8 +12,7 @@ import pycrunch
 from pycrunch.exporting import export_dataset
 
 from scrunch.categories import CategoryList
-from scrunch.exceptions import (InvalidPathError, AuthenticationError,
-                                InvalidReferenceError, OrderUpdateError)
+from scrunch.exceptions import AuthenticationError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules,
                              download_file, shoji_entity_wrapper,
@@ -93,7 +92,7 @@ def _get_connection(file_path='crunch.ini'):
             "Unable to find crunch session, crunch.ini file or environment variables.")
 
 
-def _get_dataset(dataset, connection=None, editor=False, streaming=False):
+def _get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Helper method for specific get_dataset and get_streaming_dataset methods.
     Retrieve a reference to a given dataset (either by name, or ID) if it exists
@@ -120,23 +119,44 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
                 "config/environment variables")
     root = connection
     root_datasets = root.datasets
-    # search by dataset name
-    try:
-        shoji_ds = root_datasets.by('name')[dataset].entity
-    except KeyError:
-        # search by dataset id
+    # search on project if specifed
+    if project:
+        if isinstance(project, six.string_types):
+            project_obj = get_project(project, connection)
+            shoji_ds = project_obj.get_dataset(dataset).resource
+        else:
+            shoji_ds = project.get_dataset(dataset).resource
+    else:
+        # search by dataset name
         try:
-            shoji_ds = root_datasets.by('id')[dataset].entity
+            shoji_ds = root_datasets.by('name')[dataset].entity
         except KeyError:
-            # search by id on any project
+            # search by dataset id
             try:
-                dataset_url = urljoin(
-                    root.catalogs.datasets, '{}/'.format(dataset))
-                shoji_ds = root.session.get(dataset_url).payload
-            except Exception:
-                raise KeyError(
-                    "Dataset (name or id: %s) not found in context." % dataset)
+                shoji_ds = root_datasets.by('id')[dataset].entity
+            except KeyError:
+                # search by id on any project
+                try:
+                    dataset_url = urljoin(
+                        root.catalogs.datasets, '{}/'.format(dataset))
+                    shoji_ds = root.session.get(dataset_url).payload
+                except Exception:
+                    raise KeyError(
+                        "Dataset (name or id: %s) not found in context." % dataset)
     return shoji_ds, root
+
+
+# FIXME: to be deprecated in favor of get_streaming_dataset and
+# get_mutable_dataset
+def get_dataset(dataset, connection=None, editor=False, project=None):
+    """
+    A simple wrapper of _get_dataset with streaming=False
+    """
+    shoji_ds, root = _get_dataset(dataset, connection, editor, project)
+    ds = BaseDataset(shoji_ds)
+    if editor is True:
+        ds.change_editor(root.session.email)
+    return ds
 
 
 def get_project(project, connection=None):
@@ -270,6 +290,18 @@ class Project:
         self.resource.members.patch(
             {user.url: {'permissions': {'edit': edit}}}
         )
+
+    def get_dataset(self, dataset):
+        try:
+            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+        except KeyError:
+            try:
+                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in project." % dataset)
+        ds = BaseDataset(shoji_ds)
+        return ds
 
 
 class CrunchBox(object):
@@ -998,6 +1030,40 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
+    def cast_summary(self, variable, cast_type):
+        """
+        Returns a summary of the given variable when trying
+        to cast it's type to "cast_type".
+        :return: A json payload indicating success on the cast intention or
+        an possible error on it. It will raise an error
+        """
+        try:
+            resp = self.resource.session.get(
+                self[variable].resource.views.cast,
+                params={'cast_as': cast_type}
+            )
+        except pycrunch.lemonpy.ClientError as e:
+            return 'Impossible to cast var "%s" to type "%s". Error: %s' % (
+                variable, cast_type, e)
+        return resp.content
+
+    def cast(self, variable, cast_type):
+        """
+        Casts a variable to numeric, text or categorical.
+        @param variable: variable alias in the dataset to cast.
+        @param cast_type: one of ['numeric', 'text', 'categorical']
+        :return: the casted variable or an error
+        """
+        assert cast_type in ['numeric', 'text', 'categorical'], "Cast type not allowed"
+        payload = {'cast_as': cast_type}
+        # try casting the variable in place
+        resp = self.resource.session.post(
+            self[variable].resource.views.cast,
+            data=json.dumps(payload))
+        # make sure to update the dataset variables with the casted one
+        self._reload_variables()
+        return self[variable]
+
     def create_savepoint(self, description):
         """
         Creates a savepoint on the dataset.
@@ -1059,8 +1125,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return attribs
         return []
 
-    def create_crunchbox(
-            self, title='', header='', footer='', notes='',
+    def create_crunchbox(self, title='', header='', footer='', notes='',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -1536,6 +1601,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             multitable=multi.resource.self))
         self.resource.multitables.create(payload)
         return self.multitables[name]
+
+
+# FIXME: This class to be deprecated
+class Dataset(BaseDataset):
+
+    def __init__(self, resource):
+        LOG.warning("""Dataset is deprecated, instead use now
+            mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset 
+            with it's corresponding get_mutable_dataset and get_streaming_dataset 
+            functions""")
+        super(Dataset, self).__init__(resource)
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):

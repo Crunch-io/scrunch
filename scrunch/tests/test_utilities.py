@@ -3,7 +3,7 @@ import mock
 
 import scrunch
 from scrunch.variables import validate_variable_url
-from scrunch import get_project, get_dataset, get_user
+from scrunch import get_project, get_mutable_dataset, get_user
 from scrunch.datasets import Project, User
 from scrunch.mutable_dataset import MutableDataset
 
@@ -105,7 +105,7 @@ class TestUtilities(object):
         ds_mock.entity = mock.MagicMock(**shoji_entity)
         session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
 
-        ds = get_dataset('dataset_name')
+        ds = get_mutable_dataset('dataset_name')
         session.datasets.by.assert_called_with('name')
         assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
@@ -134,7 +134,7 @@ class TestUtilities(object):
         session.session.get.side_effect = _get
         session.catalogs.datasets = 'https://test.crunch.io/api/'
 
-        ds = get_dataset('123456')
+        ds = get_mutable_dataset('123456')
         session.session.get.assert_called_with('https://test.crunch.io/api/123456/')
 
         assert isinstance(ds, MutableDataset)
