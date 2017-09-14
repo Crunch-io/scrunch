@@ -139,7 +139,7 @@ def _get_dataset(dataset, connection=None, editor=False, streaming=False):
     return shoji_ds, root
 
 
-# FIXME: to be deprecated in flavor or get_streaming_dataset and 
+# FIXME: to be deprecated in favor of get_streaming_dataset and 
 # get_mutable_dataset
 def get_dataset(dataset, connection=None, editor=False):
     """
@@ -1011,6 +1011,40 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
+    def cast_summary(self, variable, cast_type):
+        """
+        Returns a summary of the given variable when trying
+        to cast it's type to "cast_type".
+        :return: A json payload indicating success on the cast intention or
+        an possible error on it. It will raise an error
+        """
+        try:
+            resp = self.resource.session.get(
+                self[variable].resource.views.cast,
+                params={'cast_as': cast_type}
+            )
+        except pycrunch.lemonpy.ClientError as e:
+            return 'Impossible to cast var "%s" to type "%s". Error: %s' % (
+                variable, cast_type, e)
+        return resp.content
+
+    def cast(self, variable, cast_type):
+        """
+        Casts a variable to numeric, text or categorical.
+        @param variable: variable alias in the dataset to cast.
+        @param cast_type: one of ['numeric', 'text', 'categorical']
+        :return: the casted variable or an error
+        """
+        assert cast_type in ['numeric', 'text', 'categorical'], "Cast type not allowed"
+        payload = {'cast_as': cast_type}
+        # try casting the variable in place
+        resp = self.resource.session.post(
+            self[variable].resource.views.cast,
+            data=json.dumps(payload))
+        # make sure to update the dataset variables with the casted one
+        self._reload_variables()
+        return self[variable]
+
     def create_savepoint(self, description):
         """
         Creates a savepoint on the dataset.
@@ -1072,8 +1106,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return attribs
         return []
 
-    def create_crunchbox(
-            self, title='', header='', footer='', notes='',
+    def create_crunchbox(self, title='', header='', footer='', notes='',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
