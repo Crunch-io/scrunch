@@ -193,7 +193,7 @@ class MutableDataset(BaseDataset):
                             diff['subvariables'][name].append(dataset[name][sv_name].alias)
         return diff
 
-    def append_dataset(self, dataset, filter=None, where=None, autorollback=True):
+    def append_dataset(self, dataset, filter=None, variables=None, autorollback=True):
         """
         Append dataset into self. If this operation fails, the
         append is rolledback. Dataset variables and subvariables
@@ -202,13 +202,13 @@ class MutableDataset(BaseDataset):
         :param: dataset: Daatset instance to append from
         :param: filter: An expression to filter dataset rows. cannot be a Filter
             according to: http://docs.crunch.io/#get211
-        :param: where: A list of variable names to include from dataset
+        :param: variables: A list of variable names to include from dataset
         """
         if self.url == dataset.url:
             raise ValueError("Cannot append dataset to self")
 
-        if where and not isinstance(where, list):
-            raise AttributeError("where must be a list of variable names")
+        if variables and not isinstance(variables, list):
+            raise AttributeError("'variables' must be a list of variable names")
 
         payload = {
             "element": "shoji:entity",
@@ -216,22 +216,19 @@ class MutableDataset(BaseDataset):
             "body": {
                 'dataset': dataset.url}}
 
-        if where:
-            if isinstance(where, list):
-                id_vars = []
-                for var in where:
-                    id_vars.append(dataset[var].url)
-                # build the payload with selected variables
-                payload['body']['where'] = {
-                    'function': 'select',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x} for x in id_vars
-                        }
-                    }]
-                }
-            else:
-                raise ValueError("where param must be a list of variable names")
+        if variables:
+            id_vars = []
+            for var in variables:
+                id_vars.append(dataset[var].url)
+            # build the payload with selected variables
+            payload['body']['where'] = {
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x} for x in id_vars
+                    }
+                }]
+            }
 
         if filter:
             # parse the filter expression
