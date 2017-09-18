@@ -14,7 +14,7 @@ class Path(object):
         if not isinstance(path, six.string_types):
             raise TypeError('The path must be a string object')
 
-        if not re.match(r'^\|$|^\|?([\w\s]+\|?)+$', path, re.UNICODE):
+        if not re.match(r'^\|$|^\|?([\w\s,]+\|?)+$', path, re.UNICODE):
             raise InvalidPathError(
                 'Invalid path %s: it contains invalid characters.' % path
             )
@@ -452,8 +452,9 @@ class Order(object):
         else:
             raise TypeError('entity must be a `Variable` or `Dataset`')
 
-        target_group.insert(element, position=position,
-                            before=before, after=after)
+        target_group.insert(
+            element, position=position,
+            before=before, after=after)
 
     def _prepare_shoji_graph(self):
         """

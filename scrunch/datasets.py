@@ -994,8 +994,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # at this point we are returning a Variable instance
         return self[new_var['body']['alias']]
 
-    def combine_multiple_response(self, variable, map, categories=None, default=None,
-                                  name='', alias='', description=''):
+    def combine_multiple_response(self, variable, map, categories=None,
+                                  default=None, name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
