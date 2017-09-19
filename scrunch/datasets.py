@@ -19,8 +19,12 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules,
                              abs_url, case_expr, subvar_alias)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
-from scrunch.variables import (combinations_from_map, combine_categories_expr,
-                               combine_responses_expr, responses_from_map)
+from scrunch.variables import (
+    combinations_from_map,
+    combine_categories_expr,
+    combine_responses_expr,
+    responses_from_map)
+
 
 _MR_TYPE = 'multiple_response'
 
@@ -1628,6 +1632,49 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
             self._vars = self._catalog.index.items()
 
 
+class MissingRules(dict):
+    """
+    Handles variables missing rules in a dict fashion.
+    del var['skipped']  --> deletes a missing rule
+    """
+
+    def __init__(self, resource, *args):
+        self.resource = resource
+        # remove the nested key: {'value': value} to mimic
+        # pythonic dict behaviour
+        data = {}
+        for k,v in args[0].items():
+            data[k] = v['value']
+        dict.__init__(self, data)
+
+    def __setitem__(self, key, value):
+        data = {}
+        for k, v in self.items():
+            # wrap value in a {'value': value} for crunch
+            data[k] = {'value': v}
+            if key == k:
+                data[k]['value'] = value
+        # send the json to the missing_rules endpoint
+        result = self.resource.session.put(
+            self.resource.fragments.missing_rules,
+            json.dumps({'rules': data}))
+        assert result.status_code == 204
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        assert self[key]
+        data = {}
+        for k, v in self.items():
+            # wrap value in a {'value': value} for crunch
+            data[k] = {'value': v}
+        del data[key]
+        result = self.resource.session.put(
+            self.resource.fragments.missing_rules,
+            json.dumps({'rules': data}))
+        assert result.status_code == 204
+        super().__delitem__(key)
+
+
 class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
@@ -1736,54 +1783,30 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     @property
     def missing_rules(self):
         result = self.resource.session.get(
-            self.resource.fragments.missing_rules
-        )
-
+            self.resource.fragments.missing_rules)
         assert result.status_code == 200
-
-        return result.json()['body']['rules']
+        return MissingRules(self.resource, result.json()['body']['rules'])
 
     def set_missing_rules(self, rules):
-        """Updates the variable's missing rules.
+        """
+        Updates the variable's missing rules.
 
         :param rules: a dictionary of rules for missing values, missing reason
                 as key, rule as value. The rule can be one of:
-
-            - {'value': v}: Entries which match the given value will be
-                marked as missing for the given reason.
-
-            - {'set': [v1, v2, ...]}: Entries which are present in the given set
-                will be marked as missing for the given reason.
-
-            - {'range': [lower, upper], 'inclusive': [true, false]}: Entries
-                which exist between the given boundaries will be marked as
-                missing for the given reason. If either "inclusive" element
-                is null, the corresponding boundary is unbounded.
-
-            - {'function': '...', 'args': [...]}: Entries which match the given
-                filter function will be marked as missing for the given
-                reason. This is typically a tree of simple rules
-                logical-OR'd together.
-
         Sample:
 
             missing_rules = {
-                "not asked": {
-                    "value": 9999
-                },
-                "skipped": {
-                    "value": 9998
-                }
-            }
+                "not asked": 9999,
+                "skipped": 9998}
 
             ds['varname'].set_missing_rules(missing_rules)
-
         """
+        data = {}
+        for k, v in rules.items():
+            # wrap value in a {'value': value} for crunch
+            data[k] = {'value': v}
         result = self.resource.session.put(
             self.resource.fragments.missing_rules,
-            json.dumps({'rules': rules})
+            json.dumps({'rules': data})
         )
-
         assert result.status_code == 204
-
-

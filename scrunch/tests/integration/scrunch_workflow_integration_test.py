@@ -355,12 +355,8 @@ def main():
 
         # 0. Start by updating the missing rules for the `identity` variable
         identity_missing_rules = {
-            "not asked": {
-                "value": 9999
-            },
-            "skipped": {
-                "value": 9998
-            }
+            "not asked": 9999,
+            "skipped": 9998
         }
 
         assert dataset['identity'].missing_rules == {}

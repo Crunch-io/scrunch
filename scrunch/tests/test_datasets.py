@@ -1158,8 +1158,8 @@ class TestVariables(TestDatasetBase, TestCase):
         assert args[0] == var._resource.fragments.missing_rules
         assert json.loads(args[1]) == {
             "rules": {
-                "skipped": 9,
-                "not asked": 8
+                "skipped": {'value': 9},
+                "not asked": {'value': 8}
             }
         }
 
