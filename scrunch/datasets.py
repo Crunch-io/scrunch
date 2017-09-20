@@ -1649,7 +1649,7 @@ class MissingRules(dict):
         dict.__init__(self, data)
 
     def __setitem__(self, key, value):
-        data = {}
+        data = {key: {'value': value}}
         for k, v in self.items():
             # wrap value in a {'value': value} for crunch
             data[k] = {'value': v}
