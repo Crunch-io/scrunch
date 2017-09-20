@@ -1635,7 +1635,8 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
 class MissingRules(dict):
     """
     Handles variables missing rules in a dict fashion.
-    del var['skipped']  --> deletes a missing rule
+    del var.missing_rules['skipped']  --> deletes a missing rule
+    var.missing_rules['not asked'] = 999  --> adds a missing rule
     """
 
     def __init__(self, resource, *args):
