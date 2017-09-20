@@ -1675,6 +1675,12 @@ class MissingRules(dict):
         assert result.status_code == 204
         super(MissingRules, self).__delitem__(key)
 
+    def clear(self):
+        result = self.resource.session.put(
+            self.resource.fragments.missing_rules,
+            json.dumps({'rules': {}}))
+        super(MissingRules, self).clear()
+
 
 class Variable(ReadOnly, DatasetSubvariablesMixin):
     """
