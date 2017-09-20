@@ -1643,7 +1643,7 @@ class MissingRules(dict):
         # remove the nested key: {'value': value} to mimic
         # pythonic dict behaviour
         data = {}
-        for k,v in args[0].items():
+        for k, v in args[0].items():
             data[k] = v['value']
         dict.__init__(self, data)
 
@@ -1659,7 +1659,7 @@ class MissingRules(dict):
             self.resource.fragments.missing_rules,
             json.dumps({'rules': data}))
         assert result.status_code == 204
-        super().__setitem__(key, value)
+        super(MissingRules, self).__setitem__(key, value)
 
     def __delitem__(self, key):
         assert self[key]
@@ -1672,7 +1672,7 @@ class MissingRules(dict):
             self.resource.fragments.missing_rules,
             json.dumps({'rules': data}))
         assert result.status_code == 204
-        super().__delitem__(key)
+        super(MissingRules, self).__delitem__(key)
 
 
 class Variable(ReadOnly, DatasetSubvariablesMixin):
