@@ -558,7 +558,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return object.__getattribute__(self, item)
 
     def __repr__(self):
-        return "<Dataset: name='{}'; id='{}'>".format(self.name, self.id)
+        return "<{}: name='{}'; id='{}'>".format(
+            self.__class__.__name__, self.name, self.id)
 
     def __str__(self):
         return self.name
@@ -1484,7 +1485,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             then it will be preserved regardless of this parameter.
 
         :returns _fork: scrunch.datasets.BaseDataset
-            The forked dataset.
         """
         nforks = len(self.resource.forks.index)
         if name is None:
@@ -1503,7 +1503,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
-        return BaseDataset(_fork)
+        # return a MutableDataset or StreamingDataset depending
+        # on the class that the fork comes from
+        return self.__class__(_fork)
 
     def merge(self, fork_id=None, autorollback=True):
         """
