@@ -11,7 +11,7 @@ def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     # make sure the Dataset is of type streaming != "streaming"
     if shoji_ds['body'].get('streaming') != 'streaming':
-        raise InvalidDatasetTypeError("Dataset %s is of type 'streaming',\
+        raise InvalidDatasetTypeError("Dataset %s is of type 'mutable',\
             use get_mutable_dataset method instead" % dataset)
     ds = StreamingDataset(shoji_ds)
     if editor is True:
