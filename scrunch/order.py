@@ -5,8 +5,14 @@ import re
 import pycrunch
 import scrunch.datasets
 import six
-from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
-                                OrderUpdateError)
+from scrunch.exceptions import (
+    InvalidPathError,
+    InvalidReferenceError,
+    OrderUpdateError
+)
+
+
+NAME_REGEX = re.compile(r'^\|$|^\|?([\w\s,\-\/\\]+\|?)+$', re.UNICODE)
 
 
 class Path(object):
@@ -14,7 +20,7 @@ class Path(object):
         if not isinstance(path, six.string_types):
             raise TypeError('The path must be a string object')
 
-        if not re.match(r'^\|$|^\|?([\w\s,]+\|?)+$', path, re.UNICODE):
+        if not re.match(NAME_REGEX, path):
             raise InvalidPathError(
                 'Invalid path %s: it contains invalid characters.' % path
             )
@@ -197,6 +203,10 @@ class Group(object):
             raise ValueError(
                 'A variable/sub-group named \'%s\' already exists.' % name
             )
+
+        if not re.match(NAME_REGEX, name):
+            raise ValueError("Invalid character in name: %s" % name)
+
         return name
 
     def _validate_reference_arg(self, reference):
