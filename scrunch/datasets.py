@@ -589,6 +589,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self.resource.patch({'current_editor': user.url})
         self.resource.refresh()
 
+    def make_mutable(self):
+        from scrunch.mutable_dataset import MutableDataset
+        return MutableDataset(self.resource)
+
     @property
     def owner(self):
         owner_url = self.resource.body.owner
