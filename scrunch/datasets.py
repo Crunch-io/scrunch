@@ -204,6 +204,33 @@ def get_user(user, connection=None):
     return User(ret)
 
 
+def list_geodata(name=None, connection=None):
+    """
+    :param connection: An scrunch session object
+    :return: Dict of geodata objects, keyed by geodata name
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AuthenticationError(
+                "Unable to find crunch session, crunch.ini file or \
+                environment variables.")
+
+    return connection.geodata.by('name')
+
+
+def get_geodata(name=None, connection=None):
+    """
+    :param name: Geodata name
+    :param connection: An scrunch session object
+    :return: Geodata object
+    """
+    try:
+        return list_geodata(connection=connection)[name].entity
+    except KeyError:
+        raise KeyError("Geodata name '%s' not found." % name)
+
+
 class User:
     _MUTABLE_ATTRIBUTES = {'name', 'email'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
