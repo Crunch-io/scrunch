@@ -10,6 +10,7 @@ import six
 import pandas as pd
 import pycrunch
 from pycrunch.exporting import export_dataset
+from pycrunch.shoji import Entity
 
 from scrunch.categories import CategoryList
 from scrunch.exceptions import AuthenticationError
@@ -1850,3 +1851,27 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             json.dumps({'rules': data})
         )
         assert result.status_code == 204
+
+    def set_geodata_view(self, geodata, feature_key):
+
+        if isinstance(geodata, Entity):
+            geodata = geodata.self
+
+        self._resource.patch({
+            'view': {
+                'geodata': [
+                    {
+                        'geodatum': geodata,
+                        'feature_key': feature_key
+                    }
+                ]
+            }
+        })
+        self._resource.refresh()
+
+    def unset_geodata_view(self):
+        view = self.view
+        if 'geodata' in view:
+            view['geodata'] = []
+            self._resource.patch({'view': view})
+            self._resource.refresh()
