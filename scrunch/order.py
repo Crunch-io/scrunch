@@ -167,7 +167,6 @@ class Group(object):
         return item in self.elements and isinstance(self.elements[item], Group)
 
     def __delitem__(self, item):
-        print(self.elements[item].keys())
         if len(self.elements[item].keys()) == 0:
             del self.elements[item]
             self.order.update()
