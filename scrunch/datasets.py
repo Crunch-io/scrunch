@@ -10,6 +10,7 @@ import six
 import pandas as pd
 import pycrunch
 from pycrunch.exporting import export_dataset
+from pycrunch.shoji import Entity
 
 from scrunch.categories import CategoryList
 from scrunch.exceptions import AuthenticationError
@@ -202,6 +203,33 @@ def get_user(user, connection=None):
     except KeyError:
         raise KeyError("User email '%s' not found." % user)
     return User(ret)
+
+
+def list_geodata(name=None, connection=None):
+    """
+    :param connection: An scrunch session object
+    :return: Dict of geodata objects, keyed by geodata name
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AuthenticationError(
+                "Unable to find crunch session, crunch.ini file or \
+                environment variables.")
+
+    return connection.geodata.by('name')
+
+
+def get_geodata(name=None, connection=None):
+    """
+    :param name: Geodata name
+    :param connection: An scrunch session object
+    :return: Geodata object
+    """
+    try:
+        return list_geodata(connection=connection)[name].entity
+    except KeyError:
+        raise KeyError("Geodata name '%s' not found." % name)
 
 
 class User:
@@ -1823,3 +1851,51 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             json.dumps({'rules': data})
         )
         assert result.status_code == 204
+
+    def set_geodata_view(self, geodata, feature_key):
+        """
+        Enables geodata view for the variable.
+
+        :param geodata: url, name or Entity of the geodatum to use
+        :param feature_key: key defined for each Feature in the
+                            geojson/topojson that matches the relevant
+                            field on the variable
+        """
+
+        # we need the geodata url
+        if isinstance(geodata, six.string_types):
+            is_url = (
+                geodata.startswith('http://') or geodata.startswith('https://')
+            )
+
+            if not is_url:
+                # is a name, get the url
+                geodata = get_geodata(geodata)
+
+        if isinstance(geodata, Entity):
+            geodata = geodata.self
+
+        self._resource.patch({
+            'view': {
+                'geodata': [
+                    {
+                        'geodatum': geodata,
+                        'feature_key': feature_key
+                    }
+                ]
+            }
+        })
+
+        self._resource.refresh()
+
+    def unset_geodata_view(self):
+        """
+        Unsets the geodata view for the variable
+        """
+
+        view = self.view
+
+        if 'geodata' in view:
+            view['geodata'] = []
+            self._resource.patch({'view': view})
+            self._resource.refresh()
