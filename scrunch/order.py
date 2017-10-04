@@ -166,6 +166,15 @@ class Group(object):
     def __contains__(self, item):
         return item in self.elements and isinstance(self.elements[item], Group)
 
+    def __delitem__(self, item):
+        if len(self.elements[item].keys()) == 0:
+            del self.elements[item]
+            self.order.update()
+        else:
+            raise ValueError(
+                "Cannot delete Groups containing items. Group must be empty first"
+            )
+
     @property
     def is_root(self):
         return self.parent is None and self.name == '__root__'
