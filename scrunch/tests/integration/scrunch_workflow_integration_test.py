@@ -444,7 +444,22 @@ def main():
         geodata = get_geodata('UK Regions')
         assert 'geodata' not in location.view
 
+        # Set geodata using Entity object
         location.set_geodata_view(geodata, feature_key='EER13NM')
+        assert 'geodata' in location.view
+
+        location.unset_geodata_view()
+        assert 'geodata' not in location.view
+
+        # Set geodata using url
+        location.set_geodata_view(geodata.self, feature_key='EER13NM')
+        assert 'geodata' in location.view
+
+        location.unset_geodata_view()
+        assert 'geodata' not in location.view
+
+        # Set geodata using name
+        location.set_geodata_view('UK Regions', feature_key='EER13NM')
         assert 'geodata' in location.view
 
         location.unset_geodata_view()

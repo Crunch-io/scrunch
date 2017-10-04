@@ -1853,6 +1853,24 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         assert result.status_code == 204
 
     def set_geodata_view(self, geodata, feature_key):
+        """
+        Enables geodata view for the variable.
+
+        :param geodata: url, name or Entity of the geodatum to use
+        :param feature_key: key defined for each Feature in the
+                            geojson/topojson that matches the relevant
+                            field on the variable
+        """
+
+        # we need the geodata url
+        if isinstance(geodata, six.string_types):
+            is_url = (
+                geodata.startswith('http://') or geodata.startswith('https://')
+            )
+
+            if not is_url:
+                # is a name, get the url
+                geodata = get_geodata(geodata)
 
         if isinstance(geodata, Entity):
             geodata = geodata.self
@@ -1867,10 +1885,16 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 ]
             }
         })
+
         self._resource.refresh()
 
     def unset_geodata_view(self):
+        """
+        Unsets the geodata view for the variable
+        """
+
         view = self.view
+
         if 'geodata' in view:
             view['geodata'] = []
             self._resource.patch({'view': view})
