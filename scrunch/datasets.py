@@ -784,19 +784,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :return: None
         """
         # always use the email, to assure an invite
-        """
-        {
-            "send_notification" : true,
-            "message" : "",
-            "mathiasbc@gmail.com": {
-                "dataset_permissions": {
-                    "view":true
-                }
-            },
-            "url_base" : "https://alpha.crunch.io/password/change/${token}/",
-            "dataset_url":"https://alpha.crunch.io/dataset/9825ab3f23f4460288f6f74b6512f3e2"
-        }
-        """
         if isinstance(user, User):
             user = user.email
 
