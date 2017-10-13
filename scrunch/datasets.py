@@ -777,6 +777,43 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         return self.resource.edit(**kwargs)
 
+    def add_user(self, user, edit=False):
+        """
+        :param user: email or User instance
+        :param edit: is the user an editor in the Dataset
+        :return: None
+        """
+        # always use the email, to assure an invite
+        """
+        {
+            "send_notification" : true,
+            "message" : "",
+            "mathiasbc@gmail.com": {
+                "dataset_permissions": {
+                    "view":true
+                }
+            },
+            "url_base" : "https://alpha.crunch.io/password/change/${token}/",
+            "dataset_url":"https://alpha.crunch.io/dataset/9825ab3f23f4460288f6f74b6512f3e2"
+        }
+        """
+        if isinstance(user, User):
+            user = user.email
+
+        payload = {
+            'send_notification': True,
+            'message': "",
+            user: {
+                'dataset_permissions': {
+                    'view': True,
+                    'edit': edit
+                }
+            },
+            'url_base': self.resource.self.split('api')[0] + 'password/change/${token}/',
+            'dataset_url': self.resource.self
+        }
+        self.resource.permissions.patch(payload)
+
     def create_single_response(self, categories, name, alias, description='',
                                missing=True, notes=''):
         """
