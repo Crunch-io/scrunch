@@ -779,10 +779,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     def add_user(self, user, edit=False):
         """
-        :param user: email or User instance
+        :param user: email or User instance, or list/tuple of same
         :param edit: is the user an editor in the Dataset
         :return: None
         """
+        if isinstance(user, (list, tuple)):
+            for _user in user:
+                self.add_user(_user, edit)
+            return
         # always use the email, to assure an invite
         if isinstance(user, User):
             user = user.email
