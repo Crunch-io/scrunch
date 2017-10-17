@@ -1645,10 +1645,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             as_json = {}
             # the special case of q being a multiple_response variable alias,
             # we need to build a different payload
+
             if q['query'] in self.keys():
                 # this means is a variable in this dataset
                 var_alias = q['query']
-                if self[var_alias].type == 'multiple_response':
+                if self[var_alias].type in ['multiple_response', 'categorical_array']:
                     var_url = self[var_alias].resource.self
                     as_json['query'] = [
                         {
@@ -1673,6 +1674,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     as_json['transform'] = q['transform']
 
             parsed_template.append(as_json)
+
         payload = shoji_entity_wrapper(dict(
             name=name,
             is_public=is_public,
