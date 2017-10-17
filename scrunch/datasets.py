@@ -1637,10 +1637,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         # build template payload
         parsed_template = []
+
         for q in template:
             processed = False
             # sometimes q is not a dict but simply a string, convert it to a dict
-            if isinstance(q, str):
+            if isinstance(q, str) or isinstance(q, Variable):
                 q = {"query": q}
             as_json = {}
             # the special case of q being a multiple_response variable alias,
@@ -1649,8 +1650,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if q['query'] in self.keys():
                 # this means is a variable in this dataset
                 var_alias = q['query']
+                var_url = self[var_alias].resource.self
                 if self[var_alias].type in ['multiple_response', 'categorical_array']:
-                    var_url = self[var_alias].resource.self
                     as_json['query'] = [
                         {
                             'each': var_url
@@ -1665,6 +1666,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                         }
                     ]
                     processed = True
+                else:
+                    as_json['query'] = [{'variable': var_url}]
+                    processed = True
+
+            elif isinstance(q['query'], Variable):
+                var_url = q['query'].resource.self
+                as_json['query'] = [{'variable': var_url}]
+                processed = True
 
             if not processed:
                 parsed_q = process_expr(parse_expr(q['query']), self.resource)
