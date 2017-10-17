@@ -1638,20 +1638,46 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # build template payload
         parsed_template = []
         for q in template:
+            processed = False
             # sometimes q is not a dict but simply a string, convert it to a dict
             if isinstance(q, str):
                 q = {"query": q}
             as_json = {}
-            parsed_q = process_expr(parse_expr(q['query']), self.resource)
-            # wrap the query in a list of one dict element
-            as_json['query'] = [parsed_q]
-            if 'transform' in q.keys():
-                as_json['transform'] = q['transform']
+            # the special case of q being a multiple_response variable alias,
+            # we need to build a different payload
+            if q['query'] in self.keys():
+                # this means is a variable in this dataset
+                var_alias = q['query']
+                if self[var_alias].type == 'multiple_response':
+                    var_url = self[var_alias].resource.self
+                    as_json['query'] = [
+                        {
+                            'each': var_url
+                        },
+                        {
+                            'function': 'as_selected',
+                            'args': [
+                                {
+                                    'variable': var_url
+                                }
+                            ]
+                        }
+                    ]
+                    processed = True
+
+            if not processed:
+                parsed_q = process_expr(parse_expr(q['query']), self.resource)
+                # wrap the query in a list of one dict element
+                as_json['query'] = [parsed_q]
+                if 'transform' in q.keys():
+                    as_json['transform'] = q['transform']
+
             parsed_template.append(as_json)
         payload = shoji_entity_wrapper(dict(
             name=name,
             is_public=is_public,
             template=parsed_template))
+
         new_multi = self.resource.multitables.create(payload)
         return self.multitables[new_multi.body['name']]
 
