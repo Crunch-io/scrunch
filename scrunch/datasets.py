@@ -801,7 +801,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }
             },
             'url_base': self.resource.self.split('api')[0] + 'password/change/${token}/',
-            'dataset_url': self.resource.self.replace('/api/', '/')
+            'dataset_url': self.resource.self.replace('/api/datasets/', '/dataset/')
         }
         print(payload)
         self.resource.permissions.patch(payload)
