@@ -801,8 +801,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }
             },
             'url_base': self.resource.self.split('api')[0] + 'password/change/${token}/',
-            'dataset_url': self.resource.self
+            'dataset_url': self.resource.self.replace('/api/', '/')
         }
+        print(payload)
         self.resource.permissions.patch(payload)
 
     def create_single_response(self, categories, name, alias, description='',
