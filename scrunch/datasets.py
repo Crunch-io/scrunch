@@ -1856,6 +1856,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def integrate(self):
         if self.derived:
             self.resource.edit(derived=False)
+            self.dataset._reload_variables()
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
