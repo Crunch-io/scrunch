@@ -12,7 +12,7 @@ from scrunch.exceptions import (
 )
 
 
-NAME_REGEX = re.compile(r'^\|$|^\|?([\w\s,\-\/\\]+\|?)+$', re.UNICODE)
+NAME_REGEX = re.compile(r'^\|$|^\|?([\w\s,\&\(\)-\/\\]+\|?)+$', re.UNICODE)
 
 
 class Path(object):
