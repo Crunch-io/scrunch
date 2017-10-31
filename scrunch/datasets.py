@@ -1601,7 +1601,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         body = dict(
             dataset=fork_url,
             autorollback=autorollback)
-        self.resource.actions.create(body)
+        self.resource.actions.create(shoji_entity_wrapper(body))
 
     def delete_forks(self):
         """

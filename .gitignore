@@ -5,6 +5,7 @@ __pycache__/
 
 # custom scripts
 scrunch_play.py
+test-merge.py
 metadata.json
 
 # C extensions
