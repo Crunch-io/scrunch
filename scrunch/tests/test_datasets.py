@@ -1447,30 +1447,35 @@ class TestForks(TestCase):
                 'id': 'ghi',
             }
         }
+        fork_url = 'http://test.crunch.io/api/datasets/123/actions/'
+        ds_res.actions.self = fork_url
         ds = BaseDataset(ds_res)
 
         expected_call = {
-            'dataset': fork1_url,
-            'autorollback': True,
+            'element': 'shoji:entity',
+            'body': {
+                'dataset': fork1_url,
+                'autorollback': True,
+            }
         }
 
         ds.merge(1)  # number as int
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
         ds.merge('1')  # number as str
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
         ds.merge('FORK #1 of ds name')  # name
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
         ds.merge('abc')  # id
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
 
         # test autorollback=False
-        expected_call['autorollback'] = False
+        expected_call['body']['autorollback'] = False
         ds.merge(1, autorollback=False)  # number as int
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
 
         # ValueError if no unique fork could be found
@@ -1479,16 +1484,16 @@ class TestForks(TestCase):
         with pytest.raises(ValueError, message=error_msg):
             ds.merge('myFork')
 
-        expected_call['dataset'] = fork2_url
-        expected_call['autorollback'] = True
+        expected_call['body']['dataset'] = fork2_url
+        expected_call['body']['autorollback'] = True
 
         ds.merge('def')
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
         ds_res.reset_mock()
 
-        expected_call['dataset'] = fork3_url
+        expected_call['body']['dataset'] = fork3_url
         ds.merge('ghi')
-        ds_res.actions.create.assert_called_once_with(expected_call)
+        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
 
 
 class TestRecode(TestDatasetBase):

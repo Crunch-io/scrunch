@@ -803,7 +803,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'url_base': self.resource.self.split('api')[0] + 'password/change/${token}/',
             'dataset_url': self.resource.self.replace('/api/datasets/', '/dataset/')
         }
-        print(payload)
         self.resource.permissions.patch(payload)
 
     def create_single_response(self, categories, name, alias, description='',
@@ -1601,7 +1600,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         body = dict(
             dataset=fork_url,
             autorollback=autorollback)
-        self.resource.actions.create(shoji_entity_wrapper(body))
+
+        resp = self.resource.session.post(
+            self.resource.actions.self,
+            data=json.dumps(shoji_entity_wrapper(body)))
+        if resp.status_code == 204:
+            LOG.info("Dataset merged")
+            return
+        elif resp.status_code == 202:
+            LOG.info("Dataset merge in progress, see %s" % resp.headers['location'])
+        return resp
+
 
     def delete_forks(self):
         """
