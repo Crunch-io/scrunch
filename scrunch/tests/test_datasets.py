@@ -215,7 +215,12 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert ds.start_date == '2017-01-01'
         ds.resource._edit.assert_called_with(**changes)
 
-    def test_create_numeric(self):
+    def process_expr_side_effect(self, expr, ds):
+        return expr
+
+    @mock.patch('scrunch.datasets.process_expr')
+    def test_create_numeric(self, mocked_process):
+        mocked_process.side_effect = self.process_expr_side_effect 
         variables = {
             '001': {
                 'id': '001',
@@ -225,8 +230,9 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'is_subvar': False
             },
         }
+
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = MutableDataset(ds_mock)
 
         ds.resource = mock.MagicMock()
 

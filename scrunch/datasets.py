@@ -904,7 +904,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         Used to create new numeric variables using Crunchs's derived expressions
         """
-        expr = parse_expr(derivation)
+        expr = process_expr(parse_expr(derivation), self.resource)
 
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
