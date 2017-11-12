@@ -823,7 +823,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'type': {
                 'value': {
                     'class': 'categorical',
-                    'categories': categories}}}]
+                    'categories': categories
+                }
+            }
+        }]
 
         for cat in args[0]['type']['value']['categories']:
             cat.setdefault('missing', False)
@@ -1566,6 +1569,23 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return a MutableDataset or StreamingDataset depending
         # on the class that the fork comes from
         return self.__class__(_fork)
+
+    def replace_values(self, variables, filter=None):
+        """
+        :param map: dictionary, {var_alias: value, var2_alias: value}
+        :param filter: string, an Scrunch expression, i.e; 'var_alias > 1'
+        """
+        payload = {
+            'command': 'update',
+            'variables': {self[alias].id: {'value': val} for alias, val in variables.items()},
+        }
+        if filter:
+            payload['filter'] = process_expr(parse_expr(filter), self.resource)
+        resp = self.resource.table.post(json.dumps(payload))
+        if resp.status_code == 204:
+            LOG.info('Dataset Updated')
+            return
+        return resp
 
     def merge(self, fork_id=None, autorollback=True):
         """

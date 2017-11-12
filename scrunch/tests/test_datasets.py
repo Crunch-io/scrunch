@@ -219,8 +219,40 @@ class TestDatasets(TestDatasetBase, TestCase):
         return expr
 
     @mock.patch('scrunch.datasets.process_expr')
-    def test_create_numeric(self, mocked_process):
+    def test_replace_values(self, mocked_process):
         mocked_process.side_effect = self.process_expr_side_effect 
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'birthyr',
+                'name': 'Birthyear',
+                'type': 'numeric'
+            },
+            '002': {
+                'id': '002',
+                'alias': 'level',
+                'name': 'Level',
+                'type': 'numeric'
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+        ds.resource = mock.MagicMock()
+        ds.replace_values({'birthyr': 9, 'level': 8})
+        ds.resource.table.post.assert_called_with(
+            json.dumps({
+                'command': 'update', 
+                'variables': {
+                    '001': {'value': 9}, 
+                    '002': {'value': 8}
+                }
+            })
+        )
+
+
+    @mock.patch('scrunch.datasets.process_expr')
+    def test_create_numeric(self, mocked_process):
+        mocked_process.side_effect = self.process_expr_side_effect
         variables = {
             '001': {
                 'id': '001',
@@ -233,9 +265,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
         ds_mock = self._dataset_mock(variables=variables)
         ds = MutableDataset(ds_mock)
-
         ds.resource = mock.MagicMock()
-
         ds.create_numeric(
             alias='monthly_rent',
             name='Monthly rent',
@@ -243,7 +273,6 @@ class TestDatasets(TestDatasetBase, TestCase):
             notes='All UK adults',
             derivation='(weekly_rent * 52) / 12'
         )
-
         ds.resource.variables.create.assert_called_with(
             {
                 'element': 'shoji:entity',
