@@ -80,12 +80,12 @@ class Multitable(SubEntity):
         raise NotImplementedError
 
     def export_tabbook(self, format, progress_tracker=None, filter=None,
-                       where=None, options=None, weight=None):
+                       where=None, options=None, weight=False):
         """
         An adaption of https://github.com/Crunch-io/pycrunch/blob/master/pycrunch/exporting.py
         to Multitables exports (tabbboks)
         """
-        payload = {'weight': None}
+        payload = {}
 
         # add filter to multitable
         if filter:
@@ -116,6 +116,8 @@ class Multitable(SubEntity):
 
         if weight:
             payload['weight'] = self.ds[weight].url
+        if weight is None:
+            payload['weight'] = None
 
         session = self.resource.session
         endpoint = self.resource.views['tabbook']
@@ -142,7 +144,7 @@ class Multitable(SubEntity):
         return dest_file
 
     def export(self, path, format='xlsx', timeout=None, filter=None,
-               where=None, options=None, weight=None):
+               where=None, options=None, **kwargs):
         """
         A tabbook export: http://docs.crunch.io/#tab-books
         Exports data as csv to the given path or as a JSON response
@@ -156,14 +158,18 @@ class Multitable(SubEntity):
         if format not in ['xlsx', 'json']:
             raise ValueError("Format can only be 'json' or 'xlxs'")
         progress_tracker = DefaultProgressTracking(timeout)
-        url = self.export_tabbook(
+        tabbook_args = dict(
             format=format,
             progress_tracker=progress_tracker,
             filter=filter,
             where=where,
             options=options,
-            weight=weight
         )
+        if 'weight' in kwargs:
+            tabbook_args['weight'] = kwargs['weight']
+        else:
+            tabbook_args['weight'] = False
+        url = self.export_tabbook(**tabbook_args)
         download_file(url, path)
 
 
