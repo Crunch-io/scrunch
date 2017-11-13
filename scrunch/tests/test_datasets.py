@@ -220,7 +220,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):
-        mocked_process.side_effect = self.process_expr_side_effect 
+        mocked_process.side_effect = self.process_expr_side_effect
         variables = {
             '001': {
                 'id': '001',
@@ -1494,22 +1494,40 @@ class TestForks(TestCase):
         }
 
         ds.merge(1)  # number as int
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+
+        def assert_expected(call):
+            """
+            Extract parameters from the POST call to ensure
+            the data parameter JSON decodes to the expected
+            value. String comparison may fail due to
+            arbitrary ordering of dict keys. See #201.
+            """
+            args, kwargs = call[1:3]
+            url, = args
+            data = kwargs['data']
+            assert url == fork_url
+            assert json.loads(data) == expected_call
+
+        assert_expected(ds_res.session.post.mock_calls[0])
         ds_res.reset_mock()
         ds.merge('1')  # number as str
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
+
         ds_res.reset_mock()
         ds.merge('FORK #1 of ds name')  # name
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
+
         ds_res.reset_mock()
         ds.merge('abc')  # id
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
+
         ds_res.reset_mock()
 
         # test autorollback=False
         expected_call['body']['autorollback'] = False
         ds.merge(1, autorollback=False)  # number as int
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
+
         ds_res.reset_mock()
 
         # ValueError if no unique fork could be found
@@ -1522,12 +1540,13 @@ class TestForks(TestCase):
         expected_call['body']['autorollback'] = True
 
         ds.merge('def')
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
+
         ds_res.reset_mock()
 
         expected_call['body']['dataset'] = fork3_url
         ds.merge('ghi')
-        ds_res.session.post.assert_called_once_with(fork_url, data=json.dumps(expected_call))
+        assert_expected(ds_res.session.post.mock_calls[0])
 
 
 class TestRecode(TestDatasetBase):
@@ -4151,9 +4170,9 @@ class TestDatasetSettings(TestCase):
         assert _headers == {'Content-Type': 'application/json'}
 
         ds.change_settings(
-            viewers_can_export=True, 
+            viewers_can_export=True,
             viewers_can_change_weight=True,
-            viewers_can_share=False, 
+            viewers_can_share=False,
             dashboard_deck='https://test.crunch.io/datasets/123/decks/123'
         )
         _url = ds.resource.session.patch.call_args_list[-1][0][0]
