@@ -28,7 +28,6 @@ jobs:
 
 cache: pip
 
-install: source travis/miniconda-install
+install: pip install tox
 
-script:
-- python setup.py test
+script: tox
