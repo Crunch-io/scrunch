@@ -2,30 +2,26 @@ import collections
 import datetime
 import json
 import logging
-import re
 import os
+import re
 import sys
-import six
 
 import pandas as pd
 import pycrunch
+import six
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 
 from scrunch.categories import CategoryList
 from scrunch.exceptions import AuthenticationError
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, _validate_category_rules,
-                             download_file, shoji_entity_wrapper,
-                             abs_url, case_expr, subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, shoji_entity_wrapper,
+                             subvar_alias)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
-from scrunch.variables import (
-    combinations_from_map,
-    combine_categories_expr,
-    combine_responses_expr,
-    responses_from_map)
-
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map)
 
 _MR_TYPE = 'multiple_response'
 

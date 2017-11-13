@@ -4,9 +4,9 @@ import json
 from pycrunch.lemonpy import URL
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.shoji import wait_progress
-from scrunch.helpers import download_file
 
 import six.moves.urllib as urllib
+from scrunch.helpers import download_file
 
 
 class SubEntity:
