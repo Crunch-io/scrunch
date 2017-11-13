@@ -4,9 +4,9 @@ import json
 from pycrunch.lemonpy import URL
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.shoji import wait_progress
-from scrunch.helpers import download_file
 
 import six.moves.urllib as urllib
+from scrunch.helpers import download_file
 
 
 class SubEntity:
@@ -134,7 +134,7 @@ class Multitable(SubEntity):
         if r.status_code == 202:
             try:
                 r.payload['value']
-            except:
+            except Exception:
                 # Not a progress API just return the incomplete entity.
                 # User will refresh it.
                 pass

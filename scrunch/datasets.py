@@ -2,30 +2,26 @@ import collections
 import datetime
 import json
 import logging
-import re
 import os
+import re
 import sys
-import six
 
 import pandas as pd
 import pycrunch
+import six
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 
 from scrunch.categories import CategoryList
 from scrunch.exceptions import AuthenticationError
 from scrunch.expressions import parse_expr, prettify, process_expr
-from scrunch.helpers import (ReadOnly, _validate_category_rules,
-                             download_file, shoji_entity_wrapper,
-                             abs_url, case_expr, subvar_alias)
+from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
+                             case_expr, download_file, shoji_entity_wrapper,
+                             subvar_alias)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
-from scrunch.variables import (
-    combinations_from_map,
-    combine_categories_expr,
-    combine_responses_expr,
-    responses_from_map)
-
+from scrunch.variables import (combinations_from_map, combine_categories_expr,
+                               combine_responses_expr, responses_from_map)
 
 _MR_TYPE = 'multiple_response'
 
@@ -81,11 +77,11 @@ def _get_connection(file_path='crunch.ini'):
     try:
         username = config.get('DEFAULT', 'CRUNCH_USERNAME')
         password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
-    except:
+    except Exception:
         username = password = None
     try:
         site = config.get('DEFAULT', 'CRUNCH_URL')
-    except:
+    except Exception:
         site = None
     # now try to login with obtained creds
     if username and password and site:
@@ -94,27 +90,30 @@ def _get_connection(file_path='crunch.ini'):
         return pycrunch.connect(username, password)
     else:
         raise AuthenticationError(
-            "Unable to find crunch session, crunch.ini file or environment variables.")
+            "Unable to find crunch session, crunch.ini file "
+            "or environment variables.")
 
 
 def _get_dataset(dataset, connection=None, editor=False, project=None):
     """
-    Helper method for specific get_dataset and get_streaming_dataset methods.
-    Retrieve a reference to a given dataset (either by name, or ID) if it exists
-    and the user has access permissions to it. If you have access to the dataset
-    through a project you should do pass the project parameter.
-    This method tries to use pycrunch singleton connection, environment variables
-    or a crunch.ini config file if the optional "connection" parameter isn't provided.
+    Helper method for specific get_dataset and get_streaming_dataset
+    methods. Retrieve a reference to a given dataset (either by name,
+    or ID) if it exists and the user has access permissions to it. If
+    you have access to the dataset through a project you should do pass
+    the project parameter. This method tries to use pycrunch singleton
+    connection, environment variables or a crunch.ini config file if the
+    optional "connection" parameter isn't provided.
 
-    Also able to change editor while getting the dataset with the optional
-    editor parameter.
+    Also able to change editor while getting the dataset with the
+    optional editor parameter.
 
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
 
-    To get a.BaseDataset from a Project we are building a url and making a request
-    through pycrunch.session object, we instead should use the /search endpoint
-    from crunch, but currently it's not working by id's.
+    To get a.BaseDataset from a Project we are building a url and
+    making a request through pycrunch.session object, we instead should
+    use the /search endpoint from crunch, but currently it's not working
+    by id's.
     """
     if connection is None:
         connection = _get_connection()
@@ -147,7 +146,8 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
                     shoji_ds = root.session.get(dataset_url).payload
                 except Exception:
                     raise KeyError(
-                        "Dataset (name or id: %s) not found in context." % dataset)
+                        "Dataset (name or id: %s) not found in context."
+                        % dataset)
     return shoji_ds, root
 
 
@@ -287,7 +287,10 @@ class Project:
         # TODO: return a dictionary keyed by email and values should be User
         # instances, but when trying got 403 from Crunch
         return [e['email'] for e in self.resource.members.index.values()]
-        # return {val['email']: User(val.entity) for val in self.resource.members.index.values()}
+        # return {
+        #     val['email']: User(val.entity)
+        #     for val in self.resource.members.index.values()
+        # }
 
     def remove_user(self, user):
         """
@@ -305,7 +308,8 @@ class Project:
         if found_url:
             self.resource.members.patch({found_url: None})
         else:
-            raise KeyError("User %s not found in project %s" % (user.email, self.name))
+            raise KeyError(
+                "User %s not found in project %s" % (user.email, self.name))
 
     def add_user(self, user, edit=False):
         """
@@ -503,8 +507,9 @@ class DatasetVariablesMixin(collections.Mapping):
             variable = self._catalog.by('name').get(item)
             if variable is None:
                 # Variable doesn't exists, must raise a ValueError
-                raise ValueError('Entity %s has no (sub)variable with a name or alias %s' % (
-                    self.name, item))
+                raise ValueError(
+                    'Entity %s has no (sub)variable with a name or alias %s'
+                    % (self.name, item))
         return Variable(variable, self)
 
     def _set_catalog(self):
@@ -737,7 +742,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     def change_settings(self, **kwargs):
         incoming_settings = set(kwargs.keys())
-        invalid_settings = incoming_settings.difference(self._EDITABLE_SETTINGS)
+        invalid_settings = incoming_settings.difference(
+            self._EDITABLE_SETTINGS)
         if invalid_settings:
             raise ValueError(
                 'Invalid or read-only settings: %s'
@@ -766,9 +772,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attibute %s of variable %s" % (
-                    key, self.name
-                ))
+                raise AttributeError(
+                    "Can't edit attibute %s of variable %s"
+                    % (key, self.name))
             if key in ['start_date', 'end_date'] and \
                     (isinstance(kwargs[key], datetime.date) or
                      isinstance(kwargs[key], datetime.datetime)
@@ -797,11 +803,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             user: {
                 'dataset_permissions': {
                     'view': True,
-                    'edit': edit
-                }
+                    'edit': edit,
+                },
             },
-            'url_base': self.resource.self.split('api')[0] + 'password/change/${token}/',
-            'dataset_url': self.resource.self.replace('/api/datasets/', '/dataset/')
+            'url_base':
+                self.resource.self.split('api')[0]
+                + 'password/change/${token}/',
+            'dataset_url':
+                self.resource.self.replace('/api/datasets/', '/dataset/'),
         }
         self.resource.permissions.patch(payload)
 
@@ -860,7 +869,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(self, responses, name, alias, description='', notes=''):
+    def create_multiple_response(
+            self, responses, name, alias, description='', notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
         of the responses(subvariables).
@@ -903,9 +913,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
-    def create_numeric(self, alias, name, derivation, description='', notes=''):
+    def create_numeric(
+            self, alias, name, derivation, description='', notes=''):
         """
-        Used to create new numeric variables using Crunchs's derived expressions
+        Used to create new numeric variables using Crunch's derived
+        expressions
         """
         expr = process_expr(parse_expr(derivation), self.resource)
 
@@ -981,7 +993,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 # We need to update the complex `array` function expression
                 # to contain the new suffixed aliases. Given that the map is
                 # unordered, we have to iterated and find a name match.
-                subvars = payload['body']['derivation']['args'][0]['args'][0]['map']
+                _ob = payload['body']['derivation']['args'][0]['args'][0]
+                subvars = _ob['map']
                 subreferences = subrefs(variable, alias)
                 for subref in subreferences:
                     for subvar_pos in subvars:
@@ -1012,16 +1025,19 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
-    def combine_categories(self, variable, map, categories, missing=None, default=None,
-                           name='', alias='', description=''):
+    def combine_categories(
+            self, variable, map, categories, missing=None, default=None,
+            name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in _MR_TYPE:
-            return self.combine_multiple_response(variable, map, categories, name=name,
-                                                  alias=alias, description=description)
+            return self.combine_multiple_response(
+                variable, map, categories, name=name,
+                alias=alias, description=description)
         else:
-            return self.combine_categorical(variable, map, categories, missing, default,
-                                            name=name, alias=alias, description=description)
+            return self.combine_categorical(
+                variable, map, categories, missing, default,
+                name=name, alias=alias, description=description)
 
     def combine_categorical(self, variable, map, categories=None, missing=None,
                             default=None, name='', alias='', description=''):
@@ -1047,7 +1063,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             variable = self[variable]
 
         # TODO: Implement `default` parameter in Crunch API
-        combinations = combinations_from_map(map, categories or {}, missing or [])
+        combinations = combinations_from_map(
+            map, categories or {}, missing or [])
         payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
@@ -1062,8 +1079,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # at this point we are returning a Variable instance
         return self[new_var['body']['alias']]
 
-    def combine_multiple_response(self, variable, map, categories=None,
-                                  default=None, name='', alias='', description=''):
+    def combine_multiple_response(
+            self, variable, map, categories=None,
+            default=None, name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1122,10 +1140,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         @param cast_type: one of ['numeric', 'text', 'categorical']
         :return: the casted variable or an error
         """
-        assert cast_type in ['numeric', 'text', 'categorical'], "Cast type not allowed"
+        allowed_types = 'numeric', 'text', 'categorical'
+        assert cast_type in allowed_types, "Cast type not allowed"
         payload = {'cast_as': cast_type}
         # try casting the variable in place
-        resp = self.resource.session.post(
+        self.resource.session.post(
             self[variable].resource.views.cast,
             data=json.dumps(payload))
         # make sure to update the dataset variables with the casted one
@@ -1148,7 +1167,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     " exists.".format(description)
                 )
 
-        self.resource.savepoints.create(shoji_entity_wrapper({'description': description}))
+        sp = shoji_entity_wrapper({'description': description})
+        self.resource.savepoints.create(sp)
 
     def load_savepoint(self, description=None):
         """
@@ -1167,8 +1187,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 " exists.".format(description)
             )
 
-        revert = self.resource.savepoints.by('description').get(description).revert
-        self.resource.session.post(revert)
+        sp = self.resource.savepoints.by('description').get(description)
+        self.resource.session.post(sp.revert)
 
     def savepoint_attributes(self, attrib):
         """
@@ -1193,7 +1213,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return attribs
         return []
 
-    def create_crunchbox(self, title='', header='', footer='', notes='',
+    def create_crunchbox(
+            self, title='', header='', footer='', notes='',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -1337,7 +1358,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 'id'
             ]]
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
-            _forks['modification_time'] = pd.to_datetime(_forks['modification_time'])
+            _forks['modification_time'] = pd.to_datetime(
+                _forks['modification_time'])
             _forks.sort(columns='creation_time', inplace=True)
 
             return _forks
@@ -1451,7 +1473,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # variables to include in the download
         if hidden and not variables:
             if not self.resource.body.permissions.edit:
-                raise AttributeError("Only Dataset editors can export hidden variables")
+                raise AttributeError(
+                    "Only Dataset editors can export hidden variables")
             payload['where'] = {
                 'function': 'select',
                 'args': [{
@@ -1476,25 +1499,28 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Given a dataset object, apply an exclusion filter to it (defined as an
         expression string).
 
-        If the `expr` parameter is None, an empty expression object is sent
-        as part of the PATCH request, which effectively removes the exclusion
+        If the `expr` parameter is None, an empty expression object is sent as
+        part of the PATCH request, which effectively removes the exclusion
         filter (if any).
 
-        Exclusion filters express logic that defines a set of rows that should be
-        dropped from the dataset. The rows aren't permanently deleted---you can
-        recover them at any time by removing the exclusion filter---but they are
-        omitted from all views and calculations, as if they had been deleted.
+        Exclusion filters express logic that defines a set of rows that should
+        be dropped from the dataset. The rows aren't permanently deleted---you
+        can recover them at any time by removing the exclusion filter---but
+        they are omitted from all views and calculations, as if they had been
+        deleted.
 
-        Note that exclusion filters work opposite from how "normal" filters work.
-        That is, a regular filter expression defines the subset of rows to operate
-        on: it says "keep these rows." An exclusion filter defines which rows to
-        omit. Applying a filter expression as a query filter will have the
-        opposite effect if applied as an exclusion. Indeed, applying it as both
-        query filter and exclusion at the same time will result in 0 rows.
+        Note that exclusion filters work opposite from how "normal" filters
+        work. That is, a regular filter expression defines the subset of rows
+        to operate on: it says "keep these rows." An exclusion filter defines
+        which rows to omit. Applying a filter expression as a query filter will
+        have the opposite effect if applied as an exclusion. Indeed, applying
+        it as both query filter and exclusion at the same time will result in 0
+        rows.
         """
         if isinstance(expr, six.string_types):
             expr_obj = parse_expr(expr)
-            expr_obj = process_expr(expr_obj, self.resource)  # cause we need URLs
+            # cause we need URLs
+            expr_obj = process_expr(expr_obj, self.resource)
         elif expr is None:
             expr_obj = {}
         else:
@@ -1577,7 +1603,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         payload = {
             'command': 'update',
-            'variables': {self[alias].id: {'value': val} for alias, val in variables.items()},
+            'variables': {
+                self[alias].id: {'value': val}
+                for alias, val in variables.items()
+            },
         }
         if filter:
             payload['filter'] = process_expr(parse_expr(filter), self.resource)
@@ -1628,9 +1657,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             LOG.info("Dataset merged")
             return
         elif resp.status_code == 202:
-            LOG.info("Dataset merge in progress, see %s" % resp.headers['location'])
+            LOG.info(
+                "Dataset merge in progress, see %s" % resp.headers['location'])
         return resp
-
 
     def delete_forks(self):
         """
@@ -1670,7 +1699,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         for q in template:
             processed = False
-            # sometimes q is not a dict but simply a string, convert it to a dict
+            # sometimes q is not a dict but simply a string, convert
+            # it to a dict
             if isinstance(q, str) or isinstance(q, Variable):
                 q = {"query": q}
             as_json = {}
@@ -1681,7 +1711,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 # this means is a variable in this dataset
                 var_alias = q['query']
                 var_url = self[var_alias].resource.self
-                if self[var_alias].type in ['multiple_response', 'categorical_array']:
+                multi_types = 'multiple_response', 'categorical_array'
+                if self[var_alias].type in multi_types:
                     as_json['query'] = [
                         {
                             'each': var_url
@@ -1741,9 +1772,9 @@ class Dataset(BaseDataset):
 
     def __init__(self, resource):
         LOG.warning("""Dataset is deprecated, instead use now
-            mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset 
-            with it's corresponding get_mutable_dataset and get_streaming_dataset 
-            functions""")
+            mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset
+            with it's corresponding get_mutable_dataset and get_streaming_dataset
+            functions""")  # noqa: E501
         super(Dataset, self).__init__(resource)
 
 
@@ -1805,7 +1836,7 @@ class MissingRules(dict):
         super(MissingRules, self).__delitem__(key)
 
     def clear(self):
-        result = self.resource.session.put(
+        self.resource.session.put(
             self.resource.fragments.missing_rules,
             json.dumps({'rules': {}}))
         super(MissingRules, self).clear()
@@ -1824,7 +1855,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _OVERRIDDEN_ATTRIBUTES = {'categories'}
 
-    CATEGORICAL_TYPES = {'categorical', 'multiple_response', 'categorical_array'}
+    CATEGORICAL_TYPES = {
+        'categorical', 'multiple_response', 'categorical_array',
+    }
 
     def __init__(self, var_tuple, dataset):
         """
@@ -1853,15 +1886,16 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             try:
                 return self.resource.body[item]  # Has to exist
             except KeyError:
-                raise AttributeError("Variable does not have attribute %s" % item)
+                raise AttributeError(
+                    "Variable does not have attribute %s" % item)
         return super(Variable, self).__getattribute__(item)
 
     def edit(self, **kwargs):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
-                raise AttributeError("Can't edit attribute %s of variable %s" % (
-                    key, self.name
-                ))
+                raise AttributeError(
+                    "Can't edit attribute %s of variable %s"
+                    % (key, self.name))
         return self.resource.edit(**kwargs)
 
     def __repr__(self):
@@ -1873,7 +1907,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     @property
     def categories(self):
         if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
-            raise TypeError("Variable of type %s do not have categories" % self.resource.body.type)
+            raise TypeError(
+                "Variable of type %s do not have categories"
+                % self.resource.body.type)
         return CategoryList._from(self.resource)
 
     def hide(self):

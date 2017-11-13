@@ -9,6 +9,12 @@ jobs:
   - python: 3.4
   - python: 3.5
   - python: &latest_py3 3.6
+  - python: *latest_py3
+    env:
+    - TOXENV=flake8
+  - python: *latest_py3
+    env:
+    - TOXENV=isort
   - stage: deploy
     if: tag IS present
     python: *latest_py3
@@ -28,7 +34,6 @@ jobs:
 
 cache: pip
 
-install: source travis/miniconda-install
+install: pip install tox
 
-script:
-- python setup.py test
+script: tox
