@@ -1,34 +1,54 @@
+dist: trusty
+sudo: false
 language: python
 
-python:
-  - 2.7
-  - 3.4
-  - 3.5
-  - 3.6
+jobs:
+  fast_finish: true
+  include:
+  - python: 2.7
+  - python: 3.4
+  - python: 3.5
+  - python: &latest_py3 3.6
+  - stage: deploy
+    if: tag IS present
+    python: *latest_py3
+    install: skip
+    script: skip
+    deploy:
+      provider: pypi
+      on:
+        tags: true
+        all_branches: true
+      user: jaraco
+      password:
+        secure: ... # encrypt password with `travis encrypt`
+      distributions: dists
+      skip_cleanup: true
+      skip_upload_docs: true
 
-sudo: false
+cache: pip
 
 install:
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
+# We do this conditionally because it saves us some downloading if the
+# version is the same.
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+    wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+  else
+    wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+# Useful for debugging any issues with conda
+- conda info -a
 
-  # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas mock pytest
-  - source activate test-environment
-  - pip install --user -r dev_requirements.txt
-  - python setup.py install
+# Replace dep1 dep2 ... with your dependencies
+- conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas mock pytest
+- source activate test-environment
+- pip install --user -r dev_requirements.txt
+- python setup.py install
 
 script:
-  - python setup.py test
+- python setup.py test
