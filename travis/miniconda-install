@@ -1,4 +1,4 @@
-#!/usr/bin/env bash -e
+#!/bin/bash -e
 
 # Install conditionally as it saves some downloading if the
 # version is the same.
