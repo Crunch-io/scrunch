@@ -2,14 +2,6 @@
 git+https://github.com/Crunch-io/pycrunch#pycrunch
 
 # Install scrunch as development
--e .
+-e .[testing]
 
-#pycrunch
-mock
-pytest
-pytest-sugar
-pytest-cov
-requests
-tox
-backports.unittest_mock
-isodate
+pytest-runner
