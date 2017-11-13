@@ -132,7 +132,7 @@ class Multitable(SubEntity):
         if r.status_code == 202:
             try:
                 r.payload['value']
-            except:
+            except Exception:
                 # Not a progress API just return the incomplete entity.
                 # User will refresh it.
                 pass

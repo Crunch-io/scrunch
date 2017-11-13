@@ -143,7 +143,7 @@ def unfold_list(_list):
                         r_list = r(lower, upper)
                         for elem in r_list:
                             new_list.append(ast.Num(elem))
-                    except:
+                    except Exception:
                         raise AttributeError(
                             "function 'r' needs 2 integer arguments")
                 else:
