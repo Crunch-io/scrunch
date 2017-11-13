@@ -85,14 +85,14 @@ class Multitable(SubEntity):
         An adaption of https://github.com/Crunch-io/pycrunch/blob/master/pycrunch/exporting.py
         to Multitables exports (tabbboks)
         """
-        payload = {}
+        payload = {'weight': None}
 
         # add filter to multitable
         if filter:
             if isinstance(filter, Filter):
                 payload['filter'] = [{'filter': filter.resource.self}]
             else:
-                raise ValueError("filter param must be a Filter instance")
+                raise ValueError('filter param must be a Filter instance')
 
         if options and isinstance(options, dict):
             payload['options'] = options
@@ -112,7 +112,7 @@ class Multitable(SubEntity):
                     }]
                 }
             else:
-                raise ValueError("where param must be a list of variable names")
+                raise ValueError('where param must be a list of variable names')
 
         if weight:
             payload['weight'] = self.ds[weight].url
