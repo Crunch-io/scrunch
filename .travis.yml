@@ -28,7 +28,7 @@ jobs:
 
 cache: pip
 
-install: travis/miniconda-install
+install: source travis/miniconda-install
 
 script:
 - python setup.py test
