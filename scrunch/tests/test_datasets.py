@@ -241,14 +241,13 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds.replace_values({'birthyr': 9, 'level': 8})
         ds.resource.table.post.assert_called_with(
             json.dumps({
-                'command': 'update', 
+                'command': 'update',
                 'variables': {
-                    '001': {'value': 9}, 
+                    '001': {'value': 9},
                     '002': {'value': 8}
                 }
             })
         )
-
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_create_numeric(self, mocked_process):
