@@ -1,7 +1,11 @@
 from pycrunch.shoji import wait_progress
 
 from scrunch.datasets import BaseDataset, _get_connection, _get_dataset
-from scrunch.exceptions import InvalidDatasetTypeError
+from scrunch.exceptions import (
+    InvalidDatasetTypeError,
+    InvalidVariableTypeError,
+    InvalidParamError
+)
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
 
@@ -193,7 +197,8 @@ class MutableDataset(BaseDataset):
                             diff['subvariables'][name].append(dataset[name][sv_name].alias)
         return diff
 
-    def append_dataset(self, dataset, filter=None, variables=None, autorollback=True):
+    def append_dataset(
+            self, dataset, filter=None, variables=None, autorollback=True):
         """
         Append dataset into self. If this operation fails, the
         append is rolledback. Dataset variables and subvariables
@@ -210,11 +215,8 @@ class MutableDataset(BaseDataset):
         if variables and not isinstance(variables, list):
             raise AttributeError("'variables' must be a list of variable names")
 
-        payload = {
-            "element": "shoji:entity",
-            "autorollback": autorollback,
-            "body": {
-                'dataset': dataset.url}}
+        payload = shoji_entity_wrapper({'dataset': dataset.url})
+        payload['autorollback'] = autorollback
 
         if variables:
             id_vars = []
@@ -235,3 +237,74 @@ class MutableDataset(BaseDataset):
             payload['body']['filter'] = process_expr(parse_expr(filter), dataset.resource)
 
         return self.resource.batches.create(payload)
+
+    def _validate_vartypes(self, var_type, resolution=None, subvariables=None,
+        categories=None):
+        if var_type not in ('text', 'numeric', 'categorical', 'datetime',
+            'multiple_response', 'categorical_array'):
+            raise InvalidVariableTypeError
+
+        resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
+        if var_type == 'datetime' and resolution not in resolution_types:
+            raise InvalidParamError(
+                'Include a valid resolution parameter when creating \
+                datetime variables. %s' % resolution_types)
+
+        array_types = ('multiple_response', 'categorical_array')
+        if var_type in array_types and not isinstance(subvariables, list):
+            raise InvalidParamError(
+                'Include subvariables when creating %s variables' % var_type)
+
+    def create_variable(self, var_type, name, alias=None, description='',
+        resolution=None, subvariables=None, categories=None, values=None):
+        """
+        A variable can be of type: text, numeric, categorical, datetime,
+        multiple_response or categorical_array.
+
+        Type datetime: must include resolution (“Y”, “M”, “D”, “h”, “m”,
+            “s”, and “ms”)
+        Types multiple_response and categorical array: must include
+        subvariables.
+
+        :param: name: Name for the variable.
+        :param: alias: Alias for the new variable or auto-created in
+            Crunch if None.
+        :param: description: Description for the variable.
+        :param: resolution: A string with one of (“Y”, “M”, “D”, “h”, “m”,
+            “s”, and “ms”).
+        :param: subvariables: A list defining the subvariables for
+            multiple_response and categorical_array variable types in the form:
+            subvariables = [
+                {'name' 'Subvariable 1', 'alias': 'subvar1', 'id': 1},
+                {'name' 'Subvariable 2', 'alias': 'subvar2', 'id': 2}
+            ]
+        :param: categories: List of categories in the form:
+            categories = [
+                {'name': 'ManU', 'id': 1, 'numeric_value': 1, 'missing': False},
+                {'name': 'Chelsea', 'id': 2, 'numeric_value': 2, 'missing': False},
+                {'name': 'Totthenham', 'id': 3, 'numeric_value': 3, 'missing': False}
+            ]
+        :param: values: a list of values to populate the variable with.
+            values = [1,4,5,2,1,3,1]
+        """
+        self._validate_vartypes(var_type, resolution, subvariables, categories)
+        payload = {
+            'type': var_type,
+            'name': name,
+            'description': description,
+        }
+        if alias:
+            payload['alias'] = alias
+        if resolution:
+            payload['resolution'] = resolution
+        if categories:
+            payload['categories'] = categories
+        if subvariables:
+            payload['subreferences'] = [
+                {'name': item['name']} for item in subvariables
+            ]
+        if values:
+            payload['values'] = values
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[name]

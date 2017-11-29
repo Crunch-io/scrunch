@@ -20,3 +20,11 @@ class InvalidReferenceError(ValueError):
 
 class InvalidDatasetTypeError(Exception):
     pass
+
+
+class InvalidVariableTypeError(Exception):
+    pass
+
+
+class InvalidParamError(Exception):
+    pass

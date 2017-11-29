@@ -814,8 +814,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         }
         self.resource.permissions.patch(payload)
 
-    def create_single_response(self, categories, name, alias, description='',
-                               missing=True, notes=''):
+    def create_single_response(
+            self, categories, name, alias, description='', missing=True,
+            notes=''):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -938,8 +939,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[alias]
 
-    def create_categorical(self, categories, alias, name, multiple,
-                           description='', notes=''):
+    def create_categorical(
+            self, categories, alias, name, multiple, description='', notes=''):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1026,7 +1027,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def combine_categories(
-            self, variable, map, categories, missing=None, default=None,
+            self, variable, map, categories, missing=None, default=None, 
             name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
@@ -1039,8 +1040,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 variable, map, categories, missing, default,
                 name=name, alias=alias, description=description)
 
-    def combine_categorical(self, variable, map, categories=None, missing=None,
-                            default=None, name='', alias='', description=''):
+    def combine_categorical(
+            self, variable, map, categories=None, missing=None,
+            default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
@@ -1080,8 +1082,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def combine_multiple_response(
-            self, variable, map, categories=None,
-            default=None, name='', alias='', description=''):
+            self, variable, map, categories=None, default=None, name='',
+            alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1364,8 +1366,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             return _forks
 
-    def export(self, path, format='csv', filter=None, variables=None,
-               hidden=False, options=None, metadata_path=None, timeout=None):
+    def export(
+            self, path, format='csv', filter=None, variables=None,
+            hidden=False, options=None, metadata_path=None, timeout=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
@@ -1598,7 +1601,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     def replace_values(self, variables, filter=None):
         """
-        :param map: dictionary, {var_alias: value, var2_alias: value}
+        :param variables: dictionary, {var_alias: value, var2_alias: value}
         :param filter: string, an Scrunch expression, i.e; 'var_alias > 1'
         """
         payload = {
