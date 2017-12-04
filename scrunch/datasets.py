@@ -1769,6 +1769,20 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self.resource.multitables.create(payload)
         return self.multitables[name]
 
+    def set_weight(self, variables=None):
+        """
+        :param: variables: List of variable aliases to set as weight.
+
+        As default Crunch behaviour, the list will be overwritten on
+        every request. Use a None if you need to unset all weights.
+        """
+        if isinstance(variables, list):
+            graph = [self[v].url for v in variables]
+        if variables is None:
+            graph = []
+        payload = {'graph': graph}
+        return self.resource.variables.weights.patch(json.dumps(payload))
+
 
 # FIXME: This class to be deprecated
 class Dataset(BaseDataset):
