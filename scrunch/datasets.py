@@ -1929,6 +1929,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 % self.resource.body.type)
         return CategoryList._from(self.resource)
 
+    def delete(self):
+        self.resource.delete()
+
     def hide(self):
         self.resource.edit(discarded=True)
 
