@@ -261,8 +261,8 @@ class MutableDataset(BaseDataset):
         A variable can be of type: text, numeric, categorical, datetime,
         multiple_response or categorical_array.
 
-        Type datetime: must include resolution (“Y”, “M”, “D”, “h”, “m”,
-            “s”, and “ms”)
+        Type datetime: must include resolution ("Y", "M", "D", "h", "m",
+            "s", and "ms")
         Types multiple_response and categorical array: must include
         subvariables.
 
@@ -270,8 +270,8 @@ class MutableDataset(BaseDataset):
         :param: alias: Alias for the new variable or auto-created in
             Crunch if None.
         :param: description: Description for the variable.
-        :param: resolution: A string with one of (“Y”, “M”, “D”, “h”, “m”,
-            “s”, and “ms”).
+        :param: resolution: A string with one of ("Y", "M", "D", "h", "m",
+            "s", and "ms").
         :param: subvariables: A list defining the subvariables for
             multiple_response and categorical_array variable types in the form:
             subvariables = [
