@@ -197,8 +197,8 @@ class MutableDataset(BaseDataset):
                             diff['subvariables'][name].append(dataset[name][sv_name].alias)
         return diff
 
-    def append_dataset(
-            self, dataset, filter=None, variables=None, autorollback=True):
+    def append_dataset(self, dataset, filter=None, variables=None,
+        autorollback=True):
         """
         Append dataset into self. If this operation fails, the
         append is rolledback. Dataset variables and subvariables
@@ -284,6 +284,13 @@ class MutableDataset(BaseDataset):
                 {'name': 'Chelsea', 'id': 2, 'numeric_value': 2, 'missing': False},
                 {'name': 'Totthenham', 'id': 3, 'numeric_value': 3, 'missing': False}
             ]
+
+            If vay_type is multiple_response, categories is optional and will
+            default to:
+            categories = [
+                {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
+                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False}
+            ]
         :param: values: a list of values to populate the variable with.
             values = [1,4,5,2,1,3,1]
         """
@@ -297,6 +304,11 @@ class MutableDataset(BaseDataset):
             payload['alias'] = alias
         if resolution:
             payload['resolution'] = resolution
+        if var_type == 'multiple_response' and categories is None:
+            payload['categories'] = [
+                {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
+                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False}
+            ]
         if categories:
             payload['categories'] = categories
         if subvariables:
