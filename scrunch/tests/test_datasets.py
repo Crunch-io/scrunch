@@ -239,15 +239,16 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds = MutableDataset(ds_mock)
         ds.resource = mock.MagicMock()
         ds.replace_values({'birthyr': 9, 'level': 8})
-        ds.resource.table.post.assert_called_with(
-            json.dumps({
-                'command': 'update',
-                'variables': {
-                    '001': {'value': 9},
-                    '002': {'value': 8}
-                }
-            })
-        )
+        call = json.loads(ds.resource.table.post.call_args[0][0])
+        assert 'command' in call
+        assert call['command'] == 'update'
+        assert 'variables' in call
+        assert '001' in call['variables']
+        assert 'value' in call['variables']['001']
+        assert call['variables']['001']['value'] == 9
+        assert '002' in call['variables']
+        assert 'value' in call['variables']['002']
+        assert call['variables']['002']['value'] == 8
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_create_numeric(self, mocked_process):
