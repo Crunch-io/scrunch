@@ -6,6 +6,8 @@ from scrunch.variables import validate_variable_url
 from scrunch import get_project, get_mutable_dataset, get_user
 from scrunch.datasets import Project, User
 from scrunch.mutable_dataset import MutableDataset
+from scrunch.order import Path
+from scrunch.exceptions import InvalidPathError
 
 
 @pytest.fixture(scope='function')
@@ -201,3 +203,17 @@ class TestUtilities(object):
         user = get_user('heisenberg@sc.org')
         session.users.by.assert_called_with('email')
         assert isinstance(user, User)
+
+    def test_path(self):
+        with pytest.raises(TypeError, message='The path must be a string object'):
+            Path(1234)
+
+        with pytest.raises(InvalidPathError, message='Invalid path |If SkadefÃ¶rsÃ¤kring: it contains invalid characters.'):
+            Path('|If SkadefÃ¶rsÃ¤kring')
+
+        Path('|If Skadeförsäkring')
+        Path('|æøå')
+
+        path = Path('test')
+        assert path.is_relative is True
+        assert repr(path) == 'test'
