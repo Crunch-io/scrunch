@@ -914,6 +914,51 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
+    def bind_categorical_array(
+            self, name, alias, subvariables, description='', notes=''):
+        """
+        Creates a new categorical_array where subvariables is a
+        subset of categorical variables already existing in the DS.
+
+        Creates a derived variable.
+
+        :param: name: Name of the new variable.
+        :param: alias: Alias of the new variable
+        :param: description: A description of the new variable
+        :param: notes: Notes to attach to the new variable
+        :param: subvariables: a list of dictionary elements:
+            subvariables = [
+                {'id': 1, 'alias': var1},
+                {'id': 2, 'alias': var2}
+            ]
+        """
+
+        # creates numeric ids if 'id' not present in subvaraibles list
+
+        for i, elem in enumerate(subvariables):
+            if 'id' not in elem:
+                elem.update({'id': i+1})
+
+        payload = {
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'derivation': {
+                'function': 'array',
+                'args': [{
+                    'function': 'select',
+                    'args': [{
+                        'map': {v['id']: {'variable': self[v['alias']].url} for v in subvariables}
+                    }]
+                }]
+            }
+        }
+
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[alias]
+
     def create_numeric(
             self, alias, name, derivation, description='', notes=''):
         """
@@ -1971,7 +2016,18 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     def move(self, path, position=-1, before=None, after=None):
         self.dataset.order.place(self, path, position=position,
-                                 before=before, after=after)
+            before=before, after=after)
+
+    def unbind(self, subvariables):
+        """
+        Unbinds a set of subvariables from the current Array type
+        variable. Works only for non-derived material variables
+        """
+        payload = {'unbind': [self[sv].url for sv in subvariables]}
+        payload = json.dumps(shoji_entity_wrapper(payload))
+        print(payload)
+        resp = self.resource.post(payload)
+        return resp
 
     @property
     def missing_rules(self):

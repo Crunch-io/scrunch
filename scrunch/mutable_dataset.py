@@ -320,3 +320,30 @@ class MutableDataset(BaseDataset):
         self.resource.variables.create(shoji_entity_wrapper(payload))
         self._reload_variables()
         return self[name]
+
+    def move_to_categorical_array(
+            self, name, alias, subvariables, description='', notes=''):
+        """
+        This is a dangerous method that allows moving variables (effectively
+        translating them as variables in a dataset) as subvariables in the
+        newly created categorical_array created.
+
+        :param: name: Name of the new variable.
+        :param: alias: Alias of the new variable
+        :param: subvariables: A list of existing Dataset variables aliases
+            to move into the new variable as subvariables .i.e;
+                subvariables = ['var1_alias', 'var2_alias']
+        :param: description: A description of the new variable
+        :param: notes: Notes to attach to the new variable
+        """
+        payload = {
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'type': 'categorical_array',
+            'subvariables': [self[v].url for v in subvariables]
+        }
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[alias]
