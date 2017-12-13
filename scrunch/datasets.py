@@ -2018,14 +2018,12 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self.dataset.order.place(self, path, position=position,
             before=before, after=after)
 
-    def unbind(self, subvariables):
+    def unbind(self):
         """
-        Unbinds a set of subvariables from the current Array type
+        Unbinds all subvariables from the current Array type
         variable. Works only for non-derived material variables
         """
-        payload = {'unbind': [self[sv].url for sv in subvariables]}
-        payload = json.dumps(shoji_entity_wrapper(payload))
-        print(payload)
+        payload = json.dumps(shoji_entity_wrapper({'unbind': []}))
         resp = self.resource.post(payload)
         return resp
 
