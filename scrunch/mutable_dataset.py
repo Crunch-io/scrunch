@@ -275,8 +275,8 @@ class MutableDataset(BaseDataset):
         :param: subvariables: A list defining the subvariables for
             multiple_response and categorical_array variable types in the form:
             subvariables = [
-                {'name' 'Subvariable 1', 'alias': 'subvar1', 'id': 1},
-                {'name' 'Subvariable 2', 'alias': 'subvar2', 'id': 2}
+                {'name' 'Subvariable 1'},
+                {'name' 'Subvariable 2'}
             ]
         :param: categories: List of categories in the form:
             categories = [
@@ -289,8 +289,10 @@ class MutableDataset(BaseDataset):
             default to:
             categories = [
                 {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
-                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False}
+                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False, 'selected': True},
             ]
+            Note: You need to include 'selected': True, or a multiple_response,
+                will be converted to a categorical_array
         :param: values: a list of values to populate the variable with.
             values = [1,4,5,2,1,3,1]
         """
@@ -307,7 +309,7 @@ class MutableDataset(BaseDataset):
         if var_type == 'multiple_response' and categories is None:
             payload['categories'] = [
                 {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
-                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False}
+                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False, 'selected': True},
             ]
         if categories:
             payload['categories'] = categories
