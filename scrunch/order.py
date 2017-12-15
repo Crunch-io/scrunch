@@ -17,7 +17,14 @@ class Path(object):
         if not isinstance(path, six.string_types):
             raise TypeError('The path must be a string object')
 
-        if not re.match(NAME_REGEX, path):
+        try:
+            # Python 2
+            regex_match = re.match(NAME_REGEX, path.decode('utf-8'))
+        except:
+            # Python 3
+            regex_match = re.match(NAME_REGEX, path)
+
+        if not regex_match:
             raise InvalidPathError(
                 'Invalid path %s: it contains invalid characters.' % path
             )
