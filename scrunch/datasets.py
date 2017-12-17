@@ -1651,11 +1651,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         payload = {
             'command': 'update',
-            'variables': {
-                self[alias].id: {'value': val}
-                for alias, val in variables.items()
-            },
+            'variables': {},
         }
+        for alias, val in variables.items():
+            if isinstance(val, list):
+                payload['variables'][self[alias].id] = {'column': val}
+            else:
+                payload['variables'][self[alias].id] = {'value': val}
         if filter:
             payload['filter'] = process_expr(parse_expr(filter), self.resource)
         resp = self.resource.table.post(json.dumps(payload))
