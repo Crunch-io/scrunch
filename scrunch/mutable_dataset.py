@@ -1,3 +1,4 @@
+import json
 from pycrunch.shoji import wait_progress
 
 from scrunch.datasets import BaseDataset, _get_connection, _get_dataset
@@ -349,3 +350,14 @@ class MutableDataset(BaseDataset):
         self.resource.variables.create(shoji_entity_wrapper(payload))
         self._reload_variables()
         return self[alias]
+
+    def move_as_subvariable(self, destination, source):
+        """
+        Moves a variable as a subvariable of an existing array
+        type variable.
+
+        :param: destination: The alias of the variable that will receive the subvariable
+        :para: source: Alias of the variable to move into destination as subvariable
+        """
+        payload = json.dumps({"element": "shoji:catalog", "index": {self[source].url: {}}})
+        self[destination].resource.subvariables.patch(payload)
