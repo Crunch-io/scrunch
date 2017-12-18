@@ -1828,6 +1828,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = {'graph': graph}
         return self.resource.variables.weights.patch(json.dumps(payload))
 
+    @property
+    def weight_variables(self):
+        return self.resource.variables.weights.graph
+
 
 # FIXME: This class to be deprecated
 class Dataset(BaseDataset):
