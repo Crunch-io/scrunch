@@ -26,6 +26,7 @@ class AttributeDict(dict):
         super(AttributeDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
