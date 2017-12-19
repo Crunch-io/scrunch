@@ -26,6 +26,7 @@ class AttributeDict(dict):
         super(AttributeDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
@@ -4758,12 +4759,3 @@ class TestMutableMixin(TestDatasetBase):
         }}
         ds_b.append_dataset(ds_a)
         ds_b.resource.batches.create.assert_called_with(expected_payload)
-
-
-class TestWeights(TestDatasetBase, TestCase):
-
-    def test_set_weight(self):
-        ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
-        ds.set_weight(['var1_alias'])
-        ds.set_weight()
