@@ -1831,7 +1831,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.resource.variables.weights.patch(json.dumps(payload))
 
     @property
-    def list_weights(self):
+    def weights(self):
         weight_urls = self.resource.variables.weights.graph
         return [self.resource.variables.index[weight_alias].alias
                 for weight_alias in weight_urls]
