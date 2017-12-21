@@ -1831,8 +1831,40 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.resource.variables.weights.patch(json.dumps(payload))
 
     @property
-    def weight_variables(self):
-        return self.resource.variables.weights.graph
+    def weights(self):
+        weight_urls = self.resource.variables.weights.graph
+        return [self.resource.variables.index[weight_alias].alias
+                for weight_alias in weight_urls]
+
+    def remove_weight(self, variables):
+        """
+        :param: variables: List of variable aliases or
+        sting of variable alias to remove from weights
+        """
+
+        if six.PY2:
+            if not isinstance(variables, (list, basestring)):
+                raise TypeError("variable must be a string or a list")
+        else:
+            if not isinstance(variables, (list, str)):
+                raise TypeError("variable must be a string or a list")
+
+        weights = self.weights
+        if isinstance(variables, list):
+            for var in variables:
+                if var in weights:
+                    weights.remove(var)
+                else:
+                    raise NameError("%s was not found in weights" % var)
+        else:
+            if variables in weights:
+                weights.remove(variables)
+            else:
+                raise NameError("%s was not found in weights" % variables)
+
+        graph = [self[v].url for v in weights]
+        payload = {'graph': graph}
+        return self.resource.variables.weights.patch(json.dumps(payload))
 
 
 # FIXME: This class to be deprecated
