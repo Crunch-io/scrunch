@@ -1849,7 +1849,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if not isinstance(variables, (list, str)):
                 raise TypeError("variable must be a string or a list")
 
-        weights = self.list_weights
+        weights = self.weights
         if isinstance(variables, list):
             for var in variables:
                 if var in weights:
