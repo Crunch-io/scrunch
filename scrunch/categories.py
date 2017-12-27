@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 from six import PY2
 
 from scrunch.helpers import ReadOnly
