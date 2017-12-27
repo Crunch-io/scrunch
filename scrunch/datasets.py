@@ -1841,13 +1841,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param: variables: List of variable aliases or
         sting of variable alias to remove from weights
         """
-
-        if six.PY2:
-            if not isinstance(variables, (list, basestring)):
-                raise TypeError("variable must be a string or a list")
-        else:
-            if not isinstance(variables, (list, str)):
-                raise TypeError("variable must be a string or a list")
+        if not isinstance(variables, six.string_types) and \
+                not isinstance(variables, list):
+            raise TypeError("variable must be a string or a list")
 
         weights = self.weights
         if isinstance(variables, list):
