@@ -933,11 +933,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             ]
         """
 
-        # creates numeric ids if 'id' not present in subvaraibles list
+        # creates numeric ids if 'id' not present in subvariables list
 
-        for i, elem in enumerate(subvariables):
+        for i, elem in enumerate(subvariables, start=1):
             if 'id' not in elem:
-                elem.update({'id': i+1})
+                elem.update({'id': i})
 
         payload = {
             'name': name,
@@ -1072,7 +1072,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def combine_categories(
-            self, variable, map, categories, missing=None, default=None, 
+            self, variable, map, categories, missing=None, default=None,
             name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
