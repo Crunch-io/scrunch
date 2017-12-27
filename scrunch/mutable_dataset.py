@@ -199,9 +199,8 @@ class MutableDataset(BaseDataset):
         return diff
 
     def append_dataset(self, dataset, filter=None, variables=None,
-        autorollback=True):
-        """
-        Append dataset into self. If this operation fails, the
+                       autorollback=True):
+        """ Append dataset into self. If this operation fails, the
         append is rolledback. Dataset variables and subvariables
         are matched on their aliases and categories are matched by name.
 
@@ -240,9 +239,9 @@ class MutableDataset(BaseDataset):
         return self.resource.batches.create(payload)
 
     def _validate_vartypes(self, var_type, resolution=None, subvariables=None,
-        categories=None):
+                           categories=None):
         if var_type not in ('text', 'numeric', 'categorical', 'datetime',
-            'multiple_response', 'categorical_array'):
+                            'multiple_response', 'categorical_array'):
             raise InvalidVariableTypeError
 
         resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
@@ -257,7 +256,8 @@ class MutableDataset(BaseDataset):
                 'Include subvariables when creating %s variables' % var_type)
 
     def create_variable(self, var_type, name, alias=None, description='',
-        resolution=None, subvariables=None, categories=None, values=None):
+                        resolution=None, subvariables=None, categories=None,
+                        values=None):
         """
         A variable can be of type: text, numeric, categorical, datetime,
         multiple_response or categorical_array.

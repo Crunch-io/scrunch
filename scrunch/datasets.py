@@ -2050,11 +2050,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     def move(self, path, position=-1, before=None, after=None):
         self.dataset.order.place(self, path, position=position,
-            before=before, after=after)
+                                 before=before, after=after)
 
     def unbind(self):
-        """
-        Unbinds all subvariables from the current Array type
+        """ Unbinds all subvariables from the current Array type
         variable. Works only for non-derived material variables
         """
         payload = json.dumps(shoji_entity_wrapper({'unbind': []}))
