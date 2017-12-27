@@ -4,6 +4,7 @@ import json
 from pycrunch.lemonpy import URL
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.shoji import wait_progress
+from six import PY2
 
 import six.moves.urllib as urllib
 from scrunch.helpers import download_file
@@ -28,8 +29,12 @@ class SubEntity:
             '{} has no attribute {}'.format(self.__class__.__name__, item))
 
     def __repr__(self):
-        return "<{}: name='{}'; id='{}'>".format(
-            self.__class__.__name__, self.name, self.id)
+        if PY2:
+            name = self.name.encode("ascii", "replace")
+        else:
+            name = self.name
+        return u"<{}: name='{}'; id='{}'>".format(
+            self.__class__.__name__, name, self.id)
 
     def __str__(self):
         return self.__repr__()

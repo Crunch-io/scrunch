@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+from six import PY2
+
 from scrunch.helpers import ReadOnly
 
 
@@ -29,6 +31,8 @@ class Category(ReadOnly):
 
     def as_dict(self, **kwargs):
         dct = {attr: getattr(self, attr) for attr in self._ENTITY_ATTRIBUTES}
+        if PY2:
+            dct['name'] = dct['name'].encode("ascii", "replace")
         dct.update(**kwargs or {})
         return dct
 
