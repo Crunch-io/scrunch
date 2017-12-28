@@ -1625,7 +1625,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         nforks = len(self.resource.forks.index)
         if name is None:
-            name = "FORK #{} of {}".format(nforks + 1, self.resource.body.name)
+            if six.PY2:
+                name = "FORK #{} of {}".format(
+                    nforks + 1,
+                    self.resource.body.name.encode("ascii", "ignore"))
+            else:
+                name = "FORK #{} of {}".format(
+                    nforks + 1,
+                    self.resource.body.name)
         if description is None:
             description = self.resource.body.description
 
