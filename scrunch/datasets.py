@@ -1627,12 +1627,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if name is None:
             if six.PY2:
                 name = "FORK #{} of {}".format(
-                            nforks + 1,
-                            self.resource.body.name.encode("ascii", "ignore"))
+                    nforks + 1,
+                    self.resource.body.name.encode("ascii", "ignore"))
             else:
                 name = "FORK #{} of {}".format(
-                            nforks + 1,
-                            self.resource.body.name)
+                    nforks + 1,
+                    self.resource.body.name)
         if description is None:
             description = self.resource.body.description
 
