@@ -202,10 +202,6 @@ class Group(object):
             raise ValueError(
                 'The name argument must be a string object.'
             )
-        if len(name) > 40:
-            raise ValueError(
-                'The name argument must not be longer than 40 characters.'
-            )
         if '|' in name:
             raise ValueError(
                 'The pipe (|) character is not allowed.'

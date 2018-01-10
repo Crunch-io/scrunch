@@ -2157,12 +2157,6 @@ class TestProjectsHierarchicalOrder(TestCase):
         with pytest.raises(ValueError):
             proj.order['|Account'].rename('My new|Group')
 
-        with pytest.raises(ValueError):
-            proj.order['|Account'].rename(
-                'Very very very long new name for the Group which should not '
-                'be allowed at all'
-            )
-
     def test_create_group(self):
         proj = self.proj
 
@@ -3640,12 +3634,6 @@ class TestDatasetsHierarchicalOrder(TestCase):
             ]
         }
 
-        with pytest.raises(ValueError):
-            ds.order['|'].create_group(
-                'Very very very long name for the new Group which should not '
-                'be allowed at all'
-            )
-
         ds.order['|Account'].create_group('Gewürze / Inhaltsstoffe', alias=[
             'music', 'religion'])
 
@@ -3876,12 +3864,6 @@ class TestDatasetsHierarchicalOrder(TestCase):
 
         with pytest.raises(ValueError):
             ds.order['|Account'].rename('My new|Group')
-
-        with pytest.raises(ValueError):
-            ds.order['|Account'].rename(
-                'Very very very long new name for the Group which should not '
-                'be allowed at all'
-            )
 
     def test_move_group(self):
         ds = self.ds
