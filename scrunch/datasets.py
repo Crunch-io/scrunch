@@ -2145,3 +2145,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             view['geodata'] = []
             self._resource.patch({'view': view})
             self._resource.refresh()
+
+    def replace_values(self, value, filter=None):
+        """
+        Proxy method to parent Dataset replace_values focused
+        especifically for this variable instance
+        """
+        return self.dataset.replace_values({self.alias: value}, filter=filter)
