@@ -2,7 +2,7 @@ import json
 
 from pycrunch.shoji import wait_progress
 
-from scrunch.datasets import BaseDataset, _get_connection, _get_dataset
+from scrunch.datasets import BaseDataset, _get_connection, _get_dataset, LOG
 from scrunch.exceptions import (InvalidDatasetTypeError, InvalidParamError,
                                 InvalidVariableTypeError)
 from scrunch.expressions import parse_expr, process_expr
@@ -197,7 +197,7 @@ class MutableDataset(BaseDataset):
         return diff
 
     def append_dataset(self, dataset, filter=None, variables=None,
-                       autorollback=True):
+        autorollback=True, delete_pk=True):
         """ Append dataset into self. If this operation fails, the
         append is rolledback. Dataset variables and subvariables
         are matched on their aliases and categories are matched by name.
@@ -212,6 +212,11 @@ class MutableDataset(BaseDataset):
 
         if variables and not isinstance(variables, list):
             raise AttributeError("'variables' must be a list of variable names")
+
+        if delete_pk:
+            LOG.info("Any pk's found will be deleted, to avoid these pass delete_pk=False")
+            self.resource.pk.delete()
+            dataset.resource.pk.delete()
 
         payload = shoji_entity_wrapper({'dataset': dataset.url})
         payload['autorollback'] = autorollback
