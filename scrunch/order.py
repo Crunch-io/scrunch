@@ -81,6 +81,12 @@ class Group(object):
                     dataset = self.order.datasets.get(_id)
                     if dataset:
                         self.elements[dataset.id] = dataset
+                    else:
+                        for key, obj in self.order.catalog.refresh()[
+                                                            'index'].items():
+                            if _id in key:
+                                self.elements[obj.id] = obj
+                                break
             elif isinstance(element, dict):
                 subgroup = Group(element, order=self.order, parent=self)
                 self.elements[subgroup.name] = subgroup
