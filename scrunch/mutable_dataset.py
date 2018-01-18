@@ -1,6 +1,7 @@
 import json
 
 from pycrunch.shoji import wait_progress
+
 from scrunch.datasets import LOG, BaseDataset, _get_connection, _get_dataset
 from scrunch.exceptions import (InvalidDatasetTypeError, InvalidParamError,
                                 InvalidVariableTypeError)
