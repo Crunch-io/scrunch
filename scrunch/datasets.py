@@ -529,7 +529,8 @@ class DatasetVariablesMixin(collections.Mapping):
         self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
-        for var in self._vars:
+        data = sorted(self._vars, key=lambda tup: tup[0])
+        for var in data:
             yield var
 
     def __len__(self):
