@@ -82,8 +82,8 @@ class Group(object):
                     if dataset:
                         self.elements[dataset.id] = dataset
                     else:
-                        for key, obj in self.order.catalog.refresh()[
-                                                            'index'].items():
+                        refresh_ds = self.order.catalog.refresh()['index']
+                        for key, obj in refresh_ds.items():
                             if _id in key:
                                 self.elements[obj.id] = obj
                                 break
