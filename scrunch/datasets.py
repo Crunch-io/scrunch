@@ -2152,3 +2152,18 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         especifically for this variable instance
         """
         return self.dataset.replace_values({self.alias: value}, filter=filter)
+
+    def reorder_subvariables(self, subvariables):
+        """
+        This method reorders the variable subvariables list.
+        :param: subvariables: a list of subvariable aliases
+        :return: a new Variable instance. Note that since we
+        are moving things around in the API, we need to fetch
+        the resource again. An example of how to use this:
+        
+        new_var = old_var.reorder_subvariables(['alias1', 'alias2'])
+        """
+        reordered_urls = [self[sv].url for sv in subvariables]
+        self.resource.patch(json.dumps({'subvariables': reordered_urls}))
+        self.dataset._reload_variables()
+        return self.dataset[self.alias]
