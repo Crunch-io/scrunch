@@ -4433,17 +4433,19 @@ class TestVariableIterator(TestDatasetBase):
         def getitem(key):
             if key == 'body':
                 return body
+            if key == 'subvariables':
+                return subvars_order
 
         ds = mock.MagicMock()
         var_tuple = mock.MagicMock()
-        var_tuple.entity.__getitem__.side_effect = getitem
+        var_tuple.__getitem__.side_effect = getitem
         # mock it as variables to mimick a subvariables catalog
         var_tuple.entity.subvariables.index = subvars
 
         v = Variable(var_tuple=var_tuple, dataset=ds)
 
         all_ids = [sv[1]['id'] for sv in v]
-        assert sorted(all_ids) == ['0001', '0002', '0003', '0004']
+        assert all_ids == ['0001', '0002', '0003', '0004']
 
 
 class TestFilter(TestDatasetBase, TestCase):

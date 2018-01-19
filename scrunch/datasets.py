@@ -1894,6 +1894,13 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
             self._catalog = self.resource.subvariables
             self._vars = self._catalog.index.items()
 
+    def __iter__(self):
+        if getattr(self.resource, 'subvariables', None):
+            print('HERE IT COMES')
+            print(self.subvariables)
+            for var_url in self.subvariables:
+                yield (var_url, self._catalog.index[var_url])
+
 
 class MissingRules(dict):
     """
