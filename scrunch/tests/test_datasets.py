@@ -4436,7 +4436,7 @@ class TestVariableIterator(TestDatasetBase):
 
         ds = mock.MagicMock()
         var_tuple = mock.MagicMock()
-        var_tuple.entity.__getitem__.side_effect = getitem
+        var_tuple.entity.__getitem__.__getitem__.side_effect = getitem
         # mock it as variables to mimick a subvariables catalog
         var_tuple.entity.subvariables.index = subvars
 

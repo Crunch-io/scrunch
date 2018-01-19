@@ -529,8 +529,8 @@ class DatasetVariablesMixin(collections.Mapping):
         self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
-        for var in self._vars:
-            yield var
+        for subvar in self.resource['body']['subvariables']:
+            yield (subvar, self._catalog['index'][subvar])
 
     def __len__(self):
         return len(self._vars)
