@@ -1896,8 +1896,6 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
 
     def __iter__(self):
         if getattr(self.resource, 'subvariables', None):
-            print('HERE IT COMES')
-            print(self.subvariables)
             for var_url in self.subvariables:
                 yield (var_url, self._catalog.index[var_url])
 
