@@ -1897,7 +1897,7 @@ class DatasetSubvariablesMixin(DatasetVariablesMixin):
     def __iter__(self):
         if getattr(self.resource, 'subvariables', None):
             for var_url in self.subvariables:
-                yield (var_url, self._catalog.index[var_url])
+                yield (var_url, dict(self._vars)[var_url])
 
 
 class MissingRules(dict):
