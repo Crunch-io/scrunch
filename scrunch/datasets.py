@@ -2160,7 +2160,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         :return: a new Variable instance. Note that since we
         are moving things around in the API, we need to fetch
         the resource again. An example of how to use this:
-        
+
         new_var = old_var.reorder_subvariables(['alias1', 'alias2'])
         """
         reordered_urls = [self[sv].url for sv in subvariables]

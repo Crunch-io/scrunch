@@ -354,6 +354,25 @@ class MutableDataset(BaseDataset):
         self._reload_variables()
         return self[alias]
 
+    def move_to_multiple_response(
+            self, name, alias, subvariables, description='', notes=''):
+        """
+        This method is a replication of the method move_to_categorical_array,
+        only this time we are creting a multiple_response variable.
+        Note: the subvariables need to have at least 1 selected catagory.
+        """
+        payload = {
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'type': 'multiple_response',
+            'subvariables': [self[v].url for v in subvariables]
+        }
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[alias]
+
     def move_as_subvariable(self, destination, source):
         """
         Moves a variable as a subvariable of an existing array
