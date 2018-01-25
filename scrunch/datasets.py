@@ -1002,7 +1002,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 categories, alias=alias, name=name, description=description,
                 notes=notes)
 
-    def copy_variable(self, variable, name, alias):
+    def copy_variable(self, variable, name, alias, derived=None):
         _subvar_alias = re.compile(r'.+_(\d+)$')
 
         def subrefs(_variable, _alias):
@@ -1064,6 +1064,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 payload['body']['derivation']['references'] = {
                     'subreferences': subreferences
                 }
+
+        if derived == False or derived:
+            payload['body']['derived'] = derived
 
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
