@@ -3,8 +3,7 @@ import json
 from pycrunch.shoji import wait_progress
 
 from scrunch.datasets import LOG, BaseDataset, _get_connection, _get_dataset
-from scrunch.exceptions import (InvalidDatasetTypeError, InvalidParamError,
-                                InvalidVariableTypeError)
+from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
 
@@ -240,23 +239,6 @@ class MutableDataset(BaseDataset):
             payload['body']['filter'] = process_expr(parse_expr(filter), dataset.resource)
 
         return self.resource.batches.create(payload)
-
-    def _validate_vartypes(self, var_type, resolution=None, subvariables=None,
-                           categories=None):
-        if var_type not in ('text', 'numeric', 'categorical', 'datetime',
-                            'multiple_response', 'categorical_array'):
-            raise InvalidVariableTypeError
-
-        resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
-        if var_type == 'datetime' and resolution not in resolution_types:
-            raise InvalidParamError(
-                'Include a valid resolution parameter when creating \
-                datetime variables. %s' % resolution_types)
-
-        array_types = ('multiple_response', 'categorical_array')
-        if var_type in array_types and not isinstance(subvariables, list):
-            raise InvalidParamError(
-                'Include subvariables when creating %s variables' % var_type)
 
     def move_to_categorical_array(
             self, name, alias, subvariables, description='', notes=''):

@@ -13,7 +13,8 @@ from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 
 from scrunch.categories import CategoryList
-from scrunch.exceptions import AuthenticationError
+from scrunch.exceptions import (AuthenticationError, InvalidParamError,
+                                InvalidVariableTypeError)
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
@@ -1001,6 +1002,23 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return self.create_single_response(
                 categories, alias=alias, name=name, description=description,
                 notes=notes)
+
+    def _validate_vartypes(self, var_type, resolution=None, subvariables=None,
+                           categories=None):
+        if var_type not in ('text', 'numeric', 'categorical', 'datetime',
+                            'multiple_response', 'categorical_array'):
+            raise InvalidVariableTypeError
+
+        resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
+        if var_type == 'datetime' and resolution not in resolution_types:
+            raise InvalidParamError(
+                'Include a valid resolution parameter when creating \
+                datetime variables. %s' % resolution_types)
+
+        array_types = ('multiple_response', 'categorical_array')
+        if var_type in array_types and not isinstance(subvariables, list):
+            raise InvalidParamError(
+                'Include subvariables when creating %s variables' % var_type)
 
     def create_variable(self, var_type, name, alias=None, description='',
                         resolution=None, subvariables=None, categories=None,
