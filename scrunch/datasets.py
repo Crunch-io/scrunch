@@ -1097,7 +1097,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             # to have their aliases in the same pattern and order that the
             # parent's are, that is `parent_alias_#`.
             _subreferences = []
-            for subvar in _variable.resource.subvariables.index.values():
+            for _, subvar in _variable:
                 sv_alias = subvar['alias']
                 match = _subvar_alias.match(sv_alias)
                 if match:  # Does this var have the subvar pattern?
@@ -1110,7 +1110,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 })
             return _subreferences
 
-        if variable.resource.body.get('derivation'):
+        if variable.derived:
             # We are dealing with a derived variable, we want the derivation
             # to be executed again instead of doing a `copy_variable`
             derivation = abs_url(variable.resource.body['derivation'],
@@ -1146,11 +1146,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     }]
                 }
             })
-            if variable.type == _MR_TYPE:
-                subreferences = subrefs(variable, alias)
-                payload['body']['derivation']['references'] = {
-                    'subreferences': subreferences
-                }
 
         if derived == False or derived:
             payload['body']['derived'] = derived
