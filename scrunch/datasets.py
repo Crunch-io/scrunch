@@ -2041,7 +2041,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
     _MUTABLE_ATTRIBUTES = {'name', 'description',
-                           'view', 'notes', 'format'}
+                           'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
     # categories in immutable. IMO it should be handled separately

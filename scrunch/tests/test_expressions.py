@@ -2203,7 +2203,7 @@ class TestExpressionProcessing(TestCase):
         categories = [
             {
                 'name': 'mocking',
-                'numeric_value': 1
+                'id': 1
             }
         ]
 
@@ -2241,11 +2241,11 @@ class TestExpressionProcessing(TestCase):
         categories = [
             {
                 'name': 'mocking',
-                'numeric_value': 1
+                'id': 1
             },
             {
                 'name': 'coding',
-                'numeric_value': 2
+                'id': 2
             },
         ]
 
@@ -2283,11 +2283,11 @@ class TestExpressionProcessing(TestCase):
         categories = [
             {
                 'name': 'mocking',
-                'numeric_value': 1
+                'id': 1
             },
             {
                 'name': 'coding',
-                'numeric_value': 2
+                'id': 2
             },
         ]
 

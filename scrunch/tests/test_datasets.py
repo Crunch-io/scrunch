@@ -1847,10 +1847,15 @@ class TestRecode(TestDatasetBase):
 
 
 class TestCopyVariable(TestCase):
+
     def test_base_variable(self):
         ds_res = mock.MagicMock()
         var_res = mock.MagicMock()
         var_res.entity.body = {'type': 'numeric'}
+        def getitem(key):
+            if key == 'derived':
+                return False
+        var_res.__getitem__.side_effect = getitem
         var_res.entity.self = '/variable/url/'
         ds = StreamingDataset(ds_res)
         var = Variable(var_res, ds_res)
@@ -1870,8 +1875,13 @@ class TestCopyVariable(TestCase):
     def test_derived_variable(self):
         ds_res = mock.MagicMock()
         var_res = mock.MagicMock()
+        def getitem(key):
+            if key == 'derived':
+                return True
+        var_res.__getitem__.side_effect = getitem
         var_res.entity.body = {
-            'type': 'multiple_response', 'derivation': {
+            'type': 'multiple_response', 
+            'derivation': {
                 'function': 'array',
                 'args': [{
                     'function': 'select',

@@ -502,7 +502,7 @@ def process_expr(obj, ds):
                             if 'categories' in variables[var]:
                                 for cat in variables[var]['categories']:
                                     if cat['name'] == val:
-                                        value.append(cat['numeric_value'])
+                                        value.append(cat['id'])
                             else:
                                 # variable has no categories, return original
                                 # list of values
@@ -517,7 +517,7 @@ def process_expr(obj, ds):
                         found = False
                         for cat in variables[var]['categories']:
                             if cat['name'] == var_value:
-                                value = cat['numeric_value']
+                                value = cat['id']
                                 found = True
                                 break
                         if not found:
