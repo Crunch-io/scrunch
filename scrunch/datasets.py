@@ -2257,3 +2257,66 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self.resource.patch(json.dumps({'subvariables': reordered_urls}))
         self.dataset._reload_variables()
         return self.dataset[self.alias]
+
+    def _subtotal_headings(self, operation, name, categories, anchor):
+        # check if already exists any insertions
+        payload = {
+            'view': {
+                'transform': {
+                    'insertions': [i for i in self.view.transform.insertions if categories]
+                }
+            }
+        }
+        if categories:
+            # Convert category names to id's if no id's where passed
+            if not isinstance(categories[0], int):
+                to_ids = []
+                for cat in self.categories.values():
+                    if cat.name in categories:
+                        to_ids.append(cat.id)
+                categories = to_ids
+
+            insertion = {
+                'anchor': anchor,
+                'name': name,
+                'function': operation,
+                'args': categories
+            }
+            payload['view']['transform']['insertions'].append(insertion)
+
+        self.resource.patch(payload)
+        self.dataset._reload_variables()
+        return self.dataset[self.alias]
+
+    def add_subtotal(self, name, categories=None, anchor=None):
+        """
+        :param: name: Name for the displayed subtotal
+        :param: categories: a list of categories ID's or category Names to group in a heading.
+            Passing categories=None will remove all subtotals from the variable.
+        :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
+            if the anchor isn't any of the above, it will default to be shown
+            at the bottom of the last category ID specified in categories.
+
+        Note: to concatenate subtotals the procedure is:
+        var_changed = var.add_subtotal('This is subtotal', [1, 2], 'top')
+        var_changed.add_subtotal('At the bottom', [3], 'bottom')
+        """
+        return self._subtotal_headings('subtotal', name, categories, anchor)
+
+    def add_heading(self, name, categories=None, anchor=None):
+        """
+        :param: name: Name for the displayed subtotal
+        :param: categories: a list of categories ID's or category Names to group in a heading.
+            Passing categories=None will remove all subtotals from the variable.
+        :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
+            if the anchor isn't any of the above, it will default to be shown
+            at the bottom of the last category ID specified in categories.
+
+        Note: to concatenate headings the procedure is:
+        var_changed = var.add_heading('This is subtotal', [1, 2], 'top')
+        var_changed.add_heading('At the bottom', [3], 'bottom')
+        """
+        return self._subtotal_headings('heading', name, categories, anchor)
+
+    def transformations(self):
+        return self.view.transform.insertions
