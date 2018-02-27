@@ -2263,10 +2263,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         payload = {
             'view': {
                 'transform': {
-                    'insertions': [i for i in self.view.transform.insertions if categories]
+                    'insertions': []
                 }
             }
         }
+        if 'transform' in self.view:
+            payload['view']['transform']['insertions'] = [
+                i for i in self.view.transform.insertions if categories
+            ]
         if categories:
             # Convert category names to id's if no id's where passed
             if not isinstance(categories[0], int):
@@ -2297,9 +2301,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             if the anchor isn't any of the above, it will default to be shown
             at the bottom of the last category ID specified in categories.
 
-        Note: to concatenate subtotals the procedure is:
-        var_changed = var.add_subtotal('This is subtotal', [1, 2], 'top')
-        var_changed.add_subtotal('At the bottom', [3], 'bottom')
+        Note: to concatenate subtotals the procedure requires to reassign the variable:
+        var = var.add_subtotal('This is subtotal', [1, 2], 'top')
+        var = var.add_subtotal('At the bottom', [3], 'bottom')
+        var = ...
         """
         return self._subtotal_headings('subtotal', name, categories, anchor)
 
@@ -2312,11 +2317,15 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             if the anchor isn't any of the above, it will default to be shown
             at the bottom of the last category ID specified in categories.
 
-        Note: to concatenate headings the procedure is:
-        var_changed = var.add_heading('This is subtotal', [1, 2], 'top')
-        var_changed.add_heading('At the bottom', [3], 'bottom')
+        Note: to concatenate headings the procedure requires to reassign the variable:
+        var = var.add_heading('This is subtotal', [1, 2], 'top')
+        var = var.add_heading('At the bottom', [3], 'bottom')
+        var = ...
         """
         return self._subtotal_headings('heading', name, categories, anchor)
 
+
     def transformations(self):
-        return self.view.transform.insertions
+        if 'transform' in self.view:
+            return self.view.transform.insertions
+        return None
