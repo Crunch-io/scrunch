@@ -111,6 +111,7 @@ class TestRecodes(TestCase):
         dataset.export(output.name)
         result = [l.strip() for l in output.read().strip().split('\n')]
         expected = RECODES_CSV_OUTPUT.split('\n')
+        # Rows are unordered under streaming conditions
         self.assertEqual(sorted(result), sorted(expected))
         output.close()
         ds.delete()
