@@ -109,6 +109,9 @@ class TestRecodes(TestCase):
         # Export some rows
         output = tempfile.NamedTemporaryFile('rw', delete=True)
         dataset.export(output.name)
-        self.assertEqual([l.strip() for l in output.read().strip().split('\n')], RECODES_CSV_OUTPUT.split('\n'))
+        result = [l.strip() for l in output.read().strip().split('\n')]
+        expected = RECODES_CSV_OUTPUT.split('\n')
+        # Rows are unordered under streaming conditions
+        self.assertEqual(sorted(result), sorted(expected))
         output.close()
         ds.delete()
