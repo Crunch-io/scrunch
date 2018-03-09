@@ -1954,11 +1954,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = {'graph': graph}
         return self.resource.variables.weights.patch(json.dumps(payload))
 
-    def drop_rows(self, expr):
+    def drop_rows(self, filter):
         """
-        :param: filter: An scrunch filter that matches rows to drop
+        :param: filter: An scrunch filter expression that matches rows to drop
         """
-        filters = process_expr(parse_expr(expr), self.resource)
+        filters = process_expr(parse_expr(filter), self.resource)
         payload = {
             'command': 'delete',
             'filter': filters,
