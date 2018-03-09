@@ -1954,6 +1954,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = {'graph': graph}
         return self.resource.variables.weights.patch(json.dumps(payload))
 
+    def drop_rows(self, expr):
+        """
+        :param: filter: An scrunch filter that matches rows to drop
+        """
+        filters = process_expr(parse_expr(expr), self.resource)
+        payload = {
+            'command': 'delete',
+            'filter': filters,
+        }
+        self.resource.table.post(json.dumps(payload))
+
 
 # FIXME: This class to be deprecated
 class Dataset(BaseDataset):
