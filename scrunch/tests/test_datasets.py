@@ -4753,3 +4753,42 @@ class TestMutableMixin(TestDatasetBase):
         }}
         ds_b.append_dataset(ds_a)
         ds_b.resource.batches.create.assert_called_with(expected_payload)
+
+
+class TestHeadingSubtotals(TestDatasetBase):
+
+    variables = {
+        'var_a': {
+            'id': '001',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'categorical',
+            'categories': TEST_CATEGORIES(),
+            'is_subvar': False,
+            'view': {}
+        },
+    }
+
+    def test_categories_as_int(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = StreamingDataset(ds_mock)
+        var = ds['var_a']
+
+        expected_payload = {
+            'view': {
+                'transform': {
+                    'insertions': [
+                        {
+                            'anchor': 'top',
+                            'name': 'Test',
+                            'function': 'heading',
+                            'args': [1]
+                        }
+                    ]
+                }
+            }
+        }
+
+        var.add_heading('Test', categories=1, anchor='top')
+        var.resource.patch.assert_called_once_with(expected_payload)
+

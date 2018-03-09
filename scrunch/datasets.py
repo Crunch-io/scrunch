@@ -2259,7 +2259,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         return self.dataset[self.alias]
 
     def _subtotal_headings(self, operation, name, categories, anchor):
-        # check if already exists any insertions
         payload = {
             'view': {
                 'transform': {
@@ -2267,11 +2266,15 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 }
             }
         }
+        # check if already exists any insertions
         if 'transform' in self.view:
             payload['view']['transform']['insertions'] = [
                 i for i in self.view.transform.insertions if categories
             ]
         if categories:
+            # allow categories to be a int or an alias
+            if isinstance(categories, int) or isinstance(categories, str):
+                categories = [categories]
             # Convert category names to id's if no id's where passed
             if not isinstance(categories[0], int):
                 to_ids = []
@@ -2296,7 +2299,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         """
         :param: name: Name for the displayed subtotal
         :param: categories: a list of categories ID's or category Names to group in a heading.
-            Passing categories=None will remove all subtotals from the variable.
+            * Categories, when only one value, can be passed as single arguments as:
+                categories=1 or categories='var_age'
+            * Passing categories=None will remove all subtotals from the variable.
         :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
             if the anchor isn't any of the above, it will default to be shown
             at the bottom of the last category ID specified in categories.
@@ -2312,7 +2317,9 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         """
         :param: name: Name for the displayed subtotal
         :param: categories: a list of categories ID's or category Names to group in a heading.
-            Passing categories=None will remove all subtotals from the variable.
+            * Categories, when only one value, can be passed as single arguments as:
+                categories=1 or categories='var_age'
+            * Passing categories=None will remove all subtotals from the variable.
         :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
             if the anchor isn't any of the above, it will default to be shown
             at the bottom of the last category ID specified in categories.
