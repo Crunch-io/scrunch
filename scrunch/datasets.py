@@ -2264,6 +2264,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
         new_var = old_var.reorder_subvariables(['alias1', 'alias2'])
         """
+        # verify there is no repeated aliases
+        assert len(set(subvariables)) == len(subvariables), \
+            'Repeated aliases found in subvariables: {}'.format(subvariables)
+        # verify there is no missing subvariables
+        assert sorted(list(self.keys())) == sorted(subvariables), \
+            'Missing subvariables for this Variable. Existing: {}. Given: {}'.format(
+                list(self.keys()), subvariables)
+
         reordered_urls = [self[sv].url for sv in subvariables]
         self.resource.patch(json.dumps({'subvariables': reordered_urls}))
         self.dataset._reload_variables()
