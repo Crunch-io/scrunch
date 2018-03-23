@@ -171,6 +171,8 @@ def get_project(project, connection=None):
     :param connection: An scrunch session object
     :return: Project class instance
     """
+    # _set_debug_log()
+    logging.basicConfig(level=logging.DEBUG)
     if connection is None:
         connection = _get_connection()
         if not connection:
@@ -260,18 +262,24 @@ class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    LAZY_ATTRIBUTES = {'order'}
 
     def __init__(self, project_resource):
         self.resource = project_resource
         self.url = self.resource.self
-        self.order = ProjectDatasetsOrder(
-            self.resource.datasets, self.resource.datasets.order)
+        self._lazy = False
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
-            return self.resource.body[item]  # Has to exist
+            return self.resource.body[item]
 
-        # Attribute doesn't exists, must raise an AttributeError
+        elif item in self.LAZY_ATTRIBUTES:
+            if not self._lazy:
+                datasets = self.resource.datasets
+                self.order = ProjectDatasetsOrder(datasets, datasets.order)
+                self._lazy = True
+            return getattr(self, item)
+
         raise AttributeError('Project has no attribute %s' % item)
 
     def __repr__(self):

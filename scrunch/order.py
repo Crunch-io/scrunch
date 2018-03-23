@@ -555,6 +555,6 @@ class DatasetVariablesOrder(Order):
 
 class ProjectDatasetsOrder(Order):
 
-    def load(self, refresh=True):
+    def load(self, refresh=False):
         self.datasets = self.catalog.by('id')
         super(ProjectDatasetsOrder, self).load(refresh=refresh)
