@@ -1153,7 +1153,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }
             })
 
-        if derived == False or derived:
+        if derived is False or derived:
             payload['body']['derived'] = derived
 
         new_var = self.resource.variables.create(payload)
@@ -2355,7 +2355,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         var = ...
         """
         return self._subtotal_headings('heading', name, categories, anchor)
-
 
     def transformations(self):
         if 'transform' in self.view:

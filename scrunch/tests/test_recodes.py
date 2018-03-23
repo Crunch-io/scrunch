@@ -409,7 +409,7 @@ class TestRecode(TestCase):
                 'name': 'skipped'
             }
         ]
-        var_res = Entity(mock.MagicMock(), **{
+        Entity(mock.MagicMock(), **{
             'element': 'shoji:entity',
             'self': 'http://test.crunch.io/api/datasets/%s/variables/0001/' % dataset_id,
             # needed in order to simulate a Tuple, now Variable is inited with Tuple

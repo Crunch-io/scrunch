@@ -11,3 +11,9 @@ try:
 except DistributionNotFound:
     # package is not installed
     pass
+
+__all__ = [
+    'connect', 'get_user', 'get_project', 'get_dataset',
+    'get_streaming_dataset', 'get_mutable_dataset',
+    'create_dataset',
+]

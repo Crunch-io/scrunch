@@ -12,57 +12,57 @@ class TestExpressionParsing(TestCase):
     def test_any_of_str(self):
         expr = '"age".any(1,2)'
 
-        with pytest.raises(SyntaxError) as err:
+        with pytest.raises(SyntaxError):
             parse_expr(expr)
 
     def test_in_value_error(self):
         expr = "age in [{}, 1, 2]"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_invalid_method_value_error(self):
         expr = "age.invalid_method(1)"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_duplicates_value_error(self):
         expr = "age.duplicates(1)"  # duplicates doesn't accepts parameters
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_any_value_error(self):
         expr = "age.any(1,2)"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_is_valid_value_error(self):
         expr = "age.is_valid(1)"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_is_missing_value_error(self):
         expr = "age.is_missing(1)"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_is_missing_arrays(self):
         expr = "age.is_missing([1], [2])"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_unknown_function(self):
         expr = "other()"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_wrong_ops(self):
         expr = "a == 1 == 1"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_unsupported_args(self):
         expr = "valid(starargs=1)"
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError):
             parse_expr(expr)
 
     def test_expr_none(self):
@@ -729,59 +729,58 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == {
             'function': 'or',
             'args': [{
-                    'function': 'and',
-                    'args': [
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'disposition'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        },
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'exit_status'
-                                },
-                                {
-                                    'value': 1
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    'function': 'and',
-                    'args': [
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'disposition'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        },
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'exit_status'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        }
-                    ]
-                }
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'disposition'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'exit_status'
+                            },
+                            {
+                                'value': 1
+                            }
+                        ]
+                    }
+                ]
+            }, {
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'disposition'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'exit_status'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    }
+                ]
+            }
             ]}
 
     def test_parse_sample_any(self):
@@ -3072,59 +3071,58 @@ class TestExpressionPrettify(TestCase):
         expr = {
             'function': 'or',
             'args': [{
-                    'function': 'and',
-                    'args': [
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'disposition'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        },
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'exit_status'
-                                },
-                                {
-                                    'value': 1
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    'function': 'and',
-                    'args': [
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'disposition'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        },
-                        {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': 'exit_status'
-                                },
-                                {
-                                    'value': 0
-                                }
-                            ]
-                        }
-                    ]
-                }
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'disposition'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'exit_status'
+                            },
+                            {
+                                'value': 1
+                            }
+                        ]
+                    }
+                ]
+            }, {
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'disposition'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {
+                                'variable': 'exit_status'
+                            },
+                            {
+                                'value': 0
+                            }
+                        ]
+                    }
+                ]
+            }
             ]}
         cel = prettify(expr)
         assert cel == "(disposition == 0 and exit_status == 1) or " \

@@ -78,7 +78,8 @@ class TestRecodes(TestCase):
             alias='origintype_copy')
         print("Variable %s created" % origintype_copy.alias)
 
-        onlinenewssource = dataset.combine_categories(origintype_copy,
+        onlinenewssource = dataset.combine_categories(
+            origintype_copy,
             map={
                 1: 1,
                 2: [2, 3, 4]
@@ -92,7 +93,8 @@ class TestRecodes(TestCase):
         print('Created combination: %s' % onlinenewssource.alias)
 
         # Combine a single categorical - Combine with subvar 3 on the wrong place
-        over35 = dataset.combine_categories(agerange,
+        over35 = dataset.combine_categories(
+            agerange,
             map={
                 1: [1, 2, 3],
                 2: [4, 5]

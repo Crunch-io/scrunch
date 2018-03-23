@@ -1162,6 +1162,7 @@ class TestVariables(TestDatasetBase, TestCase):
         var_tuple = mock.MagicMock()
 
         body = dict(derived=False)
+
         def getitem(key):
             return body[key]
 
@@ -1183,7 +1184,8 @@ class TestVariables(TestDatasetBase, TestCase):
 
         assert var.name == 'var1_name'
 
-        put_side_effect = lambda *x, **y: AttributeDict({'status_code': 204})
+        def put_side_effect(*x, **y):
+            return AttributeDict({'status_code': 204})
         var._resource.session.put.side_effect = put_side_effect
         var.set_missing_rules({"skipped": 9, "not asked": 8})
         var._resource.session.put.assert_called_once()
@@ -1275,6 +1277,7 @@ class TestCast(TestCase):
             ds_res.resource.session.post.assert_called_with(
                 {'cast_as': 'not_allowed'})
 
+
 class TestSavepoints(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
@@ -1343,7 +1346,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
-        f = ds.fork()
+        ds.fork()
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1365,7 +1368,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
-        f = ds.fork(preserve_owner=True)
+        ds.fork(preserve_owner=True)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1388,7 +1391,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = StreamingDataset(ds_res)
-        f = ds.fork()
+        ds.fork()
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1852,6 +1855,7 @@ class TestCopyVariable(TestCase):
         ds_res = mock.MagicMock()
         var_res = mock.MagicMock()
         var_res.entity.body = {'type': 'numeric'}
+
         def getitem(key):
             if key == 'derived':
                 return False
@@ -1875,12 +1879,13 @@ class TestCopyVariable(TestCase):
     def test_derived_variable(self):
         ds_res = mock.MagicMock()
         var_res = mock.MagicMock()
+
         def getitem(key):
             if key == 'derived':
                 return True
         var_res.__getitem__.side_effect = getitem
         var_res.entity.body = {
-            'type': 'multiple_response', 
+            'type': 'multiple_response',
             'derivation': {
                 'function': 'array',
                 'args': [{
@@ -2557,10 +2562,10 @@ class TestDatasetsHierarchicalOrder(TestCase):
         assert group.parent == ds.order['|Account']
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
-            _ = ds.order['|Account|Invalid Group|']
+            ds.order['|Account|Invalid Group|']
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
-            _ = ds.order['|Invalid Group|']
+            ds.order['|Invalid Group|']
 
     def test_access_with_relative_paths(self):
         ds = self.ds
@@ -2576,10 +2581,10 @@ class TestDatasetsHierarchicalOrder(TestCase):
         assert usr_info_group.parent == acct_group
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
-            _ = ds.order['Invalid Group']
+            ds.order['Invalid Group']
 
         with pytest.raises(scrunch.exceptions.InvalidPathError):
-            _ = acct_group['Another Invalid Group']
+            acct_group['Another Invalid Group']
 
     def test_access_with_the_in_operator(self):
         ds = self.ds
@@ -3791,7 +3796,6 @@ class TestDatasetsHierarchicalOrder(TestCase):
             ]
         }
 
-
     @pytest.mark.xfail
     def test_create_group_before_group(self):
         ds = self.ds
@@ -4356,7 +4360,7 @@ class TestDatasetExport(TestCase):
             'options': {
                 'var_label_field': 'name',
                 'prefix_subvariables': True
-        }}
+            }}
 
         dl_file_mock.assert_called_with(self.file_download_url, 'export.sav')
 
@@ -4666,7 +4670,7 @@ class TestMultitable(TestDatasetBase, TestCase):
                     {
                         'map': {
                             'https://test.crunch.io/api/datasets/123456/variables/0001/': {
-                            'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
+                                'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
                         }
                     }
                 ],
@@ -4750,7 +4754,7 @@ class TestMutableMixin(TestDatasetBase):
             "autorollback": True,
             "body": {
                 'dataset': ds_a.url
-        }}
+            }}
         ds_b.append_dataset(ds_a)
         ds_b.resource.batches.create.assert_called_with(expected_payload)
 
@@ -4791,4 +4795,3 @@ class TestHeadingSubtotals(TestDatasetBase):
 
         var.add_heading('Test', categories=1, anchor='top')
         var.resource.patch.assert_called_once_with(expected_payload)
-

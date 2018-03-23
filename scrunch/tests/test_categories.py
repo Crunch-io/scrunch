@@ -5,11 +5,12 @@ from scrunch.datasets import Variable
 from scrunch.categories import CategoryList
 
 
-TEST_CATEGORIES = lambda: [
-    {"id": 1, "name": "Female", "missing": False, "numeric_value": None},
-    {"id": 2, "name": "Male", "missing": False, "numeric_value": None},
-    {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
-]
+def TEST_CATEGORIES():
+    return [
+        {"id": 1, "name": "Female", "missing": False, "numeric_value": None},
+        {"id": 2, "name": "Male", "missing": False, "numeric_value": None},
+        {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
+    ]
 
 
 class EditableMock(MagicMock):
@@ -149,4 +150,3 @@ class TestCategoryList(TestCase):
             {'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Female'}
         ])
         resource.entity.refresh.assert_called_once()
-

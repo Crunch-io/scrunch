@@ -290,62 +290,62 @@ DATASET_DOC = {
                             'missing': False,
                             'name': 'Protestant',
                             'numeric_value': 1
-                        },{
+                        }, {
                             'id': 2,
                             'missing': False,
                             'name': 'North East',
                             'numeric_value': 2
-                        },{
+                        }, {
                             'id': 3,
                             'missing': False,
                             'name': 'North West',
                             'numeric_value': 3
-                        },{
+                        }, {
                             'id': 4,
                             'missing': False,
                             'name': 'Yorkshire and the Humber',
                             'numeric_value': 4
-                        },{
+                        }, {
                             'id': 5,
                             'missing': False,
                             'name': 'East Midlands',
                             'numeric_value': 5
-                        },{
+                        }, {
                             'id': 6,
                             'missing': False,
                             'name': 'West Midlands',
                             'numeric_value': 6
-                        },{
+                        }, {
                             'id': 7,
                             'missing': False,
                             'name': 'East of England',
                             'numeric_value': 7
-                        },{
+                        }, {
                             'id': 8,
                             'missing': False,
                             'name': 'London',
                             'numeric_value': 8
-                        },{
+                        }, {
                             'id': 9,
                             'missing': False,
                             'name': 'South East',
                             'numeric_value': 9
-                        },{
+                        }, {
                             'id': 10,
                             'missing': False,
                             'name': 'South West',
                             'numeric_value': 10
-                        },{
+                        }, {
                             'id': 11,
                             'missing': False,
                             'name': 'Wales',
                             'numeric_value': 11
-                        },{
+                        }, {
                             'id': 12,
                             'missing': False,
                             'name': 'Scotland',
                             'numeric_value': 12
-                        },{
+                        }, {
                             'id': 13,
                             'missing': False,
                             'name': 'Northern Ireland',
@@ -379,18 +379,18 @@ DATASET_DOC = {
 # Data
 ROWS = [
     ['identity', 'ip_address', 'operating_system', 'registration_time', 'speak_spanish', 'hobbies_1', 'hobbies_2', 'hobbies_3', 'hobbies_4', 'music_1', 'music_2', 'music_97', 'music_98', 'music_99', 'religion', 'location'],
-    [1,  '10.0.0.1',  'Linux',   '2014-04-21T10:00:00+00:00', 1,     32767, 32767, 32767, 32767, 2, 2, 1, 2, 2, 1, 1],
-    [2,  '10.0.0.2',  'Solaris', '2014-05-10T00:00:00+00:00', 1,     32766, 1,     1,     4,     1, 1, 1, 2, 2, 2, 2],
-    [3,  '10.0.0.3',  'Linux',   '2015-01-01T00:00:00+00:00', 2,     2,     1,     2,     2,     2, 2, 2, 2, 1, 3, 3],
-    [4,  '10.0.0.4',  'Windows', '2015-01-02T00:00:00+00:00', 3,     4,     3,     2,     1,     1, 2, 1, 2, 2, 4, 4],
-    [5,  '10.0.0.5',  'Windows', '2015-02-01T00:00:00+00:00', 1,     1,     2,     32766, 4,     1, 1, 1, 2, 2, 5, 5],
-    [6,  '10.0.0.6',  'MacOS',   '2015-06-01T00:00:00+00:00', 4,     2,     4,     4,     1,     2, 2, 1, 2, 2, 6, 6],
-    [7,  '10.0.0.7',  'Windows', '2015-12-30T00:00:00+00:00', 32766, 1,     32766, 4,     3,     2, 2, 2, 1, 2, 32766, 7],
-    [8,  '10.0.0.8',  'Minix',   '2016-01-01T00:00:00+00:00', 32766, 2,     1,     1,     2,     2, 2, 2, 1, 2, 32767, 8],
-    [9,  '10.0.0.9',  'FreeBSD', '2016-02-01T00:00:00+00:00', 32767, 1,     1,     1,     32766, 1, 2, 1, 2, 2, 1, 9],
-    [10, '10.0.0.10', 'NetBSD',  '2015-03-01T00:00:00+00:00', 2,     4,     3,     4,     1,     2, 2, 1, 2, 2, 2, 10],
-    [11, '10.0.0.10', 'NetBSD',  '2015-03-01T00:01:00+00:00', 2,     4,     3,     4,     1,     1, 1, 1, 1, 1, 3, 11],
-    [12, '10.0.0.10', 'NetBSD',  '2015-03-01T00:02:00+00:00', 2,     4,     3,     4,     1,     2, 2, 2, 2, 2, 4, 12],
+    [1, '10.0.0.1', 'Linux', '2014-04-21T10:00:00+00:00', 1, 32767, 32767, 32767, 32767, 2, 2, 1, 2, 2, 1, 1],
+    [2, '10.0.0.2', 'Solaris', '2014-05-10T00:00:00+00:00', 1, 32766, 1, 1, 4, 1, 1, 1, 2, 2, 2, 2],
+    [3, '10.0.0.3', 'Linux', '2015-01-01T00:00:00+00:00', 2, 2, 1, 2, 2, 2, 2, 2, 2, 1, 3, 3],
+    [4, '10.0.0.4', 'Windows', '2015-01-02T00:00:00+00:00', 3, 4, 3, 2, 1, 1, 2, 1, 2, 2, 4, 4],
+    [5, '10.0.0.5', 'Windows', '2015-02-01T00:00:00+00:00', 1, 1, 2, 32766, 4, 1, 1, 1, 2, 2, 5, 5],
+    [6, '10.0.0.6', 'MacOS', '2015-06-01T00:00:00+00:00', 4, 2, 4, 4, 1, 2, 2, 1, 2, 2, 6, 6],
+    [7, '10.0.0.7', 'Windows', '2015-12-30T00:00:00+00:00', 32766, 1, 32766, 4, 3, 2, 2, 2, 1, 2, 32766, 7],
+    [8, '10.0.0.8', 'Minix', '2016-01-01T00:00:00+00:00', 32766, 2, 1, 1, 2, 2, 2, 2, 1, 2, 32767, 8],
+    [9, '10.0.0.9', 'FreeBSD', '2016-02-01T00:00:00+00:00', 32767, 1, 1, 1, 32766, 1, 2, 1, 2, 2, 1, 9],
+    [10, '10.0.0.10', 'NetBSD', '2015-03-01T00:00:00+00:00', 2, 4, 3, 4, 1, 2, 2, 1, 2, 2, 2, 10],
+    [11, '10.0.0.10', 'NetBSD', '2015-03-01T00:01:00+00:00', 2, 4, 3, 4, 1, 1, 1, 1, 1, 1, 3, 11],
+    [12, '10.0.0.10', 'NetBSD', '2015-03-01T00:02:00+00:00', 2, 4, 3, 4, 1, 2, 2, 2, 2, 2, 4, 12],
 ]
 
 
@@ -510,7 +510,7 @@ def main():
         for _, row in df.iterrows():
             assert row['identity'] in valid_ids
             assert row['speak_spanish'] in \
-                   ('I speak Spanish primarily',
+                ('I speak Spanish primarily',
                     'I speak both Spanish and English equally')
             assert row['operating_system'] == 'Linux'
 
@@ -643,7 +643,7 @@ def main():
         for _, row in df.iterrows():
             assert row['identity'] in valid_ids
             assert row['music'] != [1, 1, 1, 1, 1] and \
-                   row['music'] != [2, 2, 2, 2, 2]
+                row['music'] != [2, 2, 2, 2, 2]
 
         expr = 'not ( music.all([1]) or music.all([2]) )'
         dataset.exclude(expr)
@@ -657,7 +657,7 @@ def main():
         for _, row in df.iterrows():
             assert row['identity'] in valid_ids
             assert row['music'] == [1, 1, 1, 1, 1] or \
-                   row['music'] == [2, 2, 2, 2, 2]
+                row['music'] == [2, 2, 2, 2, 2]
 
         # 1.5 Exclusion filters with `duplicates`.
 
@@ -721,8 +721,8 @@ def main():
             assert row['identity'] in valid_ids
             assert row['hobbies'] != [{'?': 32766}, {'?': 32766},
                                       {'?': 32766}, {'?': 32766}] \
-                   and row['hobbies'] != [{'?': 32767}, {'?': 32767},
-                                         {'?': 32767}, {'?': 32767}]
+                and row['hobbies'] != [{'?': 32767}, {'?': 32767},
+                                       {'?': 32767}, {'?': 32767}]
 
         expr = 'not missing(hobbies)'
         dataset.exclude(expr)
@@ -738,8 +738,8 @@ def main():
             assert row['identity'] in valid_ids
             assert row['hobbies'] == [{'?': 32766}, {'?': 32766},
                                       {'?': 32766}, {'?': 32766}] \
-                   or row['hobbies'] == [{'?': 32767}, {'?': 32767},
-                                         {'?': 32767}, {'?': 32767}]
+                or row['hobbies'] == [{'?': 32767}, {'?': 32767},
+                                      {'?': 32767}, {'?': 32767}]
 
         expr = 'valid(hobbies)'
         dataset.exclude(expr)
@@ -976,7 +976,7 @@ def main():
 
         cat_map = {
             1: [1, 2],
-            2:[3, 4],
+            2: [3, 4],
             99: [32766, 32767]
         }
 
