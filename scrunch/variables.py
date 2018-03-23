@@ -38,7 +38,7 @@ def responses_from_map(variable, response_map, cat_names, alias, parent_alias):
                 ]
             } for response_id, combined_ids in sorted(six.iteritems(response_map))
         ]
-    except KeyError as e:
+    except KeyError:
         # This means we tried to combine a subvariable with ~id~ that does not
         # exist in the subvariables. Treat as bad input.
         raise ValueError("Unknown subvariables for variable %s" % parent_alias)
