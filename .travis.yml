@@ -11,9 +11,6 @@ python:
 matrix:
   include:
   - env:
-    - TOXENV=flake8
-    python: *latest_py3
-  - env:
     - TOXENV=isort
     python: *latest_py3
 
