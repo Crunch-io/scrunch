@@ -171,8 +171,6 @@ def get_project(project, connection=None):
     :param connection: An scrunch session object
     :return: Project class instance
     """
-    # _set_debug_log()
-    logging.basicConfig(level=logging.DEBUG)
     if connection is None:
         connection = _get_connection()
         if not connection:
