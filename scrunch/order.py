@@ -558,3 +558,14 @@ class ProjectDatasetsOrder(Order):
     def load(self, refresh=False):
         self.datasets = self.catalog.by('id')
         super(ProjectDatasetsOrder, self).load(refresh=refresh)
+
+
+class DatasetVariableFolders(Order):
+
+    def __init__(self, catalog, folder_root):
+        self.folder_root = folder_root
+        self.catalog = catalog
+
+    def load(self, refresh=True):
+        self.vars = self.catalog.by('id')
+        super(DatasetVariableFolders, self).load(refresh=refresh)

@@ -19,7 +19,8 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias)
-from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
+from scrunch.order import (DatasetVariablesOrder, ProjectDatasetsOrder,
+                           DatasetVariableFolders)
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
@@ -533,7 +534,10 @@ class DatasetVariablesMixin(collections.Mapping):
 
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
-        self.order = DatasetVariablesOrder(self._catalog, order)
+        if self.settings['variable_folders']:
+            self.order = DatasetVariableFolders(self._catalog, self.resource.folders)
+        else:
+            self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
         for var in self._vars:
