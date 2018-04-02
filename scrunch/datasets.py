@@ -535,7 +535,7 @@ class DatasetVariablesMixin(collections.Mapping):
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
         if self.settings['variable_folders']:
-            self.order = DatasetVariableFolders(self._catalog, self.resource.folders)
+            self.order = DatasetVariableFolders(self.resource)
         else:
             self.order = DatasetVariablesOrder(self._catalog, order)
 

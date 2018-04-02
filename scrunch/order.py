@@ -57,7 +57,7 @@ class Group(object):
 
     def __init__(self, obj, order, parent=None):
         self.name = list(obj.keys())[0]
-        self.order = order
+        self.order = order  # Shoji:order resource's .graph, a list
         self.parent = parent
         self.elements = collections.OrderedDict()
 
@@ -560,12 +560,76 @@ class ProjectDatasetsOrder(Order):
         super(ProjectDatasetsOrder, self).load(refresh=refresh)
 
 
+class LazyFolder(object):
+    def __init__(self, folder_tup):
+        self.folder_tup = folder_tup
+        self.name = folder_tup['name']
+
+    def __str__(self):
+        return 'Subfolder "{}"'.format(self.folder_tup['name'])
+
+
+class FolderGroup(Group):
+
+    def __init__(self, name, graph, index, dataset, parent=None):
+        self.name = name
+        self.parent = parent
+        self.dataset = dataset
+        self.elements = collections.OrderedDict()
+
+        for el_url in graph:
+            tup = index[el_url]
+            if tup['type'] == 'folder':
+                self.elements[tup.name] = LazyFolder(tup)
+            else:
+                self.elements[tup.alias] = scrunch.datasets.Variable(tup, dataset)
+
+    def __getitem__(self, path):
+        if not isinstance(path, six.string_types):
+            raise TypeError('arg 1 must be a string')
+
+        path = Path(path)
+
+        if path.is_root and self.is_root:
+            return self
+
+        if path.is_absolute and not self.is_root:
+            raise InvalidPathError(
+                'Absolute paths can only be used on the root Group.'
+            )
+
+        group = self
+        for part in path.get_parts():
+            try:
+                group = group.elements[part]
+            except KeyError:
+                raise InvalidPathError(
+                    'Invalid path %s: element %s does not exist.' % (path, part)
+                )
+            except AttributeError:
+                raise InvalidPathError(
+                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                )
+            if isinstance(group, LazyFolder):
+                tup = group.folder_tup
+                subfolder = tup.entity
+                group = FolderGroup(tup['name'], subfolder.graph,
+                    subfolder.index,
+                    self.dataset, self)
+            if not isinstance(group, Group):
+                raise InvalidPathError(
+                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                )
+
+        return group
+
+
 class DatasetVariableFolders(Order):
 
-    def __init__(self, catalog, folder_root):
-        self.folder_root = folder_root
-        self.catalog = catalog
+    def __init__(self, dataset):
+        self.folder_root = dataset.folders
+        self.group = FolderGroup('__root__', self.folder_root.graph,
+            self.folder_root.index, dataset)
 
-    def load(self, refresh=True):
-        self.vars = self.catalog.by('id')
-        super(DatasetVariableFolders, self).load(refresh=refresh)
+    def __getitem__(self, item):
+        return self.group[item]
