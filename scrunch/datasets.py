@@ -12,6 +12,7 @@ import six
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 
+from scrunch.folders import DatasetFolders
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
@@ -594,6 +595,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
+        self.folders = DatasetFolders(self)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
