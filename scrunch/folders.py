@@ -3,12 +3,26 @@
 from scrunch.exceptions import InvalidPathError
 
 
+def get_path(node, path):
+    from scrunch.order import Path
+
+    for p_name in Path(path).get_parts():
+        try:
+            node = node.get_child(p_name)
+        except KeyError:
+            raise InvalidPathError('Subfolder not found %s' % p)
+    return node
+
+
 class Folder(object):
     def __init__(self, folder_ent, root, parent):
         self.root = root
         self.parent = parent
         self.folder_ent = folder_ent
         self.name = folder_ent.body.name
+
+    def get(self, path):
+        return get_path(self, path)
 
     def get_child(self, name):
         by_name = self.folder_ent.by('name')
@@ -27,7 +41,8 @@ class Folder(object):
             return Folder(tup.entity, self.root, self)
 
         # Not a folder nor a variable
-        raise InvalidPathError('Invalid path: %s' % self.path)
+        path = self.path_pieces() + [name]
+        raise InvalidPathError('Invalid path: | %s' % ' | '.join(path))
 
     def path_pieces(self):
         if self.parent:
@@ -45,15 +60,7 @@ class DatasetFolders(object):
         self.root = Folder(dataset.resource.folders, self, None)
 
     def get(self, path):
-        from scrunch.order import Path
-        node = self.root
-
-        for p_name in Path(path).get_parts():
-            try:
-                node = node.get_child(p_name)
-            except KeyError:
-                raise InvalidPathError('Subfolder not found %s' % p)
-        return node
+        return get_path(self.root, path)
 
     @property
     def children(self):

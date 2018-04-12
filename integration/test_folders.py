@@ -11,6 +11,9 @@ from unittest import TestCase
 
 from scrunch import connect
 from scrunch import get_dataset
+from scrunch.datasets import Variable
+from scrunch.folders import Folder
+from scrunch.exceptions import InvalidPathError
 from fixtures import NEWS_DATASET
 from pycrunch.shoji import Catalog
 
@@ -70,12 +73,34 @@ class TestFolders(TestCase):
         root = ds.folders.get('|')
         sf1 = ds.folders.get('| Subfolder 1')
         sfa = ds.folders.get('| Subfolder 1 | Subfolder A')
+
+        # Equivalent ways of fetching Subfolder A
+        sfa2 = root.get('Subfolder 1 | Subfolder A')
+        sfa3 = sf1.get('Subfolder A')
+
+        self.assertEqual(sfa.folder_ent.self, sfa2.folder_ent.self)
+        self.assertEqual(sfa.folder_ent.self, sfa3.folder_ent.self)
+
+        variable = ds.folders.get('| Subfolder 1 | Subfolder A | Gender')
+
+        self.assertTrue(isinstance(sf1, Folder))
+        self.assertTrue(isinstance(sfa, Folder))
+        self.assertTrue(isinstance(variable, Variable))
+
         self.assertEqual(sf1.name, 'Subfolder 1')
         self.assertEqual(sfa.name, 'Subfolder A')
         self.assertEqual(sf1.parent, root)
         self.assertEqual(sfa.parent.name, sf1.name)
         self.assertEqual(sfa.parent.path, sf1.path)
         self.assertEqual(sfa.path, '| Subfolder 1 | Subfolder A')
+        self.assertEqual(variable.alias, 'gender')
+        self.assertEqual(variable.type, 'categorical')
+
+        bad_path = '| bad folder'
+        with self.assertRaises(InvalidPathError) as err:
+            ds.folders.get(bad_path)
+        self.assertEqual(err.exception.message, "Invalid path: %s" % bad_path)
+
 
     def _test_hidden_folder(self):
         assert False
