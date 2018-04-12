@@ -73,7 +73,9 @@ class TestFolders(TestCase):
         self.assertEqual(sf1.name, 'Subfolder 1')
         self.assertEqual(sfa.name, 'Subfolder A')
         self.assertEqual(sf1.parent, root)
-        self.assertEqual(sfa.parent, sf1)
+        self.assertEqual(sfa.parent.name, sf1.name)
+        self.assertEqual(sfa.parent.path, sf1.path)
+        self.assertEqual(sfa.path, '| Subfolder 1 | Subfolder A')
 
     def _test_hidden_folder(self):
         assert False

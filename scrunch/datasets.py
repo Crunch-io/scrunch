@@ -510,15 +510,21 @@ class DatasetVariablesMixin(collections.Mapping):
     """
 
     def __getitem__(self, item):
+        """
+        Returns a Variable() instance, `item` can be either a variable alias,
+        name or URL
+        """
         # Check if the attribute corresponds to a variable alias
         variable = self._catalog.by('alias').get(item)
-        if variable is None:
+        if variable is None:  # Not found by alias
             variable = self._catalog.by('name').get(item)
-            if variable is None:
-                # Variable doesn't exists, must raise a ValueError
-                raise ValueError(
-                    'Entity %s has no (sub)variable with a name or alias %s'
-                    % (self.name, item))
+            if variable is None:  # Not found by name
+                variable = self._catalog.index.get(item)
+                if variable is None:  # Not found by URL
+                    # Variable doesn't exists, must raise a ValueError
+                    raise ValueError(
+                        'Entity %s has no (sub)variable with a name or alias %s'
+                        % (self.name, item))
         return Variable(variable, self)
 
     def _set_catalog(self):
