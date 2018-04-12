@@ -1,17 +1,7 @@
 # coding: utf-8
 
+from pycrunch.shoji import Catalog
 from scrunch.exceptions import InvalidPathError
-
-
-def get_path(node, path):
-    from scrunch.order import Path
-
-    for p_name in Path(path).get_parts():
-        try:
-            node = node.get_child(p_name)
-        except KeyError:
-            raise InvalidPathError('Subfolder not found %s' % p)
-    return node
 
 
 class Folder(object):
@@ -20,15 +10,22 @@ class Folder(object):
         self.parent = parent
         self.folder_ent = folder_ent
         self.name = folder_ent.body.name
+        self.url = folder_ent.self
 
     def get(self, path):
-        return get_path(self, path)
+        from scrunch.order import Path
+
+        node = self
+        for p_name in Path(path).get_parts():
+            try:
+                node = node.get_child(p_name)
+            except KeyError:
+                raise InvalidPathError('Subfolder not found %s' % p)
+        return node
 
     def get_child(self, name):
         by_name = self.folder_ent.by('name')
         by_alias = self.folder_ent.by('alias')
-        print "Names", by_name.keys()
-        print "alioase", by_alias.keys()
 
         # If found by alias, then it's a variable, return the variable
         if name in by_alias:
@@ -53,6 +50,49 @@ class Folder(object):
     def path(self):
         return '| ' + ' | '.join(self.path_pieces())
 
+    def make_subfolder(self, folder_name):
+        new_ent = self.folder_ent.create(Catalog(self.folder_ent.session, body={
+            'name': folder_name
+        }))
+        self.folder_ent.refresh()
+        new_ent.refresh()
+        return Folder(new_ent, self.root, self)
+
+    @property
+    def children(self):
+        index = self.folder_ent.index
+        ds = self.root.dataset
+        _children = []
+        for item_url in self.folder_ent.graph:
+            if item_url in index:
+                subfolder = Folder(index[item_url].entity, self.root, self)
+                _children.append(subfolder)
+            else:
+                # Add the variable
+                _children.append(ds[item_url])
+        return _children
+
+    def move_here(self, children):
+        index = {c.url: {} for c in children}
+        graph = self.folder_ent.graph + [c.url for c in children]
+        self.folder_ent.patch({
+            'element': 'shoji:catalog',
+            'index': index,
+            'graph': graph
+        })
+        self.folder_ent.refresh()
+
+    def rename(self, new_name):
+        raise NotImplemented
+
+    def reorder(self, children):
+        graph = self.folder_ent.graph + [c.url for c in children]
+        self.folder_ent.patch({
+            'element': 'shoji:catalog',
+            'graph': graph
+        })
+        self.folder_ent.refresh()
+
 
 class DatasetFolders(object):
     def __init__(self, dataset):
@@ -60,17 +100,4 @@ class DatasetFolders(object):
         self.root = Folder(dataset.resource.folders, self, None)
 
     def get(self, path):
-        return get_path(self.root, path)
-
-    @property
-    def children(self):
-        raise NotImplemented
-
-    def move_here(self, children):
-        raise NotImplemented
-
-    def rename(self, new_name):
-        raise NotImplemented
-
-    def reorder(self, children):
-        raise NotImplemented
+        return self.root.get(path)

@@ -64,6 +64,10 @@ class TestFolders(TestCase):
         }).refresh()
         ds = self._ds
         ds.settings.edit(variable_folders=True)
+        ds.variables.create({
+            'element': 'shoji:entity',
+            'body': {'name': 'testvar1', 'type': 'numeric'}
+        })
         ds.refresh()
         setup_folders(ds)
         self.ds = get_dataset(ds.body.id)
@@ -77,10 +81,10 @@ class TestFolders(TestCase):
         # Equivalent ways of fetching Subfolder A
         sfa2 = root.get('Subfolder 1 | Subfolder A')
         sfa3 = sf1.get('Subfolder A')
+        self.assertEqual(sfa.url, sfa2.url)
+        self.assertEqual(sfa.url, sfa3.url)
 
-        self.assertEqual(sfa.folder_ent.self, sfa2.folder_ent.self)
-        self.assertEqual(sfa.folder_ent.self, sfa3.folder_ent.self)
-
+        # Fetching a variable by path
         variable = ds.folders.get('| Subfolder 1 | Subfolder A | Gender')
 
         self.assertTrue(isinstance(sf1, Folder))
@@ -101,18 +105,40 @@ class TestFolders(TestCase):
             ds.folders.get(bad_path)
         self.assertEqual(err.exception.message, "Invalid path: %s" % bad_path)
 
+    def test_make_subfolder(self):
+        ds = self.ds
+        root = ds.folders.get('|')
+        mit = root.make_subfolder('Made in test')
+        self.assertEqual(mit.path, "| Made in test")
+        mit2 = root.get(mit.name)
+        self.assertEqual(mit2.url, mit.url)
+        nested = mit.make_subfolder('nested level')
+        self.assertEqual(mit.get_child(nested.name).url, nested.url)
+
+    def test_reorder_folder(self):
+        ds = self.ds
+        root = ds.folders.get('|')
+        folder = root.make_subfolder('ToReorder')
+        sf1 = folder.make_subfolder('1')
+        sf2 = folder.make_subfolder('2')
+        sf3 = folder.make_subfolder('3')
+        var = ds['testvar1']
+        folder.move_here([var])
+        children = folder.children
+        self.assertEqual([c.url for c in children],
+            [c.url for c in [sf1, sf2, sf3, var]])
+
+        # Reorder placing sf1 at the end
+        folder.reorder([sf2, var, sf3, sf1])
+        children = folder.children
+        self.assertEqual([c.url for c in children],
+            [c.url for c in [sf2, var, sf3, sf1]])
+
+    def _test_move_between_folders(self):
+        assert False
 
     def _test_hidden_folder(self):
         assert False
 
     def _test_hide_variable(self):
-        assert False
-
-    def _test_make_subfolder(self):
-        assert False
-
-    def _test_reorder_folder(self):
-        assert False
-
-    def _test_move_between_folders(self):
         assert False
