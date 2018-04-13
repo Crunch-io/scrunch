@@ -60,6 +60,7 @@ class Folder(object):
 
     @property
     def children(self):
+        self.folder_ent.refresh()  # Always get a fresh copy
         index = self.folder_ent.index
         ds = self.root.dataset
         _children = []
@@ -73,6 +74,7 @@ class Folder(object):
         return _children
 
     def move_here(self, children):
+        children = children if isinstance(children, list) else [children]
         index = {c.url: {} for c in children}
         graph = self.folder_ent.graph + [c.url for c in children]
         self.folder_ent.patch({
