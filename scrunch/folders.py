@@ -73,8 +73,10 @@ class Folder(object):
                 _children.append(ds[item_url])
         return _children
 
-    def move_here(self, children):
-        children = children if isinstance(children, list) else [children]
+    def move_here(self, *children):
+        if not children:
+            return
+        children = children[0] if isinstance(children[0], list) else children
         index = {c.url: {} for c in children}
         graph = self.folder_ent.graph + [c.url for c in children]
         self.folder_ent.patch({
@@ -98,8 +100,16 @@ class Folder(object):
 
 class DatasetFolders(object):
     def __init__(self, dataset):
-        self.dataset = dataset
-        self.root = Folder(dataset.resource.folders, self, None)
+        self.enabled = dataset.resource.settings.body.variable_folders
+        if self.enabled:
+            self.dataset = dataset
+            self.root = Folder(dataset.resource.folders, self, None)
+            self.hidden = Folder(dataset.resource.folders.hidden, self, None)
+            self.trash = Folder(dataset.resource.folders.trash, self, None)
 
     def get(self, path):
-        return self.root.get(path)
+        if self.enabled:
+            return self.root.get(path)
+
+    def __getattr__(self, item):
+        return super(DatasetFolders, self).__getattribute__(item)

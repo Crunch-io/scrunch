@@ -784,6 +784,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 headers={'Content-Type': 'application/json'}
             )
             self._settings = None
+        # After changing settings, reload folders that depend on it
+        self.folders = DatasetFolders(self)
 
     def edit(self, **kwargs):
         """

@@ -39,6 +39,14 @@ def setup_folders(ds):
         'element': 'shoji:entity',
         'body': {'name': 'testvar3', 'type': 'numeric'}
     })
+    ds.variables.create({
+        'element': 'shoji:entity',
+        'body': {'name': 'testvar4', 'type': 'numeric'}
+    })
+    ds.variables.create({
+        'element': 'shoji:entity',
+        'body': {'name': 'testvar5', 'type': 'numeric'}
+    })
     ds.refresh()
     sf1 = Catalog(sess, body={
         'name': 'Subfolder 1'
@@ -192,8 +200,35 @@ class TestFolders(TestCase):
         self.assertEqual([c.url for c in target1.children],
             [nested.url])
 
-    def _test_hidden_folder(self):
-        assert False
+    def test_hide_variables(self):
+        hidden_folder = self.ds.folders.hidden
+        root = self.ds.folders.root
+        var1 = self.ds['testvar4']
+        var2 = self.ds['testvar5']
+        root.move_here(var1, var2)
+        hidden_folder.move_here(var2)
 
-    def _test_hide_variable(self):
+        var1_id = var1.resource.body.id
+        var2_id = var2.resource.body.id
+        self.assertTrue(var2_id in self._ds.folders.hidden.by('id'))
+        self.assertTrue(var2_id not in self._ds.folders.by('id'))
+        self.assertTrue(var1_id in self._ds.folders.by('id'))
+        self.assertTrue(var1_id not in self._ds.folders.hidden.by('id'))
+
+    def test_trash_variables(self):
+        trash = self.ds.folders.trash
+        root = self.ds.folders.root
+        var1 = self.ds['testvar4']
+        var2 = self.ds['testvar5']
+        root.move_here(var1, var2)
+        trash.move_here(var2)
+
+        var1_id = var1.resource.body.id
+        var2_id = var2.resource.body.id
+        self.assertTrue(var2_id in self._ds.folders.trash.by('id'))
+        self.assertTrue(var2_id not in self._ds.folders.by('id'))
+        self.assertTrue(var1_id in self._ds.folders.by('id'))
+        self.assertTrue(var1_id not in self._ds.folders.trash.by('id'))
+
+    def test_enable_disable(self):
         assert False
