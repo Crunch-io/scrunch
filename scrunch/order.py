@@ -560,6 +560,11 @@ class ProjectDatasetsOrder(Order):
         super(ProjectDatasetsOrder, self).load(refresh=refresh)
 
 
+#######
+#  Folders compatibility.
+#######
+
+
 class LazyFolder(object):
     def __init__(self, folder_tup):
         self.folder_tup = folder_tup
@@ -625,6 +630,12 @@ class FolderGroup(Group):
 
 
 class DatasetVariableFolders(Order):
+    """
+    Compatibility python API of the Scrunch Orders to work with the new
+    Crunch web API of /folders/.
+
+    Still, Incomplete. Favor using `dataset.folders` for folders operations.
+    """
 
     def __init__(self, dataset):
         self.folder_root = dataset.folders

@@ -20,8 +20,7 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias)
-from scrunch.order import (DatasetVariablesOrder, ProjectDatasetsOrder,
-                           DatasetVariableFolders)
+from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
@@ -541,10 +540,7 @@ class DatasetVariablesMixin(collections.Mapping):
 
         # The `order` property, which provides a high-level API for
         # manipulating the "Hierarchical Order" structure of a Dataset.
-        if self.settings['variable_folders']:
-            self.order = DatasetVariableFolders(self.resource)
-        else:
-            self.order = DatasetVariablesOrder(self._catalog, order)
+        self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
         for var in self._vars:
@@ -590,7 +586,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
-                          'viewers_can_share', 'dashboard_deck'}
+                          'viewers_can_share', 'dashboard_deck',
+                          'variable_folders'}
 
     def __init__(self, resource):
         """
@@ -785,6 +782,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             )
             self._settings = None
         # After changing settings, reload folders that depend on it
+        self.resource.refresh()
         self.folders = DatasetFolders(self)
 
     def edit(self, **kwargs):

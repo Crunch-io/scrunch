@@ -231,4 +231,19 @@ class TestFolders(TestCase):
         self.assertTrue(var1_id not in self._ds.folders.trash.by('id'))
 
     def test_enable_disable(self):
-        assert False
+        pycrunch_ds = site.datasets.create({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'test_folders',
+                'table': {
+                    'element': 'crunch:table',
+                    'metadata': NEWS_DATASET
+                },
+            }
+        }).refresh()
+        scrcunch_ds = get_dataset(pycrunch_ds.body.id)
+        self.assertFalse(scrcunch_ds.folders.enabled)
+        self.assertFalse(hasattr(scrcunch_ds.folders, 'root'))
+        scrcunch_ds.change_settings(variable_folders=True)
+        self.assertTrue(scrcunch_ds.folders.enabled)
+        self.assertTrue(hasattr(scrcunch_ds.folders, 'root'))
