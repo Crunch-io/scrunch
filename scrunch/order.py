@@ -57,7 +57,7 @@ class Group(object):
 
     def __init__(self, obj, order, parent=None):
         self.name = list(obj.keys())[0]
-        self.order = order  # Shoji:order resource's .graph, a list
+        self.order = order
         self.parent = parent
         self.elements = collections.OrderedDict()
 

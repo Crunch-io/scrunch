@@ -47,6 +47,10 @@ def setup_folders(ds):
         'element': 'shoji:entity',
         'body': {'name': 'testvar5', 'type': 'numeric'}
     })
+    ds.variables.create({
+        'element': 'shoji:entity',
+        'body': {'name': 'testvar6', 'type': 'numeric'}
+    })
     ds.refresh()
     sf1 = Catalog(sess, body={
         'name': 'Subfolder 1'
@@ -229,6 +233,23 @@ class TestFolders(TestCase):
         self.assertTrue(var2_id not in self._ds.folders.by('id'))
         self.assertTrue(var1_id in self._ds.folders.by('id'))
         self.assertTrue(var1_id not in self._ds.folders.trash.by('id'))
+
+    def test_rename(self):
+        root = self.ds.folders.root
+        sf = root.make_subfolder('rename me')
+        sf.rename("renamed")
+        self.assertTrue('renamed' in [c.name for c in root.children])
+
+    def test_delete_folder(self):
+        root = self.ds.folders.root
+        var = self.ds['testvar6']
+        sf = root.make_subfolder('delete me')
+        sf.move_here(var)
+        self.assertTrue(var.url in self._ds.variables.index)
+        sf.delete()
+        # folder now in trash
+        self.assertTrue(sf.url in
+                        [c.url for c in self.ds.folders.trash.children])
 
     def test_enable_disable(self):
         pycrunch_ds = site.datasets.create({

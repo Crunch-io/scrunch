@@ -87,7 +87,13 @@ class Folder(object):
         self.folder_ent.refresh()
 
     def rename(self, new_name):
-        raise NotImplemented
+        self.folder_ent.patch({
+            'element': 'shoji:catalog',
+            'body': {'name': new_name}
+        })
+
+    def delete(self):
+        self.folder_ent.delete()
 
     def reorder(self, children):
         graph = self.folder_ent.graph + [c.url for c in children]
