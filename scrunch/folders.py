@@ -91,6 +91,7 @@ class Folder(object):
             'element': 'shoji:catalog',
             'body': {'name': new_name}
         })
+        self.name = new_name
 
     def delete(self):
         self.folder_ent.delete()

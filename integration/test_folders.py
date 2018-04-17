@@ -239,6 +239,7 @@ class TestFolders(TestCase):
         sf = root.make_subfolder('rename me')
         sf.rename("renamed")
         self.assertTrue('renamed' in [c.name for c in root.children])
+        self.assertEqual(sf.name, 'renamed')
 
     def test_delete_folder(self):
         root = self.ds.folders.root
