@@ -10,9 +10,11 @@ class Folder(object):
         self.parent = parent
         self.folder_ent = folder_ent
         self.name = folder_ent.body.name
+        self.alias = self.name  # For compatibility with variables .alias
         self.url = folder_ent.self
 
     def get(self, path):
+        self.folder_ent.refresh()  # Always up to date
         from scrunch.order import Path
 
         node = self
@@ -50,13 +52,33 @@ class Folder(object):
     def path(self):
         return '| ' + ' | '.join(self.path_pieces())
 
-    def make_subfolder(self, folder_name):
+    def make_subfolder(self, folder_name, position=None, after=None, before=None):
         new_ent = self.folder_ent.create(Catalog(self.folder_ent.session, body={
             'name': folder_name
         }))
-        self.folder_ent.refresh()
         new_ent.refresh()
-        return Folder(new_ent, self.root, self)
+        subfolder = Folder(new_ent, self.root, self)
+
+        if before is not None or after is not None:
+            # Before and After are strings
+            target = before or after
+            position = [x for x, c in self.children if c.alias == target]
+            if not position:
+                raise InvalidPathError("No child with name %s found" % target)
+            position = position[0]
+            if before is not None:
+                position = (position - 1) if position > 0 else 0
+            else:
+                max_pos = len(self.folder_ent.graph)
+                position = (position + 1) if position < max_pos else max_pos
+
+        if position is not None:
+            children = [c for c in self.children if c.url != new_ent.self]
+            children.insert(position, subfolder)
+            self.reorder(children)
+
+        self.folder_ent.refresh()
+        return subfolder
 
     @property
     def children(self):
@@ -77,6 +99,10 @@ class Folder(object):
         if not children:
             return
         children = children[0] if isinstance(children[0], list) else children
+        children = [
+            self.root.dataset[c] if isinstance(c, basestring) else c
+            for c in children
+        ]
         index = {c.url: {} for c in children}
         graph = self.folder_ent.graph + [c.url for c in children]
         self.folder_ent.patch({
@@ -108,6 +134,7 @@ class Folder(object):
 class DatasetFolders(object):
     def __init__(self, dataset):
         self.enabled = dataset.resource.settings.body.variable_folders
+        self.dataset = dataset
         if self.enabled:
             self.dataset = dataset
             self.root = Folder(dataset.resource.folders, self, None)

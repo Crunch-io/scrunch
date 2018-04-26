@@ -204,6 +204,30 @@ class TestFolders(TestCase):
         self.assertEqual([c.url for c in target1.children],
             [nested.url])
 
+    def test_move_by_alias(self):
+        root = self.ds.folders.root
+        target = root.make_subfolder("test_move_by_alias")
+        target.move_here('testvar2')
+        self.assertEqual([c.name for c in target.children], ["testvar2"])
+
+    def teat_make_folder_in_position(self):
+        root = self.ds.folders.root
+        root.make_subfolder("p1")
+        root.make_subfolder("p2")
+        root.make_subfolder("p3")
+
+        root.make_subfolder("A", before="p2")
+        self.assertEqual([c.name for c in root.children],
+            ["p1", "A", "p2", "p3"])
+
+        root.make_subfolder("B", after="p2")
+        self.assertEqual([c.name for c in root.children],
+            ["p1", "A", "p2", "B", "p3"])
+
+        root.make_subfolder("C", position=3)
+        self.assertEqual([c.name for c in root.children],
+            ["p1", "A", "C", "p2", "B", "p3"])
+
     def test_hide_variables(self):
         hidden_folder = self.ds.folders.hidden
         root = self.ds.folders.root
