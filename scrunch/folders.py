@@ -58,11 +58,18 @@ class Folder(object):
         }))
         new_ent.refresh()
         subfolder = Folder(new_ent, self.root, self)
+        if position is not None or after is not None or before is not None:
+            children = self._position_items([subfolder], position, before, after)
+            self.reorder(children)
 
+        self.folder_ent.refresh()
+        return subfolder
+
+    def _position_items(self, new_items, position, before, after):
         if before is not None or after is not None:
             # Before and After are strings
             target = before or after
-            position = [x for x, c in self.children if c.alias == target]
+            position = [x for x, c in enumerate(self.children) if c.alias == target]
             if not position:
                 raise InvalidPathError("No child with name %s found" % target)
             position = position[0]
@@ -73,12 +80,12 @@ class Folder(object):
                 position = (position + 1) if position < max_pos else max_pos
 
         if position is not None:
-            children = [c for c in self.children if c.url != new_ent.self]
-            children.insert(position, subfolder)
-            self.reorder(children)
-
-        self.folder_ent.refresh()
-        return subfolder
+            new_urls = {c.url for c in new_items}
+            children = [c for c in self.children if c.url not in new_urls]
+            for item in reversed(new_items):
+                children.insert(position, item)
+            return children
+        return self.children  # Nothing happened
 
     @property
     def children(self):
@@ -95,7 +102,7 @@ class Folder(object):
                 _children.append(ds[item_url])
         return _children
 
-    def move_here(self, *children):
+    def move_here(self, *children, **kwargs):
         if not children:
             return
         children = children[0] if isinstance(children[0], list) else children
@@ -104,6 +111,10 @@ class Folder(object):
             for c in children
         ]
         index = {c.url: {} for c in children}
+        position, before, after = [kwargs.get('position'),
+                                   kwargs.get('before'), kwargs.get('after')]
+        if position is not None or after is not None or before is not None:
+            children = self._position_items(children, position, before, after)
         graph = self.folder_ent.graph + [c.url for c in children]
         self.folder_ent.patch({
             'element': 'shoji:catalog',
