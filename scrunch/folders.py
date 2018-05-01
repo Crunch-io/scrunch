@@ -52,7 +52,7 @@ class Folder(object):
     def path(self):
         return '| ' + ' | '.join(self.path_pieces())
 
-    def create_folder(self, folder_name, position=None, after=None, before=None):
+    def create_folder(self, folder_name, position=None, after=None, before=None, alias=None):
         new_ent = self.folder_ent.create(Catalog(self.folder_ent.session, body={
             'name': folder_name
         }))
@@ -61,6 +61,9 @@ class Folder(object):
         if position is not None or after is not None or before is not None:
             children = self._position_items([subfolder], position, before, after)
             self.reorder(children)
+
+        if alias:
+            subfolder.move_here(alias)
 
         self.folder_ent.refresh()
         return subfolder
@@ -123,6 +126,23 @@ class Folder(object):
         })
         self.folder_ent.refresh()
 
+    def append(self, *children):
+        """Alias of .move_here, adds items at the end of the folder"""
+        self.move_here(*children)
+
+    def insert(self, *children, **kwargs):
+        """Alias of move_here with a specific position"""
+        self.move_here(*children, position=kwargs.get('position', 0))
+
+    def move(self, path, position=None, after=None, before=None):
+        """
+        The inverse of move here, but it allows to move only folder by folder.
+        This API is much more chatty than using .move_here() that allows to
+        move multiple items in one call. Implemented for orders backwards compat
+        """
+        target = self.root.get(path)
+        target.move_here(self, position=position, after=after, before=before)
+
     def rename(self, new_name):
         self.folder_ent.patch({
             'element': 'shoji:catalog',
@@ -133,8 +153,13 @@ class Folder(object):
     def delete(self):
         self.folder_ent.delete()
 
-    def reorder(self, children):
-        graph = self.folder_ent.graph + [c.url for c in children]
+    def reorder(self, *items):
+        items = items[0] if isinstance(items[0], list) else items
+        name2tup = self.folder_ent.by('name')
+        graph = [
+            name2tup[c].entity_url if isinstance(c, basestring) else c.url
+            for c in items
+        ]
         self.folder_ent.patch({
             'element': 'shoji:catalog',
             'graph': graph

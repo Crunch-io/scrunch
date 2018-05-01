@@ -135,6 +135,13 @@ class TestFolders(TestCase):
         nested = mit.create_folder('nested level')
         self.assertEqual(mit.get_child(nested.name).url, nested.url)
 
+    def test_create_folder_with_variables(self):
+        ds = self.ds
+        root = ds.folders.root
+        sf = root.create_folder("with children", alias=['testvar1', 'testvar2'])
+        self.assertEqual(['testvar1', 'testvar2'],
+            [c.alias for c in sf.children])
+
     def test_reorder_folder(self):
         ds = self.ds
         root = ds.folders.get('|')
@@ -149,10 +156,21 @@ class TestFolders(TestCase):
             [c.url for c in [sf1, sf2, sf3, var]])
 
         # Reorder placing sf1 at the end
-        folder.reorder([sf2, var, sf3, sf1])
+        folder.reorder(items=[sf2, var, sf3, sf1])
         children = folder.children
         self.assertEqual([c.url for c in children],
             [c.url for c in [sf2, var, sf3, sf1]])
+
+        # Test reorder providing children names only
+        folder.reorder(var.alias, sf1.name, sf2.name, sf3.name)
+        self.assertEqual([c.url for c in folder.children],
+            [c.url for c in [var, sf1, sf2, sf3]])
+
+    def move_to_folder(self):
+        ds = self.ds
+        sf = ds.folders.root.create_folder("target")
+        ds['testvar1'].move_to_folder(sf.path)
+        self.assertEqual(['testvar1'], [c.alias for c in sf.children])
 
     def test_move_between_folders(self):
         root = self.ds.folders.root
