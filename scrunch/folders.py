@@ -207,3 +207,30 @@ class DatasetFolders(object):
     def get(self, path):
         if self.enabled:
             return self.root.get(path)
+
+    def __getitem__(self, path):
+        return self.root.get(path)
+
+    def __iter__(self):
+        return self.root.itervalues()
+
+    def iterkeys(self):
+        for child in self.root.children:
+            yield child.alias
+
+    def itervalues(self):
+        for child in self.root.children:
+            yield child
+
+    def iteritems(self):
+        for child in self.root.children:
+            yield (child.alias, child)
+
+    def values(self):
+        return list(self.itervalues())
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def items(self):
+        return list(self.iteritems())

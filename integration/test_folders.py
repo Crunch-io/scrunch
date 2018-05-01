@@ -345,3 +345,27 @@ class TestFolders(TestCase):
         # The right key corresponds to the correct value
         self.assertEqual(dict(root)[sf1.name].url, sf1.url)
 
+    def test_dict_protocol_on_helper(self):
+        root = self.ds.folders.root
+        sf1 = root.create_folder("level1")
+        sf1a = root.create_folder("level1a")
+        sf2 = sf1.create_folder("level2")
+
+        top_level = self.ds.folders  # Testing over the helper class
+        # Access by path []
+        self.assertEqual(top_level[sf2.path].url, sf2.url)
+
+        # Access by name
+        self.assertEqual(top_level[sf1.name].url, sf1.url)
+
+        # __iter__ method
+        self.assertEqual([c.url for c in top_level],
+            [c.url for c in root.children])
+
+        # more dict methods
+        self.assertEqual(set(dict(top_level).keys()), set(root.keys()))
+        self.assertEqual({c.url for c in dict(top_level).values()},
+            {c.url for c in root.children})
+        # The right key corresponds to the correct value
+        self.assertEqual(dict(top_level)[sf1.name].url, sf1.url)
+
