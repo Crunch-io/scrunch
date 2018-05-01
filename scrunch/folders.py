@@ -25,6 +25,33 @@ class Folder(object):
                 raise InvalidPathError('Subfolder not found %s' % p)
         return node
 
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def __iter__(self):
+        return self.itervalues()
+
+    def iterkeys(self):
+        for child in self.children:
+            yield child.alias
+
+    def itervalues(self):
+        for child in self.children:
+            yield child
+
+    def iteritems(self):
+        for child in self.children:
+            yield (child.alias, child)
+
+    def values(self):
+        return list(self.itervalues())
+
+    def keys(self):
+        return list(self.iterkeys())
+
+    def items(self):
+        return list(self.iteritems())
+
     def get_child(self, name):
         by_name = self.folder_ent.by('name')
         by_alias = self.folder_ent.by('alias')
@@ -180,6 +207,3 @@ class DatasetFolders(object):
     def get(self, path):
         if self.enabled:
             return self.root.get(path)
-
-    def __getattr__(self, item):
-        return super(DatasetFolders, self).__getattribute__(item)

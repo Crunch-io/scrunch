@@ -321,3 +321,27 @@ class TestFolders(TestCase):
         scrcunch_ds.change_settings(variable_folders=True)
         self.assertTrue(scrcunch_ds.folders.enabled)
         self.assertTrue(hasattr(scrcunch_ds.folders, 'root'))
+
+    def test_dict_protocol(self):
+        root = self.ds.folders.root
+        sf1 = root.create_folder("level1")
+        sf1a = root.create_folder("level1a")
+        sf2 = sf1.create_folder("level2")
+
+        # Access by path []
+        self.assertEqual(root[sf2.path].url, sf2.url)
+
+        # Access by name
+        self.assertEqual(root[sf1.name].url, sf1.url)
+        self.assertEqual(sf1[sf2.name].url, sf2.url)
+
+        # __iter__ method
+        self.assertEqual([c.url for c in root], [c.url for c in root.children])
+
+        # more dict methods
+        self.assertEqual(set(dict(root).keys()), set(root.keys()))
+        self.assertEqual({c.url for c in dict(root).values()},
+            {c.url for c in root.children})
+        # The right key corresponds to the correct value
+        self.assertEqual(dict(root)[sf1.name].url, sf1.url)
+
