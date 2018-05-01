@@ -125,23 +125,23 @@ class TestFolders(TestCase):
             ds.folders.get(bad_path)
         self.assertEqual(err.exception.message, "Invalid path: %s" % bad_path)
 
-    def test_make_subfolder(self):
+    def test_create_folder(self):
         ds = self.ds
         root = ds.folders.get('|')
-        mit = root.make_subfolder('Made in test')
+        mit = root.create_folder('Made in test')
         self.assertEqual(mit.path, "| Made in test")
         mit2 = root.get(mit.name)
         self.assertEqual(mit2.url, mit.url)
-        nested = mit.make_subfolder('nested level')
+        nested = mit.create_folder('nested level')
         self.assertEqual(mit.get_child(nested.name).url, nested.url)
 
     def test_reorder_folder(self):
         ds = self.ds
         root = ds.folders.get('|')
-        folder = root.make_subfolder('ToReorder')
-        sf1 = folder.make_subfolder('1')
-        sf2 = folder.make_subfolder('2')
-        sf3 = folder.make_subfolder('3')
+        folder = root.create_folder('ToReorder')
+        sf1 = folder.create_folder('1')
+        sf2 = folder.create_folder('2')
+        sf3 = folder.create_folder('3')
         var = ds['testvar1']
         folder.move_here([var])
         children = folder.children
@@ -156,8 +156,8 @@ class TestFolders(TestCase):
 
     def test_move_between_folders(self):
         root = self.ds.folders.root
-        target1 = root.make_subfolder("t1")
-        target2 = root.make_subfolder("t2")
+        target1 = root.create_folder("t1")
+        target2 = root.create_folder("t2")
         self.assertEqual(target1.children, [])
         self.assertEqual(target2.children, [])
         var1 = self.ds['testvar2']
@@ -166,7 +166,7 @@ class TestFolders(TestCase):
         self.assertEqual([c.url for c in target1.children],
             [var2.url, var1.url])
 
-        nested = target1.make_subfolder('nested')
+        nested = target1.create_folder('nested')
         self.assertEqual([c.url for c in target1.children],
             [var2.url, var1.url, nested.url])
 
@@ -206,7 +206,7 @@ class TestFolders(TestCase):
 
     def test_move_here_position(self):
         root = self.ds.folders.root
-        sf = root.make_subfolder("here")
+        sf = root.create_folder("here")
         sf.move_here(self.ds['testvar1'])
         sf.move_here(self.ds['testvar2'], before='testvar1')
         self.assertEqual([c.name for c in sf.children], ['testvar2', 'testvar1'])
@@ -217,25 +217,25 @@ class TestFolders(TestCase):
 
     def test_move_by_alias(self):
         root = self.ds.folders.root
-        target = root.make_subfolder("test_move_by_alias")
+        target = root.create_folder("test_move_by_alias")
         target.move_here('testvar2')
         self.assertEqual([c.name for c in target.children], ["testvar2"])
 
     def teat_make_folder_in_position(self):
         root = self.ds.folders.root
-        root.make_subfolder("p1")
-        root.make_subfolder("p2")
-        root.make_subfolder("p3")
+        root.create_folder("p1")
+        root.create_folder("p2")
+        root.create_folder("p3")
 
-        root.make_subfolder("A", before="p2")
+        root.create_folder("A", before="p2")
         self.assertEqual([c.name for c in root.children],
             ["p1", "A", "p2", "p3"])
 
-        root.make_subfolder("B", after="p2")
+        root.create_folder("B", after="p2")
         self.assertEqual([c.name for c in root.children],
             ["p1", "A", "p2", "B", "p3"])
 
-        root.make_subfolder("C", position=3)
+        root.create_folder("C", position=3)
         self.assertEqual([c.name for c in root.children],
             ["p1", "A", "C", "p2", "B", "p3"])
 
@@ -271,7 +271,7 @@ class TestFolders(TestCase):
 
     def test_rename(self):
         root = self.ds.folders.root
-        sf = root.make_subfolder('rename me')
+        sf = root.create_folder('rename me')
         sf.rename("renamed")
         self.assertTrue('renamed' in [c.name for c in root.children])
         self.assertEqual(sf.name, 'renamed')
@@ -279,13 +279,12 @@ class TestFolders(TestCase):
     def test_delete_folder(self):
         root = self.ds.folders.root
         var = self.ds['testvar6']
-        sf = root.make_subfolder('delete me')
+        sf = root.create_folder('delete me')
         sf.move_here(var)
         self.assertTrue(var.url in self._ds.variables.index)
         sf.delete()
-        # folder now in trash
-        self.assertTrue(sf.url in
-                        [c.url for c in self.ds.folders.trash.children])
+        # Folder isn't in root anymore
+        self.assertFalse(sf.url in [c.url for c in root.children])
 
     def test_enable_disable(self):
         pycrunch_ds = site.datasets.create({

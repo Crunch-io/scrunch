@@ -52,7 +52,7 @@ class Folder(object):
     def path(self):
         return '| ' + ' | '.join(self.path_pieces())
 
-    def make_subfolder(self, folder_name, position=None, after=None, before=None):
+    def create_folder(self, folder_name, position=None, after=None, before=None):
         new_ent = self.folder_ent.create(Catalog(self.folder_ent.session, body={
             'name': folder_name
         }))
