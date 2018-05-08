@@ -1888,8 +1888,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 parsed_q = process_expr(parse_expr(q['query']), self.resource)
                 # wrap the query in a list of one dict element
                 as_json['query'] = [parsed_q]
-                if 'transform' in q.keys():
-                    as_json['transform'] = q['transform']
+            if 'transform' in q.keys():
+                as_json['transform'] = q['transform']
 
             parsed_template.append(as_json)
 
