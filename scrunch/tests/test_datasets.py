@@ -1621,9 +1621,9 @@ class TestRecode(TestDatasetBase):
                             'value': {
                                 'class': 'categorical',
                                 'categories': [
-                                    {'missing': False, 'id': 1, 'name': 'Facebook'},
-                                    {'missing': False, 'id': 2, 'name': 'Twitter'},
-                                    {'missing': False, 'id': 3, 'name': 'Google+'},
+                                    {'missing': False, 'id': 1, 'name': 'Facebook', 'numeric_value': None},
+                                    {'missing': False, 'id': 2, 'name': 'Twitter', 'numeric_value': None},
+                                    {'missing': False, 'id': 3, 'name': 'Google+', 'numeric_value': None},
                                     {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
                                 ]
                             }

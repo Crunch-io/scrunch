@@ -831,6 +831,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         cases = []
         for cat in categories:
             cases.append(cat.pop('case'))
+            # append a default numeric_value if not found
+            if 'numeric_value' not in cat:
+                cat['numeric_value'] = None
 
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()

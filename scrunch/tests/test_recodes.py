@@ -355,8 +355,8 @@ class TestRecode(TestCase):
                             'value': {
                                 'class': 'categorical',
                                 'categories': [
-                                    {'missing': False, 'id': 1, 'name': 'Straight'},
-                                    {'missing': False, 'id': 2, 'name': 'LGBTQ+'},
+                                    {'missing': False, 'id': 1, 'name': 'Straight', 'numeric_value': None},
+                                    {'missing': False, 'id': 2, 'name': 'LGBTQ+', 'numeric_value': None},
                                     {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
                                 ]
                             }
