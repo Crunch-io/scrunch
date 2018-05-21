@@ -454,9 +454,13 @@ class Order(object):
     def __init__(self, catalog, order):
         self.catalog = catalog
         self.order = order
-        self.load(refresh=False)
+        self._load(refresh=False)
 
-    def load(self, refresh=True):
+    def _load(self, refresh=True):
+        """
+        Do not call this method manually, this is intended for
+        methods only
+        """
         if refresh:
             self.catalog.refresh()
             self.order.refresh()
@@ -513,7 +517,7 @@ class Order(object):
             self.order.put(updated_order)
         except pycrunch.ClientError as e:
             # Our update to the Hierarchical Order failed. Better reload.
-            self.load(refresh=True)
+            self._load(refresh=True)
             raise OrderUpdateError(str(e))
 
     # Proxy methods for the __root__ Group
@@ -548,13 +552,13 @@ class Order(object):
 
 class DatasetVariablesOrder(Order):
 
-    def load(self, refresh=True):
+    def _load(self, refresh=True):
         self.vars = self.catalog.by('id')
-        super(DatasetVariablesOrder, self).load(refresh=refresh)
+        super(DatasetVariablesOrder, self)._load(refresh=refresh)
 
 
 class ProjectDatasetsOrder(Order):
 
-    def load(self, refresh=False):
+    def _load(self, refresh=False):
         self.datasets = self.catalog.by('id')
-        super(ProjectDatasetsOrder, self).load(refresh=refresh)
+        super(ProjectDatasetsOrder, self)._load(refresh=refresh)
