@@ -257,6 +257,29 @@ class User:
         return self.email
 
 
+class Team:
+    _MUTABLE_ATTRIBUTES = {'name'}
+    _IMMUTABLE_ATTRIBUTES = {'id'}
+    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+
+    def __init__(self, resource):
+        self.resource = resource
+        self.url = self.resource.self
+
+    def __getattr__(self, item):
+        if item in self._ENTITY_ATTRIBUTES:
+            return self.resource.body[item]
+
+        # Attribute doesn't exists, must raise an AttributeError
+        raise AttributeError('Team has no attribute %s' % item)
+
+    def __repr__(self):
+        return "<Team: name='{}' id='{}'>".format(self.name, self.id)
+
+    def __str__(self):
+        return self.name
+
+
 class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
@@ -293,12 +316,16 @@ class Project:
         :return: dictionary of User instances
         """
         # TODO: return a dictionary keyed by email and values should be User
-        # instances, but when trying got 403 from Crunch
-        return [e['email'] for e in self.resource.members.index.values()]
-        # return {
-        #     val['email']: User(val.entity)
-        #     for val in self.resource.members.index.values()
-        # }
+        # instances, but when trying got 403 from Crunch and we need
+        # support for teams now
+        users = []
+        for member in self.resource.members.index.values():
+            # members can be users or teams
+            user = member.get('email')
+            if not user:
+                user = member.get('name')
+            users.append(user)
+        return users
 
     def remove_user(self, user):
         """
@@ -843,6 +870,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         cases = []
         for cat in categories:
             cases.append(cat.pop('case'))
+            # append a default numeric_value if not found
+            if 'numeric_value' not in cat:
+                cat['numeric_value'] = None
 
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
@@ -1900,8 +1930,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 parsed_q = process_expr(parse_expr(q['query']), self.resource)
                 # wrap the query in a list of one dict element
                 as_json['query'] = [parsed_q]
-                if 'transform' in q.keys():
-                    as_json['transform'] = q['transform']
+            if 'transform' in q.keys():
+                as_json['transform'] = q['transform']
 
             parsed_template.append(as_json)
 
