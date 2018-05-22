@@ -13,6 +13,9 @@ class Folder(object):
         self.alias = self.name  # For compatibility with variables .alias
         self.url = folder_ent.self
 
+    def __repr__(self):
+        return '<Folder: %s>' % self.name
+
     def get(self, path):
         self.folder_ent.refresh()  # Always up to date
         from scrunch.order import Path
@@ -104,7 +107,7 @@ class Folder(object):
                 raise InvalidPathError("No child with name %s found" % target)
             position = position[0]
             if before is not None:
-                position = (position - 1) if position > 0 else 0
+                position = position if position > 0 else 0
             else:
                 max_pos = len(self.folder_ent.graph)
                 position = (position + 1) if position < max_pos else max_pos

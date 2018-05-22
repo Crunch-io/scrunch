@@ -156,7 +156,7 @@ class TestFolders(TestCase):
             [c.url for c in [sf1, sf2, sf3, var]])
 
         # Reorder placing sf1 at the end
-        folder.reorder(items=[sf2, var, sf3, sf1])
+        folder.reorder([sf2, var, sf3, sf1])
         children = folder.children
         self.assertEqual([c.url for c in children],
             [c.url for c in [sf2, var, sf3, sf1]])
@@ -239,8 +239,8 @@ class TestFolders(TestCase):
         target.move_here('testvar2')
         self.assertEqual([c.name for c in target.children], ["testvar2"])
 
-    def teat_make_folder_in_position(self):
-        root = self.ds.folders.root
+    def test_make_folder_in_position(self):
+        root = self.ds.folders.root.create_folder('testhere')
         root.create_folder("p1")
         root.create_folder("p2")
         root.create_folder("p3")
@@ -255,7 +255,7 @@ class TestFolders(TestCase):
 
         root.create_folder("C", position=3)
         self.assertEqual([c.name for c in root.children],
-            ["p1", "A", "C", "p2", "B", "p3"])
+            ["p1", "A", "p2", "C", "B", "p3"])
 
     def test_hide_variables(self):
         hidden_folder = self.ds.folders.hidden
