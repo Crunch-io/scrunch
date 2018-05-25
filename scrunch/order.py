@@ -2,12 +2,12 @@ import collections
 import json
 import re
 
-import pycrunch
-import six
-
 import scrunch.datasets
+import six
 from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
                                 OrderUpdateError)
+
+import pycrunch
 
 NAME_REGEX = re.compile(r'^\|$|^\|?([\w\s,&\(\)\-\/\\]+\|?)+$', re.UNICODE)
 
