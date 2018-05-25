@@ -114,7 +114,8 @@ class TestDatasetBase(object):
         ds_shoji['body']['table'] = table
 
         var_mock_attributes = {
-            'by.side_effect': self._variables_by_side_effect(_variables)
+            'by.side_effect': self._variables_by_side_effect(_variables),
+            'index.get.side_effect': self._variables_by_side_effect(_variables)
         }
 
         ds_mock_attributes = {
