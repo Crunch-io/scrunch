@@ -114,7 +114,8 @@ class TestDatasetBase(object):
         ds_shoji['body']['table'] = table
 
         var_mock_attributes = {
-            'by.side_effect': self._variables_by_side_effect(_variables)
+            'by.side_effect': self._variables_by_side_effect(_variables),
+            'index.get.side_effect': self._variables_by_side_effect(_variables)
         }
 
         ds_mock_attributes = {
@@ -1996,6 +1997,9 @@ class TestProjectsHierarchicalOrder(TestCase):
             ds.entity.self = '{}{}/'.format(self.ds_base, ds.id)
             ds.entity_url = '{}{}/'.format(self.ds_base, ds.id)
             ds.body = ds
+            ds.folders = MagicMock()
+            ds.settings = MagicMock()
+            ds.settings.body = MagicMock(variable_folders=True)
             ds.variables = MagicMock()
             _datasets[ds.id] = ds
             _datasets[ds.name] = ds

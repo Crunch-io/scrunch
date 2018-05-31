@@ -34,7 +34,7 @@ params = dict(
     python_requires='>=2.7',
     install_requires=[
         'pandas<0.20',
-        'pycrunch>=0.4.0',
+        'pycrunch>=0.4.2',
         'requests',
         'six',
     ],

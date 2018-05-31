@@ -140,6 +140,7 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock
         }
+        resource.variables.index = {}  # Var not present
         ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
@@ -154,6 +155,7 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock,
         }
+        resource.variables.index = {}
         ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
@@ -168,6 +170,7 @@ class TestCombine(TestCase):
         resource.variables.by.return_value = {
             'test': entity_mock
         }
+        resource.variables.index = {}  # Var not present
 
         # mock a Tuple object
         tuple_mock = mock.MagicMock()
@@ -214,7 +217,7 @@ class TestCombine(TestCase):
         resource = mock.MagicMock()
         resource.body = {'name': 'mocked_dataset'}
         resource.entity.self = dataset_url
-
+        resource.variables.index = {}  # Var not present
         # mock subvariables
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
         subvar2_mock = mock.MagicMock(entity_url=subvar2_url)
@@ -244,6 +247,7 @@ class TestCombine(TestCase):
         resource = mock.MagicMock()
         resource.body = {'name': 'mocked_dataset'}
         resource.entity.self = dataset_url
+        resource.variables.index = {}  # Var not present
 
         # mock subvariables
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)

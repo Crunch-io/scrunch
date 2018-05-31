@@ -16,6 +16,7 @@ from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
 from scrunch.expressions import parse_expr, prettify, process_expr
+from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias)
@@ -535,15 +536,21 @@ class DatasetVariablesMixin(collections.Mapping):
     """
 
     def __getitem__(self, item):
+        """
+        Returns a Variable() instance, `item` can be either a variable alias,
+        name or URL
+        """
         # Check if the attribute corresponds to a variable alias
         variable = self._catalog.by('alias').get(item)
-        if variable is None:
+        if variable is None:  # Not found by alias
             variable = self._catalog.by('name').get(item)
-            if variable is None:
-                # Variable doesn't exists, must raise a ValueError
-                raise ValueError(
-                    'Entity %s has no (sub)variable with a name or alias %s'
-                    % (self.name, item))
+            if variable is None:  # Not found by name
+                variable = self._catalog.index.get(item)
+                if variable is None:  # Not found by URL
+                    # Variable doesn't exists, must raise a ValueError
+                    raise ValueError(
+                        'Entity %s has no (sub)variable with a name or alias %s'
+                        % (self.name, item))
         return Variable(variable, self)
 
     def _set_catalog(self):
@@ -606,7 +613,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
-                          'viewers_can_share', 'dashboard_deck'}
+                          'viewers_can_share', 'dashboard_deck',
+                          'variable_folders'}
 
     def __init__(self, resource):
         """
@@ -617,6 +625,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
+        self.folders = DatasetFolders(self)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -799,6 +808,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 headers={'Content-Type': 'application/json'}
             )
             self._settings = None
+        # After changing settings, reload folders that depend on it
+        self.resource.refresh()
+        self.folders = DatasetFolders(self)
 
     def edit(self, **kwargs):
         """
@@ -2195,6 +2207,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def move(self, path, position=-1, before=None, after=None):
         self.dataset.order.place(self, path, position=position,
                                  before=before, after=after)
+
+    def move_to_folder(self, path, position=None, after=None, before=None):
+        target = self.folders.get(path)
+        target.move_here(self, position=position, after=after, before=before)
 
     def unbind(self):
         """ Unbinds all subvariables from the current Array type
