@@ -2,9 +2,9 @@ import collections
 import json
 import re
 
-import pycrunch
 import six
 
+import pycrunch
 import scrunch.datasets
 from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
                                 OrderUpdateError)

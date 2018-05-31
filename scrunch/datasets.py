@@ -7,11 +7,11 @@ import re
 import sys
 
 import pandas as pd
-import pycrunch
 import six
+
+import pycrunch
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
-
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)

@@ -1,5 +1,4 @@
 from pycrunch.importing import Importer
-
 from scrunch.datasets import BaseDataset, _get_dataset
 from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.helpers import shoji_entity_wrapper
