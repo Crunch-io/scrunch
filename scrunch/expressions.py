@@ -43,8 +43,9 @@ ready for the crunch API.
 import ast
 import copy
 
-import scrunch
 import six
+
+import scrunch
 from scrunch.variables import validate_variable_url
 
 if six.PY2:

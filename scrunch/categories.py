@@ -1,7 +1,8 @@
 from collections import OrderedDict
 
-from scrunch.helpers import ReadOnly
 from six import PY2
+
+from scrunch.helpers import ReadOnly
 
 
 class Category(ReadOnly):

@@ -1,8 +1,7 @@
 # coding: utf-8
 
-from scrunch.exceptions import InvalidPathError
-
 from pycrunch.shoji import Catalog
+from scrunch.exceptions import InvalidPathError
 
 
 class Folder(object):

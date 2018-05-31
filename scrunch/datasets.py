@@ -8,6 +8,10 @@ import sys
 
 import pandas as pd
 import six
+
+import pycrunch
+from pycrunch.exporting import export_dataset
+from pycrunch.shoji import Entity
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
@@ -20,10 +24,6 @@ from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-
-import pycrunch
-from pycrunch.exporting import export_dataset
-from pycrunch.shoji import Entity
 
 _MR_TYPE = 'multiple_response'
 
