@@ -11,8 +11,6 @@ python:
 jobs:
   fast_finish: true
   include:
-  - env:
-    - TOXENV=isort
     python: *latest_py3
   - stage: deploy
     if: tag IS present
