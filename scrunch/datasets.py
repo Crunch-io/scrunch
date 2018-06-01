@@ -12,6 +12,7 @@ import six
 import pycrunch
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
+from scrunch.session import connect
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
@@ -70,9 +71,9 @@ def _get_connection(file_path='crunch.ini'):
     password = os.environ.get('CRUNCH_PASSWORD')
     site = os.environ.get('CRUNCH_URL')
     if username and password and site:
-        return pycrunch.connect(username, password, site)
+        return connect(username, password, site)
     elif username and password:
-        return pycrunch.connect(username, password)
+        return connect(username, password)
     # try reading from .ini file
     config = configparser.ConfigParser()
     config.read(file_path)
@@ -87,9 +88,9 @@ def _get_connection(file_path='crunch.ini'):
         site = None
     # now try to login with obtained creds
     if username and password and site:
-        return pycrunch.connect(username, password, site)
+        return connect(username, password, site)
     elif username and password:
-        return pycrunch.connect(username, password)
+        return connect(username, password)
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file "

@@ -73,7 +73,7 @@ class TestUtilities(object):
     def test_get_connection_with_session(self, session_mock):
         assert scrunch.datasets._get_connection() == session_mock
 
-    @mock.patch('pycrunch.connect')
+    @mock.patch('scrunch.session.connect')
     def test_get_connection_with_ini(self, connect_mock):
         import os
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -84,7 +84,7 @@ class TestUtilities(object):
         site = 'https://test.crunch.io/api/'
         assert connect_mock.call_args[0] == (user, pw, site)
 
-    @mock.patch('pycrunch.connect')
+    @mock.patch('scrunch.connect')
     def test_get_connection_with_env(self, connect_mock, envpatch):
         import os
         user = os.environ.get('CRUNCH_USERNAME')
