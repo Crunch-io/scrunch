@@ -224,8 +224,9 @@ class TestUtilities(object):
         user = 'testuser@yougov.com'
         pw = 'supersecret'
         site = 'https://test.crunch.io/api/'
+        from pycrunch.version import __version__ as pycrunch_v
         from requests.sessions import Session
         with mock.patch.object(Session, 'send') as mock_send:
             scrunch.connect(user, pw, site)
         prep_req = mock_send.call_args[0][0]
-        assert prep_req.headers['user-agent'] == 'scrunch/%s' % scrunch.__version__
+        assert prep_req.headers['user-agent'] == 'scrunch/%s (pycrunch/%s)' % (scrunch.__version__, pycrunch_v)
