@@ -7,6 +7,7 @@ import isodate
 import pycrunch
 from pycrunch import pandaslib
 
+from scrunch import connect
 from scrunch.datasets import Variable, get_geodata
 from scrunch.streaming_dataset import StreamingDataset
 
@@ -411,7 +412,7 @@ def main():
     assert not invalid_credentials()
 
     # Login.
-    site = pycrunch.connect(CRUNCH_USER, CRUNCH_PASSWORD, CRUNCH_URL)
+    site = connect(CRUNCH_USER, CRUNCH_PASSWORD, CRUNCH_URL)
     assert isinstance(site, pycrunch.shoji.Catalog)
 
     # Create the test dataset.
