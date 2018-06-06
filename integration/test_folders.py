@@ -316,6 +316,7 @@ class TestFolders(TestCase):
             }
         }).refresh()
         scrcunch_ds = get_dataset(pycrunch_ds.body.id)
+        scrcunch_ds.change_settings(variable_folders=False)
         self.assertFalse(scrcunch_ds.folders.enabled)
         self.assertFalse(hasattr(scrcunch_ds.folders, 'root'))
         scrcunch_ds.change_settings(variable_folders=True)
