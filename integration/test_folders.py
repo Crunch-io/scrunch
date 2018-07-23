@@ -141,6 +141,8 @@ class TestFolders(TestCase):
         sf = root.create_folder("with children", alias=['testvar1', 'testvar2'])
         self.assertEqual(['testvar1', 'testvar2'],
             [c.alias for c in sf.children])
+        self.assertEqual([Variable, Variable],
+            [type(c) for c in sf.children])
 
     def test_reorder_folder(self):
         ds = self.ds
