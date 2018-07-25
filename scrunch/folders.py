@@ -127,12 +127,15 @@ class Folder(object):
         ds = self.root.dataset
         _children = []
         for item_url in self.folder_ent.graph:
-            if item_url in index:
-                subfolder = Folder(index[item_url].entity, self.root, self)
+            if item_url not in index:
+                continue
+            item_tup = index[item_url]
+            if item_tup['type'] == 'folder':
+                subfolder = Folder(item_tup.entity, self.root, self)
                 _children.append(subfolder)
             else:
                 # Add the variable
-                _children.append(ds[item_url])
+                _children.append(ds[item_tup['alias']])
         return _children
 
     def move_here(self, *children, **kwargs):

@@ -139,6 +139,7 @@ class TestFolders(TestCase):
         ds = self.ds
         root = ds.folders.root
         sf = root.create_folder("with children", alias=['testvar1', 'testvar2'])
+        self.assertEqual([Variable, Variable], [type(c) for c in sf.children])
         self.assertEqual(['testvar1', 'testvar2'],
             [c.alias for c in sf.children])
 
@@ -154,6 +155,8 @@ class TestFolders(TestCase):
         children = folder.children
         self.assertEqual([c.url for c in children],
             [c.url for c in [sf1, sf2, sf3, var]])
+        self.assertEqual(map(type, children),
+                         [Folder, Folder, Folder, Variable])
 
         # Reorder placing sf1 at the end
         folder.reorder([sf2, var, sf3, sf1])
