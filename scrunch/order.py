@@ -588,7 +588,7 @@ class NestedProjectsOrder(object):
             try:
                 node = node.order.get_child(p_name)
             except KeyError:
-                raise InvalidPathError('Project not found %s' % p)
+                raise InvalidPathError('Project not found %s' % p_name)
         return node
 
     def __getitem__(self, path):
