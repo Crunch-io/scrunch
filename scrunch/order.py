@@ -6,7 +6,6 @@ import six
 
 import pycrunch
 import scrunch.datasets
-from scrunch.helpers import shoji_entity_wrapper
 from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
                                 OrderUpdateError)
 
