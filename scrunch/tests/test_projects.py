@@ -7,7 +7,6 @@ from unittest import TestCase
 
 from pycrunch.shoji import Entity, Catalog, Order
 
-from scrunch.order import NestedProjectsOrder
 from scrunch.datasets import Project, ProjectDatasetsOrder
 
 from .mock_session import MockSession
@@ -39,7 +38,7 @@ class TestProjectNesting(TestCase):
             'graph': []  # Look!!
         })
         project = Project(shoji_resource)
-        self.assertTrue(isinstance(project.order, NestedProjectsOrder))
+        self.assertTrue(isinstance(project.order, Project))
 
     def test_create_subproject(self):
         session = Mock()
@@ -108,7 +107,7 @@ class TestProjectNesting(TestCase):
         b_payload = {
             'element': 'shoji:entity',
             'self': b_res_url,
-            'body': {'name': 'project A'},
+            'body': {'name': 'project B'},
             'index': {
                 d_res_url: {
                     'id': 'idD',
@@ -139,4 +138,6 @@ class TestProjectNesting(TestCase):
         a_res = Entity(session, **a_payload)
         project_a = Project(a_res)
         project_c = project_a.order['| project C ']
-        project_d = project_a.order['| project C | project D']
+        project_d = project_a.order['| project B | project D']
+        self.assertTrue(isinstance(project_d, Project))
+        self.assertEqual(project_d.resource.self, d_res_url)

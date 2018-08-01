@@ -21,8 +21,7 @@ from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias)
-from scrunch.order import (DatasetVariablesOrder, ProjectDatasetsOrder,
-                           NestedProjectsOrder)
+from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
@@ -301,7 +300,7 @@ class Project:
             if not self._lazy:
                 if 'graph' in self.resource:
                     # We detected the new API of nested projects
-                    self.order = NestedProjectsOrder(self.resource)
+                    self.order = self  # ;) ;) ;)
                 else:
                     datasets = self.resource.datasets
                     self.order = ProjectDatasetsOrder(datasets, datasets.order)
@@ -379,6 +378,40 @@ class Project:
                     "Dataset (name or id: %s) not found in project." % dataset)
         ds = BaseDataset(shoji_ds)
         return ds
+
+    def create_project(self, name):
+        # This should be a method of the Project class
+        proj_res = self.resource.create(shoji_entity_wrapper({
+            'name': name
+        }))
+        return Project(proj_res)
+
+    def get(self, path):
+        from scrunch.order import Path, InvalidPathError
+        self.resource.refresh()  # Always up to date
+        node = self
+        for p_name in Path(path).get_parts():
+            try:
+                node = node.get_child(p_name)
+            except KeyError:
+                raise InvalidPathError('Project not found %s' % p_name)
+        return node
+
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def get_child(self, name):
+        from scrunch.order import InvalidPathError
+        by_name = self.resource.by('name')
+
+        if name in by_name:
+            # Found by name, if it's not a folder, return the variable
+            tup = by_name[name]
+            if tup.type == 'project':
+                return Project(tup.entity)
+            return self.root.dataset[name]
+
+        raise InvalidPathError('Invalid path: %s' % name)
 
 
 class CrunchBox(object):
