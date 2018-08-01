@@ -21,7 +21,8 @@ from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias)
-from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
+from scrunch.order import (DatasetVariablesOrder, ProjectDatasetsOrder,
+                           NestedProjectsOrder)
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
@@ -298,8 +299,12 @@ class Project:
 
         elif item in self.LAZY_ATTRIBUTES:
             if not self._lazy:
-                datasets = self.resource.datasets
-                self.order = ProjectDatasetsOrder(datasets, datasets.order)
+                if 'graph' in self.resource:
+                    # We detected the new API of nested projects
+                    self.order = NestedProjectsOrder(self.resource)
+                else:
+                    datasets = self.resource.datasets
+                    self.order = ProjectDatasetsOrder(datasets, datasets.order)
                 self._lazy = True
             return getattr(self, item)
 
