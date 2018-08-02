@@ -129,13 +129,15 @@ class TestProjectNesting(TestCase):
             'element': 'shoji:entity',
             'self': c_res_url,
             'body': {'name': 'project C'},
-            'index': {}
+            'index': {},
+            'graph': []
         }
         d_payload = {
             'element': 'shoji:entity',
             'self': d_res_url,
             'body': {'name': 'project D'},
-            'index': {}
+            'index': {},
+            'graph': []
         }
         session.add_fixture(a_res_url, a_payload)
         session.add_fixture(b_res_url, b_payload)
@@ -180,6 +182,8 @@ class TestProjectNesting(TestCase):
         project_c = project_a.order['| project C ']
         project_d = project_a.order['| project B | project D']
         dataset = Mock(url=dataset_url)
+
+        # Moving project C under project D
         project_d.move_here([project_c, dataset])
 
         # After a move_here there is a PATCH and a GET
@@ -197,4 +201,58 @@ class TestProjectNesting(TestCase):
                 dataset.url: {}
             },
             'graph': [project_c.url, dataset.url]
+        })
+
+    def test_place(self):
+        a_res_url = 'http://example.com/project/A/'
+        dataset1_url = 'http://example.com/dataset/1/'
+        dataset2_url = 'http://example.com/dataset/2/'
+        session = self.make_tree()
+        project_a = Project(session.get(a_res_url).payload)
+        project_b = project_a.order['| project B']
+        project_d = project_a.order['| project B | project D']
+        dataset1 = Mock(url=dataset1_url)
+        dataset2 = Mock(url=dataset2_url)
+        dataset1.name = 'Dataset 1'
+        dataset2.name = 'Dataset 2'
+
+        # Do a .place call
+        project_a.place(dataset1, '| project B', before='project D')
+
+        # After a move_here there is a PATCH and a GET
+        # the PATCH performs the changes and the GET is a resource.refresh()
+        patch_request = session.requests[-2]
+        self.assertEqual(patch_request.method, 'PATCH')
+
+        # Note the patch is to project B even though we did `.place` on
+        # project A, but the target path pointed to B
+        self.assertEqual(patch_request.url, project_b.url)
+        self.assertEqual(json.loads(patch_request.body), {
+            'element': 'shoji:catalog',
+            'index': {
+                dataset1.url: {}
+            },
+            # Note how the graph sent includes dataset1.url before project D
+            'graph': [dataset1.url, project_d.url]
+        })
+
+        # Since the PATCH did not really update the server or the session
+        # test fixtures, we need to update the fixtures to reflect the fact
+        # that they've been modified by the recent PATCH request
+        session.adapter.fixtures[project_b.url]['index'][dataset1.url] = {
+            'name': dataset1.name,
+            'type': 'dataset'
+        }
+        session.adapter.fixtures[project_b.url]['graph'] = [dataset1.url, project_d.url]
+        project_a.place(dataset2, '| project B', after='Dataset 1')
+        patch_request = session.requests[-2]
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(patch_request.url, project_b.url)
+        self.assertEqual(json.loads(patch_request.body), {
+            'element': 'shoji:catalog',
+            'index': {
+                dataset2.url: {}
+            },
+            # Dataset 2 got placed after dataset 1 :)
+            'graph': [dataset1.url, dataset2.url, project_d.url]
         })

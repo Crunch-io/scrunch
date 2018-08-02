@@ -423,11 +423,51 @@ class Project:
     def rename(self, new_name):
         self.resource.edit(name=new_name)
 
-    def move_here(self, items):
+    def move_here(self, items, **kwargs):
+        if not items:
+            return
+        position, before, after = [kwargs.get('position'),
+                                   kwargs.get('before'), kwargs.get('after')]
+        graph = self._position_items(items, position, before, after)
         self.resource.patch(shoji_catalog_wrapper({
             item.url: {} for item in items
-        }, graph=[item.url for item in items]))
+        }, graph=graph))
         self.resource.refresh()
+
+    def _position_items(self, new_items, position, before, after):
+        graph = self.resource.graph
+        if before is not None or after is not None:
+            # Before and After are strings that map to a Project or Dataset.name
+            target = before or after
+            index = self.resource.index
+            position = [x for x, _u in enumerate(graph) if index[_u]['name'] == target]
+            if not position:
+                from scrunch.order import InvalidPathError
+                raise InvalidPathError("No project with name %s found" % target)
+            position = position[0]
+            if before is not None:
+                position = position if position > 0 else 0
+            else:
+                max_pos = len(graph)
+                position = (position + 1) if position < max_pos else max_pos
+
+        new_items_urls = [c.url for c in new_items]
+        if position is not None:
+            new_urls = set(new_items_urls)
+            children = [_u for _u in graph if _u not in new_urls]
+            children[position:0] = new_items_urls
+            return children
+        return graph + new_items_urls  # Nothing happened, just add
+
+    def place(self, entity, path, position=None, before=None, after=None):
+        from scrunch.order import Path, InvalidPathError
+        if not Path(path).is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        position = 0 if (before or after) else position
+        target = self.get(path)
+        target.move_here([entity], position=position, before=before, after=after)
 
 
 class CrunchBox(object):
