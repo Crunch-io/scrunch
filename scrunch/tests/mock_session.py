@@ -11,11 +11,13 @@ from scrunch.session import ScrunchSession
 class FixtureAdapter(BaseAdapter):
     def __init__(self):
         self.fixtures = {}
+        self.requests = []
 
     def add_fixture(self, url, fixture):
         self.fixtures[url] = fixture
 
     def send(self, request, **kwargs):
+        self.requests.append(request)
         url = request.url
         if url not in self.fixtures:
             raise NotImplementedError("URL: %s does not have a fixture" % url)
@@ -29,10 +31,17 @@ class FixtureAdapter(BaseAdapter):
 class MockSession(ScrunchSession):
     token = None
 
-    def __init__(self, fixtures=None):
+    def __init__(self):
         ScrunchSession.__init__(self)
         self.adapter = FixtureAdapter()
         self.adapters['http://'] = self.adapter
 
     def add_fixture(self, url, fixture):
         self.adapter.add_fixture(url, fixture)
+
+    def get_fixture(self, url):
+        return self.adapter.fixtures[url]
+
+    @property
+    def requests(self):
+        return self.adapter.requests

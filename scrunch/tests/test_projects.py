@@ -7,6 +7,7 @@ from unittest import TestCase
 
 from pycrunch.shoji import Entity, Catalog, Order
 
+from scrunch.order import InvalidPathError
 from scrunch.datasets import Project, ProjectDatasetsOrder
 
 from .mock_session import MockSession
@@ -74,8 +75,13 @@ class TestProjectNesting(TestCase):
             }
         })
 
-    def test_follow_path(self):
+    def make_tree(self):
         session = MockSession()
+        #       A
+        #     /   \
+        #    B     C
+        #    |
+        #    D
         a_res_url = 'http://example.com/project/A/'
         b_res_url = 'http://example.com/project/B/'
         c_res_url = 'http://example.com/project/C/'
@@ -135,9 +141,60 @@ class TestProjectNesting(TestCase):
         session.add_fixture(b_res_url, b_payload)
         session.add_fixture(c_res_url, c_payload)
         session.add_fixture(d_res_url, d_payload)
-        a_res = Entity(session, **a_payload)
+        return session
+
+    def test_follow_path(self):
+        a_res_url = 'http://example.com/project/A/'
+        d_res_url = 'http://example.com/project/D/'
+
+        session = self.make_tree()
+        a_res = session.get(a_res_url).payload
         project_a = Project(a_res)
         project_c = project_a.order['| project C ']
         project_d = project_a.order['| project B | project D']
         self.assertTrue(isinstance(project_d, Project))
         self.assertEqual(project_d.resource.self, d_res_url)
+
+        with self.assertRaises(InvalidPathError):
+            project_a.order['| project B | Invalid']
+
+    def test_rename(self):
+        a_res_url = 'http://example.com/project/A/'
+        session = self.make_tree()
+        a_res = session.get(a_res_url).payload
+        project_a = Project(a_res)
+        project_d = project_a.order['| project B | project D']
+        project_d.rename('Renamed Project D')
+        # This works because .rename() implementation calls shoji Entity.edit
+        # which will make the request an update the resource's internal payload
+        # as well. If this passes it means that Scrunch is correct and pycrunch
+        # did its thing.
+        self.assertEqual(project_d.resource.body.name, 'Renamed Project D')
+        self.assertEqual(project_d.name, 'Renamed Project D')
+
+    def test_move_things(self):
+        a_res_url = 'http://example.com/project/A/'
+        dataset_url = 'http://example.com/dataset/1/'
+        session = self.make_tree()
+        project_a = Project(session.get(a_res_url).payload)
+        project_c = project_a.order['| project C ']
+        project_d = project_a.order['| project B | project D']
+        dataset = Mock(url=dataset_url)
+        project_d.move_here([project_c, dataset])
+
+        # After a move_here there is a PATCH and a GET
+        # the PATCH performs the changes and the GET is a resource.refresh()
+        patch_request = session.requests[-2]
+        refresh_request = session.requests[-1]
+        self.assertEqual(refresh_request.method, 'GET')
+        self.assertEqual(refresh_request.url, project_d.url)
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(patch_request.url, project_d.url)
+        self.assertEqual(json.loads(patch_request.body), {
+            'element': 'shoji:catalog',
+            'index': {
+                project_c.url: {},
+                dataset.url: {}
+            },
+            'graph': [project_c.url, dataset.url]
+        })

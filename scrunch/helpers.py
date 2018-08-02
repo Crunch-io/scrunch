@@ -118,3 +118,16 @@ def shoji_entity_wrapper(payload):
         'element': 'shoji:entity',
         'body': payload
     }
+
+
+def shoji_catalog_wrapper(index, **kwargs):
+    """
+    receives a dictionary and wraps its content on a body keyed dictionary
+    with the appropiate shoji:<class> attribute
+    """
+    payload = {
+        'element': 'shoji:catalog',
+        'index': index
+    }
+    payload.update(**kwargs)
+    return payload

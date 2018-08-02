@@ -20,7 +20,7 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias)
+                             subvar_alias, shoji_catalog_wrapper)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -386,6 +386,13 @@ class Project:
         }))
         return Project(proj_res)
 
+    # Compatibility method to comply with Group API
+    create_group = create_project
+
+    @property
+    def is_root(self):
+        return bool(getattr(self.resource, 'parent'))
+
     def get(self, path):
         from scrunch.order import Path, InvalidPathError
         self.resource.refresh()  # Always up to date
@@ -412,6 +419,15 @@ class Project:
             return self.root.dataset[name]
 
         raise InvalidPathError('Invalid path: %s' % name)
+
+    def rename(self, new_name):
+        self.resource.edit(name=new_name)
+
+    def move_here(self, items):
+        self.resource.patch(shoji_catalog_wrapper({
+            item.url: {} for item in items
+        }, graph=[item.url for item in items]))
+        self.resource.refresh()
 
 
 class CrunchBox(object):
