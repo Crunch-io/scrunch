@@ -256,3 +256,33 @@ class TestProjectNesting(TestCase):
             # Dataset 2 got placed after dataset 1 :)
             'graph': [dataset1.url, dataset2.url, project_d.url]
         })
+
+    def test_reorder(self):
+        session = self.make_tree()
+        a_res_url = 'http://example.com/project/A/'
+        b_res_url = 'http://example.com/project/B/'
+        c_res_url = 'http://example.com/project/C/'
+        project_a = Project(session.get(a_res_url).payload)
+        project_a.reorder(["project C", "project B"])
+        patch_request = session.requests[-2]
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(patch_request.url, project_a.url)
+        self.assertEqual(json.loads(patch_request.body), {
+            'element': 'shoji:catalog',
+            'graph': [c_res_url, b_res_url]
+        })
+
+    def test_move(self):
+        session = self.make_tree()
+        a_res_url = 'http://example.com/project/A/'
+        b_res_url = 'http://example.com/project/B/'
+        c_res_url = 'http://example.com/project/C/'
+        project_a = Project(session.get(a_res_url).payload)
+        project_a.reorder(["project C", "project B"])
+        patch_request = session.requests[-2]
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(patch_request.url, project_a.url)
+        self.assertEqual(json.loads(patch_request.body), {
+            'element': 'shoji:catalog',
+            'graph': [c_res_url, b_res_url]
+        })

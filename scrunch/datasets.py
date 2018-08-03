@@ -469,6 +469,30 @@ class Project:
         target = self.get(path)
         target.move_here([entity], position=position, before=before, after=after)
 
+    def reorder(self, items):
+        name2tup = self.resource.by('name')
+        graph = [
+            name2tup[c].entity_url if isinstance(c, basestring) else c.url
+            for c in items
+        ]
+        self.resource.patch({
+            'element': 'shoji:catalog',
+            'graph': graph
+        })
+        self.resource.refresh()
+
+    def append(self, *children):
+        self.move_here(children)
+
+    def insert(self, *children, **kwargs):
+        self.move_here(children, position=kwargs.get('position', 0))
+
+    def move(self, path, position=-1, before=None, after=None):
+        # It is not possible to move this way because the signature requires
+        # to obtain the target project to move to from a path that is a child
+        # of the current project. So it is not possible to move to a child
+        # of yourself.
+        raise NotImplementedError
 
 class CrunchBox(object):
     """
