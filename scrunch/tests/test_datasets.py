@@ -78,7 +78,8 @@ class TestDatasetBase(object):
             format=None,
             view=None,
             type='numeric',
-            is_subvar=False
+            is_subvar=False,
+            derived=False
         ),
         '0002': dict(
             id='0002',
@@ -89,7 +90,8 @@ class TestDatasetBase(object):
             format=None,
             view=None,
             type='text',
-            is_subvar=False
+            is_subvar=False,
+            derived=False
         ),
         '0003': dict(
             id='0003',
@@ -101,7 +103,8 @@ class TestDatasetBase(object):
             view=None,
             type='categorical',
             categories=TEST_CATEGORIES(),
-            is_subvar=False
+            is_subvar=False,
+            derived=False
         )
     }
 
@@ -1157,6 +1160,17 @@ class TestVariables(TestDatasetBase, TestCase):
         var.edit(**changes)
         assert var.view == dict(show_counts=True)
         var.resource._edit.assert_called_with(**changes)
+
+    def test_edit_alias(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        ds.resource.body['streaming'] = 'streaming'
+        var = ds['var1_alias']
+        with pytest.raises(AttributeError) as e:
+            var.edit(alias='test1')
+        ds.resource.body['streaming'] = 'no'
+        var = ds['var1_alias']
+        var.edit(alias='test1')
 
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()

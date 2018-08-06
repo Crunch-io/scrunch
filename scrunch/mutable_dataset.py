@@ -48,6 +48,7 @@ class MutableDataset(BaseDataset):
     Class that enclose mutable dataset methods or any
     method that varies the state of the dataset and/or it's data.
     """
+
     def delete(self):
         """
         Delete a dataset.

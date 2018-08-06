@@ -161,7 +161,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     A simple wrapper of _get_dataset with streaming=False
     """
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
-    ds = BaseDataset(shoji_ds)
+    ds = Dataset(shoji_ds)
     if editor is True:
         ds.change_editor(root.session.email)
     return ds
@@ -820,7 +820,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
                 raise AttributeError(
-                    "Can't edit attibute %s of variable %s"
+                    "Can't edit attibute %s of dataset %s"
                     % (key, self.name))
             if key in ['start_date', 'end_date'] and \
                     (isinstance(kwargs[key], datetime.date) or
@@ -2015,15 +2015,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self.resource.table.post(json.dumps(payload))
 
 
-# FIXME: This class to be deprecated
 class Dataset(BaseDataset):
+
+    _BASE_MUTABLE_ATTRIBUTES = {'streaming'}
 
     def __init__(self, resource):
         LOG.warning("""Dataset is deprecated, instead use now
             mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset
             with it's corresponding get_mutable_dataset and get_streaming_dataset
-            functions""")  # noqa: E501
+            methods""")  # noqa: E501
         super(Dataset, self).__init__(resource)
+        self._MUTABLE_ATTRIBUTES = self._BASE_MUTABLE_ATTRIBUTES | self._BASE_MUTABLE_ATTRIBUTES
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
@@ -2123,6 +2125,14 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self.url = var_tuple.entity_url
         self.dataset = dataset
         self._reload_variables()
+        if self._is_alias_mutable():
+            self._MUTABLE_ATTRIBUTES.add('alias')
+            self._IMMUTABLE_ATTRIBUTES.remove('alias')
+
+    def _is_alias_mutable(self):
+        if self.dataset.resource.body.get('streaming') == 'no' and not self.derived:
+            return True
+        return False
 
     @property
     def resource(self):
