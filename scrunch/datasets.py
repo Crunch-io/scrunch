@@ -494,6 +494,7 @@ class Project:
         # of yourself.
         raise NotImplementedError
 
+
 class CrunchBox(object):
     """
     A CrunchBox representation of boxdata.
