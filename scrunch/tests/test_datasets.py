@@ -4725,23 +4725,6 @@ class TestMutableMixin(TestDatasetBase):
         }
     }
 
-    def test_compare_datasets(self):
-        ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = MutableDataset(ds_a_mock)
-        ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = MutableDataset(ds_b_mock)
-        diff = ds_b.compare_dataset(ds_a)
-        expected_diff = {
-            'variables': {
-                'by_type': [],
-                'by_alias': [],
-                'by_missing_rules': []
-            },
-            'categories': {},
-            'subvariables': {}
-        }
-        assert diff == expected_diff
-
     def test_append_dataset(self):
         ds_a_mock = self._dataset_mock(variables=self.variables)
         ds_a = MutableDataset(ds_a_mock)
