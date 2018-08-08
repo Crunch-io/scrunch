@@ -68,6 +68,16 @@ class TestCategories(TestCase):
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
 
+    def test_delete_category(self):
+        resource = EditableMock()
+        resource.entity.body = dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical'
+        )
+        variable = Variable(resource, MagicMock())
+        variable.categories[1].delete()
+        assert resource.entity.delete.call_count == 1
+
     def test_Category_attribute_writes(self):
         resource = EditableMock()
         resource.entity.body = dict(
