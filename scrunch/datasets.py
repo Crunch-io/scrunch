@@ -2127,7 +2127,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self._reload_variables()
         if self._is_alias_mutable():
             self._MUTABLE_ATTRIBUTES.add('alias')
-            self._IMMUTABLE_ATTRIBUTES.remove('alias')
+            self._IMMUTABLE_ATTRIBUTES.discard('alias')
 
     def _is_alias_mutable(self):
         if self.dataset.resource.body.get('streaming') == 'no' and not self.derived:
