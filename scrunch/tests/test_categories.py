@@ -76,7 +76,10 @@ class TestCategories(TestCase):
         )
         variable = Variable(resource, MagicMock())
         variable.categories[1].delete()
-        assert resource.entity.delete.call_count == 1
+        resource.entity._edit.assert_called_with(categories=[
+            {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ])
 
     def test_Category_attribute_writes(self):
         resource = EditableMock()
