@@ -920,6 +920,43 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
+    def rollup(self, variable_alias, name, alias, resolution, description='', notes=''):
+        """
+        Rolls the source datetime variable into a new derived categorical variable.
+        Available resolutions are: [Y, Q, M, W, D, h, m, s, ms]
+        :variable_alias: source datetime variable alias to rollup from
+        :name: name of the new derived variable
+        :alias: alias for the new derived variable
+        :resolution: one of [Y, Q, M, W, D, h, m, s, ms]
+        """
+        assert resolution in ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms'], \
+            'resolution param needs to be one of [Y, Q, M, W, D, h, m, s, ms]'
+
+        expr = {
+            'function': 'rollup',
+            'args': [
+                {
+                    'variable': self[variable_alias].url
+                },
+                {
+                    'value': resolution
+                }
+            ]
+        }
+
+        payload = shoji_entity_wrapper(dict(
+            alias=alias,
+            name=name,
+            expr=expr,
+            description=description,
+            notes=notes))
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[new_var['body']['alias']]
+
     def create_multiple_response(
             self, responses, name, alias, description='', notes=''):
         """
@@ -928,6 +965,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         responses_map = collections.OrderedDict()
         responses_map_ids = []
+
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):

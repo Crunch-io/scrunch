@@ -303,6 +303,41 @@ class TestDatasets(TestDatasetBase, TestCase):
             }
         )
 
+    @mock.patch('scrunch.datasets.process_expr')
+    def test_rollup(self, mocked_process):
+        mocked_process.side_effect = self.process_expr_side_effect
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'datetime_var',
+                'name': 'Datetime Variable',
+                'type': 'datetime',
+                'is_subvar': False
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+        ds.resource = mock.MagicMock()
+        ds.rollup('datetime_var', 'new_rolledup_var', 'new_rolledup_var', 'Y')
+        ds.resource.variables.create.assert_called_with(
+            {
+                'element': 'shoji:entity',
+                'body': {
+                    'alias': 'new_rolledup_var',
+                    'name': 'new_rolledup_var',
+                    'expr': {
+                        'function': 'rollup',
+                        'args': [
+                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'value': 'Y'}
+                        ]
+                    },
+                    'description': '',
+                    'notes': ''
+                }
+            }
+        )
+
     def test_create_crunchbox_full(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)

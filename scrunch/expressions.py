@@ -48,6 +48,7 @@ import six
 import scrunch
 from scrunch.variables import validate_variable_url
 
+
 if six.PY2:
     from urllib import urlencode
 else:
@@ -559,8 +560,11 @@ def process_expr(obj, ds):
             if obj['function'] == 'in':
                 args = obj['args']
                 if 'variable' in args[0]:
-                    if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                        obj['function'] = 'any'
+                    try:
+                        if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                            obj['function'] = 'any'
+                    except TypeError:
+                        raise ValueError("Invalid variable alias '%s'" % val)
 
         for key, val in obj.items():
             if isinstance(val, dict):
