@@ -2215,6 +2215,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     def delete(self):
         self.resource.delete()
+        self.dataset._reload_variables()
 
     def hide(self):
         self.resource.edit(discarded=True)

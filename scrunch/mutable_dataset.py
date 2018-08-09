@@ -292,7 +292,7 @@ class MutableDataset(BaseDataset):
         type variable.
 
         :param: destination: The alias of the variable that will receive the subvariable
-        :para: source: Alias of the variable to move into destination as subvariable
+        :param: source: Alias of the variable to move into destination as subvariable
         """
         payload = json.dumps({"element": "shoji:catalog", "index": {self[source].url: {}}})
         self[destination].resource.subvariables.patch(payload)

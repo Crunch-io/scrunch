@@ -36,6 +36,14 @@ class Category(ReadOnly):
         dct.update(**kwargs or {})
         return dct
 
+    def delete(self):
+        if self.resource.body.get('derivation'):
+            raise TypeError("Cannot delete categories on derived variables. Re-derive with the appropriate expression")
+
+        return_status = self.resource.delete()
+        self.resource.refresh()
+        return return_status
+
     def edit(self, **kwargs):
         if self.resource.body.get('derivation'):
             raise TypeError("Cannot edit categories on derived variables. Re-derive with the appropriate expression")
