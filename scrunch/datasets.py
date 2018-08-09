@@ -552,6 +552,9 @@ class DatasetVariablesMixin(collections.Mapping):
                     raise ValueError(
                         'Entity %s has no (sub)variable with a name or alias %s'
                         % (self.name, item))
+        # make sure we pass the parent dataset to subvariables
+        if isinstance(self, Variable):
+            return Variable(variable, self.dataset)
         return Variable(variable, self)
 
     def _set_catalog(self):
@@ -931,6 +934,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         assert resolution in ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms'], \
             'resolution param needs to be one of [Y, Q, M, W, D, h, m, s, ms]'
+
+        assert self[variable_alias].type == 'datetime', \
+            'rollup() is only allowed for datetime variable types'
 
         expr = {
             'function': 'rollup',
@@ -1823,22 +1829,31 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # on the class that the fork comes from
         return self.__class__(_fork)
 
-    def replace_values(self, variables, filter=None):
+    def replace_values(self, variables, filter=None, literal_subvar=False):
         """
-        :param variables: dictionary, {var_alias: value, var2_alias: value}
+        :param variables: dictionary, {var_alias: value, var2_alias: value}.
+            Alows subvariable alias as well
         :param filter: string, an Scrunch expression, i.e; 'var_alias > 1'
         """
         payload = {
             'command': 'update',
             'variables': {},
         }
+
         for alias, val in variables.items():
             if isinstance(val, list):
-                payload['variables'][self[alias].id] = {'column': val}
+                if literal_subvar:
+                    payload['variables'][alias] = {'column': val}
+                else:
+                    payload['variables'][self[alias].id] = {'column': val}
             else:
-                payload['variables'][self[alias].id] = {'value': val}
+                if literal_subvar:
+                    payload['variables'][alias] = {'value': val}
+                else:
+                    payload['variables'][self[alias].id] = {'value': val}
         if filter:
             payload['filter'] = process_expr(parse_expr(filter), self.resource)
+
         resp = self.resource.table.post(json.dumps(payload))
         if resp.status_code == 204:
             LOG.info('Dataset Updated')
@@ -2173,6 +2188,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         return False
 
     @property
+    def is_subvar(self):
+        return 'subvariables' in self.url
+
+    @property
     def resource(self):
         if not self.is_instance:
             self._resource = self.shoji_tuple.entity
@@ -2352,8 +2371,17 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def replace_values(self, value, filter=None):
         """
         Proxy method to parent Dataset replace_values focused
-        especifically for this variable instance
+        especifically for this variable or subvariable instance.
+
+        For subvariables, we need to pass a weird syntax to the
+        update command:
+            {'variable_id.subvariable_id': value}
         """
+        if self.is_subvar:
+            subvar_reference = '{}.{}'.format(self.resource.variable.body.id, self.id)
+            return self.dataset.replace_values(
+                {subvar_reference: value}, filter=filter, literal_subvar=True
+            )
         return self.dataset.replace_values({self.alias: value}, filter=filter)
 
     def reorder_subvariables(self, subvariables):
