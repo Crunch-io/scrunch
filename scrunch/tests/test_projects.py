@@ -286,3 +286,4 @@ class TestProjectNesting(TestCase):
             'element': 'shoji:catalog',
             'graph': [c_res_url, b_res_url]
         })
+
