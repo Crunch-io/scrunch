@@ -42,7 +42,6 @@ ready for the crunch API.
 
 import ast
 import copy
-from functools import lru_cache
 
 import six
 
@@ -462,7 +461,6 @@ def process_expr(obj, ds):
     variables = get_dataset_variables(ds)
     var_index = ds.variables.index
 
-    @lru_cache(maxsize=64)
     def get_subvariables_resource(var_url):
         variable = var_index[var_url].entity
         subvariables = variable.subvariables['index']
