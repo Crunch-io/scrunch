@@ -2216,6 +2216,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 raise AttributeError(
                     "Can't edit attribute %s of variable %s"
                     % (key, self.name))
+        self.dataset._reload_variables()
         return self.resource.edit(**kwargs)
 
     def __repr__(self):
