@@ -109,15 +109,17 @@ def _validate_category_rules(categories, rules):
         )
 
 
-def shoji_entity_wrapper(payload):
+def shoji_entity_wrapper(body, **kwargs):
     """
     receives a dictionary and wraps its content on a body keyed dictionary
     with the appropiate shoji:<class> attribute
     """
-    return {
+    payload = {
         'element': 'shoji:entity',
-        'body': payload
+        'body': body
     }
+    payload.update(**kwargs)
+    return payload
 
 
 def shoji_catalog_wrapper(index, **kwargs):

@@ -429,7 +429,7 @@ class Project:
         position, before, after = [kwargs.get('position'),
                                    kwargs.get('before'), kwargs.get('after')]
         graph = self._position_items(items, position, before, after)
-        self.resource.patch(shoji_catalog_wrapper({
+        self.resource.patch(shoji_entity_wrapper({}, index={
             item.url: {} for item in items
         }, graph=graph))
         self.resource.refresh()
