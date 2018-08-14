@@ -105,6 +105,19 @@ class TestDatasetBase(object):
             categories=TEST_CATEGORIES(),
             is_subvar=False,
             derived=False
+        ),
+        '0004': dict(
+            id='0004',
+            alias='var4_alias',
+            name='var4_name',
+            description=None,
+            notes=None,
+            format=None,
+            view=None,
+            type='categorical',
+            categories=TEST_CATEGORIES(),
+            is_subvar=False,
+            derived=False
         )
     }
 
@@ -1196,18 +1209,57 @@ class TestVariables(TestDatasetBase, TestCase):
         assert var.view == dict(show_counts=True)
         var.resource._edit.assert_called_with(**changes)
 
-    def test_edit_alias(self):
+    # def test_edit_alias(self):
+    #     ds_mock = self._dataset_mock()
+    #     ds = BaseDataset(ds_mock)
+    #     var = ds['var1_alias']
+    #     with pytest.raises(AttributeError) as e:
+    #         var.edit(alias='test1')
+    #     ds.resource.body['streaming'] = 'no'
+    #     var = ds['var1_alias']
+    #     var.edit(alias='test1')
+    #     # Reading another variable breaks because `alias` has been removed(0
+    #     # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
+    #     var2 = ds['var2_alias']
+
+    def test_add_category(self):
         ds_mock = self._dataset_mock()
         ds = BaseDataset(ds_mock)
-        var = ds['var1_alias']
-        with pytest.raises(AttributeError) as e:
-            var.edit(alias='test1')
         ds.resource.body['streaming'] = 'no'
-        var = ds['var1_alias']
-        var.edit(alias='test1')
-        # Reading another variable breaks because `alias` has been removed(0
-        # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
-        var2 = ds['var2_alias']
+        var = ds['var4_alias']
+        var.resource.body['type'] = 'categorical'
+        var.resource.body['categories'] = [
+            {"id": 1, "name": "Female", "missing": False, "numeric_value": 1},
+            {"id": 8, "name": "Male", "missing": False, "numeric_value": 8},
+            {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
+        ]
+        var.add_category(2, 'New category', 2, before_id=9)
+
+        expected = {
+            'body': {
+                'categories': [
+                    {'id': 1,
+                     'missing': False,
+                     'name': 'Female',
+                     'numeric_value': 1},
+                    {'id': 8,
+                     'missing': False,
+                     'name': 'Male',
+                     'numeric_value': 8},
+                    {'id': 2,
+                     'missing': False,
+                     'name': 'New category',
+                     'numeric_value': 2},
+                    {'id': 9,
+                     'missing': True,
+                     'name': 'No Data',
+                     'numeric_value': 9}],
+                'name': 'var4_name',
+                'type': 'categorical'},
+            'element': 'shoji:entity'
+        }
+
+        var.resource.post.assert_called_with(expected)
 
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()
