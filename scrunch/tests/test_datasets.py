@@ -1209,18 +1209,18 @@ class TestVariables(TestDatasetBase, TestCase):
         assert var.view == dict(show_counts=True)
         var.resource._edit.assert_called_with(**changes)
 
-    # def test_edit_alias(self):
-    #     ds_mock = self._dataset_mock()
-    #     ds = BaseDataset(ds_mock)
-    #     var = ds['var1_alias']
-    #     with pytest.raises(AttributeError) as e:
-    #         var.edit(alias='test1')
-    #     ds.resource.body['streaming'] = 'no'
-    #     var = ds['var1_alias']
-    #     var.edit(alias='test1')
-    #     # Reading another variable breaks because `alias` has been removed(0
-    #     # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
-    #     var2 = ds['var2_alias']
+    def test_edit_alias(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var1_alias']
+        with pytest.raises(AttributeError) as e:
+            var.edit(alias='test1')
+        ds.resource.body['streaming'] = 'no'
+        var = ds['var1_alias']
+        var.edit(alias='test1')
+        # Reading another variable breaks because `alias` has been removed(0
+        # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
+        var2 = ds['var2_alias']
 
     def test_add_category(self):
         ds_mock = self._dataset_mock()

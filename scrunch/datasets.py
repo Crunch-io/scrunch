@@ -2316,7 +2316,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         expr = dict(function='case', args=args + more_args)
         payload = shoji_entity_wrapper(dict(expr=expr))
         # patch the variable with the new payload
-        import pdb; pdb.set_trace()
         resp = self.resource.patch(payload)
         self._reload_variables()
         return resp
