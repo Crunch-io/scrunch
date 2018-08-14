@@ -2287,13 +2287,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 'numeric_value': numeric_value,
             })
 
-        expr = {
-            'type': self.resource.body['type'],
-            'name': self.resource.body['name'],
-            'categories': categories,
-        }
-        payload = shoji_entity_wrapper(expr)
-        resp = self.resource.post(payload)
+        resp = self.resource.edit(categories=categories)
         self._reload_variables()
         return resp
 

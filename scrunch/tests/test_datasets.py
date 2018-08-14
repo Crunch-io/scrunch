@@ -1234,32 +1234,7 @@ class TestVariables(TestDatasetBase, TestCase):
             {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
         ]
         var.add_category(2, 'New category', 2, before_id=9)
-
-        expected = {
-            'body': {
-                'categories': [
-                    {'id': 1,
-                     'missing': False,
-                     'name': 'Female',
-                     'numeric_value': 1},
-                    {'id': 8,
-                     'missing': False,
-                     'name': 'Male',
-                     'numeric_value': 8},
-                    {'id': 2,
-                     'missing': False,
-                     'name': 'New category',
-                     'numeric_value': 2},
-                    {'id': 9,
-                     'missing': True,
-                     'name': 'No Data',
-                     'numeric_value': 9}],
-                'name': 'var4_name',
-                'type': 'categorical'},
-            'element': 'shoji:entity'
-        }
-
-        var.resource.post.assert_called_with(expected)
+        var.resource._edit.assert_called_with(categories=var.resource.body['categories'])
 
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()
