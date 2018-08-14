@@ -119,6 +119,7 @@ class MutableDataset(BaseDataset):
         Uses the Crunch compare endpoint /batches/compare/
 
         :param dataset: Dataset instance to compare
+        :returns resp.json() : dict with the response
         """
 
         url = '{}batches/compare/?dataset={}'.format(self.url, dataset.url)
