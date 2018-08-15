@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import os
+from datetime import datetime
 from unittest import TestCase
 
 from scrunch import connect, get_project
@@ -13,22 +14,23 @@ username = os.environ['SCRUNCH_USER']
 password = os.environ['SCRUNCH_PASS']
 
 site = connect(username, password, HOST)
+UNIQUE_PREFIX = unicode(datetime.now()).replace(':', '').replace('.', '')
 
 
 def new_project(name):
     res = site.projects.create(shoji_entity_wrapper({
-        "name": name
+        "name": name + UNIQUE_PREFIX
     }))
     return Project(res)
 
 
 class TestProjects(TestCase):
     def test_create_subprojects(self):
-        pa = new_project('Ax')
+        pa = new_project('A')
         pb = pa.create_project("B")
         pa.resource.refresh()
         self.assertTrue(pb.url in pa.resource.index)
-        _pb = pa.order["| B"]
+        _pb = pa.order["| %s" % pb.name]
         self.assertEqual(_pb.url, pb.url)
 
     def test_move_project(self):
@@ -47,8 +49,9 @@ class TestProjects(TestCase):
 
     def test_rename(self):
         project = new_project("test_rename")
-        project.rename("renamed")
-        _project = get_project("renamed")
+        new_name = "renamed" + UNIQUE_PREFIX
+        project.rename(new_name)
+        _project = get_project(new_name)
         self.assertEqual(_project.url, project.url)
 
     def test_reorder(self):

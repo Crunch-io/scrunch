@@ -11,6 +11,20 @@ class ScrunchSession(ElementSession):
     }
 
 
-def connect(*args, **kwargs):
-    return _connect(session_class=ScrunchSession, *args, **kwargs)
+FLAGS_TO_CHECK = {'old_projects_order'}
 
+
+def set_feature_flags(site):
+    feature_flags = {
+        flag_name: site.follow('feature_flag',
+                               'feature_name=%s' % flag_name).value['active']
+        for flag_name in FLAGS_TO_CHECK
+    }
+    setattr(site.session, 'feature_flags', feature_flags)
+    return site
+
+
+def connect(*args, **kwargs):
+    _site = _connect(session_class=ScrunchSession, *args, **kwargs)
+    _site = set_feature_flags(_site)
+    return _site

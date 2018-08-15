@@ -15,7 +15,9 @@ from .mock_session import MockSession
 
 class TestProjectNesting(TestCase):
     def test_detect_correct_handler(self):
-        session = Mock()
+        session = Mock(
+            feature_flags={'old_projects_order': True}
+        )
         dataset_order = Order(session, **{
             'graph': []
         })
@@ -32,17 +34,22 @@ class TestProjectNesting(TestCase):
         project = Project(shoji_resource)
         self.assertTrue(isinstance(project.order, ProjectDatasetsOrder))
 
+        session = Mock(
+            feature_flags={'old_projects_order': False}
+        )
         shoji_resource = Entity(session, **{
             'self': '/project/url/',
             'body': {},
             'index': {},
-            'graph': []  # Look!!
+            'graph': []
         })
         project = Project(shoji_resource)
         self.assertTrue(isinstance(project.order, Project))
 
     def test_create_subproject(self):
-        session = Mock()
+        session = Mock(
+            feature_flags={'old_projects_order': False}
+        )
         shoji_resource = Entity(session, **{
             'self': '/project/url/',
             'body': {},
@@ -77,6 +84,8 @@ class TestProjectNesting(TestCase):
 
     def make_tree(self):
         session = MockSession()
+        session.feature_flags = {'old_projects_order': False}
+
         #       A
         #     /   \
         #    B     C
@@ -271,7 +280,9 @@ class TestProjectNesting(TestCase):
         self.assertEqual(patch_request.method, 'PATCH')
         self.assertEqual(patch_request.url, project_a.url)
         self.assertEqual(json.loads(patch_request.body), {
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
+            'index': {},
             'graph': [c_res_url, b_res_url]
         })
 
@@ -286,7 +297,9 @@ class TestProjectNesting(TestCase):
         self.assertEqual(patch_request.method, 'PATCH')
         self.assertEqual(patch_request.url, project_a.url)
         self.assertEqual(json.loads(patch_request.body), {
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
+            'index': {},
             'graph': [c_res_url, b_res_url]
         })
 
