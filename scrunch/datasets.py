@@ -391,7 +391,7 @@ class Project:
 
     @property
     def is_root(self):
-        return bool(getattr(self.resource, 'parent'))
+        return self.resource.catalogs['project'].endswith('/projects/')
 
     def get(self, path):
         from scrunch.order import Path, InvalidPathError

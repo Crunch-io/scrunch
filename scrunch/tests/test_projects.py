@@ -91,13 +91,16 @@ class TestProjectNesting(TestCase):
         #    B     C
         #    |
         #    D
-        a_res_url = 'http://example.com/project/A/'
-        b_res_url = 'http://example.com/project/B/'
-        c_res_url = 'http://example.com/project/C/'
-        d_res_url = 'http://example.com/project/D/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        b_res_url = 'http://example.com/api/projects/B/'
+        c_res_url = 'http://example.com/api/projects/C/'
+        d_res_url = 'http://example.com/api/projects/D/'
         a_payload = {
             'element': 'shoji:entity',
             'self': a_res_url,
+            'catalogs': {
+                'project': 'http://example.com/api/projects/'
+            },
             'body': {
                 'name': 'project A'
             },
@@ -122,6 +125,9 @@ class TestProjectNesting(TestCase):
         b_payload = {
             'element': 'shoji:entity',
             'self': b_res_url,
+            'catalogs': {
+                'project': a_res_url
+            },
             'body': {'name': 'project B'},
             'index': {
                 d_res_url: {
@@ -137,6 +143,9 @@ class TestProjectNesting(TestCase):
         c_payload = {
             'element': 'shoji:entity',
             'self': c_res_url,
+            'catalogs': {
+                'project': a_res_url
+            },
             'body': {'name': 'project C'},
             'index': {},
             'graph': []
@@ -144,6 +153,9 @@ class TestProjectNesting(TestCase):
         d_payload = {
             'element': 'shoji:entity',
             'self': d_res_url,
+            'catalogs': {
+                'project': b_res_url
+            },
             'body': {'name': 'project D'},
             'index': {},
             'graph': []
@@ -155,8 +167,8 @@ class TestProjectNesting(TestCase):
         return session
 
     def test_follow_path(self):
-        a_res_url = 'http://example.com/project/A/'
-        d_res_url = 'http://example.com/project/D/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        d_res_url = 'http://example.com/api/projects/D/'
 
         session = self.make_tree()
         a_res = session.get(a_res_url).payload
@@ -170,7 +182,7 @@ class TestProjectNesting(TestCase):
             project_a.order['| project B | Invalid']
 
     def test_rename(self):
-        a_res_url = 'http://example.com/project/A/'
+        a_res_url = 'http://example.com/api/projects/A/'
         session = self.make_tree()
         a_res = session.get(a_res_url).payload
         project_a = Project(a_res)
@@ -184,8 +196,8 @@ class TestProjectNesting(TestCase):
         self.assertEqual(project_d.name, 'Renamed Project D')
 
     def test_move_things(self):
-        a_res_url = 'http://example.com/project/A/'
-        dataset_url = 'http://example.com/dataset/1/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        dataset_url = 'http://example.com/api/datasets/1/'
         session = self.make_tree()
         project_a = Project(session.get(a_res_url).payload)
         project_c = project_a.order['| project C ']
@@ -214,9 +226,9 @@ class TestProjectNesting(TestCase):
         })
 
     def test_place(self):
-        a_res_url = 'http://example.com/project/A/'
-        dataset1_url = 'http://example.com/dataset/1/'
-        dataset2_url = 'http://example.com/dataset/2/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        dataset1_url = 'http://example.com/api/datasets/1/'
+        dataset2_url = 'http://example.com/api/datasets/2/'
         session = self.make_tree()
         project_a = Project(session.get(a_res_url).payload)
         project_b = project_a.order['| project B']
@@ -271,9 +283,9 @@ class TestProjectNesting(TestCase):
 
     def test_reorder(self):
         session = self.make_tree()
-        a_res_url = 'http://example.com/project/A/'
-        b_res_url = 'http://example.com/project/B/'
-        c_res_url = 'http://example.com/project/C/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        b_res_url = 'http://example.com/api/projects/B/'
+        c_res_url = 'http://example.com/api/projects/C/'
         project_a = Project(session.get(a_res_url).payload)
         project_a.reorder(["project C", "project B"])
         patch_request = session.requests[-2]
@@ -288,9 +300,9 @@ class TestProjectNesting(TestCase):
 
     def test_move(self):
         session = self.make_tree()
-        a_res_url = 'http://example.com/project/A/'
-        b_res_url = 'http://example.com/project/B/'
-        c_res_url = 'http://example.com/project/C/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        b_res_url = 'http://example.com/api/projects/B/'
+        c_res_url = 'http://example.com/api/projects/C/'
         project_a = Project(session.get(a_res_url).payload)
         project_a.reorder(["project C", "project B"])
         patch_request = session.requests[-2]
@@ -303,3 +315,10 @@ class TestProjectNesting(TestCase):
             'graph': [c_res_url, b_res_url]
         })
 
+    def test_is_root(self):
+        a_res_url = 'http://example.com/api/projects/A/'
+        session = self.make_tree()
+        project_a = Project(session.get(a_res_url).payload)
+        project_b = project_a.order['| project B']
+        self.assertTrue(project_a.is_root)
+        self.assertFalse(project_b.is_root)
