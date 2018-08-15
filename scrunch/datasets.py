@@ -2223,6 +2223,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def missing_rules(self):
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         result = self.resource.session.get(
             self.resource.fragments.missing_rules)
         assert result.status_code == 200
@@ -2242,6 +2247,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
             ds['varname'].set_missing_rules(missing_rules)
         """
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         data = {}
         for k, v in rules.items():
             # wrap value in a {'value': value} for crunch
