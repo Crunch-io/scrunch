@@ -206,7 +206,14 @@ class MutableDataset(BaseDataset):
             # 6. missing rules mismatch
             if self[name].type not in CATEGORICAL_TYPES and dataset[name].type not in CATEGORICAL_TYPES:
                 if self[name].missing_rules != dataset[name].missing_rules:
-                    diff['variables']['by_missing_rules'].append(name)
+                    rules1 = self[name].missing_rules
+                    rules2 = dataset[name].missing_rules
+                    if len(rules1) == len(rules2):
+                        for key, value in rules1:
+                            if key not in rules2 or rules2[key] != value:
+                                diff['variables']['by_missing_rules'].append(name)
+                    else:
+                        diff['variables']['by_missing_rules'].append(name)
         return diff
 
     def append_dataset(self, dataset, filter=None, variables=None,
