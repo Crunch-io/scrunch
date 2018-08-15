@@ -1,7 +1,8 @@
 import json
 
 from pycrunch.shoji import wait_progress
-from scrunch.datasets import LOG, BaseDataset, _get_connection, _get_dataset
+from scrunch.datasets import (LOG, BaseDataset, _get_connection, _get_dataset,
+                              CATEGORICAL_TYPES)
 from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
@@ -114,17 +115,99 @@ class MutableDataset(BaseDataset):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def compare_dataset(self, dataset):
+    def compare_dataset(self, dataset, use_crunch=False):
         """
-        Uses the Crunch compare endpoint /batches/compare/
+        compare the difference in structure between datasets. The
+        criterion is the following:
 
-        :param dataset: Dataset instance to compare
-        :returns resp : dict with the response
+        (1) variables that, when matched across datasets by alias, have different types.
+        (2) variables that have the same name but don't match on alias.
+        (3) for variables that match and have categories, any categories that have the
+        same id but don't match on name.
+        (4) for array variables that match, any subvariables that have the same name but
+        don't match on alias.
+        (5) array variables that, after assembling the union of their subvariables,
+        point to subvariables that belong to other ds (Not implemented)
+        (6) missing rules of the variable.
+
+        :param: dataset: Daatset instance to append from
+        :param: use_crunch: Use the Crunch comparison to compare
+        :return: a dictionary of differences
+
+        NOTE: this sould be done via: http://docs.crunch.io/#post217
+        but doesn't seem to be a working feature of Crunch
         """
 
-        resp = self.resource.batches.follow(
-            'compare', 'dataset={}'.format(dataset.url))
-        return resp
+        if use_crunch:
+            resp = self.resource.batches.follow(
+                'compare', 'dataset={}'.format(dataset.url))
+            return resp
+
+        diff = {
+            'variables': {
+                'by_type': [],
+                'by_alias': [],
+                'by_missing_rules': [],
+            },
+            'categories': {},
+            'subvariables': {}
+        }
+
+        array_types = ['multiple_response', 'categorical_array']
+
+        vars_a = {v.alias: v.type for v in self.values()}
+        vars_b = {v.alias: v.type for v in dataset.values()}
+
+        # 1. match variables by alias and compare types
+        common_aliases = frozenset(vars_a.keys()) & frozenset(vars_b.keys())
+        for alias in common_aliases:
+            if vars_a[alias] != vars_b[alias]:
+                diff['variables']['by_type'].append(dataset[alias].name)
+
+            # 3. match variable alias and distcint categories names for same id's
+            if vars_b[alias] == 'categorical' and vars_a[alias] == 'categorical':
+                a_ids = frozenset([v.id for v in self[alias].categories.values()])
+                b_ids = frozenset([v.id for v in dataset[alias].categories.values()])
+                common_ids = a_ids & b_ids
+
+                for id in common_ids:
+                    a_name = self[alias].categories[id].name
+                    b_name = dataset[alias].categories[id].name
+                    if a_name != b_name:
+                        if diff['categories'].get(dataset[alias].name):
+                            diff['categories'][dataset[alias].name].append(id)
+                        else:
+                            diff['categories'][dataset[alias].name] = []
+                            diff['categories'][dataset[alias].name].append(id)
+
+        # 2. match variables by names and compare aliases
+        common_names = frozenset(self.variable_names()) & frozenset(dataset.variable_names())
+        for name in common_names:
+            if self[name].alias != dataset[name].alias:
+                diff['variables']['by_alias'].append(name)
+
+            # 4. array types that match, subvars with same name and != alias
+            if dataset[name].type == self[name].type and \
+                self[name].type in array_types and \
+                    self[name].type in array_types:
+
+                a_names = frozenset(self[name].variable_names())
+                b_names = frozenset(dataset[name].variable_names())
+                common_subnames = a_names & b_names
+
+                for sv_name in common_subnames:
+                    if self[name][sv_name].alias != dataset[name][sv_name].alias:
+                        if diff['subvariables'].get(name):
+                            diff['subvariables'][name].append(dataset[name][sv_name].alias)
+                        else:
+                            diff['subvariables'][name] = []
+                            diff['subvariables'][name].append(dataset[name][sv_name].alias)
+
+            # 6. missing rules mismatch
+            if self[name].type not in CATEGORICAL_TYPES and dataset[name].type not in CATEGORICAL_TYPES:
+                if self[name].missing_rules != dataset[name].missing_rules:
+                    diff['variables']['by_missing_rules'].append(name)
+        return diff
 
     def append_dataset(self, dataset, filter=None, variables=None,
                        autorollback=True, delete_pk=True):

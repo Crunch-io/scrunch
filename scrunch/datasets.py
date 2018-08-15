@@ -38,6 +38,10 @@ else:
 
 LOG = logging.getLogger('scrunch')
 
+CATEGORICAL_TYPES = {
+    'categorical', 'multiple_response', 'categorical_array',
+}
+
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -2108,10 +2112,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _OVERRIDDEN_ATTRIBUTES = {'categories'}
 
-    CATEGORICAL_TYPES = {
-        'categorical', 'multiple_response', 'categorical_array',
-    }
-
     def __init__(self, var_tuple, dataset):
         """
         :param var_tuple: A Shoji Tuple for a dataset variable
@@ -2159,7 +2159,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def categories(self):
-        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+        if self.resource.body['type'] not in CATEGORICAL_TYPES:
             raise TypeError(
                 "Variable of type %s do not have categories"
                 % self.resource.body.type)
