@@ -195,7 +195,8 @@ class TestProjectNesting(TestCase):
         self.assertEqual(patch_request.method, 'PATCH')
         self.assertEqual(patch_request.url, project_d.url)
         self.assertEqual(json.loads(patch_request.body), {
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
             'index': {
                 project_c.url: {},
                 dataset.url: {}
@@ -228,7 +229,8 @@ class TestProjectNesting(TestCase):
         # project A, but the target path pointed to B
         self.assertEqual(patch_request.url, project_b.url)
         self.assertEqual(json.loads(patch_request.body), {
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
             'index': {
                 dataset1.url: {}
             },
@@ -249,7 +251,8 @@ class TestProjectNesting(TestCase):
         self.assertEqual(patch_request.method, 'PATCH')
         self.assertEqual(patch_request.url, project_b.url)
         self.assertEqual(json.loads(patch_request.body), {
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
             'index': {
                 dataset2.url: {}
             },
