@@ -28,6 +28,8 @@ class TestProjects(TestCase):
         pb = pa.create_project("B")
         pa.resource.refresh()
         self.assertTrue(pb.url in pa.resource.index)
+        _pb = pa.order["| B"]
+        self.assertEqual(_pb.url, pb.url)
 
     def test_move_project(self):
         # Both top level projects
@@ -49,3 +51,12 @@ class TestProjects(TestCase):
         _project = get_project("renamed")
         self.assertEqual(_project.url, project.url)
 
+    def test_reorder(self):
+        pa = new_project('test_reorder')
+        p1 = pa.create_project("1")
+        p2 = pa.create_project("2")
+        pa.resource.refresh()
+        self.assertEqual(pa.resource.graph, [p1.url, p2.url])
+        pa.reorder(["2", "1"])
+        pa.resource.refresh()
+        self.assertEqual(pa.resource.graph, [p2.url, p1.url])

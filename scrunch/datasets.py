@@ -476,7 +476,9 @@ class Project:
             for c in items
         ]
         self.resource.patch({
-            'element': 'shoji:catalog',
+            'element': 'shoji:entity',
+            'body': {},
+            'index': {},
             'graph': graph
         })
         self.resource.refresh()
