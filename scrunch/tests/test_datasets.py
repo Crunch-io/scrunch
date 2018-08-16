@@ -1225,7 +1225,6 @@ class TestVariables(TestDatasetBase, TestCase):
     def test_add_category(self):
         ds_mock = self._dataset_mock()
         ds = BaseDataset(ds_mock)
-        ds.resource.body['streaming'] = 'no'
         var = ds['var4_alias']
         var.resource.body['type'] = 'categorical'
         var.resource.body['categories'] = [
@@ -1233,6 +1232,9 @@ class TestVariables(TestDatasetBase, TestCase):
             {"id": 8, "name": "Male", "missing": False, "numeric_value": 8},
             {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
         ]
+        var.CATEGORICAL_TYPES = {
+            'categorical', 'multiple_response', 'categorical_array',
+        }
         var.add_category(2, 'New category', 2, before_id=9)
         var.resource._edit.assert_called_with(categories=var.resource.body['categories'])
 
