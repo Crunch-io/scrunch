@@ -41,7 +41,7 @@ LOG = logging.getLogger('scrunch')
 CATEGORICAL_TYPES = {
     'categorical', 'multiple_response', 'categorical_array',
 }
-
+RESOLUTION_TYPES = ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms']
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -936,11 +936,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :alias: alias for the new derived variable
         :resolution: one of [Y, Q, M, W, D, h, m, s, ms]
         """
-        assert resolution in ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms'], \
-            'resolution param needs to be one of [Y, Q, M, W, D, h, m, s, ms]'
-
         assert self[variable_alias].type == 'datetime', \
             'rollup() is only allowed for datetime variable types'
+
+        self._validate_vartypes(self[variable_alias].type, resolution)
 
         expr = {
             'function': 'rollup',
@@ -1106,11 +1105,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                             'multiple_response', 'categorical_array'):
             raise InvalidVariableTypeError
 
-        resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
-        if var_type == 'datetime' and resolution not in resolution_types:
+        if var_type == 'datetime' and resolution not in RESOLUTION_TYPES:
             raise InvalidParamError(
                 'Include a valid resolution parameter when creating \
-                datetime variables. %s' % resolution_types)
+                datetime variables. %s' % RESOLUTION_TYPES)
 
         array_types = ('multiple_response', 'categorical_array')
         if var_type in array_types and not isinstance(subvariables, list):
@@ -2495,3 +2493,16 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         if 'transform' in self.view:
             return self.view.transform.insertions
         return None
+
+    def rollup_resolution(self, resolution):
+        """
+        PATCHes the rollup_resolution attribute of a datetime variable. This is the
+        equivalent to the UI's change resolution action.
+        """
+        assert self.type == 'datetime', 'Method only allowed for datetime variables'
+        self.dataset._validate_vartypes(self.type, resolution=resolution)
+
+        payload = json.dumps({'rollup_resolution': resolution})
+        resp = self.resource.patch(payload)
+        self.dataset._reload_variables()
+        return self.dataset[self.alias]
