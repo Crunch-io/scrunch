@@ -38,6 +38,10 @@ else:
 
 LOG = logging.getLogger('scrunch')
 
+CATEGORICAL_TYPES = {
+    'categorical', 'multiple_response', 'categorical_array',
+}
+
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -2163,10 +2167,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _OVERRIDDEN_ATTRIBUTES = {'categories'}
 
-    CATEGORICAL_TYPES = {
-        'categorical', 'multiple_response', 'categorical_array',
-    }
-
     def __init__(self, var_tuple, dataset):
         """
         :param var_tuple: A Shoji Tuple for a dataset variable
@@ -2216,6 +2216,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 raise AttributeError(
                     "Can't edit attribute %s of variable %s"
                     % (key, self.name))
+        self.dataset._reload_variables()
         return self.resource.edit(**kwargs)
 
     def __repr__(self):
@@ -2226,7 +2227,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def categories(self):
-        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+        if self.resource.body['type'] not in CATEGORICAL_TYPES:
             raise TypeError(
                 "Variable of type %s do not have categories"
                 % self.resource.body.type)
@@ -2335,6 +2336,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def missing_rules(self):
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         result = self.resource.session.get(
             self.resource.fragments.missing_rules)
         assert result.status_code == 200
@@ -2354,6 +2360,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
             ds['varname'].set_missing_rules(missing_rules)
         """
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         data = {}
         for k, v in rules.items():
             # wrap value in a {'value': value} for crunch

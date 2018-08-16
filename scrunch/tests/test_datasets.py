@@ -4812,7 +4812,8 @@ class TestMutableMixin(TestDatasetBase):
         expected_diff = {
             'variables': {
                 'by_type': [],
-                'by_alias': []
+                'by_alias': [],
+                'by_missing_rules': []
             },
             'categories': {},
             'subvariables': {}
