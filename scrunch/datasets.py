@@ -2248,6 +2248,50 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             self.resource.edit(derived=False)
             self.dataset._reload_variables()
 
+    def add_category(self, id, name, numeric_value, missing=False, before_id=False):
+        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have categories"
+                % self.resource.body.type)
+
+        if self.resource.body.get('derivation'):
+            raise TypeError("Cannot add categories on derived variables. Re-derive with the appropriate expression")
+
+        categories = self.resource.body['categories']
+
+        if before_id:
+            # only accept int type
+            assert isinstance(before_id, int)
+
+            # see if id exist
+            try:
+                self.categories[before_id]
+            except:
+                raise AttributeError('before_id not found: {}'.format(before_id))
+
+            new_categories = []
+            for category in categories:
+                if category['id'] == before_id:
+                    new_categories.append({
+                        'id': id,
+                        'missing': missing,
+                        'name': name,
+                        'numeric_value': numeric_value,
+                    })
+                new_categories.append(category)
+            categories = new_categories
+        else:
+            categories.append({
+                'id': id,
+                'missing': missing,
+                'name': name,
+                'numeric_value': numeric_value,
+            })
+
+        resp = self.resource.edit(categories=categories)
+        self._reload_variables()
+        return resp
+
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
         _validate_category_rules(categories, rules)

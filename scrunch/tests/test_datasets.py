@@ -105,6 +105,19 @@ class TestDatasetBase(object):
             categories=TEST_CATEGORIES(),
             is_subvar=False,
             derived=False
+        ),
+        '0004': dict(
+            id='0004',
+            alias='var4_alias',
+            name='var4_name',
+            description=None,
+            notes=None,
+            format=None,
+            view=None,
+            type='categorical',
+            categories=TEST_CATEGORIES(),
+            is_subvar=False,
+            derived=False
         )
     }
 
@@ -1208,6 +1221,22 @@ class TestVariables(TestDatasetBase, TestCase):
         # Reading another variable breaks because `alias` has been removed(0
         # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
         var2 = ds['var2_alias']
+
+    def test_add_category(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var4_alias']
+        var.resource.body['type'] = 'categorical'
+        var.resource.body['categories'] = [
+            {"id": 1, "name": "Female", "missing": False, "numeric_value": 1},
+            {"id": 8, "name": "Male", "missing": False, "numeric_value": 8},
+            {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
+        ]
+        var.CATEGORICAL_TYPES = {
+            'categorical', 'multiple_response', 'categorical_array',
+        }
+        var.add_category(2, 'New category', 2, before_id=9)
+        var.resource._edit.assert_called_with(categories=var.resource.body['categories'])
 
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()
