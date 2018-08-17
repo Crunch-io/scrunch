@@ -2249,7 +2249,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             self.dataset._reload_variables()
 
     def add_category(self, id, name, numeric_value, missing=False, before_id=False):
-        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+        if self.resource.body['type'] not in CATEGORICAL_TYPES:
             raise TypeError(
                 "Variable of type %s do not have categories"
                 % self.resource.body.type)
