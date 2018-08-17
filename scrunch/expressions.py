@@ -476,8 +476,11 @@ def process_expr(obj, ds):
         """
         # convert value --> column and change ids to aliases
         aliases = get_subvariables_resource(var_url)
+
+        # Some derived variables will append a # to the subvariables id's
+        # so we need to strip those charactes out
         cat_to_ids = [
-            tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
+            tup[0] for tup in aliases if int(tup[1].strip('#').split('_')[-1]) in values]
         return [{'variable': var_url}, {'column': cat_to_ids}], False
 
     def ensure_category_ids(subitems, variables=variables):
