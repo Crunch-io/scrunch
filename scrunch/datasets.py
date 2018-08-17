@@ -2157,7 +2157,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description',
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'rollup_resolution',
                            'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
@@ -2502,7 +2502,5 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         assert self.type == 'datetime', 'Method only allowed for datetime variables'
         self.dataset._validate_vartypes(self.type, resolution=resolution)
 
-        payload = json.dumps({'rollup_resolution': resolution})
-        resp = self.resource.patch(payload)
-        self.dataset._reload_variables()
-        return self.dataset[self.alias]
+        self.resource.edit(rollup_resolution=resolution)
+        return self
