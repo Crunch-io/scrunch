@@ -2157,7 +2157,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description', 'rollup_resolution',
+    _MUTABLE_ATTRIBUTES = {'name', 'description',
                            'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
@@ -2494,13 +2494,17 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             return self.view.transform.insertions
         return None
 
-    def rollup_resolution(self, resolution):
+    def edit_resolution(self, resolution):
         """
         PATCHes the rollup_resolution attribute of a datetime variable. This is the
-        equivalent to the UI's change resolution action.
+        equivalent to the UI's change resolution action. 
+
+        Be sure to grab the editor's lock of the dataset.
+        
+        :usage: edited_var = var.edit_resolution('M')
+        assert editar_var.rollup_resolution == 'M'
         """
         assert self.type == 'datetime', 'Method only allowed for datetime variables'
         self.dataset._validate_vartypes(self.type, resolution=resolution)
-
-        self.resource.edit(rollup_resolution=resolution)
+        self.resource.edit(view=dict(rollup_resolution=resolution))
         return self
