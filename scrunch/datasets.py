@@ -212,6 +212,25 @@ def get_user(user, connection=None):
     return User(ret)
 
 
+def get_team(team, connection=None):
+    """
+    :param team: Crunch Team Name (crunch only lists teams by Name)
+    :param connection: An scrunch session object
+    :return: Team class instance
+    """
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    try:
+        ret = connection.teams.by('name')[team].entity
+    except KeyError:
+        raise KeyError("Team name: %s not found." % team)
+    return Team(ret)
+
+
 def list_geodata(name=None, connection=None):
     """
     :param connection: An scrunch session object
@@ -267,22 +286,37 @@ class Team:
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
-    def __init__(self, resource):
-        self.resource = resource
+    def __init__(self, team_resource):
+        self.resource = team_resource
         self.url = self.resource.self
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]
-
-        # Attribute doesn't exists, must raise an AttributeError
         raise AttributeError('Team has no attribute %s' % item)
 
     def __repr__(self):
-        return "<Team: name='{}' id='{}'>".format(self.name, self.id)
+        return "<Team: name='{}'; id='{}'>".format(self.name, self.id)
 
     def __str__(self):
         return self.name
+
+    @property
+    def users(self):
+        """
+        :return: dictionary of User instances
+        """
+        # TODO: return a dictionary keyed by email and values should be User
+        # instances, but when trying got 403 from Crunch and we need
+        # support for teams now
+        users = []
+        for member in self.resource.members.index.values():
+            # members can be users or teams
+            user = member.get('email')
+            if not user:
+                user = member.get('name')
+            users.append(user)
+        return users
 
 
 class Project:
