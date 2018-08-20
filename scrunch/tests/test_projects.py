@@ -91,6 +91,7 @@ class TestProjectNesting(TestCase):
         #    B     C
         #    |
         #    D
+        projects_res_url = 'http://example.com/api/projects/'
         a_res_url = 'http://example.com/api/projects/A/'
         b_res_url = 'http://example.com/api/projects/B/'
         c_res_url = 'http://example.com/api/projects/C/'
@@ -160,10 +161,20 @@ class TestProjectNesting(TestCase):
             'index': {},
             'graph': []
         }
+        projects_catalog = {
+            'element': 'shoji:catalog',
+            'self': projects_res_url,
+            'index': {
+                a_res_url: {
+                    'name': 'project A'
+                }
+            }
+        }
         session.add_fixture(a_res_url, a_payload)
         session.add_fixture(b_res_url, b_payload)
         session.add_fixture(c_res_url, c_payload)
         session.add_fixture(d_res_url, d_payload)
+        session.add_fixture(projects_res_url, projects_catalog)
         return session
 
     def test_follow_path(self):
@@ -223,6 +234,36 @@ class TestProjectNesting(TestCase):
                 dataset.url: {}
             },
             'graph': [project_c.url, dataset.url]
+        })
+
+    def test_move_project(self):
+        catalog_url = 'http://example.com/api/projects/'
+        a_res_url = 'http://example.com/api/projects/A/'
+        d_res_url = 'http://example.com/api/projects/D/'
+        session = self.make_tree()
+        project_a = Project(session.get(a_res_url).payload)
+        project_d = Project(session.get(d_res_url).payload)
+
+        with self.assertRaises(InvalidPathError):
+            # Not a root path, invalid.
+            project_d.move("%s" % project_a.name)
+
+        # Moving to A
+        project_d.move("| %s" % project_a.name)
+
+        # Will have to iteratively nagivate the path making requests to
+        # projects root and then to A
+        request1 = session.requests[-4]
+        request2 = session.requests[-3]
+        self.assertEqual(request1.url, catalog_url)
+        self.assertEqual(request2.url, a_res_url)
+
+        patch_request = session.requests[-2]
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(patch_request.url, project_a.url)
+        index = json.loads(patch_request.body)['index']
+        self.assertEqual(index, {
+            project_d.url: {},
         })
 
     def test_place(self):

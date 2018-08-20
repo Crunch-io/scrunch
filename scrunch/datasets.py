@@ -490,11 +490,34 @@ class Project:
         self.move_here(children, position=kwargs.get('position', 0))
 
     def move(self, path, position=-1, before=None, after=None):
-        # It is not possible to move this way because the signature requires
-        # to obtain the target project to move to from a path that is a child
-        # of the current project. So it is not possible to move to a child
-        # of yourself.
-        raise NotImplementedError
+        from scrunch.order import Path, InvalidPathError
+        ppath = Path(path)
+        if not ppath.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        parts = ppath.get_parts()
+        top_proj_name, sub_path = parts[0], parts[1:]
+        try:
+            top_project = self.projects_root().by('name')[top_proj_name].entity
+        except KeyError:
+            raise InvalidPathError("Invalid target project: %s" % path)
+
+        target = top_project
+        for name in sub_path:
+            target = target.by('name')[name]
+            if not target['type'] == 'project':
+                raise InvalidPathError("Invalid target project: %s" % path)
+            target = target.entity
+
+        target = Project(target)
+        target.move_here([self], position=position, before=before, after=after)
+
+    def projects_root(self):
+        # Hack, because we cannot navigate to the projects catalog from a
+        # single catalog entity.
+        projects_root_url = self.url.rsplit('/', 2)[0] + '/'
+        return self.resource.session.get(projects_root_url).payload
 
 
 class CrunchBox(object):
