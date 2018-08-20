@@ -2551,7 +2551,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         assert self.type == 'datetime', 'Method only allowed for datetime variables'
         self.dataset._validate_vartypes(self.type, resolution=resolution)
         view = self.view
-        if hasattr(current_view, 'rollup_resolution'):
-            view['rollup_resolution'] = resolution
+        view['rollup_resolution'] = resolution
         self.resource.edit(view=view)
         return self

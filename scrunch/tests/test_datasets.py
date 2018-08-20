@@ -1218,9 +1218,25 @@ class TestVariables(TestDatasetBase, TestCase):
         ds.resource.body['streaming'] = 'no'
         var = ds['var1_alias']
         var.edit(alias='test1')
-        # Reading another variable breaks because `alias` has been removed(0
-        # from _IMMUTABLE_ATTRIBUTES already. Use .discard()
         var2 = ds['var2_alias']
+
+    def test_edit_resolution(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'datetime_var',
+                'name': 'Datetime Variable',
+                'type': 'datetime',
+                'is_subvar': False,
+                'view': {'rollup_resolution': 'ms'}
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+        ds.resource = mock.MagicMock()
+        var = ds['datetime_var']
+        var.edit_resolution('M')
+        var.resource._edit.assert_called_with(view={'rollup_resolution': 'M'})
 
     def test_add_category(self):
         ds_mock = self._dataset_mock()
