@@ -1228,15 +1228,25 @@ class TestVariables(TestDatasetBase, TestCase):
                 'name': 'Datetime Variable',
                 'type': 'datetime',
                 'is_subvar': False,
-                'view': {'rollup_resolution': 'ms'}
+                'view': {
+                    'rollup_resolution': 'ms',
+                    'width': 10,
+                }
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
         ds = MutableDataset(ds_mock)
         ds.resource = mock.MagicMock()
         var = ds['datetime_var']
-        var.edit_resolution('M')
-        var.resource._edit.assert_called_with(view={'rollup_resolution': 'M'})
+        updated_var = var.edit_resolution('M')
+        var.resource._edit.assert_called_with(
+            view={
+                'rollup_resolution': 'M',
+                'width': 10
+            }
+        )
+        assert updated_var.view['width'] == 10
+        assert updated_var.view['rollup_resolution'] == 'M'
 
     def test_add_category(self):
         ds_mock = self._dataset_mock()
