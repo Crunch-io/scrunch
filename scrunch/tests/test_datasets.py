@@ -361,6 +361,7 @@ class TestDatasets(TestDatasetBase, TestCase):
             footer='my footer',
             notes='my notes',
             min_base_size=50,
+            weight='001',
             palette={
                 "brand": ["#111111", "#222222", "#333333"],
                 "static_colors": ["#444444", "#555555", "#666666"],
@@ -383,7 +384,9 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'filters': None,
                 'notes': 'my notes',
                 'force': False,
-                'where': None}
+                'where': None,
+                'weight': '001'
+            }
         }
 
         ds.create_crunchbox(**call_params)
@@ -402,7 +405,9 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'filters': None,
                 'notes': '',
                 'force': False,
-                'where': None}
+                'where': None,
+                'weight': None
+            }
         }
 
         ds.create_crunchbox()

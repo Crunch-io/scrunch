@@ -1441,7 +1441,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return []
 
     def create_crunchbox(
-            self, title='', header='', footer='', notes='',
+            self, title='', header='', footer='', notes='', weight=None,
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -1520,6 +1520,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             title = 'CrunchBox for {}'.format(str(self))
 
         payload = shoji_entity_wrapper(dict(
+            weight=weight,
             where=variables,
             filters=filters,
             force=force,
