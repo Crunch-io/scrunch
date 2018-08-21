@@ -26,7 +26,9 @@ from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
+
 _MR_TYPE = 'multiple_response'
+
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
@@ -42,6 +44,7 @@ CATEGORICAL_TYPES = {
     'categorical', 'multiple_response', 'categorical_array',
 }
 RESOLUTION_TYPES = ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms']
+
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -231,6 +234,17 @@ def get_team(team, connection=None):
     return Team(ret)
 
 
+def create_team(name, connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    shoji_team = connection.teams.create(
+        shoji_entity_wrapper({'name': name})).refresh()
+    return Team(shoji_team)
+
 def list_geodata(name=None, connection=None):
     """
     :param connection: An scrunch session object
@@ -281,7 +295,70 @@ class User:
         return self.email
 
 
-class Team:
+class AbstractMembers:
+    """
+    ABC class for handling collections of members. Adding users,
+    removing users, listing users on a resource...
+    """
+
+    @property
+    def members(self):
+        """
+        :return: A list of members of the Entity
+        """
+        members = []
+        for member in self.resource.members.index.values():
+            # members can be users or teams
+            user = member.get('email')
+            if not user:
+                user = member.get('name')
+            members.append(user)
+        return members
+
+    def _validate_member(self, member):
+        """
+        Validate and instanciate if necessary a member as 
+        Team or User
+        """
+        if isinstance(member, User) or isinstance(member, Team):
+            return member    
+        try:
+            member = get_user(member)
+        except KeyError:
+            try:
+                member = get_team(member)
+            except:
+                raise KeyError('Member %s is not a Team nor a User' % member)
+        return member
+
+    def remove_member(self, member):
+        """
+        :param user: email or User instance
+        :return: None
+        """
+        member = self._validate_member(member)
+        self.resource.members.patch({member.url: None})
+
+    def add_member(self, member, edit=False):
+        """
+        :param member: email, User instance, team name or Team instance
+        :return: None
+        """
+        member = self._validate_member(member)
+        self.resource.members.patch({member.url: {'edit': edit}})    
+
+    def edit_member(self, member, permissions):
+        """
+        Edit a members's permissions on this instance.
+        Examples:
+            team.edit_member('mathias.bustamante@yougov.com', {'team_admin': True})
+            project.edit_member('mathias.bustamante@yougov.com', {'edit': True})
+        """
+        member = self._validate_member(member)
+        self.resource.members.patch({member.url: {'permissions': permissions}})
+
+
+class Team(AbstractMembers):
     _MUTABLE_ATTRIBUTES = {'name'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -301,25 +378,8 @@ class Team:
     def __str__(self):
         return self.name
 
-    @property
-    def users(self):
-        """
-        :return: dictionary of User instances
-        """
-        # TODO: return a dictionary keyed by email and values should be User
-        # instances, but when trying got 403 from Crunch and we need
-        # support for teams now
-        users = []
-        for member in self.resource.members.index.values():
-            # members can be users or teams
-            user = member.get('email')
-            if not user:
-                user = member.get('name')
-            users.append(user)
-        return users
 
-
-class Project:
+class Project(AbstractMembers):
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -348,58 +408,6 @@ class Project:
 
     def __str__(self):
         return self.name
-
-    @property
-    def users(self):
-        """
-        :return: dictionary of User instances
-        """
-        # TODO: return a dictionary keyed by email and values should be User
-        # instances, but when trying got 403 from Crunch and we need
-        # support for teams now
-        users = []
-        for member in self.resource.members.index.values():
-            # members can be users or teams
-            user = member.get('email')
-            if not user:
-                user = member.get('name')
-            users.append(user)
-        return users
-
-    def remove_user(self, user):
-        """
-        :param user: email or User instance
-        :return: None
-        """
-        if not isinstance(user, User):
-            user = get_user(user)
-
-        found_url = None
-        for url, tuple in self.resource.members.index.items():
-            if tuple['email'] == user.email:
-                found_url = url
-
-        if found_url:
-            self.resource.members.patch({found_url: None})
-        else:
-            raise KeyError(
-                "User %s not found in project %s" % (user.email, self.name))
-
-    def add_user(self, user, edit=False):
-        """
-        :param user: email or User instance
-        :return: None
-        """
-        if not isinstance(user, User):
-            user = get_user(user)
-        self.resource.members.patch({user.url: {'edit': edit}})
-
-    def edit_user(self, user, edit):
-        if not isinstance(user, User):
-            user = get_user(user)
-        self.resource.members.patch(
-            {user.url: {'permissions': {'edit': edit}}}
-        )
 
     def get_dataset(self, dataset):
         try:
@@ -902,9 +910,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         }
         self.resource.permissions.patch(payload)
 
-    def create_single_response(
-            self, categories, name, alias, description='', missing=True,
-            notes=''):
+    def create_single_response(self, categories, name, alias, description='',
+        missing=True, notes=''):
         """
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
@@ -961,7 +968,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def rollup(self, variable_alias, name, alias, resolution, description='', notes=''):
+    def rollup(self, variable_alias, name, alias, resolution, description='',
+        notes=''):
         """
         Rolls the source datetime variable into a new derived categorical variable.
         Available resolutions are: [Y, Q, M, W, D, h, m, s, ms]
@@ -1000,8 +1008,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
-    def create_multiple_response(
-            self, responses, name, alias, description='', notes=''):
+    def create_multiple_response(self, responses, name, alias, description='',
+        notes=''):
         """
         Creates a Multiple response (array) using a set of rules for each
         of the responses(subvariables).
@@ -1045,8 +1053,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
-    def bind_categorical_array(
-            self, name, alias, subvariables, description='', notes=''):
+    def bind_categorical_array(self, name, alias, subvariables, description='',
+        notes=''):
         """
         Creates a new categorical_array where subvariables is a
         subset of categorical variables already existing in the DS.
@@ -1090,8 +1098,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self._reload_variables()
         return self[alias]
 
-    def create_numeric(
-            self, alias, name, derivation, description='', notes=''):
+    def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
         Used to create new numeric variables using Crunch's derived
         expressions
@@ -1115,8 +1122,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[alias]
 
-    def create_categorical(
-            self, categories, alias, name, multiple, description='', notes=''):
+    def create_categorical(self, categories, alias, name, multiple, description='',
+        notes=''):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1134,7 +1141,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 notes=notes)
 
     def _validate_vartypes(self, var_type, resolution=None, subvariables=None,
-                           categories=None):
+        categories=None):
         if var_type not in ('text', 'numeric', 'categorical', 'datetime',
                             'multiple_response', 'categorical_array'):
             raise InvalidVariableTypeError
@@ -1150,8 +1157,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 'Include subvariables when creating %s variables' % var_type)
 
     def create_variable(self, var_type, name, alias=None, description='',
-                        resolution=None, subvariables=None, categories=None,
-                        values=None):
+        resolution=None, subvariables=None, categories=None, values=None):
         """
         A variable can be of type: text, numeric, categorical, datetime,
         multiple_response or categorical_array.
@@ -1285,9 +1291,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return an instance of Variable
         return self[new_var['body']['alias']]
 
-    def combine_categories(
-            self, variable, map, categories, missing=None, default=None,
-            name='', alias='', description=''):
+    def combine_categories(self, variable, map, categories, missing=None,
+        default=None, name='', alias='', description=''):
         if not alias or not name:
             raise ValueError("Name and alias are required")
         if variable.type in _MR_TYPE:
@@ -1299,9 +1304,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 variable, map, categories, missing, default,
                 name=name, alias=alias, description=description)
 
-    def combine_categorical(
-            self, variable, map, categories=None, missing=None,
-            default=None, name='', alias='', description=''):
+    def combine_categorical(self, variable, map, categories=None, missing=None,
+        default=None, name='', alias='', description=''):
         """
         Create a new variable in the given dataset that is a recode
         of an existing variable
@@ -1340,9 +1344,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # at this point we are returning a Variable instance
         return self[new_var['body']['alias']]
 
-    def combine_multiple_response(
-            self, variable, map, categories=None, default=None, name='',
-            alias='', description=''):
+    def combine_multiple_response(self, variable, map, categories=None, default=None,
+        name='', alias='', description=''):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
@@ -1474,10 +1477,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return attribs
         return []
 
-    def create_crunchbox(
-            self, title='', header='', footer='', notes='',
-            filters=None, variables=None, force=False, min_base_size=None,
-            palette=None):
+    def create_crunchbox(self, title='', header='', footer='', notes='',
+        filters=None, variables=None, force=False, min_base_size=None,
+        palette=None):
         """
         create a new boxdata entity for a CrunchBox.
 
@@ -1625,9 +1627,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             return _forks
 
-    def export(
-            self, path, format='csv', filter=None, variables=None,
-            hidden=False, options=None, metadata_path=None, timeout=None):
+    def export(self, path, format='csv', filter=None, variables=None,
+        hidden=False, options=None, metadata_path=None, timeout=None):
         """
         Downloads a dataset as CSV or as SPSS to the given path. This
         includes hidden variables.
@@ -1816,7 +1817,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-             preserve_owner=False, **kwargs):
+        preserve_owner=False, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2064,7 +2065,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     def weights(self):
         weight_urls = self.resource.variables.weights.graph
         return [self.resource.variables.index[weight_alias].alias
-                for weight_alias in weight_urls]
+            for weight_alias in weight_urls]
 
     def remove_weight(self, variables):
         """
