@@ -38,6 +38,10 @@ else:
 
 LOG = logging.getLogger('scrunch')
 
+CATEGORICAL_TYPES = {
+    'categorical', 'multiple_response', 'categorical_array',
+}
+RESOLUTION_TYPES = ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms']
 
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
@@ -161,7 +165,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     A simple wrapper of _get_dataset with streaming=False
     """
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
-    ds = BaseDataset(shoji_ds)
+    ds = Dataset(shoji_ds)
     if editor is True:
         ds.change_editor(root.session.email)
     return ds
@@ -696,6 +700,9 @@ class DatasetVariablesMixin(collections.Mapping):
                     raise ValueError(
                         'Entity %s has no (sub)variable with a name or alias %s'
                         % (self.name, item))
+        # make sure we pass the parent dataset to subvariables
+        if isinstance(self, Variable):
+            return Variable(variable, self.dataset)
         return Variable(variable, self)
 
     def _set_catalog(self):
@@ -964,7 +971,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
                 raise AttributeError(
-                    "Can't edit attibute %s of variable %s"
+                    "Can't edit attibute %s of dataset %s"
                     % (key, self.name))
             if key in ['start_date', 'end_date'] and \
                     (isinstance(kwargs[key], datetime.date) or
@@ -1064,6 +1071,45 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
+    def rollup(self, variable_alias, name, alias, resolution, description='', notes=''):
+        """
+        Rolls the source datetime variable into a new derived categorical variable.
+        Available resolutions are: [Y, Q, M, W, D, h, m, s, ms]
+        :variable_alias: source datetime variable alias to rollup from
+        :name: name of the new derived variable
+        :alias: alias for the new derived variable
+        :resolution: one of [Y, Q, M, W, D, h, m, s, ms]
+        """
+        assert self[variable_alias].type == 'datetime', \
+            'rollup() is only allowed for datetime variable types'
+
+        self._validate_vartypes(self[variable_alias].type, resolution)
+
+        expr = {
+            'function': 'rollup',
+            'args': [
+                {
+                    'variable': self[variable_alias].url
+                },
+                {
+                    'value': resolution
+                }
+            ]
+        }
+
+        payload = shoji_entity_wrapper(dict(
+            alias=alias,
+            name=name,
+            expr=expr,
+            description=description,
+            notes=notes))
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return the variable instance
+        return self[new_var['body']['alias']]
+
     def create_multiple_response(
             self, responses, name, alias, description='', notes=''):
         """
@@ -1072,6 +1118,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         responses_map = collections.OrderedDict()
         responses_map_ids = []
+
         for resp in responses:
             case = resp['case']
             if isinstance(case, six.string_types):
@@ -1202,11 +1249,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                             'multiple_response', 'categorical_array'):
             raise InvalidVariableTypeError
 
-        resolution_types = ('Y', 'M', 'D', 'h', 'm', 's', 'ms')
-        if var_type == 'datetime' and resolution not in resolution_types:
+        if var_type == 'datetime' and resolution not in RESOLUTION_TYPES:
             raise InvalidParamError(
                 'Include a valid resolution parameter when creating \
-                datetime variables. %s' % resolution_types)
+                datetime variables. %s' % RESOLUTION_TYPES)
 
         array_types = ('multiple_response', 'categorical_array')
         if var_type in array_types and not isinstance(subvariables, list):
@@ -1929,22 +1975,31 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # on the class that the fork comes from
         return self.__class__(_fork)
 
-    def replace_values(self, variables, filter=None):
+    def replace_values(self, variables, filter=None, literal_subvar=False):
         """
-        :param variables: dictionary, {var_alias: value, var2_alias: value}
+        :param variables: dictionary, {var_alias: value, var2_alias: value}.
+            Alows subvariable alias as well
         :param filter: string, an Scrunch expression, i.e; 'var_alias > 1'
         """
         payload = {
             'command': 'update',
             'variables': {},
         }
+
         for alias, val in variables.items():
             if isinstance(val, list):
-                payload['variables'][self[alias].id] = {'column': val}
+                if literal_subvar:
+                    payload['variables'][alias] = {'column': val}
+                else:
+                    payload['variables'][self[alias].id] = {'column': val}
             else:
-                payload['variables'][self[alias].id] = {'value': val}
+                if literal_subvar:
+                    payload['variables'][alias] = {'value': val}
+                else:
+                    payload['variables'][self[alias].id] = {'value': val}
         if filter:
             payload['filter'] = process_expr(parse_expr(filter), self.resource)
+
         resp = self.resource.table.post(json.dumps(payload))
         if resp.status_code == 204:
             LOG.info('Dataset Updated')
@@ -2159,15 +2214,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self.resource.table.post(json.dumps(payload))
 
 
-# FIXME: This class to be deprecated
 class Dataset(BaseDataset):
+
+    _BASE_MUTABLE_ATTRIBUTES = {'streaming'}
 
     def __init__(self, resource):
         LOG.warning("""Dataset is deprecated, instead use now
             mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset
             with it's corresponding get_mutable_dataset and get_streaming_dataset
-            functions""")  # noqa: E501
+            methods""")  # noqa: E501
         super(Dataset, self).__init__(resource)
+        self._MUTABLE_ATTRIBUTES = self._BASE_MUTABLE_ATTRIBUTES | self._BASE_MUTABLE_ATTRIBUTES
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):
@@ -2252,10 +2309,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _OVERRIDDEN_ATTRIBUTES = {'categories'}
 
-    CATEGORICAL_TYPES = {
-        'categorical', 'multiple_response', 'categorical_array',
-    }
-
     def __init__(self, var_tuple, dataset):
         """
         :param var_tuple: A Shoji Tuple for a dataset variable
@@ -2267,6 +2320,18 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self.url = var_tuple.entity_url
         self.dataset = dataset
         self._reload_variables()
+        if self._is_alias_mutable():
+            self._MUTABLE_ATTRIBUTES.add('alias')
+            self._IMMUTABLE_ATTRIBUTES.discard('alias')
+
+    def _is_alias_mutable(self):
+        if self.dataset.resource.body.get('streaming') == 'no' and not self.derived:
+            return True
+        return False
+
+    @property
+    def is_subvar(self):
+        return 'subvariables' in self.url
 
     @property
     def resource(self):
@@ -2293,6 +2358,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 raise AttributeError(
                     "Can't edit attribute %s of variable %s"
                     % (key, self.name))
+        self.dataset._reload_variables()
         return self.resource.edit(**kwargs)
 
     def __repr__(self):
@@ -2303,7 +2369,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def categories(self):
-        if self.resource.body['type'] not in self.CATEGORICAL_TYPES:
+        if self.resource.body['type'] not in CATEGORICAL_TYPES:
             raise TypeError(
                 "Variable of type %s do not have categories"
                 % self.resource.body.type)
@@ -2311,6 +2377,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     def delete(self):
         self.resource.delete()
+        self.dataset._reload_variables()
 
     def hide(self):
         self.resource.edit(discarded=True)
@@ -2322,6 +2389,50 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         if self.derived:
             self.resource.edit(derived=False)
             self.dataset._reload_variables()
+
+    def add_category(self, id, name, numeric_value, missing=False, before_id=False):
+        if self.resource.body['type'] not in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have categories"
+                % self.resource.body.type)
+
+        if self.resource.body.get('derivation'):
+            raise TypeError("Cannot add categories on derived variables. Re-derive with the appropriate expression")
+
+        categories = self.resource.body['categories']
+
+        if before_id:
+            # only accept int type
+            assert isinstance(before_id, int)
+
+            # see if id exist
+            try:
+                self.categories[before_id]
+            except:
+                raise AttributeError('before_id not found: {}'.format(before_id))
+
+            new_categories = []
+            for category in categories:
+                if category['id'] == before_id:
+                    new_categories.append({
+                        'id': id,
+                        'missing': missing,
+                        'name': name,
+                        'numeric_value': numeric_value,
+                    })
+                new_categories.append(category)
+            categories = new_categories
+        else:
+            categories.append({
+                'id': id,
+                'missing': missing,
+                'name': name,
+                'numeric_value': numeric_value,
+            })
+
+        resp = self.resource.edit(categories=categories)
+        self._reload_variables()
+        return resp
 
     def edit_categorical(self, categories, rules):
         # validate rules and categories are same size
@@ -2367,6 +2478,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
     @property
     def missing_rules(self):
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         result = self.resource.session.get(
             self.resource.fragments.missing_rules)
         assert result.status_code == 200
@@ -2386,6 +2502,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
 
             ds['varname'].set_missing_rules(missing_rules)
         """
+        if self.resource.body['type'] in CATEGORICAL_TYPES:
+            raise TypeError(
+                "Variable of type %s do not have missing rules"
+                % self.resource.body.type)
+
         data = {}
         for k, v in rules.items():
             # wrap value in a {'value': value} for crunch
@@ -2447,8 +2568,17 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def replace_values(self, value, filter=None):
         """
         Proxy method to parent Dataset replace_values focused
-        especifically for this variable instance
+        especifically for this variable or subvariable instance.
+
+        For subvariables, we need to pass a weird syntax to the
+        update command:
+            {'variable_id.subvariable_id': value}
         """
+        if self.is_subvar:
+            subvar_reference = '{}.{}'.format(self.resource.variable.body.id, self.id)
+            return self.dataset.replace_values(
+                {subvar_reference: value}, filter=filter, literal_subvar=True
+            )
         return self.dataset.replace_values({self.alias: value}, filter=filter)
 
     def reorder_subvariables(self, subvariables):
@@ -2551,3 +2681,20 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         if 'transform' in self.view:
             return self.view.transform.insertions
         return None
+
+    def edit_resolution(self, resolution):
+        """
+        PATCHes the rollup_resolution attribute of a datetime variable. This is the
+        equivalent to the UI's change resolution action. 
+
+        Be sure to grab the editor's lock of the dataset.
+        
+        :usage: edited_var = var.edit_resolution('M')
+        assert editar_var.rollup_resolution == 'M'
+        """
+        assert self.type == 'datetime', 'Method only allowed for datetime variables'
+        self.dataset._validate_vartypes(self.type, resolution=resolution)
+        view = self.view
+        view['rollup_resolution'] = resolution
+        self.resource.edit(view=view)
+        return self

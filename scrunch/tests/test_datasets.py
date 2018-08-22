@@ -78,7 +78,8 @@ class TestDatasetBase(object):
             format=None,
             view=None,
             type='numeric',
-            is_subvar=False
+            is_subvar=False,
+            derived=False
         ),
         '0002': dict(
             id='0002',
@@ -89,7 +90,8 @@ class TestDatasetBase(object):
             format=None,
             view=None,
             type='text',
-            is_subvar=False
+            is_subvar=False,
+            derived=False
         ),
         '0003': dict(
             id='0003',
@@ -101,7 +103,21 @@ class TestDatasetBase(object):
             view=None,
             type='categorical',
             categories=TEST_CATEGORIES(),
-            is_subvar=False
+            is_subvar=False,
+            derived=False
+        ),
+        '0004': dict(
+            id='0004',
+            alias='var4_alias',
+            name='var4_name',
+            description=None,
+            notes=None,
+            format=None,
+            view=None,
+            type='categorical',
+            categories=TEST_CATEGORIES(),
+            is_subvar=False,
+            derived=False
         )
     }
 
@@ -296,6 +312,41 @@ class TestDatasets(TestDatasetBase, TestCase):
                     },
                     'description': 'Rent paid per month',
                     'notes': 'All UK adults'
+                }
+            }
+        )
+
+    @mock.patch('scrunch.datasets.process_expr')
+    def test_rollup(self, mocked_process):
+        mocked_process.side_effect = self.process_expr_side_effect
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'datetime_var',
+                'name': 'Datetime Variable',
+                'type': 'datetime',
+                'is_subvar': False
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+        ds.resource = mock.MagicMock()
+        ds.rollup('datetime_var', 'new_rolledup_var', 'new_rolledup_var', 'Y')
+        ds.resource.variables.create.assert_called_with(
+            {
+                'element': 'shoji:entity',
+                'body': {
+                    'alias': 'new_rolledup_var',
+                    'name': 'new_rolledup_var',
+                    'expr': {
+                        'function': 'rollup',
+                        'args': [
+                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'value': 'Y'}
+                        ]
+                    },
+                    'description': '',
+                    'notes': ''
                 }
             }
         )
@@ -1157,6 +1208,61 @@ class TestVariables(TestDatasetBase, TestCase):
         var.edit(**changes)
         assert var.view == dict(show_counts=True)
         var.resource._edit.assert_called_with(**changes)
+
+    def test_edit_alias(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var1_alias']
+        with pytest.raises(AttributeError) as e:
+            var.edit(alias='test1')
+        ds.resource.body['streaming'] = 'no'
+        var = ds['var1_alias']
+        var.edit(alias='test1')
+        var2 = ds['var2_alias']
+
+    def test_edit_resolution(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'datetime_var',
+                'name': 'Datetime Variable',
+                'type': 'datetime',
+                'is_subvar': False,
+                'view': {
+                    'rollup_resolution': 'ms',
+                    'width': 10,
+                }
+            },
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+        ds.resource = mock.MagicMock()
+        var = ds['datetime_var']
+        updated_var = var.edit_resolution('M')
+        var.resource._edit.assert_called_with(
+            view={
+                'rollup_resolution': 'M',
+                'width': 10
+            }
+        )
+        assert updated_var.view['width'] == 10
+        assert updated_var.view['rollup_resolution'] == 'M'
+
+    def test_add_category(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var4_alias']
+        var.resource.body['type'] = 'categorical'
+        var.resource.body['categories'] = [
+            {"id": 1, "name": "Female", "missing": False, "numeric_value": 1},
+            {"id": 8, "name": "Male", "missing": False, "numeric_value": 8},
+            {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
+        ]
+        var.CATEGORICAL_TYPES = {
+            'categorical', 'multiple_response', 'categorical_array',
+        }
+        var.add_category(2, 'New category', 2, before_id=9)
+        var.resource._edit.assert_called_with(categories=var.resource.body['categories'])
 
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()
@@ -4734,7 +4840,8 @@ class TestMutableMixin(TestDatasetBase):
         expected_diff = {
             'variables': {
                 'by_type': [],
-                'by_alias': []
+                'by_alias': [],
+                'by_missing_rules': []
             },
             'categories': {},
             'subvariables': {}

@@ -68,6 +68,20 @@ class TestCategories(TestCase):
         # Nothing changed
         self.assertEqual(set(variable.categories.keys()), {1, 2, -1})
 
+    def test_delete_category(self):
+        resource = EditableMock()
+        resource.entity.body = dict(
+            categories=TEST_CATEGORIES(),
+            type='categorical'
+        )
+        variable = Variable(resource, MagicMock())
+        variable.categories[1].delete()
+        # Calling edit without the one that we wanted to delete
+        resource.entity._edit.assert_called_with(categories=[
+            {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ])
+
     def test_Category_attribute_writes(self):
         resource = EditableMock()
         resource.entity.body = dict(

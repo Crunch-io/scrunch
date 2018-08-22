@@ -1,7 +1,8 @@
 import json
 
 from pycrunch.shoji import wait_progress
-from scrunch.datasets import LOG, BaseDataset, _get_connection, _get_dataset
+from scrunch.datasets import (LOG, BaseDataset, _get_connection, _get_dataset,
+                              CATEGORICAL_TYPES)
 from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
@@ -48,6 +49,7 @@ class MutableDataset(BaseDataset):
     Class that enclose mutable dataset methods or any
     method that varies the state of the dataset and/or it's data.
     """
+
     def delete(self):
         """
         Delete a dataset.
@@ -114,7 +116,7 @@ class MutableDataset(BaseDataset):
             return wait_progress(r=progress, session=self.resource.session, entity=self)
         return progress.json()['value']
 
-    def compare_dataset(self, dataset):
+    def compare_dataset(self, dataset, use_crunch=False):
         """
         compare the difference in structure between datasets. The
         criterion is the following:
@@ -127,17 +129,26 @@ class MutableDataset(BaseDataset):
         don't match on alias.
         (5) array variables that, after assembling the union of their subvariables,
         point to subvariables that belong to other ds (Not implemented)
+        (6) missing rules of the variable.
 
         :param: dataset: Daatset instance to append from
+        :param: use_crunch: Use the Crunch comparison to compare
         :return: a dictionary of differences
 
         NOTE: this sould be done via: http://docs.crunch.io/#post217
         but doesn't seem to be a working feature of Crunch
         """
+
+        if use_crunch:
+            resp = self.resource.batches.follow(
+                'compare', 'dataset={}'.format(dataset.url))
+            return resp
+
         diff = {
             'variables': {
                 'by_type': [],
-                'by_alias': []
+                'by_alias': [],
+                'by_missing_rules': [],
             },
             'categories': {},
             'subvariables': {}
@@ -192,6 +203,18 @@ class MutableDataset(BaseDataset):
                         else:
                             diff['subvariables'][name] = []
                             diff['subvariables'][name].append(dataset[name][sv_name].alias)
+
+            # 6. missing rules mismatch
+            if self[name].type not in CATEGORICAL_TYPES and dataset[name].type not in CATEGORICAL_TYPES:
+                if self[name].missing_rules != dataset[name].missing_rules:
+                    rules1 = self[name].missing_rules
+                    rules2 = dataset[name].missing_rules
+                    if len(rules1) == len(rules2):
+                        for key, value in rules1:
+                            if key not in rules2 or rules2[key] != value:
+                                diff['variables']['by_missing_rules'].append(name)
+                    else:
+                        diff['variables']['by_missing_rules'].append(name)
         return diff
 
     def append_dataset(self, dataset, filter=None, variables=None,
@@ -291,7 +314,7 @@ class MutableDataset(BaseDataset):
         type variable.
 
         :param: destination: The alias of the variable that will receive the subvariable
-        :para: source: Alias of the variable to move into destination as subvariable
+        :param: source: Alias of the variable to move into destination as subvariable
         """
         payload = json.dumps({"element": "shoji:catalog", "index": {self[source].url: {}}})
         self[destination].resource.subvariables.patch(payload)

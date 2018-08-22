@@ -48,6 +48,7 @@ import six
 import scrunch
 from scrunch.variables import validate_variable_url
 
+
 if six.PY2:
     from urllib import urlencode
 else:
@@ -446,28 +447,6 @@ def get_dataset_variables(ds):
     return variables
 
 
-def adapt_multiple_response(ds, var_url, values):
-    """
-    Converts multiple response arguments
-    to column.
-    :return: tuple of the new args for multiple_response and
-    a flag to indicate we don't need recursive nesting of this
-    expression.
-    """
-    # convert value --> column and change ids to aliases
-    var_index = ds.variables.index
-    subvariable_urls = var_index[var_url]['subvariables']
-    variable = var_index[var_url].entity
-    aliases = []
-    for sub_var in subvariable_urls:
-        subvar_id = variable.subvariables.index[sub_var]['id']
-        subvar_alias = variable.body.subreferences[sub_var]['alias']
-        aliases.append((subvar_id, subvar_alias))
-    cat_to_ids = [
-        tup[0] for tup in aliases if int(tup[1].split('_')[-1]) in values]
-    return [{'variable': var_url}, {'column': cat_to_ids}], False
-
-
 def process_expr(obj, ds):
     """
     Given a Crunch expression object (or objects) and a Dataset entity object
@@ -477,8 +456,32 @@ def process_expr(obj, ds):
     of the tuple is a flag indicating if the expressions needs nesting/wrapping
     in `or` functions (for the case when an array variable is passed).
     """
+
     base_url = ds.self
     variables = get_dataset_variables(ds)
+    var_index = ds.variables.index
+
+    def get_subvariables_resource(var_url):
+        variable = var_index[var_url].entity
+        subvariables = variable.subvariables['index']
+        return [(sv['id'], sv['alias']) for sv in subvariables.values()]
+
+    def adapt_multiple_response(var_url, values):
+        """
+        Converts multiple response arguments
+        to column.
+        :return: tuple of the new args for multiple_response and
+        a flag to indicate we don't need recursive nesting of this
+        expression.
+        """
+        # convert value --> column and change ids to aliases
+        aliases = get_subvariables_resource(var_url)
+
+        # Some derived variables will append a # to the subvariables id's
+        # so we need to strip those charactes out
+        cat_to_ids = [
+            tup[0] for tup in aliases if int(tup[1].strip('#').split('_')[-1]) in values]
+        return [{'variable': var_url}, {'column': cat_to_ids}], False
 
     def ensure_category_ids(subitems, variables=variables):
         var_id = None
@@ -533,9 +536,8 @@ def process_expr(obj, ds):
         if len(subitems) == 2:
             if 'value' in subitems[1] and 'variable' in subitems[0]:
                 var_url = subitems[0]['variable']
-                var_index = ds.variables.index
                 if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
-                    return adapt_multiple_response(ds, var_url, subitems[1]['value'])
+                    return adapt_multiple_response(var_url, subitems[1]['value'])
 
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item:
@@ -559,8 +561,11 @@ def process_expr(obj, ds):
             if obj['function'] == 'in':
                 args = obj['args']
                 if 'variable' in args[0]:
-                    if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                        obj['function'] = 'any'
+                    try:
+                        if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                            obj['function'] = 'any'
+                    except TypeError:
+                        raise ValueError("Invalid variable alias '%s'" % val)
 
         for key, val in obj.items():
             if isinstance(val, dict):
@@ -571,17 +576,16 @@ def process_expr(obj, ds):
                     if isinstance(subitem, dict):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
-
                             arrays.append(subitem.pop('subvariables'))
                         elif 'value' in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
 
                 has_value = any('value' in item for item in subitems
-                                if not str(item).isdigit())
+                    if not str(item).isdigit())
 
                 has_variable = any('variable' in item for item in subitems
-                                   if not str(item).isdigit())
+                    if not str(item).isdigit())
                 if has_value and has_variable:
                     subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
