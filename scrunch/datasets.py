@@ -295,14 +295,16 @@ class User:
         return self.email
 
 
-class AbstractMembers:
+class Members:
     """
-    ABC class for handling collections of members. Adding users,
+    Class for handling collections of members. Adding users,
     removing users, listing users on a resource...
     """
 
-    @property
-    def members(self):
+    def __init__(self, resource):
+        self.resource = resource
+
+    def list(self):
         """
         :return: A list of members of the Entity
         """
@@ -331,15 +333,15 @@ class AbstractMembers:
                 raise KeyError('Member %s is not a Team nor a User' % member)
         return member
 
-    def remove_member(self, member):
+    def remove(self, member):
         """
-        :param user: email or User instance
+        :param member: email, User instance, team name or Team instance
         :return: None
         """
         member = self._validate_member(member)
         self.resource.members.patch({member.url: None})
 
-    def add_member(self, member, edit=False):
+    def add(self, member, edit=False):
         """
         :param member: email, User instance, team name or Team instance
         :return: None
@@ -347,18 +349,19 @@ class AbstractMembers:
         member = self._validate_member(member)
         self.resource.members.patch({member.url: {'edit': edit}})    
 
-    def edit_member(self, member, permissions):
+    def edit(self, member, permissions):
         """
+        :param member: email, User instance, team name or Team instance
         Edit a members's permissions on this instance.
         Examples:
-            team.edit_member('mathias.bustamante@yougov.com', {'team_admin': True})
-            project.edit_member('mathias.bustamante@yougov.com', {'edit': True})
+            team.members.edit('mathias.bustamante@yougov.com', {'team_admin': True})
+            project.members.edit('mathias.bustamante@yougov.com', {'edit': True})
         """
         member = self._validate_member(member)
         self.resource.members.patch({member.url: {'permissions': permissions}})
 
 
-class Team(AbstractMembers):
+class Team:
     _MUTABLE_ATTRIBUTES = {'name'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -378,8 +381,12 @@ class Team(AbstractMembers):
     def __str__(self):
         return self.name
 
+    @property
+    def members(self):
+        return Members(self.resource)
 
-class Project(AbstractMembers):
+
+class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -409,6 +416,10 @@ class Project(AbstractMembers):
     def __str__(self):
         return self.name
 
+    @property
+    def members(self):
+        return Members(self.resource)
+
     def get_dataset(self, dataset):
         try:
             shoji_ds = self.resource.datasets.by('name')[dataset].entity
@@ -420,6 +431,68 @@ class Project(AbstractMembers):
                     "Dataset (name or id: %s) not found in project." % dataset)
         ds = BaseDataset(shoji_ds)
         return ds
+
+    @property
+    def users(self):
+        """
+        TODO: deprecate in favor of members.list property
+        """
+        LOG.warning("""This method is legacy and will be deprecated
+            in future releases. Please make use of project.members.list()
+            instead""")  # noqa: E501
+        users = []
+        for member in self.resource.members.index.values():
+            # members can be users or teams
+            user = member.get('email')
+            if not user:
+                user = member.get('name')
+            users.append(user)
+        return users
+
+    def remove_user(self, user):
+        """
+        TODO: deprecate in favor of members.remove property
+        """
+        LOG.warning("""This method is legacy and will be deprecated
+            in future releases. Please make use of project.members.remove()
+            instead""")  # noqa: E501
+        if not isinstance(user, User):
+            user = get_user(user)
+
+        found_url = None
+        for url, tuple in self.resource.members.index.items():
+            if tuple['email'] == user.email:
+                found_url = url
+
+        if found_url:
+            self.resource.members.patch({found_url: None})
+        else:
+            raise KeyError(
+                "User %s not found in project %s" % (user.email, self.name))
+
+    def add_user(self, user, edit=False):
+        """
+        TODO: deprecate in favor of members.add property
+        """
+        LOG.warning("""This method is legacy and will be deprecated
+            in future releases. Please make use of project.members.add()
+            instead""")  # noqa: E501
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch({user.url: {'edit': edit}})
+
+    def edit_user(self, user, edit):
+        """
+        TODO: deprecate in favor of members.edit property
+        """
+        LOG.warning("""This method is legacy and will be deprecated
+            in future releases. Please make use of project.members.edit()
+            instead""")  # noqa: E501
+        if not isinstance(user, User):
+            user = get_user(user)
+        self.resource.members.patch(
+            {user.url: {'permissions': {'edit': edit}}}
+        )
 
 
 class CrunchBox(object):
