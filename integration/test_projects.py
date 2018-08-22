@@ -26,6 +26,7 @@ def new_project(name):
 
 class TestProjects(TestCase):
     def test_create_subprojects(self):
+        raise self.skipTest("Wait until Crunch.io API is available")
         pa = new_project('A')
         pb = pa.create_project("B")
         pa.resource.refresh()
@@ -34,6 +35,7 @@ class TestProjects(TestCase):
         self.assertEqual(_pb.url, pb.url)
 
     def test_move_project(self):
+        raise self.skipTest("Wait until Crunch.io API is available")
         # Both top level projects
         pa = new_project("test_move_project_A")
         pb = new_project("test_move_project_B")
@@ -48,6 +50,7 @@ class TestProjects(TestCase):
         self.assertTrue(pc.url in pb.resource.index)
 
     def test_rename(self):
+        raise self.skipTest("Wait until Crunch.io API is available")
         project = new_project("test_rename")
         new_name = "renamed" + UNIQUE_PREFIX
         project.rename(new_name)
@@ -55,6 +58,7 @@ class TestProjects(TestCase):
         self.assertEqual(_project.url, project.url)
 
     def test_reorder(self):
+        raise self.skipTest("Wait until Crunch.io API is available")
         pa = new_project('test_reorder')
         p1 = pa.create_project("1")
         p2 = pa.create_project("2")
