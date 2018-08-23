@@ -611,6 +611,10 @@ class DatasetVariablesMixin(collections.Mapping):
         return zip(self.iterkeys(), self.itervalues())
 
 
+class DefaultWeight:
+    pass
+
+
 class BaseDataset(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides basic dataset methods.
@@ -1441,7 +1445,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return []
 
     def create_crunchbox(
-            self, title='', header='', footer='', notes='', weight='default',
+            self, title='', header='', footer='', notes='', weight=DefaultWeight,
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -1518,7 +1522,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 ])
 
         # use weight from preferences, remove in #158676482
-        if weight == 'default':
+        if weight is DefaultWeight:
             preferences = self.resource.session.get(
                 self.resource.fragments.preferences)
             weight = preferences.payload.body.weight or None
