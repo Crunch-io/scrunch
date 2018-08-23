@@ -302,8 +302,12 @@ class Project:
 
         elif item in self.LAZY_ATTRIBUTES:
             if not self._lazy:
-                datasets = self.resource.datasets
-                self.order = ProjectDatasetsOrder(datasets, datasets.order)
+                if self.resource.session.feature_flags['old_projects_order']:
+                    datasets = self.resource.datasets
+                    self.order = ProjectDatasetsOrder(datasets, datasets.order)
+                else:
+                    # We detected the new API of nested projects
+                    self.order = self  # ;) ;) ;)
                 self._lazy = True
             return getattr(self, item)
 
@@ -378,6 +382,146 @@ class Project:
                     "Dataset (name or id: %s) not found in project." % dataset)
         ds = BaseDataset(shoji_ds)
         return ds
+
+    def create_project(self, name):
+        # This should be a method of the Project class
+        proj_res = self.resource.create(shoji_entity_wrapper({
+            'name': name
+        }))
+        return Project(proj_res)
+
+    # Compatibility method to comply with Group API
+    create_group = create_project
+
+    @property
+    def is_root(self):
+        return self.resource.catalogs['project'].endswith('/projects/')
+
+    def get(self, path):
+        from scrunch.order import Path, InvalidPathError
+        self.resource.refresh()  # Always up to date
+        node = self
+        for p_name in Path(path).get_parts():
+            try:
+                node = node.get_child(p_name)
+            except KeyError:
+                raise InvalidPathError('Project not found %s' % p_name)
+        return node
+
+    def __getitem__(self, path):
+        return self.get(path)
+
+    def get_child(self, name):
+        from scrunch.order import InvalidPathError
+        by_name = self.resource.by('name')
+
+        if name in by_name:
+            # Found by name, if it's not a folder, return the variable
+            tup = by_name[name]
+            if tup.type == 'project':
+                return Project(tup.entity)
+            return self.root.dataset[name]
+
+        raise InvalidPathError('Invalid path: %s' % name)
+
+    def rename(self, new_name):
+        self.resource.edit(name=new_name)
+
+    def move_here(self, items, **kwargs):
+        if not items:
+            return
+        position, before, after = [kwargs.get('position'),
+                                   kwargs.get('before'), kwargs.get('after')]
+        graph = self._position_items(items, position, before, after)
+        self.resource.patch(shoji_entity_wrapper({}, index={
+            item.url: {} for item in items
+        }, graph=graph))
+        self.resource.refresh()
+
+    def _position_items(self, new_items, position, before, after):
+        graph = self.resource.graph
+        if before is not None or after is not None:
+            # Before and After are strings that map to a Project or Dataset.name
+            target = before or after
+            index = self.resource.index
+            position = [x for x, _u in enumerate(graph) if index[_u]['name'] == target]
+            if not position:
+                from scrunch.order import InvalidPathError
+                raise InvalidPathError("No project with name %s found" % target)
+            position = position[0]
+            if before is not None:
+                position = position if position > 0 else 0
+            else:
+                max_pos = len(graph)
+                position = (position + 1) if position < max_pos else max_pos
+
+        new_items_urls = [c.url for c in new_items]
+        if position is not None:
+            new_urls = set(new_items_urls)
+            children = [_u for _u in graph if _u not in new_urls]
+            children[position:0] = new_items_urls
+            return children
+        return graph + new_items_urls  # Nothing happened, just add
+
+    def place(self, entity, path, position=None, before=None, after=None):
+        from scrunch.order import Path, InvalidPathError
+        if not Path(path).is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        position = 0 if (before or after) else position
+        target = self.get(path)
+        target.move_here([entity], position=position, before=before, after=after)
+
+    def reorder(self, items):
+        name2tup = self.resource.by('name')
+        graph = [
+            name2tup[c].entity_url if isinstance(c, basestring) else c.url
+            for c in items
+        ]
+        self.resource.patch({
+            'element': 'shoji:entity',
+            'body': {},
+            'index': {},
+            'graph': graph
+        })
+        self.resource.refresh()
+
+    def append(self, *children):
+        self.move_here(children)
+
+    def insert(self, *children, **kwargs):
+        self.move_here(children, position=kwargs.get('position', 0))
+
+    def move(self, path, position=-1, before=None, after=None):
+        from scrunch.order import Path, InvalidPathError
+        ppath = Path(path)
+        if not ppath.is_absolute:
+            raise InvalidPathError(
+                'Invalid path %s: only absolute paths are allowed.' % path
+            )
+        parts = ppath.get_parts()
+        top_proj_name, sub_path = parts[0], parts[1:]
+        try:
+            top_project = self.projects_root().by('name')[top_proj_name].entity
+        except KeyError:
+            raise InvalidPathError("Invalid target project: %s" % path)
+
+        target = top_project
+        for name in sub_path:
+            target = target.by('name')[name]
+            if not target['type'] == 'project':
+                raise InvalidPathError("Invalid target project: %s" % path)
+            target = target.entity
+
+        target = Project(target)
+        target.move_here([self], position=position, before=before, after=after)
+
+    def projects_root(self):
+        # Hack, because we cannot navigate to the projects catalog from a
+        # single catalog entity.
+        projects_root_url = self.url.rsplit('/', 2)[0] + '/'
+        return self.resource.session.get(projects_root_url).payload
 
 
 class CrunchBox(object):
