@@ -1,11 +1,15 @@
 # coding: utf-8
 
 import json
-from StringIO import StringIO
 from requests import Response
 from requests.adapters import BaseAdapter
 
 from scrunch.session import ScrunchSession
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 class FixtureAdapter(BaseAdapter):
