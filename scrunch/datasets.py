@@ -1441,7 +1441,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return []
 
     def create_crunchbox(
-            self, title='', header='', footer='', notes='', weight=None,
+            self, title='', header='', footer='', notes='', weight='default',
             filters=None, variables=None, force=False, min_base_size=None,
             palette=None):
         """
@@ -1452,14 +1452,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         Args:
             title       (str): Human friendly identifier
-            notes       (str): Other information relevent for this CrunchBox
             header      (str): header information for the CrunchBox
             footer      (str): footer information for the CrunchBox
+            notes       (str): Other information relevent for this CrunchBox
+            weight      (str): URL of the weight to apply, None for unweighted
             filters    (list): list of filter names or `Filter` instances
-            where      (list): list of variable aliases or `Variable` instances
+            variables  (list): list of variable aliases or `Variable` instances
                                If `None` all variables will be included.
             min_base_size (int): min sample size to display values in graph
-            palette     dict : dict of colors as documented at docs.crunch.io
+            palette    (dict): dict of colors as documented at docs.crunch.io
                 i.e.
                 {
                     "brand": ["#111111", "#222222", "#333333"],
@@ -1516,8 +1517,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     }}
                 ])
 
-        # by default use weight from preferences, remove in #158676482
-        if weight is None:
+        # use weight from preferences, remove in #158676482
+        if weight == 'default':
             preferences = self.resource.session.get(
                 self.resource.fragments.preferences)
             weight = preferences.payload.body.weight or None
