@@ -1516,6 +1516,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     }}
                 ])
 
+        # by default use weight from preferences, remove in #158676482
+        if weight is None:
+            preferences = self.resource.session.get(
+                self.resource.fragments.preferences)
+            weight = preferences.payload.body.weight or None
+
         if not title:
             title = 'CrunchBox for {}'.format(str(self))
 

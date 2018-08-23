@@ -26,6 +26,13 @@ class AttributeDict(dict):
         super(AttributeDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+class dict_to_obj(object):
+    def __init__(self, d):
+        for a, b in d.items():
+            if isinstance(b, (list, tuple)):
+               setattr(self, a, [dict_to_obj(x) if isinstance(x, dict) else x for x in b])
+            else:
+               setattr(self, a, dict_to_obj(b) if isinstance(b, dict) else b)
 
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
@@ -393,7 +400,26 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds_mock.boxdata.create.assert_called_with(expected_payload)
 
     def test_create_crunchbox_defaults(self):
+        def mock_ds_preferences(mock):
+            preferences = {
+                'element': 'shoji:entity',
+                'self': '%spreferences/' % mock.ds_url,
+                'body': dict_to_obj({
+                    'weight': '0001'
+                })
+            }
+
+            def _session_get(*args):
+                if args[0] == '{}preferences/'.format(mock.ds_url):
+                    return _CrunchPayload(preferences)
+                return _CrunchPayload()
+
+            mock.fragments.preferences = '%spreferences/' % mock.ds_url
+            mock.session.get.side_effect = _session_get
+
         ds_mock = self._dataset_mock()
+        # we need to include weight in preferences to test defaults
+        mock_ds_preferences(ds_mock)
         ds = StreamingDataset(ds_mock)
 
         expected_payload = {
@@ -406,7 +432,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'notes': '',
                 'force': False,
                 'where': None,
-                'weight': None
+                'weight': '0001'
             }
         }
 
