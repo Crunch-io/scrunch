@@ -476,7 +476,7 @@ class Project:
     def reorder(self, items):
         name2tup = self.resource.by('name')
         graph = [
-            name2tup[c].entity_url if isinstance(c, basestring) else c.url
+            name2tup[c].entity_url if isinstance(c, six.string_types) else c.url
             for c in items
         ]
         self.resource.patch({
