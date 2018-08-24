@@ -7,9 +7,9 @@ from requests.adapters import BaseAdapter
 from scrunch.session import ScrunchSession
 
 try:
-    from StringIO import StringIO
+    from StringIO import StringIO as BytesIO
 except ImportError:
-    from io import StringIO
+    from io import BytesIO
 
 
 class FixtureAdapter(BaseAdapter):
@@ -28,7 +28,7 @@ class FixtureAdapter(BaseAdapter):
         response = Response()
         response.status_code = 200
         response.headers['Content-Type'] = 'application/json'
-        response.raw = StringIO(json.dumps(self.fixtures[url]))
+        response.raw = BytesIO(json.dumps(self.fixtures[url]).encode('utf-8'))
         return response
 
 
