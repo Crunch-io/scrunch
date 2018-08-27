@@ -1712,7 +1712,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     def create_crunchbox(self, title='', header='', footer='', notes='',
         filters=None, variables=None, force=False, min_base_size=None,
-        palette=None):
+        weight=DefaultWeight, palette=None):
         """
         create a new boxdata entity for a CrunchBox.
 
