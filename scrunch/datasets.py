@@ -306,7 +306,8 @@ class Members:
 
     def list(self):
         """
-        :return: A list of members of the Entity
+        :return: A list of members of the Entity as strings. A member
+            can be a User or a Team. Returns ['user1@example.com', 'Team A']
         """
         members = []
         for member in self.resource.members.index.values():
@@ -347,7 +348,7 @@ class Members:
         :return: None
         """
         member = self._validate_member(member)
-        self.resource.members.patch({member.url: {'edit': edit}})    
+        self.resource.members.patch({member.url: {'edit': edit}})
 
     def edit(self, member, permissions):
         """
@@ -424,18 +425,6 @@ class Project:
     def members(self):
         return Members(self.resource)
 
-    def get_dataset(self, dataset):
-        try:
-            shoji_ds = self.resource.datasets.by('name')[dataset].entity
-        except KeyError:
-            try:
-                shoji_ds = self.resource.datasets.by('id')[dataset].entity
-            except KeyError:
-                raise KeyError(
-                    "Dataset (name or id: %s) not found in project." % dataset)
-        ds = BaseDataset(shoji_ds)
-        return ds
-
     @property
     def users(self):
         """
@@ -445,13 +434,7 @@ class Project:
             in future releases. Please make use of project.members.list()
             instead""")  # noqa: E501
         users = []
-        for member in self.resource.members.index.values():
-            # members can be users or teams
-            user = member.get('email')
-            if not user:
-                user = member.get('name')
-            users.append(user)
-        return users
+        return self.members.list()
 
     def remove_user(self, user):
         """
@@ -460,19 +443,7 @@ class Project:
         LOG.warning("""This method is legacy and will be deprecated
             in future releases. Please make use of project.members.remove()
             instead""")  # noqa: E501
-        if not isinstance(user, User):
-            user = get_user(user)
-
-        found_url = None
-        for url, tuple in self.resource.members.index.items():
-            if tuple['email'] == user.email:
-                found_url = url
-
-        if found_url:
-            self.resource.members.patch({found_url: None})
-        else:
-            raise KeyError(
-                "User %s not found in project %s" % (user.email, self.name))
+        self.members.remove(user)
 
     def add_user(self, user, edit=False):
         """
@@ -481,9 +452,7 @@ class Project:
         LOG.warning("""This method is legacy and will be deprecated
             in future releases. Please make use of project.members.add()
             instead""")  # noqa: E501
-        if not isinstance(user, User):
-            user = get_user(user)
-        self.resource.members.patch({user.url: {'edit': edit}})
+        self.members.add(user, edit)
 
     def edit_user(self, user, edit):
         """
@@ -492,18 +461,15 @@ class Project:
         LOG.warning("""This method is legacy and will be deprecated
             in future releases. Please make use of project.members.edit()
             instead""")  # noqa: E501
-        if not isinstance(user, User):
-            user = get_user(user)
-        self.resource.members.patch(
-            {user.url: {'permissions': {'edit': edit}}}
-        )
+        self.members.edit(user, {'permissions': {'edit': edit}})
 
     def get_dataset(self, dataset):
+        datasets = self.resource.datasets
         try:
-            shoji_ds = self.resource.datasets.by('name')[dataset].entity
+            shoji_ds = datasets.by('name')[dataset].entity
         except KeyError:
             try:
-                shoji_ds = self.resource.datasets.by('id')[dataset].entity
+                shoji_ds = datasets.by('id')[dataset].entity
             except KeyError:
                 raise KeyError(
                     "Dataset (name or id: %s) not found in project." % dataset)
