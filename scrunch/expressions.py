@@ -565,7 +565,7 @@ def process_expr(obj, ds):
                         if variables.get(args[0]['variable'])['type'] == 'multiple_response':
                             obj['function'] = 'any'
                     except TypeError:
-                        raise ValueError("Invalid variable alias '%s'" % val)
+                        raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
 
         for key, val in obj.items():
             if isinstance(val, dict):
