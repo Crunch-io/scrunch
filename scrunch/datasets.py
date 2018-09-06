@@ -1210,8 +1210,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     def derive_multiple_response(self, categories, subvariables, name, alias,
         description='', notes=''):
         """
-        This is the generic approch to creating categorical arrays (mutliple response).
-        This method allows the definition of any set of categories and rules (expressions)
+        This is the generic approach to create_multiple_response but this
+        allows the definition of any set of categories and rules (expressions)
         for it's subvariables to fit these defined categories.
         :param categories: a list of category dictionary:
             categories=[{id: 1, name: 'Yes', 'selected': True} ...]
@@ -1241,6 +1241,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _validate_category_rules(categories, subvar['cases'])
 
         responses_map = collections.OrderedDict()
+        responses_map_ids = []
         for subvar in subvariables:
             _cases = []
             for case in subvar['cases'].values():
@@ -1249,6 +1250,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     _cases.append(_case)
 
             resp_id = '%04d' % subvar['id']
+            responses_map_ids.append(resp_id)
             responses_map[resp_id] = case_expr(
                 _cases,
                 name=subvar['name'],
@@ -1266,7 +1268,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 'args': [{
                     'function': 'select',
                     'args': [
-                        {'map': responses_map}
+                        {'map': responses_map},
+                        {'value': responses_map_ids}
                     ]
                 }]
             }
@@ -1277,7 +1280,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self._reload_variables()
         # return an instance of Variable
         return self[new_var['body']['alias']]
-        
 
     def create_multiple_response(self, responses, name, alias, description='',
         notes=''):
