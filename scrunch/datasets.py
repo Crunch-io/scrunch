@@ -1230,7 +1230,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param description: Description of the variable to create
         :param notes: Notes of the variable to create
 
-        Note: It's important that each subvariable defines the same numbes of cases for every category.
+        Note: It's important that each subvariable defines the same number of cases for every category.
         Suvariable alias will be derived from the alias to the variable + subvariable id to keep
         compliance with other methods in Scrunch
         """
@@ -1241,7 +1241,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _validate_category_rules(categories, subvar['cases'])
 
         responses_map = collections.OrderedDict()
-        responses_map_ids = []
         for subvar in subvariables:
             _cases = []
             for case in subvar['cases'].values():
@@ -1250,7 +1249,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     _cases.append(_case)
 
             resp_id = '%04d' % subvar['id']
-            responses_map_ids.append(resp_id)
             responses_map[resp_id] = case_expr(
                 _cases,
                 name=subvar['name'],
@@ -1269,7 +1267,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     'function': 'select',
                     'args': [
                         {'map': responses_map},
-                        {'value': responses_map_ids}
+                        {'value': list(responses_map.keys())}
                     ]
                 }]
             }
@@ -1287,7 +1285,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Creates a Multiple response (array) of only 2 categories, selected and not selected.
         """
         responses_map = collections.OrderedDict()
-        responses_map_ids = []
 
         for resp in responses:
             case = resp['case']
@@ -1295,7 +1292,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 case = process_expr(parse_expr(case), self.resource)
 
             resp_id = '%04d' % resp['id']
-            responses_map_ids.append(resp_id)
             responses_map[resp_id] = case_expr(
                 [case,],
                 name=resp['name'],
@@ -1313,7 +1309,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     'function': 'select',
                     'args': [
                         {'map': responses_map},
-                        {'value': responses_map_ids}
+                        {'value': list(responses_map.keys())}
                     ]
                 }]
             }

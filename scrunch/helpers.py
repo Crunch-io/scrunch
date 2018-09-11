@@ -7,7 +7,7 @@ else:
     from urllib.parse import urljoin
 
 
-DEFAULT_CATEGORIES = [
+DEFAULT_MULTIPLE_RESONSE_CATEGORIES = [
     {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
     {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
 ]
@@ -85,9 +85,8 @@ def validate_categories(categories):
             {'id': 3, 'name': 'Maybe'},
             {'id': 4, 'name': 'Missing', 'missing': True}
         ]
-    This method takes care of validating that only 1 is selected, that
-    only one or None is missing and to fill the definition above to
-    match the API requirement:
+    This method takes care of validating that only 1 is selected
+    and to fill the definition above to match the API requirement:
         categories=[
             {'id': 1, 'name': 'Yes', 'missing': False, 'numeric_value': None, 'selected': True},
             {'id': 2, 'name': 'No', 'missing': False, 'numeric_value': None, 'selected': False},
@@ -97,20 +96,15 @@ def validate_categories(categories):
     """
     defaults = {'missing': False, 'numeric_value': None, 'selected': False}
     selected_count = 0
-    missing_count = 0
     for category in categories:
         if category.get('selected'):
             selected_count += 1
-        if category.get('missing'):
-            missing_count += 1
         if not category.get('id'):
             raise ValueError('An "id" must be provided to all categories')
         if not category.get('name'):
             raise ValueError('A "name" must be provided to all categories')
     if selected_count > 1 or selected_count == 0:
         raise ValueError('Categories must define one category as selected')
-    if missing_count > 1:
-        raise ValueError('Categories can\'t have more than 1 category as missing')
     _categories = []
     for category in categories:
         default = defaults.copy()
@@ -119,7 +113,7 @@ def validate_categories(categories):
     return _categories
 
 
-def case_expr(rules, name, alias, categories=DEFAULT_CATEGORIES):
+def case_expr(rules, name, alias, categories=DEFAULT_MULTIPLE_RESONSE_CATEGORIES):
     """
     Given a set of rules, return a `case` function expression to create a
      variable.
