@@ -7,6 +7,12 @@ else:
     from urllib.parse import urljoin
 
 
+DEFAULT_MULTIPLE_RESONSE_CATEGORIES = [
+    {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
+    {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
+]
+
+
 class ReadOnly(object):
     """
     class for protecting undesired writes to attributes
@@ -70,7 +76,44 @@ def download_file(url, filename):
     return filename
 
 
-def case_expr(rules, name, alias):
+def validate_categories(categories):
+    """
+    Categories can be defined as simple as:
+        categories=[
+            {'id': 1, 'name': 'Yes', 'selected': True},
+            {'id': 2, 'name': 'No'},
+            {'id': 3, 'name': 'Maybe'},
+            {'id': 4, 'name': 'Missing', 'missing': True}
+        ]
+    This method takes care of validating that only 1 is selected
+    and to fill the definition above to match the API requirement:
+        categories=[
+            {'id': 1, 'name': 'Yes', 'missing': False, 'numeric_value': None, 'selected': True},
+            {'id': 2, 'name': 'No', 'missing': False, 'numeric_value': None, 'selected': False},
+            {'id': 3, 'name': 'Maybe', 'missing': False, 'numeric_value': None, 'selected': False},
+            {'id': 4, 'name': 'Missing', 'missing': True, 'numeric_value': None, 'selected': False}
+        ]
+    """
+    defaults = {'missing': False, 'numeric_value': None, 'selected': False}
+    selected_count = 0
+    for category in categories:
+        if category.get('selected'):
+            selected_count += 1
+        if not category.get('id'):
+            raise ValueError('An "id" must be provided to all categories')
+        if not category.get('name'):
+            raise ValueError('A "name" must be provided to all categories')
+    if selected_count > 1 or selected_count == 0:
+        raise ValueError('Categories must define one category as selected')
+    _categories = []
+    for category in categories:
+        default = defaults.copy()
+        default.update(category)
+        _categories.append(default)
+    return _categories
+
+
+def case_expr(rules, name, alias, categories=DEFAULT_MULTIPLE_RESONSE_CATEGORIES):
     """
     Given a set of rules, return a `case` function expression to create a
      variable.
@@ -82,19 +125,17 @@ def case_expr(rules, name, alias):
         },
         'function': 'case',
         'args': [{
-            'column': [1, 2],
+            'column': [category['id'] for category in categories],
             'type': {
                 'value': {
                     'class': 'categorical',
-                    'categories': [
-                        {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
-                        {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
-                    ]
+                    'categories': categories
                 }
             }
         }]
     }
-    expression['args'].append(rules)
+    for rule in rules:
+        expression['args'].append(rule)
     return expression
 
 

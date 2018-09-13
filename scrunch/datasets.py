@@ -20,7 +20,7 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias)
+                             subvar_alias, validate_categories)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -1207,14 +1207,84 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # return the variable instance
         return self[new_var['body']['alias']]
 
+    def derive_multiple_response(self, categories, subvariables, name, alias,
+        description='', notes=''):
+        """
+        This is the generic approach to create_multiple_response but this
+        allows the definition of any set of categories and rules (expressions)
+        for it's subvariables to fit these defined categories.
+        :param categories: a list of category dictionary:
+            categories=[{id: 1, name: 'Yes', 'selected': True} ...]
+        :param subvariables: a list of dictionary definind rules and attributes for each subvariable:
+            subvariables=[
+                {
+                    'id': 1,
+                    'name': 'Subvar 1',
+                    'cases': {
+                        1: 'var_1 < 20', 2: 'var_1 == 20', 3: 'var_1 == 30', 4: 'var_1 > 30'
+                    }
+                }
+            ]
+        :param name: Name of the variable to create
+        :param alias: Alias of the variable to create
+        :param description: Description of the variable to create
+        :param notes: Notes of the variable to create
+
+        Note: It's important that each subvariable defines the same number of cases for every category.
+        Suvariable alias will be derived from the alias to the variable + subvariable id to keep
+        compliance with other methods in Scrunch
+        """
+        # validate categories and fill defaults
+        categories = validate_categories(categories)
+        # validate that every subvar defines rules for all categories
+        for subvar in subvariables:
+            _validate_category_rules(categories, subvar['cases'])
+
+        responses_map = collections.OrderedDict()
+        for subvar in subvariables:
+            _cases = []
+            for case in subvar['cases'].values():
+                if isinstance(case, six.string_types):
+                    _case = process_expr(parse_expr(case), self.resource)
+                    _cases.append(_case)
+
+            resp_id = '%04d' % subvar['id']
+            responses_map[resp_id] = case_expr(
+                _cases,
+                name=subvar['name'],
+                alias='%s_%d' % (alias, subvar['id']),
+                categories=categories
+            )
+
+        payload = shoji_entity_wrapper({
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'derivation': {
+                'function': 'array',
+                'args': [{
+                    'function': 'select',
+                    'args': [
+                        {'map': responses_map},
+                        {'value': list(responses_map.keys())}
+                    ]
+                }]
+            }
+        })
+
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
+
     def create_multiple_response(self, responses, name, alias, description='',
         notes=''):
         """
-        Creates a Multiple response (array) using a set of rules for each
-        of the responses(subvariables).
+        Creates a Multiple response (array) of only 2 categories, selected and not selected.
         """
         responses_map = collections.OrderedDict()
-        responses_map_ids = []
 
         for resp in responses:
             case = resp['case']
@@ -1222,9 +1292,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 case = process_expr(parse_expr(case), self.resource)
 
             resp_id = '%04d' % resp['id']
-            responses_map_ids.append(resp_id)
             responses_map[resp_id] = case_expr(
-                case,
+                [case,],
                 name=resp['name'],
                 alias='%s_%d' % (alias, resp['id'])
             )
@@ -1240,7 +1309,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     'function': 'select',
                     'args': [
                         {'map': responses_map},
-                        {'value': responses_map_ids}
+                        {'value': list(responses_map.keys())}
                     ]
                 }]
             }

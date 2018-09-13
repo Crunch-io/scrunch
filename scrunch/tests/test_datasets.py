@@ -1986,6 +1986,176 @@ class TestRecode(TestDatasetBase):
             }
         })
 
+    def test_derive_multiple_response(self):
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            },
+            'var_c': {
+                'id': '003',
+                'alias': 'var_c',
+                'name': 'Variable C',
+                'type': 'categorical',
+                'is_subvar': False
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = StreamingDataset(ds_mock)
+        kwargs = {
+            'name': 'my mr',
+            'alias': 'mr',
+            'categories': [
+                {'id': 1, 'name': 'Yes', 'selected': True},
+                {'id': 2, 'name': 'No'},
+            ],
+            'subvariables': [
+                {'id': 1, 'name': 'Facebook', 'cases': {1: 'var_a == 1', 2: 'var_a == 2'}},
+                {'id': 2, 'name': 'Twitter', 'cases': {1: 'var_b == 1', 2: 'var_b == 2'}},
+                {'id': 3, 'name': 'Google+', 'cases': {1: 'var_c == 1', 2: 'var_c == 2'}},
+            ]
+        }
+        with pytest.raises(ValueError) as err:
+            ds.derive_multiple_response(**kwargs)
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        ds.resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'my mr',
+                'alias': 'mr',
+                'description': '',
+                'notes': '',
+                'derivation': {
+                    'function': 'array',
+                    'args': [{
+                        'function': 'select',
+                        'args': [{
+                            'map': {
+                                '0001': {
+                                    'references': {
+                                        'name': 'Facebook',
+                                        'alias': 'mr_1',
+                                    },
+                                    'function': 'case',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
+                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                            {'value': 1}
+                                        ]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                            {'value': 2}
+                                        ]
+                                    }
+                                    ]
+                                },
+                                '0002': {
+                                    'references': {
+                                        'alias': 'mr_2',
+                                        'name': 'Twitter',
+                                    },
+                                    'function': 'case',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
+                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                            {'value': 1}
+                                        ]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                            {'value': 2}
+                                        ]
+                                    }
+                                    ]
+                                },
+                                '0003': {
+                                    'references': {
+                                        'alias': 'mr_3',
+                                        'name': 'Google+',
+                                    },
+                                    'function': 'case',
+                                    'args': [{
+                                        'column': [1, 2],
+                                        'type': {
+                                            'value': {
+                                                'class': 'categorical',
+                                                'categories': [
+                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
+                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                            {'value': 1}
+                                        ]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [
+                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                            {'value': 2}
+                                        ]
+                                    }
+                                    ]
+                                }
+                            }
+                        }, {
+                            'value': [
+                                '0001',
+                                '0002',
+                                '0003'
+                            ]
+                        }]
+                    }]
+                }
+            }
+        })
+
 
 class TestCopyVariable(TestCase):
 
