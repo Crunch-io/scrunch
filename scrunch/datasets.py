@@ -348,7 +348,9 @@ class Members:
         :return: None
         """
         member = self._validate_member(member)
-        self.resource.members.patch({member.url: {'edit': edit}})
+        self.resource.members.patch({member.url: {
+            'permissions': {'edit': edit}
+        }})
 
     def edit(self, member, permissions):
         """
@@ -360,6 +362,18 @@ class Members:
         """
         member = self._validate_member(member)
         self.resource.members.patch({member.url: {'permissions': permissions}})
+
+
+class TeamMembers(Members):
+    def add(self, member, edit=False):
+        """
+        :param member: email, User instance, team name or Team instance
+        :return: None
+        """
+        member = self._validate_member(member)
+        self.resource.members.patch({member.url: {
+            'permissions': {'team_admin': edit}}
+        })
 
 
 class Team:
@@ -384,7 +398,7 @@ class Team:
 
     @property
     def members(self):
-        return Members(self.resource)
+        return TeamMembers(self.resource)
 
 
 class Project:
