@@ -116,7 +116,7 @@ def validate_categories(categories):
 def case_expr(rules, name, alias, categories=DEFAULT_MULTIPLE_RESONSE_CATEGORIES):
     """
     Given a set of rules, return a `case` function expression to create a
-     variable.
+    variable.
     """
     expression = {
         'references': {
