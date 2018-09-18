@@ -14,8 +14,6 @@ class TestTems(TestCase):
         session = MockSession()
         team_url = 'http://example.com/api/teams/ID/'
         team_members_url = 'http://example.com/api/teams/ID/members/'
-        team_members_url = 'http://example.com/api/teams/ID/members/'
-        user_url = 'http://example.com/api/users/uid/'
         team_payload = {
             'self': team_url,
             'element': 'shoji:entity',
