@@ -80,7 +80,7 @@ class TestTems(TestCase):
         session, team = self.make_team()
         team_members_url = 'http://example.com/api/teams/ID/members/'
         team.members.list()
-        patch_request = session.requests[-1]
-        self.assertEqual(patch_request.url, team_members_url)
-        self.assertEqual(patch_request.method, 'GET')
+        get_request = session.requests[-1]
+        self.assertEqual(get_request.url, team_members_url)
+        self.assertEqual(get_request.method, 'GET')
 
