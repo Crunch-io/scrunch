@@ -1391,7 +1391,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[alias]
 
     def create_categorical(self, categories, alias, name, multiple, description='',
-        notes='', missing=None):
+        notes='', missing_case=None):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1450,7 +1450,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     }],
                 multiple=True
                 (B) If the missing_case is constant across all subvariables, then the argument
-                    `missing` can be passed as argument to this function:
+                    `missing_case` can be passed as argument to this function:
                 categories: [
                     {
                         'case': 'var_1 == 1',
@@ -1468,12 +1468,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                         'id': 3,
                     }],
                 multiple=True,
-                missing='missing(var_1)'
+                missing_case='missing(var_1)'
         """
-        # First we append the missing case to every subvariable and let the 
+        # Initially validate that we dont have `missing_case` argument and `missing_case`
+        # in the categories list
+        if any(['missing_case' in c.keys() for c in categories]) and missing_case:
+            raise ValueError('missing_case as an argument and as element of \
+                "categories" is not allowed.')
+        # First we append the missing_case to every subvariable and let the 
         # generic case deal with it
-        if missing:
-            default = {'missing_case': missing}
+        if missing_case:
+            default = {'missing_case': missing_case}
             _categories = []
             for sv in categories:
                 _default = default.copy()

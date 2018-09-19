@@ -1986,6 +1986,178 @@ class TestRecode(TestDatasetBase):
             }
         })
 
+    def test_create_categorical_missing_case(self):
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'categorical',
+                'is_subvar': False
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = StreamingDataset(ds_mock)
+        kwargs = {
+            'name': 'my mr',
+            'alias': 'mr',
+            'multiple': True,
+            'missing_case': 'var_b == 0',
+            'categories': [
+                {
+                    'id': 1,
+                    'name': 'Facebook',
+                    'case': 'var_a == 1',
+                },
+                {
+                    'id': 2,
+                    'name': 'Twitter',
+                    'case': 'var_b == 1',
+                }
+            ]
+        }
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(**kwargs)
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value) 
+        ds.resource.variables.create.assert_called_with({  
+            'element':'shoji:entity',
+            'body':{  
+                'name':'my mr',
+                'alias':'mr',
+                'description':'',
+                'notes':'',
+                'derivation': {  
+                    'function':'array',
+                    'args': [{  
+                        'function':'select',
+                        'args': [{  
+                            'map': {
+                                '0001': {
+                                    'references':{
+                                        'name':'Facebook',
+                                        'alias':'mr_1'
+                                    },
+                                    'function':'case',
+                                    'args':[{
+                                        'column':[1, 2, 3],
+                                        'type':{
+                                            'value':{
+                                                'class':'categorical',
+                                                'categories':[
+                                                    {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
+                                                    {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {  
+                                        'function':'==',
+                                        'args':[
+                                            {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_a/'},
+                                            {'value':1}
+                                        ]
+                                    },
+                                    {
+                                        'function':'and',
+                                        'args':[{
+                                            'function':'not',
+                                            'args':[{
+                                                'function':'==',
+                                                'args':[
+                                                    {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_a/'},
+                                                    {'value':1}
+                                                ]
+                                            }]},
+                                        {
+                                            'function':'not',
+                                            'args':[{  
+                                            'function':'==',
+                                            'args':[
+                                                {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                                {'value':0}
+                                            ]}]
+                                        }]
+                                        },
+                                        {  
+                                            'function':'==',
+                                            'args':[  
+                                                {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                                {'value':0}
+                                            ]
+                                    }]
+                                },
+                                '0002': {
+                                    'references':{
+                                        'name':'Twitter',
+                                        'alias':'mr_2'
+                                    },
+                                    'function':'case',
+                                    'args':[{ 
+                                        'column':[1, 2, 3],
+                                        'type':{
+                                            'value':{
+                                                'class':'categorical',
+                                                'categories':[
+                                                    {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
+                                                    {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    {
+                                        'function':'==',
+                                        'args':[
+                                            {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                            {'value':1}
+                                        ]
+                                    },
+                                    {
+                                        'function':'and',
+                                        'args':[{
+                                            'function':'not',
+                                            'args':[{
+                                                'function':'==',
+                                                'args':[
+                                                    {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                                    {'value':1}
+                                                ]
+                                            }]},
+                                        {
+                                            'function':'not',
+                                            'args':[{  
+                                            'function':'==',
+                                            'args':[
+                                                {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                                {'value':0}
+                                            ]}]
+                                        }]
+                                    },
+                                    {
+                                        'function':'==',
+                                        'args':[  
+                                            {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
+                                            {'value':0}
+                                        ]
+                                    }]
+                                },
+                            },
+                        }, {
+                            'value': ['0001', '0002']
+                        }]
+                    }]
+                }
+            }
+        })
+
     def test_derive_multiple_response(self):
         variables = {
             'var_a': {
@@ -2145,11 +2317,7 @@ class TestRecode(TestDatasetBase):
                                 }
                             }
                         }, {
-                            'value': [
-                                '0001',
-                                '0002',
-                                '0003'
-                            ]
+                            'value': ['0001','0002','0003']
                         }]
                     }]
                 }
