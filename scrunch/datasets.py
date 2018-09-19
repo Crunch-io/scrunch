@@ -1428,7 +1428,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             Then we need to declare the extra Missing case, which can be done in one of the
             follwing 2 ways:
-                (A) Every subvariable declares it's own missing_case individually in the 
+                (A) Every/some subvariable declare it's own missing_case individually in the 
                     `missing_case` element
                 categories: [
                     {
@@ -1447,7 +1447,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                         'case': 'var_1 == 3',
                         'name': 'subvar_3',
                         'id': 3,
-                        'missing_case': 'var_1 == 5'
                     }],
                 multiple=True
                 (B) If the missing_case is constant across all subvariables, then the argument
@@ -1483,7 +1482,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             categories = _categories
 
         # In the case of MR and all cases declare a 'missing_case'
-        if multiple and all(['missing_case' in c.keys() for c in categories]):
+        if multiple and any(['missing_case' in c.keys() for c in categories]):
             _categories = [
                 {'id': 1, 'name': 'Selected', 'selected': True},
                 {'id': 2, 'name': 'Not Selected'},
@@ -1491,18 +1490,30 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             ]
             _subvariables = []
             for sv in categories:
-                _subvariables.append(
-                    # Make all cases mutually exclusive by negations
-                    {
-                        'id': sv['id'],
-                        'name': sv['name'],
-                        'cases': {
-                            1: sv['case'],
-                            2: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
-                            3: sv['missing_case']
+                if 'missing_case' in sv:
+                    _subvariables.append(
+                        # Make all cases mutually exclusive by negations
+                        {
+                            'id': sv['id'],
+                            'name': sv['name'],
+                            'cases': {
+                                1: sv['case'],
+                                2: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
+                                3: sv['missing_case']
+                            }
                         }
-                    }
-                )
+                    )
+                else:
+                    _subvariables.append(
+                        {
+                            'id': sv['id'],
+                            'name': sv['name'],
+                            'cases': {
+                                1: sv['case'],
+                                2: 'not ({})'.format(sv['case']),
+                            }
+                        }
+                    )
             return self.derive_multiple_response(categories=_categories,
                 subvariables=_subvariables, name=name, alias=alias,
                 description=description, notes=notes)
