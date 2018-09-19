@@ -1492,12 +1492,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _subvariables = []
             for sv in categories:
                 _subvariables.append(
+                    # Make all cases mutually exclusive by negations
                     {
                         'id': sv['id'],
                         'name': sv['name'],
                         'cases': {
                             1: sv['case'],
-                            2: '{} ({})'.format('not', sv['case']),
+                            2: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
                             3: sv['missing_case']
                         }
                     }
