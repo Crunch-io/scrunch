@@ -9,7 +9,7 @@ from scrunch.datasets import User
 from .mock_session import MockSession
 
 
-class TestTems(TestCase):
+class TestTeams(TestCase):
     def make_team(self):
         session = MockSession()
         team_url = 'http://example.com/api/teams/ID/'
