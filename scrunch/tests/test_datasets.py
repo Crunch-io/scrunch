@@ -1986,6 +1986,27 @@ class TestRecode(TestDatasetBase):
             }
         })
 
+    def test_create_categorical_missing_case_dups(self):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        kwargs = {
+            'name': 'my mr',
+            'alias': 'mr',
+            'multiple': True,
+            'missing_case': 'var_b == 0',
+            'categories': [
+                {
+                    'id': 1,
+                    'name': 'Facebook',
+                    'case': 'var_a == 1',
+                    'missing_case': 'var_b == 0',
+                }
+            ]
+        }
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(**kwargs)
+        assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)        
+
     def test_create_categorical_missing_case(self):
         variables = {
             'var_a': {

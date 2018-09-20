@@ -20,14 +20,12 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias, validate_categories)
+                             subvar_alias, validate_categories, SELECTED_ID,
+                             NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-
-
-_MR_TYPE = 'multiple_response'
 
 
 if six.PY2:  # pragma: no cover
@@ -40,6 +38,8 @@ else:
 
 LOG = logging.getLogger('scrunch')
 
+
+_MR_TYPE = 'multiple_response'
 CATEGORICAL_TYPES = {
     'categorical', 'multiple_response', 'categorical_array',
 }
@@ -1470,55 +1470,51 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 multiple=True,
                 missing_case='missing(var_1)'
         """
+        cats_have_missing = any(['missing_case' in c.keys() for c in categories])
+
         # Initially validate that we dont have `missing_case` argument and `missing_case`
         # in the categories list
-        if any(['missing_case' in c.keys() for c in categories]) and missing_case:
-            raise ValueError('missing_case as an argument and as element of \
-                "categories" is not allowed.')
+        if missing_case and cats_have_missing:
+            raise ValueError(
+                'missing_case as an argument and as element of "categories" is not allowed'
+            )
         # First we append the missing_case to every subvariable and let the 
         # generic case deal with it
         if missing_case:
-            default = {'missing_case': missing_case}
-            _categories = []
-            for sv in categories:
-                _default = default.copy()
-                _default.update(sv)
-                _categories.append(_default)
-            categories = _categories
+            cats_have_missing = True
+            for cat in categories:
+                cat['missing_case'] = missing_case
 
         # In the case of MR and all cases declare a 'missing_case'
-        if multiple and any(['missing_case' in c.keys() for c in categories]):
+        if multiple and cats_have_missing:
             _categories = [
-                {'id': 1, 'name': 'Selected', 'selected': True},
-                {'id': 2, 'name': 'Not Selected'},
-                {'id': 3, 'name': 'No Data', 'missing': True}
+                {'id': SELECTED_ID, 'name': 'Selected', 'selected': True},
+                {'id': NOT_SELECTED_ID, 'name': 'Not Selected'},
+                {'id': NO_DATA_ID, 'name': 'No Data', 'missing': True}
             ]
             _subvariables = []
             for sv in categories:
+                data = {
+                    'id': sv['id'],
+                    'name': sv['name']
+                }
                 if 'missing_case' in sv:
-                    _subvariables.append(
-                        # Make all cases mutually exclusive by negations
-                        {
-                            'id': sv['id'],
-                            'name': sv['name'],
-                            'cases': {
-                                1: sv['case'],
-                                2: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
-                                3: sv['missing_case']
-                            }
+                    data.update({
+                        'cases': {
+                            SELECTED_ID: sv['case'],
+                            NOT_SELECTED_ID: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
+                            NO_DATA_ID: sv['missing_case']
                         }
-                    )
+                    })
                 else:
-                    _subvariables.append(
-                        {
-                            'id': sv['id'],
-                            'name': sv['name'],
-                            'cases': {
-                                1: sv['case'],
-                                2: 'not ({})'.format(sv['case']),
-                            }
+                    data.update({
+                        'cases': {
+                            SELECTED_ID: sv['case'],
+                            NOT_SELECTED_ID: 'not ({})'.format(sv['case']),
                         }
-                    )
+                    })
+                _subvariables.append(data)
+
             return self.derive_multiple_response(categories=_categories,
                 subvariables=_subvariables, name=name, alias=alias,
                 description=description, notes=notes)
@@ -1601,8 +1597,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             payload['resolution'] = resolution
         if var_type == 'multiple_response' and categories is None:
             payload['categories'] = [
-                {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
-                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False, 'selected': True},
+                {'name': 'Not selected', 'id': NOT_SELECTED_ID, 'numeric_value': 2, 'missing': False},
+                {'name': 'Selected', 'id': SELECTED_ID, 'numeric_value': 1, 'missing': False, 'selected': True},
             ]
         if categories:
             payload['categories'] = categories
