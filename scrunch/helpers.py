@@ -7,9 +7,15 @@ else:
     from urllib.parse import urljoin
 
 
+# ID's for default categories
+SELECTED_ID = 1
+NOT_SELECTED_ID = 2
+NO_DATA_ID = 3
+
+
 DEFAULT_MULTIPLE_RESONSE_CATEGORIES = [
-    {'id': 1, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
-    {'id': 2, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
+    {'id': SELECTED_ID, 'name': 'Selected', 'missing': False, 'numeric_value': None, 'selected': True},
+    {'id': NOT_SELECTED_ID, 'name': 'Not selected', 'missing': False, 'numeric_value': None, 'selected': False},
 ]
 
 
@@ -116,7 +122,7 @@ def validate_categories(categories):
 def case_expr(rules, name, alias, categories=DEFAULT_MULTIPLE_RESONSE_CATEGORIES):
     """
     Given a set of rules, return a `case` function expression to create a
-     variable.
+    variable.
     """
     expression = {
         'references': {

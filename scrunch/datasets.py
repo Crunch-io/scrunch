@@ -20,14 +20,12 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias, validate_categories)
+                             subvar_alias, validate_categories, SELECTED_ID,
+                             NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
-
-
-_MR_TYPE = 'multiple_response'
 
 
 if six.PY2:  # pragma: no cover
@@ -40,6 +38,8 @@ else:
 
 LOG = logging.getLogger('scrunch')
 
+
+_MR_TYPE = 'multiple_response'
 CATEGORICAL_TYPES = {
     'categorical', 'multiple_response', 'categorical_array',
 }
@@ -1391,15 +1391,135 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[alias]
 
     def create_categorical(self, categories, alias, name, multiple, description='',
-        notes=''):
+        notes='', missing_case=None):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
 
         Will create either categorical variables or multiple response depending
         on the `multiple` parameter.
+        (1) If the variable to create is a categorical, then arguments need to look like:
+            categories=[
+                {'id': 1, 'name': 'Millennial', 'case': 'age_var < 25'},
+                {'id': 2, 'name': 'Gen X', 'case': 'age_var > 25'},
+            ],
+            multiple=False
+
+        (2) If the variable needed is a Multiple Response with two default categories:
+            1: Selected
+            2: Not Selected
+
+            Then categories argument categories should look like:
+            categories=[
+                {'id': 1, 'name': 'variable 1', 'case': 'var_1 == 1'},
+                {'id': 2, 'name': 'variable 2', 'case': 'var_2 == 2'},
+                {'id': 3, 'name': 'variable_3', 'case': 'var_3 == 3'},
+            ],
+            multiple=True
+
+            * Default categories for every subvaraible are:
+                {'id': 1, 'name': 'Selected', 'missing': False, 'selected': True}
+                {'id': 2, 'name': 'Not selected', 'missing': False, 'selected': False}
+
+        (3) If the variable to create is a Multiple Response with three default categories:
+            1: Selected
+            2: Not Selected
+            3: No Data
+
+            Then we need to declare the extra Missing case, which can be done in one of the
+            follwing 2 ways:
+                (A) Every/some subvariable declare it's own missing_case individually in the 
+                    `missing_case` element
+                categories: [
+                    {
+                        'case': 'var_1 == 1',
+                        'name': 'subvar_1',
+                        'id': 1,
+                        'missing_case': 'var_1 == 3'
+                    },
+                    {
+                        'case': 'var_1 == 2',
+                        'name': 'subvar_2',
+                        'id': 2,
+                        'missing_case': 'var_1 == 4'
+                    },
+                    {
+                        'case': 'var_1 == 3',
+                        'name': 'subvar_3',
+                        'id': 3,
+                    }],
+                multiple=True
+                (B) If the missing_case is constant across all subvariables, then the argument
+                    `missing_case` can be passed as argument to this function:
+                categories: [
+                    {
+                        'case': 'var_1 == 1',
+                        'name': 'subvar_1',
+                        'id': 1,
+                    },
+                    {
+                        'case': 'var_1 == 2',
+                        'name': 'subvar_2',
+                        'id': 2,
+                    },
+                    {
+                        'case': 'var_1 == 3',
+                        'name': 'subvar_3',
+                        'id': 3,
+                    }],
+                multiple=True,
+                missing_case='missing(var_1)'
         """
-        if multiple:
+        cats_have_missing = any(['missing_case' in c.keys() for c in categories])
+
+        # Initially validate that we dont have `missing_case` argument and `missing_case`
+        # in the categories list
+        if missing_case and cats_have_missing:
+            raise ValueError(
+                'missing_case as an argument and as element of "categories" is not allowed'
+            )
+        # First we append the missing_case to every subvariable and let the 
+        # generic case deal with it
+        if missing_case:
+            cats_have_missing = True
+            for cat in categories:
+                cat['missing_case'] = missing_case
+
+        # In the case of MR and all cases declare a 'missing_case'
+        if multiple and cats_have_missing:
+            _categories = [
+                {'id': SELECTED_ID, 'name': 'Selected', 'selected': True},
+                {'id': NOT_SELECTED_ID, 'name': 'Not Selected'},
+                {'id': NO_DATA_ID, 'name': 'No Data', 'missing': True}
+            ]
+            _subvariables = []
+            for sv in categories:
+                data = {
+                    'id': sv['id'],
+                    'name': sv['name']
+                }
+                if 'missing_case' in sv:
+                    data.update({
+                        'cases': {
+                            SELECTED_ID: sv['case'],
+                            NOT_SELECTED_ID: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
+                            NO_DATA_ID: sv['missing_case']
+                        }
+                    })
+                else:
+                    data.update({
+                        'cases': {
+                            SELECTED_ID: sv['case'],
+                            NOT_SELECTED_ID: 'not ({})'.format(sv['case']),
+                        }
+                    })
+                _subvariables.append(data)
+
+            return self.derive_multiple_response(categories=_categories,
+                subvariables=_subvariables, name=name, alias=alias,
+                description=description, notes=notes)
+
+        elif multiple:
             return self.create_multiple_response(
                 categories, alias=alias, name=name, description=description,
                 notes=notes)
@@ -1477,8 +1597,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             payload['resolution'] = resolution
         if var_type == 'multiple_response' and categories is None:
             payload['categories'] = [
-                {'name': 'Not selected', 'id': 2, 'numeric_value': 2, 'missing': False},
-                {'name': 'Selected', 'id': 1, 'numeric_value': 1, 'missing': False, 'selected': True},
+                {'name': 'Not selected', 'id': NOT_SELECTED_ID, 'numeric_value': 2, 'missing': False},
+                {'name': 'Selected', 'id': SELECTED_ID, 'numeric_value': 1, 'missing': False, 'selected': True},
             ]
         if categories:
             payload['categories'] = categories
