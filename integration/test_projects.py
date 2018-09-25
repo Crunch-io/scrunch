@@ -14,7 +14,8 @@ username = os.environ['SCRUNCH_USER']
 password = os.environ['SCRUNCH_PASS']
 
 site = connect(username, password, HOST)
-UNIQUE_PREFIX = unicode(datetime.now()).replace(':', '').replace('.', '')
+UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
+FEATURE_FLAG = 'old_projects_order'
 
 
 def new_project(name):
@@ -25,6 +26,13 @@ def new_project(name):
 
 
 class TestProjects(TestCase):
+    def setUp(self):
+        """
+        These tests need to have the `old_projects_order` turned OFF in order
+        to enable the new API in Scrunch.
+        """
+        site.session.feature_flags[FEATURE_FLAG] = False
+
     def test_create_subprojects(self):
         pa = new_project('A')
         pb = pa.create_project("B")
