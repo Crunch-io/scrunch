@@ -494,7 +494,7 @@ class Project:
         # This should be a method of the Project class
         proj_res = self.resource.create(shoji_entity_wrapper({
             'name': name
-        }))
+        })).refresh()
         return Project(proj_res)
 
     # Compatibility method to comply with Group API
