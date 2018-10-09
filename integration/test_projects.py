@@ -123,3 +123,4 @@ class TestProjects(TestCase):
         pb.resource.refresh()
         self.assertItemsEqual(pb.resource.index.keys(),
             [_ds1.self, _ds2.self, _ds4.self])
+        self.assertEqual(ds2.resource.project.self, pb.url)
