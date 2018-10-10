@@ -33,7 +33,6 @@ params = dict(
     ),
     python_requires='>=2.7',
     install_requires=[
-        'pandas<0.20',
         'pycrunch>=0.4.8',
         'requests',
         'six',
@@ -60,7 +59,7 @@ params = dict(
 
             # local
         ],
-        'pandas': ['pandas'],
+        'pandas': ['pandas<0.20'],
     },
     setup_requires=[
         'setuptools_scm>=1.15.0',

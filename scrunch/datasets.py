@@ -6,7 +6,13 @@ import os
 import re
 import sys
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    # pandas has not been installed, don't worry!
+    # ... unless you have to worry about pandas
+    pd = None
+
 import six
 
 import pycrunch
@@ -2013,6 +2019,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             A DataFrame representation of all attributes from all forks
             on the given dataset.
         """
+        if pd is None:
+            raise ModuleNotFoundError("No module named 'pandas'")
 
         if len(self.resource.forks.index) == 0:
             return None
