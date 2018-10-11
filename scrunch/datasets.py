@@ -2020,7 +2020,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             on the given dataset.
         """
         if pd is None:
-            raise ModuleNotFoundError("No module named 'pandas'")
+            raise ModuleNotFoundError(
+                "Pandas is not installed, please install it in your "
+                "environment to use this function."
+            )
 
         if len(self.resource.forks.index) == 0:
             return None
