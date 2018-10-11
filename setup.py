@@ -36,6 +36,7 @@ params = dict(
         'pycrunch>=0.4.8',
         'requests',
         'six',
+        'cr.cube',
     ],
     extras_require={
         'testing': [
