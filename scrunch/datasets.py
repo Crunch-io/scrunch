@@ -2514,6 +2514,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         }
         self.resource.table.post(json.dumps(payload))
 
+    @property
+    def size(self):
+        """
+        Exposes the dataset's size object as a property of the dataset instance
+        """
+        return self.resource.body.size
+
 
 class Dataset(BaseDataset):
 
