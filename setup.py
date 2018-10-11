@@ -59,7 +59,7 @@ params = dict(
 
             # local
         ],
-        'pandas': ['pandas<0.20'],
+        'pandas': ['pandas'],
     },
     setup_requires=[
         'setuptools_scm>=1.15.0',

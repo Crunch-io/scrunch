@@ -2041,7 +2041,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
             _forks['modification_time'] = pd.to_datetime(
                 _forks['modification_time'])
-            _forks.sort(columns='creation_time', inplace=True)
+            _forks.sort_values(by=['creation_time'], inplace=True)
 
             return _forks
 
