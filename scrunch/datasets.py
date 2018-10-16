@@ -494,7 +494,7 @@ class Project:
         # This should be a method of the Project class
         proj_res = self.resource.create(shoji_entity_wrapper({
             'name': name
-        }))
+        })).refresh()
         return Project(proj_res)
 
     # Compatibility method to comply with Group API
@@ -544,6 +544,8 @@ class Project:
             item.url: {} for item in items
         }, graph=graph))
         self.resource.refresh()
+        for item in items:
+            item.resource.refresh()
 
     def _position_items(self, new_items, position, before, after):
         graph = self.resource.graph

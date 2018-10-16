@@ -47,21 +47,30 @@ class TestProjectNesting(TestCase):
         self.assertTrue(isinstance(project.order, Project))
 
     def test_create_subproject(self):
-        session = Mock(
-            feature_flags={'old_projects_order': False}
-        )
+        session = MockSession()
+        session.feature_flags = {'old_projects_order': False}
         shoji_resource = Entity(session, **{
-            'self': '/project/url/',
+            'self': 'http://example.com/project/url/',
             'body': {},
             'index': {},
             'graph': [],
         })
+
+        # Setup the POST request and the fixture for the GET that happens after
+        # the .refresh()
+        created_project_url = 'http://example.com/project/2/'
         response = Response()
         response.status_code = 201
         response.headers = {
-            'Location': '/project/url/'
+            'Location': created_project_url
         }
-        session.post.return_value = response
+        session.add_post_response(response)
+        session.add_fixture(created_project_url, {
+            'self': created_project_url,
+            'body': {},
+            'index': {},
+            'graph': [],
+        })
         project = Project(shoji_resource)
 
         # Create a new project
@@ -69,13 +78,13 @@ class TestProjectNesting(TestCase):
         self.assertTrue(isinstance(pa, Project))
 
         # Check that we sent the correct payload to the server
-        session.post.assert_called_once()
-        func_name, _args, _kwargs = session.post.mock_calls[0]
-
-        # The post happened to the project entity URL
-        self.assertEqual(_args[0], project.url)
-        # The payload is a valid payload containing the name
-        self.assertEqual(json.loads(_args[1]), {
+        self.assertEqual(pa.url, created_project_url)
+        post_request = session.requests[-2]
+        refresh_request = session.requests[-1]
+        self.assertEqual(refresh_request.method, 'GET')
+        self.assertEqual(post_request.method, 'POST')
+        self.assertEqual(post_request.url, project.url)
+        self.assertEqual(json.loads(post_request.body), {
             'element': 'shoji:entity',
             'body': {
                 'name': 'Project A'
@@ -218,10 +227,13 @@ class TestProjectNesting(TestCase):
         # Moving project C under project D
         project_d.move_here([project_c, dataset])
 
-        # After a move_here there is a PATCH and a GET
+        # After a move_here there is a PATCH and a GET and a GET for each item
         # the PATCH performs the changes and the GET is a resource.refresh()
-        patch_request = session.requests[-2]
-        refresh_request = session.requests[-1]
+        # The last request was made on the `dataset` variable which is a Mock
+        # so doesn't register a request
+        dataset.resource.refresh.assert_called_once()
+        patch_request = session.requests[-3]
+        refresh_request = session.requests[-2]
         self.assertEqual(refresh_request.method, 'GET')
         self.assertEqual(refresh_request.url, project_d.url)
         self.assertEqual(patch_request.method, 'PATCH')
@@ -253,12 +265,12 @@ class TestProjectNesting(TestCase):
 
         # Will have to iteratively nagivate the path making requests to
         # projects root and then to A
-        request1 = session.requests[-4]
-        request2 = session.requests[-3]
+        request1 = session.requests[-5]
+        request2 = session.requests[-4]
         self.assertEqual(request1.url, catalog_url)
         self.assertEqual(request2.url, a_res_url)
 
-        patch_request = session.requests[-2]
+        patch_request = session.requests[-3]
         self.assertEqual(patch_request.method, 'PATCH')
         self.assertEqual(patch_request.url, project_a.url)
         index = json.loads(patch_request.body)['index']
