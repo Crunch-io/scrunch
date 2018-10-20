@@ -320,11 +320,11 @@ class Members:
 
     def _validate_member(self, member):
         """
-        Validate and instanciate if necessary a member as 
+        Validate and instanciate if necessary a member as
         Team or User
         """
         if isinstance(member, User) or isinstance(member, Team):
-            return member    
+            return member
         try:
             member = get_user(member)
         except KeyError:
@@ -530,6 +530,18 @@ class Project:
             return self.root.dataset[name]
 
         raise InvalidPathError('Invalid path: %s' % name)
+
+    @property
+    def children(self):
+        for child_url in self.resource.graph:
+            tup = self.resource.index[child_url]
+            if tup['type'] == 'project':
+                yield Project(tup.entity)
+            elif tup['type'] == 'dataset':
+                yield Dataset(tup.entity)
+
+    def delete(self):
+        self.resource.delete()
 
     def rename(self, new_name):
         self.resource.edit(name=new_name)
@@ -1444,7 +1456,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             Then we need to declare the extra Missing case, which can be done in one of the
             follwing 2 ways:
-                (A) Every/some subvariable declare it's own missing_case individually in the 
+                (A) Every/some subvariable declare it's own missing_case individually in the
                     `missing_case` element
                 categories: [
                     {
@@ -1494,7 +1506,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             raise ValueError(
                 'missing_case as an argument and as element of "categories" is not allowed'
             )
-        # First we append the missing_case to every subvariable and let the 
+        # First we append the missing_case to every subvariable and let the
         # generic case deal with it
         if missing_case:
             cats_have_missing = True
@@ -2988,10 +3000,10 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     def edit_resolution(self, resolution):
         """
         PATCHes the rollup_resolution attribute of a datetime variable. This is the
-        equivalent to the UI's change resolution action. 
+        equivalent to the UI's change resolution action.
 
         Be sure to grab the editor's lock of the dataset.
-        
+
         :usage: edited_var = var.edit_resolution('M')
         assert editar_var.rollup_resolution == 'M'
         """
