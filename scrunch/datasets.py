@@ -21,7 +21,7 @@ from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, SELECTED_ID,
-                             NOT_SELECTED_ID, NO_DATA_ID)
+                             NOT_SELECTED_ID, NO_DATA_ID, validate_uuid)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -132,7 +132,7 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
-    root_datasets = root.datasets
+    shoji_ds = None
     # search on project if specifed
     if project:
         if isinstance(project, six.string_types):
@@ -141,23 +141,30 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
         else:
             shoji_ds = project.get_dataset(dataset).resource
     else:
-        # search by dataset name
-        try:
-            shoji_ds = root_datasets.by('name')[dataset].entity
-        except KeyError:
-            # search by dataset id
+        # Check if dataset reference is a valid uuid, if so, try to load it
+        # directly
+        if validate_uuid(dataset):
             try:
-                shoji_ds = root_datasets.by('id')[dataset].entity
-            except KeyError:
                 # search by id on any project
-                try:
-                    dataset_url = urljoin(
-                        root.catalogs.datasets, '{}/'.format(dataset))
-                    shoji_ds = root.session.get(dataset_url).payload
-                except Exception:
-                    raise KeyError(
-                        "Dataset (name or id: %s) not found in context."
-                        % dataset)
+                dataset_url = urljoin(
+                    root.catalogs.datasets, '{}/'.format(dataset))
+                shoji_ds = root.session.get(dataset_url).payload
+            except Exception:
+                pass
+
+        if shoji_ds is None:
+            # calling root.datasets performs a hit to the dataset's catalog,
+            # do it as late as possible, and only if needed
+            root_datasets = root.datasets
+
+            # search by dataset name
+            try:
+                shoji_ds = root_datasets.by('name')[dataset].entity
+            except KeyError:
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in context."
+                    % dataset)
+
     return shoji_ds, root
 
 

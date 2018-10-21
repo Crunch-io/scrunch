@@ -4,6 +4,7 @@ import pytest
 import mock
 
 import scrunch
+from scrunch.helpers import validate_uuid
 from scrunch.variables import validate_variable_url
 from scrunch import get_project, get_mutable_dataset, get_user
 from scrunch.datasets import Project, User
@@ -54,6 +55,14 @@ def test_variable_url_validation():
         '/variables/b4d10b49c385aa405756fbbf572649d3/summary'
     )
     assert not validate_variable_url(var_catalog)
+
+
+def test_validate_uuid_ok():
+    assert validate_uuid('b2c4c6b7d3a94e58937b23c1fed1b65e') is True
+
+
+def test_validate_uuid_nok():
+    assert validate_uuid('12345') is False
 
 
 def _by_side_effect(shoji, entity_mock):
@@ -119,7 +128,7 @@ class TestUtilities(object):
         shoji_entity = {
             'element': 'shoji:entity',
             'body': {
-                'id': '123456',
+                'id': 'b2c4c6b7d3a94e58937b23c1fed1b65e',
                 'name': 'dataset_name',
                 'streaming': 'no'
             }
@@ -138,12 +147,12 @@ class TestUtilities(object):
         session.session.get.side_effect = _get
         session.catalogs.datasets = 'https://test.crunch.io/api/'
 
-        ds = get_mutable_dataset('123456')
-        session.session.get.assert_called_with('https://test.crunch.io/api/123456/')
+        ds = get_mutable_dataset('b2c4c6b7d3a94e58937b23c1fed1b65e')
+        session.session.get.assert_called_with('https://test.crunch.io/api/b2c4c6b7d3a94e58937b23c1fed1b65e/')
 
         assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
-        assert ds.id == '123456'
+        assert ds.id == 'b2c4c6b7d3a94e58937b23c1fed1b65e'
 
     @mock.patch('pycrunch.session')
     def test_get_project(self, session):

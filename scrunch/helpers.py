@@ -1,5 +1,6 @@
 import requests
 import six
+import uuid
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
@@ -180,3 +181,15 @@ def shoji_catalog_wrapper(index, **kwargs):
     }
     payload.update(**kwargs)
     return payload
+
+
+def validate_uuid(ref):
+    """
+    Check if given string is a valid uuid.
+    """
+    try:
+        uuid.UUID(ref)
+    except ValueError:
+        return False
+    else:
+        return True
