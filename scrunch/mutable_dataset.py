@@ -209,8 +209,8 @@ class MutableDataset(BaseDataset):
                 if self[name].missing_rules != dataset[name].missing_rules:
                     rules1 = self[name].missing_rules
                     rules2 = dataset[name].missing_rules
-                    if len(rules1) == len(rules2):
-                        for key, value in rules1:
+                    if len(rules1.keys()) == len(rules2.keys()):
+                        for key, value in rules1.items():
                             if key not in rules2 or rules2[key] != value:
                                 diff['variables']['by_missing_rules'].append(name)
                     else:
