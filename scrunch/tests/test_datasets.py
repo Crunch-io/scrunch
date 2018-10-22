@@ -6,11 +6,12 @@ import copy
 
 import mock
 from mock import MagicMock
+from pycrunch.shoji import Entity
 from unittest import TestCase
 
 import pytest
 from pandas import DataFrame
-from pycrunch.elements import JSONObject, ElementSession
+from pycrunch.elements import JSONObject, ElementSession, Document
 from pycrunch.variables import cast
 
 import scrunch
@@ -72,6 +73,11 @@ class TestDatasetBase(object):
             'archived': False,
             'end_date': None,
             'start_date': None,
+            'size': {
+                'rows': 0,
+                'unfiltered_rows': 0,
+                'columns': 4
+            }
         },
     }
 
@@ -438,6 +444,14 @@ class TestDatasets(TestDatasetBase, TestCase):
 
         ds.create_crunchbox()
         ds_mock.boxdata.create.assert_called_with(expected_payload)
+
+    def test_dataset_size(self):
+        """
+        Using `ds.size` actually returns the value of `ds.resource.body.size`
+        """
+        resource = mock.MagicMock()
+        ds = StreamingDataset(resource)
+        assert str(ds.size.rows).startswith("<MagicMock name='mock.body.size.rows' id='")
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
