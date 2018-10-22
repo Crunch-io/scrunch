@@ -2034,7 +2034,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             on the given dataset.
         """
         if pd is None:
-            raise ModuleNotFoundError(
+            raise ImportError(
                 "Pandas is not installed, please install it in your "
                 "environment to use this function."
             )

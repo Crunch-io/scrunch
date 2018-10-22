@@ -1618,7 +1618,7 @@ class TestForks(TestCase):
         ds_res.forks.index = {}
 
         ds = BaseDataset(ds_res)
-        with pytest.raises(ModuleNotFoundError) as err:
+        with pytest.raises(ImportError) as err:
             ds.forks_dataframe()
 
     def test_merge_fork(self):
