@@ -33,4 +33,6 @@ cache: pip
 install:
 - pip install tox tox-venv
 
-script: tox
+script:
+  - tox
+  - tox -e pandas

@@ -6,10 +6,17 @@ import copy
 
 import mock
 from mock import MagicMock
+
+try:
+    import pandas
+    from pandas import DataFrame
+except:
+    # pandas is not installed
+    pandas = None
+
 from unittest import TestCase
 
 import pytest
-from pandas import DataFrame
 from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
@@ -1560,6 +1567,8 @@ class TestForks(TestCase):
         assert f2.entity.delete.call_count == 1
         assert f3.entity.delete.call_count == 1
 
+    @pytest.mark.skipif(pandas is None,
+                        reason='pandas is not installed')
     def test_forks_dataframe(self):
         f1 = dict(
             name='name',
@@ -1587,6 +1596,8 @@ class TestForks(TestCase):
             'current_editor_name', 'creation_time', 'modification_time', 'id'
         ]
 
+    @pytest.mark.skipif(pandas is None,
+                        reason='pandas is not installed')
     def test_forks_dataframe_empty(self):
         sess = MagicMock()
         ds_res = MagicMock(session=sess)
@@ -1597,6 +1608,18 @@ class TestForks(TestCase):
         df = ds.forks_dataframe()
 
         assert df is None
+
+    @pytest.mark.skipif(pandas is not None,
+                        reason='pandas is installed')
+    def test_forks_no_pandas(self):
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
+        ds_res.forks.index = {}
+
+        ds = BaseDataset(ds_res)
+        with pytest.raises(ModuleNotFoundError) as err:
+            ds.forks_dataframe()
 
     def test_merge_fork(self):
         fork1_url = 'http://test.crunch.io/api/datasets/abc/'
