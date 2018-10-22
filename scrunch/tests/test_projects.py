@@ -375,3 +375,19 @@ class TestProjectNesting(TestCase):
         project_b = project_a.order['| project B']
         self.assertTrue(project_a.is_root)
         self.assertFalse(project_b.is_root)
+
+    def test_children(self):
+        session = self.make_tree()
+        a_res_url = 'http://example.com/api/projects/A/'
+        project_a = Project(session.get(a_res_url).payload)
+        # Get instantiated correctly
+        self.assertTrue(all(isinstance(c, Project) for c in project_a.children))
+        # Get iterated on the right order
+        self.assertEqual([c.url for c in project_a.children],
+                         project_a.resource.graph)
+
+    def test_delete_project(self):
+        mock_resource = Mock()
+        project = Project(mock_resource)
+        project.delete()
+        mock_resource.delete.assert_called_once()
