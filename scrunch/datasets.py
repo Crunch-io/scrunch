@@ -533,6 +533,9 @@ class Project:
 
     @property
     def children(self):
+        # Refresh the .resource so it has fresh data in case any child has been
+        # deleted.
+        self.resource.refresh()
         for child_url in self.resource.graph:
             tup = self.resource.index[child_url]
             if tup['type'] == 'project':

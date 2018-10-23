@@ -385,6 +385,11 @@ class TestProjectNesting(TestCase):
         # Get iterated on the right order
         self.assertEqual([c.url for c in project_a.children],
                          project_a.resource.graph)
+        # First request before .child should .refresh() the resource to
+        # ensure fresh data
+        refresh_request = session.requests[0]
+        self.assertEqual(refresh_request.method, 'GET')
+        self.assertEqual(refresh_request.url, a_res_url)
 
     def test_delete_project(self):
         mock_resource = Mock()
