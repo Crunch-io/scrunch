@@ -449,9 +449,22 @@ class TestDatasets(TestDatasetBase, TestCase):
         """
         Using `ds.size` actually returns the value of `ds.resource.body.size`
         """
-        resource = mock.MagicMock()
+        body = JSONObject({
+            'size': {
+                'rows': 9,
+                'unfiltered_rows': 9,
+                'columns': 6,
+            }
+        })
+        resource = mock.MagicMock(name='resource', body=body)
+
         ds = StreamingDataset(resource)
-        assert str(ds.size.rows).startswith("<MagicMock name='mock.body.size.rows' id='")
+
+        assert ds.size == {
+            'rows': 9,
+            'unfiltered_rows': 9,
+            'columns': 6
+        }
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
