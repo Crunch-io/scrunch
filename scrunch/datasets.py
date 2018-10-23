@@ -10,6 +10,7 @@ import pandas as pd
 import six
 
 import pycrunch
+from pycrunch.elements import JSONObject
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 from scrunch.session import connect
@@ -21,7 +22,7 @@ from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, SELECTED_ID,
-                             NOT_SELECTED_ID, NO_DATA_ID, validate_uuid)
+                             NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -141,16 +142,16 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
         else:
             shoji_ds = project.get_dataset(dataset).resource
     else:
-        # Check if dataset reference is a valid uuid, if so, try to load it
-        # directly
-        if validate_uuid(dataset):
-            try:
-                # search by id on any project
-                dataset_url = urljoin(
-                    root.catalogs.datasets, '{}/'.format(dataset))
-                shoji_ds = root.session.get(dataset_url).payload
-            except Exception:
-                pass
+        try:
+            # search by id on any project
+            dataset_url = urljoin(
+                root.catalogs.datasets, '{}/'.format(dataset))
+            shoji_ds = root.session.get(dataset_url).payload
+        except pycrunch.ClientError as e:
+            # it is ok to have a 404, it mean that given dataset reference
+            # is not an id.
+            if e.status_code != 404:
+                raise e
 
         if shoji_ds is None:
             # calling root.datasets performs a hit to the dataset's catalog,

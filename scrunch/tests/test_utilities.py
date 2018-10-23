@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 import pytest
 import mock
+from pycrunch import ClientError
 
 import scrunch
-from scrunch.helpers import validate_uuid
 from scrunch.variables import validate_variable_url
 from scrunch import get_project, get_mutable_dataset, get_user
 from scrunch.datasets import Project, User
@@ -55,14 +55,6 @@ def test_variable_url_validation():
         '/variables/b4d10b49c385aa405756fbbf572649d3/summary'
     )
     assert not validate_variable_url(var_catalog)
-
-
-def test_validate_uuid_ok():
-    assert validate_uuid('b2c4c6b7d3a94e58937b23c1fed1b65e') is True
-
-
-def test_validate_uuid_nok():
-    assert validate_uuid('12345') is False
 
 
 def _by_side_effect(shoji, entity_mock):
@@ -116,8 +108,15 @@ class TestUtilities(object):
 
         ds_mock = mock.MagicMock(**shoji_entity)
         ds_mock.entity = mock.MagicMock(**shoji_entity)
-        session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
 
+        def _get(url, *args, **kwargs):
+            if url == '/api/datasets/dataset_name/':
+                resp = mock.MagicMock(status_code=404)
+                raise ClientError(resp)
+
+        session.session.get.side_effect = _get
+        session.catalogs.datasets = '/api/datasets/'
+        session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
         ds = get_mutable_dataset('dataset_name')
         session.datasets.by.assert_called_with('name')
         assert isinstance(ds, MutableDataset)
