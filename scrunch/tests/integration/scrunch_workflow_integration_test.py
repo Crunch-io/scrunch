@@ -5,7 +5,9 @@ import os
 
 import isodate
 import pycrunch
-from pycrunch import pandaslib
+import pytest
+
+pytest.mark.skip('skip test discovery on this module')
 
 from scrunch import connect
 from scrunch.datasets import Variable, get_geodata
