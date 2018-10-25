@@ -6,12 +6,18 @@ import copy
 
 import mock
 from mock import MagicMock
-from pycrunch.shoji import Entity
+
+try:
+    import pandas
+    from pandas import DataFrame
+except:
+    # pandas is not installed
+    pandas = None
+
 from unittest import TestCase
 
 import pytest
-from pandas import DataFrame
-from pycrunch.elements import JSONObject, ElementSession, Document
+from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
@@ -73,11 +79,6 @@ class TestDatasetBase(object):
             'archived': False,
             'end_date': None,
             'start_date': None,
-            'size': {
-                'rows': 0,
-                'unfiltered_rows': 0,
-                'columns': 4
-            }
         },
     }
 
@@ -444,27 +445,6 @@ class TestDatasets(TestDatasetBase, TestCase):
 
         ds.create_crunchbox()
         ds_mock.boxdata.create.assert_called_with(expected_payload)
-
-    def test_dataset_size(self):
-        """
-        Using `ds.size` actually returns the value of `ds.resource.body.size`
-        """
-        body = JSONObject({
-            'size': {
-                'rows': 9,
-                'unfiltered_rows': 9,
-                'columns': 6,
-            }
-        })
-        resource = mock.MagicMock(name='resource', body=body)
-
-        ds = StreamingDataset(resource)
-
-        assert ds.size == {
-            'rows': 9,
-            'unfiltered_rows': 9,
-            'columns': 6
-        }
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
@@ -1587,6 +1567,8 @@ class TestForks(TestCase):
         assert f2.entity.delete.call_count == 1
         assert f3.entity.delete.call_count == 1
 
+    @pytest.mark.skipif(pandas is None,
+                        reason='pandas is not installed')
     def test_forks_dataframe(self):
         f1 = dict(
             name='name',
@@ -1614,6 +1596,8 @@ class TestForks(TestCase):
             'current_editor_name', 'creation_time', 'modification_time', 'id'
         ]
 
+    @pytest.mark.skipif(pandas is None,
+                        reason='pandas is not installed')
     def test_forks_dataframe_empty(self):
         sess = MagicMock()
         ds_res = MagicMock(session=sess)
@@ -1624,6 +1608,18 @@ class TestForks(TestCase):
         df = ds.forks_dataframe()
 
         assert df is None
+
+    @pytest.mark.skipif(pandas is not None,
+                        reason='pandas is installed')
+    def test_forks_no_pandas(self):
+        sess = MagicMock()
+        ds_res = MagicMock(session=sess)
+        ds_res.forks = MagicMock()
+        ds_res.forks.index = {}
+
+        ds = BaseDataset(ds_res)
+        with pytest.raises(ImportError) as err:
+            ds.forks_dataframe()
 
     def test_merge_fork(self):
         fork1_url = 'http://test.crunch.io/api/datasets/abc/'
