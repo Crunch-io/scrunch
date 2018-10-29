@@ -304,18 +304,25 @@ class Members:
     def __init__(self, resource):
         self.resource = resource
 
-    def list(self):
+    def list(self, permissions=False):
         """
         :return: A list of members of the Entity as strings. A member
             can be a User or a Team. Returns ['user1@example.com', 'Team A']
         """
-        members = []
-        for member in self.resource.members.index.values():
-            # members can be users or teams
-            user = member.get('email')
-            if not user:
-                user = member.get('name')
-            members.append(user)
+        if permissions:
+            members = {'edit': [], 'view': []}
+            for name, member in self.resource.members.by('email').iteritems():
+                edit = member['permissions'][self._EDIT_ATTRIBUTE]
+                group = 'edit' if edit else 'view'
+                members[group].append(name)
+        else:
+            members = []
+            for member in self.resource.members.index.values():
+                # members can be users or teams
+                user = member.get('email')
+                if not user:
+                    user = member.get('name')
+                members.append(user)
         return members
 
     def _validate_member(self, member):
