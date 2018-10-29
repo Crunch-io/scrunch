@@ -395,6 +395,8 @@ class Team:
     def members(self):
         return TeamMembers(self.resource)
 
+    def delete(self):
+        return self.resource.delete()
 
 class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
