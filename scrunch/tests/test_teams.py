@@ -79,8 +79,18 @@ class TestTeams(TestCase):
     def test_list(self):
         session, team = self.make_team()
         team_members_url = 'http://example.com/api/teams/ID/members/'
-        team.members.list()
+
+        # without permissions detail
+        m = team.members.list(permissions=False)
         get_request = session.requests[-1]
         self.assertEqual(get_request.url, team_members_url)
         self.assertEqual(get_request.method, 'GET')
+        assert(isinstance(m, list))
 
+        # with permissions detail
+        m = team.members.list(permissions=False)
+        get_request = session.requests[-1]
+        self.assertEqual(get_request.url, team_members_url)
+        self.assertEqual(get_request.method, 'GET')
+        assert(isinstance(m, dict))
+        self.assertEqual(m.keys(), ['edit', 'view'])
