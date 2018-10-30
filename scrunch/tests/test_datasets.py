@@ -2091,6 +2091,7 @@ class TestRecode(TestDatasetBase):
                 'alias':'mr',
                 'description':'',
                 'notes':'',
+                'uniform_basis': False,
                 'derivation': {  
                     'function':'array',
                     'args': [{  
@@ -2265,6 +2266,7 @@ class TestRecode(TestDatasetBase):
                 'alias': 'mr',
                 'description': '',
                 'notes': '',
+                'uniform_basis': False,
                 'derivation': {
                     'function': 'array',
                     'args': [{

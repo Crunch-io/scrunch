@@ -1245,7 +1245,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def derive_multiple_response(self, categories, subvariables, name, alias,
-        description='', notes=''):
+        description='', notes='', uniform_basis=False):
         """
         This is the generic approach to create_multiple_response but this
         allows the definition of any set of categories and rules (expressions)
@@ -1298,6 +1298,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'notes': notes,
+            'uniform_basis': uniform_basis,
             'derivation': {
                 'function': 'array',
                 'args': [{
@@ -1428,7 +1429,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[alias]
 
     def create_categorical(self, categories, alias, name, multiple, description='',
-        notes='', missing_case=None):
+        notes='', missing_case=None, uniform_basis=False):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1554,7 +1555,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             return self.derive_multiple_response(categories=_categories,
                 subvariables=_subvariables, name=name, alias=alias,
-                description=description, notes=notes)
+                description=description, notes=notes, uniform_basis=uniform_basis)
 
         elif multiple:
             return self.create_multiple_response(
