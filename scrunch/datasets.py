@@ -2256,7 +2256,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-        preserve_owner=False, **kwargs):
+        preserve_owner=True, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2270,13 +2270,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param is_published: bool, default=False
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
-        :param preserve_owner: bool, default=False
+        :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
-            dataset. If the owner of the parent dataset is a Crunch project,
-            then it will be preserved regardless of this parameter. If the
-            parameter is False and used in combination with
-            get_dataset(editor=True) it will create the fork in the user's
-            personal project.
+            dataset otherwise the owner will be the current user in the
+            session and the Dataset will be set under `Persona Project`
 
         :returns _fork: scrunch.datasets.BaseDataset
         """

@@ -1510,7 +1510,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
-        ds.fork()
+        ds.fork(preserve_owner=False)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
