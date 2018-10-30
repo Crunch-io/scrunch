@@ -1561,47 +1561,6 @@ class TestForks(TestCase):
             }
         })
 
-    @mock.patch('scrunch.datasets.get_user')
-    def test_fork_preserve_owner_project(self, mocked_get_user):
-        project_id = 'http://test.crunch.io/api/projects/456/'
-        sess = MagicMock()
-        response = MagicMock()
-        user = MagicMock()
-        user.resource.self = self.user_url
-        user.url = self.user_url
-        mocked_get_user.return_value = user
-        response.payload = {
-            'index': {
-                self.user_url: {
-                    'email': 'jane.doe@crunch.io'
-                }
-            }
-        }
-
-        def _get(*args, **kwargs):
-            return response
-
-        sess.get.side_effect = _get
-        body = JSONObject({
-            'name': 'ds name',
-            'description': 'ds description',
-            'owner': project_id
-        })
-        ds_res = MagicMock(session=sess, body=body)
-        ds_res.forks = MagicMock()
-        ds_res.forks.index = {}
-        ds = StreamingDataset(ds_res)
-        ds.fork()
-        ds_res.forks.create.assert_called_with({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'FORK #1 of ds name',
-                'description': 'ds description',
-                'owner': project_id,
-                'is_published': False,
-            }
-        })
-
     def test_delete_forks(self):
         f1 = MagicMock()
         f2 = MagicMock()

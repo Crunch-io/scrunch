@@ -2296,9 +2296,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             name=name,
             description=description,
             is_published=is_published,
-            **kwargs)
+            **kwargs
+        )
 
-        if preserve_owner or '/api/projects/' in self.resource.body.owner:
+        if preserve_owner:
             body['owner'] = self.resource.body.owner
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
