@@ -2272,7 +2272,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param preserve_owner: bool, default=False
             If True, the owner of the fork will be the same as the parent
             dataset. If the owner of the parent dataset is a Crunch project,
-            then it will be preserved regardless of this parameter.
+            then it will be preserved regardless of this parameter. If the
+            parameter is False and used in combination with
+            get_dataset(editor=True) it will create the fork in the user's
+            personal project.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
@@ -2297,12 +2300,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         if preserve_owner or '/api/projects/' in self.resource.body.owner:
             body['owner'] = self.resource.body.owner
-        # not returning a dataset
+        # not returning a dataset`
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset or StreamingDataset depending
         # on the class that the fork comes from
-        return self.__class__(_fork)
+        user = get_user(self.resource.session.email)
+        fork_ds = self.__class__(_fork)
+        fork_ds.change_editor(user)
+        return fork_ds
 
     def replace_values(self, variables, filter=None, literal_subvar=False):
         """

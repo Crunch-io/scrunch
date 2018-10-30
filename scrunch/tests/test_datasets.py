@@ -1479,9 +1479,28 @@ class TestSavepoints(TestCase):
 class TestForks(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
+    user_url = 'https://test.crunch.io/api/users/12345/'
 
-    def test_fork(self):
+    @mock.patch('scrunch.datasets.get_user')
+    def test_fork(self, mocked_get_user):
         sess = MagicMock()
+        response = MagicMock()
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        response.payload = {
+            'index': {
+                self.user_url: {
+                    'email': 'jane.doe@crunch.io'
+                }
+            }
+        }
+
+        def _get(*args, **kwargs):
+            return response
+
+        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
@@ -1501,9 +1520,27 @@ class TestForks(TestCase):
             }
         })
 
-    def test_fork_preserve_owner(self):
+    @mock.patch('scrunch.datasets.get_user')
+    def test_fork_preserve_owner(self, mocked_get_user):
         user_id = 'http://test.crunch.io/api/users/123/'
         sess = MagicMock()
+        response = MagicMock()
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        response.payload = {
+            'index': {
+                self.user_url: {
+                    'email': 'jane.doe@crunch.io'
+                }
+            }
+        }
+
+        def _get(*args, **kwargs):
+            return response
+
+        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
@@ -1524,9 +1561,27 @@ class TestForks(TestCase):
             }
         })
 
-    def test_fork_preserve_owner_project(self):
+    @mock.patch('scrunch.datasets.get_user')
+    def test_fork_preserve_owner_project(self, mocked_get_user):
         project_id = 'http://test.crunch.io/api/projects/456/'
         sess = MagicMock()
+        response = MagicMock()
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        response.payload = {
+            'index': {
+                self.user_url: {
+                    'email': 'jane.doe@crunch.io'
+                }
+            }
+        }
+
+        def _get(*args, **kwargs):
+            return response
+
+        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
