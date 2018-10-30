@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 
 import collections
 import json
@@ -2105,14 +2105,14 @@ class TestRecode(TestDatasetBase):
                                     },
                                     'function':'case',
                                     'args':[{
-                                        'column':[1, 2, 3],
+                                        'column':[1, 2, -1],
                                         'type':{
                                             'value':{
                                                 'class':'categorical',
                                                 'categories':[
                                                     {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
                                                     {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
-                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':-1, 'name':'No Data'}
                                                 ]
                                             }
                                         }
@@ -2160,14 +2160,14 @@ class TestRecode(TestDatasetBase):
                                     },
                                     'function':'case',
                                     'args':[{ 
-                                        'column':[1, 2, 3],
+                                        'column':[1, 2, -1],
                                         'type':{
                                             'value':{
                                                 'class':'categorical',
                                                 'categories':[
                                                     {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
                                                     {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
-                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':-1, 'name':'No Data'}
                                                 ]
                                             }
                                         }
