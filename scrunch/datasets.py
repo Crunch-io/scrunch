@@ -2300,7 +2300,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         if preserve_owner or '/api/projects/' in self.resource.body.owner:
             body['owner'] = self.resource.body.owner
-        # not returning a dataset`
+        # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset or StreamingDataset depending
@@ -2643,7 +2643,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description',
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'uniform_basis',
                            'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
