@@ -309,19 +309,15 @@ class Members:
         :return: A list of members of the Entity as strings. A member
             can be a User or a Team. Returns ['user1@example.com', 'Team A']
         """
-        if permissions:
-            members = {'edit': [], 'view': []}
-            for name, member in self.resource.members.by('email').iteritems():
+        members = {'edit': [], 'view': []} if permissions else []
+        for name, member in self.resource.members.by('name').iteritems():
+            # members can be users or teams
+            user = member.get('email', name)
+            if permissions:
                 edit = member['permissions'][self._EDIT_ATTRIBUTE]
                 group = 'edit' if edit else 'view'
-                members[group].append(name)
-        else:
-            members = []
-            for member in self.resource.members.index.values():
-                # members can be users or teams
-                user = member.get('email')
-                if not user:
-                    user = member.get('name')
+                members[group].append(user)
+            else:
                 members.append(user)
         return members
 
