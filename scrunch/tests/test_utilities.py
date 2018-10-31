@@ -124,10 +124,11 @@ class TestUtilities(object):
 
     @mock.patch('pycrunch.session')
     def test_get_dataset_from_project_no_name(self, session):
+        dataset_id = 'b2c4c6b7d3a94e58937b23c1fed1b65e'
         shoji_entity = {
             'element': 'shoji:entity',
             'body': {
-                'id': 'b2c4c6b7d3a94e58937b23c1fed1b65e',
+                'id': dataset_id,
                 'name': 'dataset_name',
                 'streaming': 'no'
             }
@@ -146,12 +147,12 @@ class TestUtilities(object):
         session.session.get.side_effect = _get
         session.catalogs.datasets = 'https://test.crunch.io/api/'
 
-        ds = get_mutable_dataset('b2c4c6b7d3a94e58937b23c1fed1b65e')
+        ds = get_mutable_dataset(dataset_id)
         session.session.get.assert_called_with('https://test.crunch.io/api/b2c4c6b7d3a94e58937b23c1fed1b65e/')
 
         assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
-        assert ds.id == 'b2c4c6b7d3a94e58937b23c1fed1b65e'
+        assert ds.id == dataset_id
 
     @mock.patch('pycrunch.session')
     def test_get_project(self, session):
