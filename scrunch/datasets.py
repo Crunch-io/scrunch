@@ -16,6 +16,7 @@ except ImportError:
 import six
 
 import pycrunch
+from pycrunch.elements import JSONObject
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 from scrunch.session import connect
@@ -138,7 +139,7 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
-    root_datasets = root.datasets
+    shoji_ds = None
     # search on project if specifed
     if project:
         if isinstance(project, six.string_types):
@@ -147,23 +148,30 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
         else:
             shoji_ds = project.get_dataset(dataset).resource
     else:
-        # search by dataset name
         try:
-            shoji_ds = root_datasets.by('name')[dataset].entity
-        except KeyError:
-            # search by dataset id
+            # search by id on any project
+            dataset_url = urljoin(
+                root.catalogs.datasets, '{}/'.format(dataset))
+            shoji_ds = root.session.get(dataset_url).payload
+        except pycrunch.ClientError as e:
+            # it is ok to have a 404, it mean that given dataset reference
+            # is not an id.
+            if e.status_code != 404:
+                raise e
+
+        if shoji_ds is None:
+            # calling root.datasets performs a hit to the dataset's catalog,
+            # do it as late as possible, and only if needed
+            root_datasets = root.datasets
+
+            # search by dataset name
             try:
-                shoji_ds = root_datasets.by('id')[dataset].entity
+                shoji_ds = root_datasets.by('name')[dataset].entity
             except KeyError:
-                # search by id on any project
-                try:
-                    dataset_url = urljoin(
-                        root.catalogs.datasets, '{}/'.format(dataset))
-                    shoji_ds = root.session.get(dataset_url).payload
-                except Exception:
-                    raise KeyError(
-                        "Dataset (name or id: %s) not found in context."
-                        % dataset)
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in context."
+                    % dataset)
+
     return shoji_ds, root
 
 
