@@ -1,6 +1,5 @@
 import requests
 import six
-import uuid
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
