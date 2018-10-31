@@ -6,7 +6,13 @@ import os
 import re
 import sys
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    # pandas has not been installed, don't worry!
+    # ... unless you have to worry about pandas
+    pd = None
+
 import six
 
 import pycrunch
@@ -2030,6 +2036,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             A DataFrame representation of all attributes from all forks
             on the given dataset.
         """
+        if pd is None:
+            raise ImportError(
+                "Pandas is not installed, please install it in your "
+                "environment to use this function."
+            )
 
         if len(self.resource.forks.index) == 0:
             return None
@@ -2050,7 +2061,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
             _forks['modification_time'] = pd.to_datetime(
                 _forks['modification_time'])
-            _forks.sort(columns='creation_time', inplace=True)
+            _forks.sort_values(by=['creation_time'], inplace=True)
 
             return _forks
 
@@ -2530,6 +2541,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'filter': filters,
         }
         self.resource.table.post(json.dumps(payload))
+
+    @property
+    def size(self):
+        """
+        Exposes the dataset's size object as a property of the dataset instance
+        """
+        return self.resource.body.size
 
 
 class Dataset(BaseDataset):
