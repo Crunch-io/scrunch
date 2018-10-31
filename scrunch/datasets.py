@@ -6,10 +6,17 @@ import os
 import re
 import sys
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    # pandas has not been installed, don't worry!
+    # ... unless you have to worry about pandas
+    pd = None
+
 import six
 
 import pycrunch
+from pycrunch.elements import JSONObject
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 from scrunch.session import connect
@@ -132,7 +139,7 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
                 "Authenticate first with scrunch.connect() or by providing "
                 "config/environment variables")
     root = connection
-    root_datasets = root.datasets
+    shoji_ds = None
     # search on project if specifed
     if project:
         if isinstance(project, six.string_types):
@@ -141,23 +148,30 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
         else:
             shoji_ds = project.get_dataset(dataset).resource
     else:
-        # search by dataset name
         try:
-            shoji_ds = root_datasets.by('name')[dataset].entity
-        except KeyError:
-            # search by dataset id
+            # search by id on any project
+            dataset_url = urljoin(
+                root.catalogs.datasets, '{}/'.format(dataset))
+            shoji_ds = root.session.get(dataset_url).payload
+        except pycrunch.ClientError as e:
+            # it is ok to have a 404, it mean that given dataset reference
+            # is not an id.
+            if e.status_code != 404:
+                raise e
+
+        if shoji_ds is None:
+            # calling root.datasets performs a hit to the dataset's catalog,
+            # do it as late as possible, and only if needed
+            root_datasets = root.datasets
+
+            # search by dataset name
             try:
-                shoji_ds = root_datasets.by('id')[dataset].entity
+                shoji_ds = root_datasets.by('name')[dataset].entity
             except KeyError:
-                # search by id on any project
-                try:
-                    dataset_url = urljoin(
-                        root.catalogs.datasets, '{}/'.format(dataset))
-                    shoji_ds = root.session.get(dataset_url).payload
-                except Exception:
-                    raise KeyError(
-                        "Dataset (name or id: %s) not found in context."
-                        % dataset)
+                raise KeyError(
+                    "Dataset (name or id: %s) not found in context."
+                    % dataset)
+
     return shoji_ds, root
 
 
@@ -1239,7 +1253,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def derive_multiple_response(self, categories, subvariables, name, alias,
-        description='', notes=''):
+        description='', notes='', uniform_basis=False):
         """
         This is the generic approach to create_multiple_response but this
         allows the definition of any set of categories and rules (expressions)
@@ -1292,6 +1306,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'notes': notes,
+            'uniform_basis': uniform_basis,
             'derivation': {
                 'function': 'array',
                 'args': [{
@@ -1422,7 +1437,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[alias]
 
     def create_categorical(self, categories, alias, name, multiple, description='',
-        notes='', missing_case=None):
+        notes='', missing_case=None, uniform_basis=False):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1548,7 +1563,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             return self.derive_multiple_response(categories=_categories,
                 subvariables=_subvariables, name=name, alias=alias,
-                description=description, notes=notes)
+                description=description, notes=notes, uniform_basis=uniform_basis)
 
         elif multiple:
             return self.create_multiple_response(
@@ -2030,6 +2045,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             A DataFrame representation of all attributes from all forks
             on the given dataset.
         """
+        if pd is None:
+            raise ImportError(
+                "Pandas is not installed, please install it in your "
+                "environment to use this function."
+            )
 
         if len(self.resource.forks.index) == 0:
             return None
@@ -2050,7 +2070,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             _forks['creation_time'] = pd.to_datetime(_forks['creation_time'])
             _forks['modification_time'] = pd.to_datetime(
                 _forks['modification_time'])
-            _forks.sort(columns='creation_time', inplace=True)
+            _forks.sort_values(by=['creation_time'], inplace=True)
 
             return _forks
 
@@ -2244,7 +2264,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-        preserve_owner=False, **kwargs):
+        preserve_owner=True, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2258,10 +2278,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param is_published: bool, default=False
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
-        :param preserve_owner: bool, default=False
+        :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
-            dataset. If the owner of the parent dataset is a Crunch project,
-            then it will be preserved regardless of this parameter.
+            dataset otherwise the owner will be the current user in the
+            session and the Dataset will be set under `Persona Project`
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
@@ -2282,16 +2302,20 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             name=name,
             description=description,
             is_published=is_published,
-            **kwargs)
+            **kwargs
+        )
 
-        if preserve_owner or '/api/projects/' in self.resource.body.owner:
+        if preserve_owner:
             body['owner'] = self.resource.body.owner
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset or StreamingDataset depending
         # on the class that the fork comes from
-        return self.__class__(_fork)
+        user = get_user(self.resource.session.email)
+        fork_ds = self.__class__(_fork)
+        fork_ds.change_editor(user)
+        return fork_ds
 
     def replace_values(self, variables, filter=None, literal_subvar=False):
         """
@@ -2531,6 +2555,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         }
         self.resource.table.post(json.dumps(payload))
 
+    @property
+    def size(self):
+        """
+        Exposes the dataset's size object as a property of the dataset instance
+        """
+        return self.resource.body.size
+
 
 class Dataset(BaseDataset):
 
@@ -2619,7 +2650,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description',
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'uniform_basis',
                            'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private

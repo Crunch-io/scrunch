@@ -10,7 +10,7 @@ else:
 # ID's for default categories
 SELECTED_ID = 1
 NOT_SELECTED_ID = 2
-NO_DATA_ID = 3
+NO_DATA_ID = -1
 
 
 DEFAULT_MULTIPLE_RESONSE_CATEGORIES = [

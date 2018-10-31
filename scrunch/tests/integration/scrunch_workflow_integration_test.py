@@ -5,7 +5,9 @@ import os
 
 import isodate
 import pycrunch
-from pycrunch import pandaslib
+import pytest
+
+pytest.mark.skip('skip test discovery on this module')
 
 from scrunch import connect
 from scrunch.datasets import Variable, get_geodata
@@ -424,9 +426,18 @@ def main():
         # Load initial data.
         pycrunch.importing.importer.append_rows(dataset.resource, ROWS)
 
+        # refresh dataset instance, so size is updated
+        dataset.resource.refresh()
+
         # Check the initial number of rows.
         df = pandaslib.dataframe(dataset.resource)
         assert len(df) == len(ROWS) - 1  # excluding the header
+        assert dataset.size.rows == len(df)
+        assert dataset.size.unfiltered_rows == len(df)
+
+        # Also check number of columns
+        columns = DATASET_DOC['body']['table']['metadata'].__len__()
+        assert dataset.size.columns == columns
 
         # 0. Manipulate metadata
 

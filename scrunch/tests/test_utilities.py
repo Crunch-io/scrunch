@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 import mock
+from pycrunch import ClientError
 
 import scrunch
 from scrunch.variables import validate_variable_url
@@ -107,8 +108,15 @@ class TestUtilities(object):
 
         ds_mock = mock.MagicMock(**shoji_entity)
         ds_mock.entity = mock.MagicMock(**shoji_entity)
-        session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
 
+        def _get(url, *args, **kwargs):
+            if url == '/api/datasets/dataset_name/':
+                resp = mock.MagicMock(status_code=404)
+                raise ClientError(resp)
+
+        session.session.get.side_effect = _get
+        session.catalogs.datasets = '/api/datasets/'
+        session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
         ds = get_mutable_dataset('dataset_name')
         session.datasets.by.assert_called_with('name')
         assert isinstance(ds, MutableDataset)
@@ -116,10 +124,11 @@ class TestUtilities(object):
 
     @mock.patch('pycrunch.session')
     def test_get_dataset_from_project_no_name(self, session):
+        dataset_id = 'b2c4c6b7d3a94e58937b23c1fed1b65e'
         shoji_entity = {
             'element': 'shoji:entity',
             'body': {
-                'id': '123456',
+                'id': dataset_id,
                 'name': 'dataset_name',
                 'streaming': 'no'
             }
@@ -138,12 +147,12 @@ class TestUtilities(object):
         session.session.get.side_effect = _get
         session.catalogs.datasets = 'https://test.crunch.io/api/'
 
-        ds = get_mutable_dataset('123456')
-        session.session.get.assert_called_with('https://test.crunch.io/api/123456/')
+        ds = get_mutable_dataset(dataset_id)
+        session.session.get.assert_called_with('https://test.crunch.io/api/b2c4c6b7d3a94e58937b23c1fed1b65e/')
 
         assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
-        assert ds.id == '123456'
+        assert ds.id == dataset_id
 
     @mock.patch('pycrunch.session')
     def test_get_project(self, session):
