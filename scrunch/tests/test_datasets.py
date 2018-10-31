@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+    # -*- coding: utf-8 -*-
 
 import collections
 import json
@@ -1479,9 +1479,28 @@ class TestSavepoints(TestCase):
 class TestForks(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
+    user_url = 'https://test.crunch.io/api/users/12345/'
 
-    def test_fork(self):
+    @mock.patch('scrunch.datasets.get_user')
+    def test_fork(self, mocked_get_user):
         sess = MagicMock()
+        response = MagicMock()
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        response.payload = {
+            'index': {
+                self.user_url: {
+                    'email': 'jane.doe@crunch.io'
+                }
+            }
+        }
+
+        def _get(*args, **kwargs):
+            return response
+
+        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
@@ -1491,7 +1510,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
-        ds.fork()
+        ds.fork(preserve_owner=False)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1501,9 +1520,27 @@ class TestForks(TestCase):
             }
         })
 
-    def test_fork_preserve_owner(self):
+    @mock.patch('scrunch.datasets.get_user')
+    def test_fork_preserve_owner(self, mocked_get_user):
         user_id = 'http://test.crunch.io/api/users/123/'
         sess = MagicMock()
+        response = MagicMock()
+        user = MagicMock()
+        user.resource.self = self.user_url
+        user.url = self.user_url
+        mocked_get_user.return_value = user
+        response.payload = {
+            'index': {
+                self.user_url: {
+                    'email': 'jane.doe@crunch.io'
+                }
+            }
+        }
+
+        def _get(*args, **kwargs):
+            return response
+
+        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
@@ -1520,29 +1557,6 @@ class TestForks(TestCase):
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
                 'owner': user_id,
-                'is_published': False,
-            }
-        })
-
-    def test_fork_preserve_owner_project(self):
-        project_id = 'http://test.crunch.io/api/projects/456/'
-        sess = MagicMock()
-        body = JSONObject({
-            'name': 'ds name',
-            'description': 'ds description',
-            'owner': project_id
-        })
-        ds_res = MagicMock(session=sess, body=body)
-        ds_res.forks = MagicMock()
-        ds_res.forks.index = {}
-        ds = StreamingDataset(ds_res)
-        ds.fork()
-        ds_res.forks.create.assert_called_with({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'FORK #1 of ds name',
-                'description': 'ds description',
-                'owner': project_id,
                 'is_published': False,
             }
         })
@@ -2077,6 +2091,7 @@ class TestRecode(TestDatasetBase):
                 'alias':'mr',
                 'description':'',
                 'notes':'',
+                'uniform_basis': False,
                 'derivation': {  
                     'function':'array',
                     'args': [{  
@@ -2090,14 +2105,14 @@ class TestRecode(TestDatasetBase):
                                     },
                                     'function':'case',
                                     'args':[{
-                                        'column':[1, 2, 3],
+                                        'column':[1, 2, -1],
                                         'type':{
                                             'value':{
                                                 'class':'categorical',
                                                 'categories':[
                                                     {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
                                                     {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
-                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':-1, 'name':'No Data'}
                                                 ]
                                             }
                                         }
@@ -2145,14 +2160,14 @@ class TestRecode(TestDatasetBase):
                                     },
                                     'function':'case',
                                     'args':[{ 
-                                        'column':[1, 2, 3],
+                                        'column':[1, 2, -1],
                                         'type':{
                                             'value':{
                                                 'class':'categorical',
                                                 'categories':[
                                                     {'missing':False, 'numeric_value':None, 'selected':True, 'id':1, 'name':'Selected'},
                                                     {'missing':False, 'numeric_value':None, 'selected':False, 'id':2, 'name':'Not Selected'},
-                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':3, 'name':'No Data'}
+                                                    {'missing':True, 'numeric_value':None, 'selected':False, 'id':-1, 'name':'No Data'}
                                                 ]
                                             }
                                         }
@@ -2251,6 +2266,7 @@ class TestRecode(TestDatasetBase):
                 'alias': 'mr',
                 'description': '',
                 'notes': '',
+                'uniform_basis': False,
                 'derivation': {
                     'function': 'array',
                     'args': [{

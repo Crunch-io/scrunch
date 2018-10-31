@@ -1245,7 +1245,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[new_var['body']['alias']]
 
     def derive_multiple_response(self, categories, subvariables, name, alias,
-        description='', notes=''):
+        description='', notes='', uniform_basis=False):
         """
         This is the generic approach to create_multiple_response but this
         allows the definition of any set of categories and rules (expressions)
@@ -1298,6 +1298,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'notes': notes,
+            'uniform_basis': uniform_basis,
             'derivation': {
                 'function': 'array',
                 'args': [{
@@ -1428,7 +1429,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self[alias]
 
     def create_categorical(self, categories, alias, name, multiple, description='',
-        notes='', missing_case=None):
+        notes='', missing_case=None, uniform_basis=False):
         """
         Used to create new categorical variables using Crunchs's `case`
         function
@@ -1554,7 +1555,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
             return self.derive_multiple_response(categories=_categories,
                 subvariables=_subvariables, name=name, alias=alias,
-                description=description, notes=notes)
+                description=description, notes=notes, uniform_basis=uniform_basis)
 
         elif multiple:
             return self.create_multiple_response(
@@ -2255,7 +2256,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-        preserve_owner=False, **kwargs):
+        preserve_owner=True, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2269,10 +2270,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param is_published: bool, default=False
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
-        :param preserve_owner: bool, default=False
+        :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
-            dataset. If the owner of the parent dataset is a Crunch project,
-            then it will be preserved regardless of this parameter.
+            dataset otherwise the owner will be the current user in the
+            session and the Dataset will be set under `Persona Project`
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
@@ -2293,16 +2294,20 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             name=name,
             description=description,
             is_published=is_published,
-            **kwargs)
+            **kwargs
+        )
 
-        if preserve_owner or '/api/projects/' in self.resource.body.owner:
+        if preserve_owner:
             body['owner'] = self.resource.body.owner
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset or StreamingDataset depending
         # on the class that the fork comes from
-        return self.__class__(_fork)
+        user = get_user(self.resource.session.email)
+        fork_ds = self.__class__(_fork)
+        fork_ds.change_editor(user)
+        return fork_ds
 
     def replace_values(self, variables, filter=None, literal_subvar=False):
         """
@@ -2637,7 +2642,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
     A pycrunch.shoji.Entity wrapper that provides variable-specific methods.
     DatasetSubvariablesMixin provides for subvariable interactions.
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description',
+    _MUTABLE_ATTRIBUTES = {'name', 'description', 'uniform_basis',
                            'view', 'notes', 'format', 'derived'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'alias', 'type', 'discarded'}
     # We won't expose owner and private
