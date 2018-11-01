@@ -93,7 +93,8 @@ class TestTeams(TestCase):
         self.assertEqual(get_request.url, team_members_url)
         self.assertEqual(get_request.method, 'GET')
         assert(isinstance(m, dict))
-        self.assertEqual(m.keys(), ['edit', 'view'])
+        assert('edit' in m)
+        assert('view' in m)
 
     def test_delete_team(self):
         mock_resource = Mock()
