@@ -76,7 +76,7 @@ class TestTeams(TestCase):
             user_url: None
         })
 
-    def test_list(self):
+    def test_list_members(self):
         session, team = self.make_team()
         team_members_url = 'http://example.com/api/teams/ID/members/'
 
@@ -88,9 +88,15 @@ class TestTeams(TestCase):
         assert(isinstance(m, list))
 
         # with permissions detail
-        m = team.members.list(permissions=False)
+        m = team.members.list(permissions=True)
         get_request = session.requests[-1]
         self.assertEqual(get_request.url, team_members_url)
         self.assertEqual(get_request.method, 'GET')
         assert(isinstance(m, dict))
         self.assertEqual(m.keys(), ['edit', 'view'])
+
+    def test_delete_team(self):
+        mock_resource = Mock()
+        team = Team(mock_resource)
+        team.delete()
+        mock_resource.delete.assert_called_once()

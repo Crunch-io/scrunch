@@ -324,7 +324,7 @@ class Members:
             can be a User or a Team. Returns ['user1@example.com', 'Team A']
         """
         members = {'edit': [], 'view': []} if permissions else []
-        for name, member in self.resource.members.by('name').iteritems():
+        for name, member in six.iteritems(self.resource.members.by('name')):
             # members can be users or teams
             user = member.get('email', name)
             if permissions:
