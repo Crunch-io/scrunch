@@ -1504,13 +1504,15 @@ class TestForks(TestCase):
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'owner': 'http://test.crunch.io/api/users/123/'
+            'owner': 'http://test.crunch.io/api/users/123/',
+            'streaming': 'yes'
         })
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = BaseDataset(ds_res)
-        ds.fork(preserve_owner=False)
+        ds = StreamingDataset(ds_res)
+        forked_ds = ds.fork(preserve_owner=False)
+        assert isinstance(forked_ds, MutableDataset)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
