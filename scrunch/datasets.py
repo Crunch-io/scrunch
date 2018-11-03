@@ -259,6 +259,7 @@ def create_team(name, connection=None):
         shoji_entity_wrapper({'name': name})).refresh()
     return Team(shoji_team)
 
+
 def list_geodata(name=None, connection=None):
     """
     :param connection: An scrunch session object
@@ -307,6 +308,18 @@ class User:
 
     def __str__(self):
         return self.email
+
+    staticmethod
+    def teams():
+        """
+        Returns a list of Teams where for the current session user
+        """
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+        return list(connection.teams.by('name').keys())
 
 
 class Members:
