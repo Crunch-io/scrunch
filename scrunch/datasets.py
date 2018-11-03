@@ -917,7 +917,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
                            'archived', 'end_date', 'start_date'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time',
+                             'size'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
                           'viewers_can_share', 'dashboard_deck',
