@@ -318,18 +318,21 @@ class Members:
     def __init__(self, resource):
         self.resource = resource
 
-    def list(self):
+    def list(self, permissions=False):
         """
         :return: A list of members of the Entity as strings. A member
             can be a User or a Team. Returns ['user1@example.com', 'Team A']
         """
-        members = []
-        for member in self.resource.members.index.values():
+        members = {'edit': [], 'view': []} if permissions else []
+        for name, member in six.iteritems(self.resource.members.by('name')):
             # members can be users or teams
-            user = member.get('email')
-            if not user:
-                user = member.get('name')
-            members.append(user)
+            user = member.get('email', name)
+            if permissions:
+                edit = member['permissions'][self._EDIT_ATTRIBUTE]
+                group = 'edit' if edit else 'view'
+                members[group].append(user)
+            else:
+                members.append(user)
         return members
 
     def _validate_member(self, member):
@@ -363,32 +366,27 @@ class Members:
         """
         member = self._validate_member(member)
         self.resource.members.patch({member.url: {
-            'permissions': {'edit': edit}
+            'permissions': {self._EDIT_ATTRIBUTE: edit}
         }})
 
-    def edit(self, member, permissions):
+    def edit(self, member, edit):
         """
         :param member: email, User instance, team name or Team instance
         Edit a members's permissions on this instance.
         Examples:
-            team.members.edit('mathias.bustamante@yougov.com', {'team_admin': True})
-            project.members.edit('mathias.bustamante@yougov.com', {'edit': True})
-        """
-        member = self._validate_member(member)
-        self.resource.members.patch({member.url: {'permissions': permissions}})
-
-
-class TeamMembers(Members):
-    def add(self, member, edit=False):
-        """
-        :param member: email, User instance, team name or Team instance
-        :return: None
+            team.members.edit('mathias.bustamante@yougov.com', edit=True)
+            project.members.edit('mathias.bustamante@yougov.com', edit=True)
         """
         member = self._validate_member(member)
         self.resource.members.patch({member.url: {
-            'permissions': {'team_admin': edit}}
+            'permissions': {self._EDIT_ATTRIBUTE: edit}}
         })
 
+class ProjectMembers(Members):
+    _EDIT_ATTRIBUTE = 'edit'
+
+class TeamMembers(Members):
+    _EDIT_ATTRIBUTE = 'team_admin'
 
 class Team:
     _MUTABLE_ATTRIBUTES = {'name'}
@@ -414,6 +412,8 @@ class Team:
     def members(self):
         return TeamMembers(self.resource)
 
+    def delete(self):
+        return self.resource.delete()
 
 class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
@@ -451,7 +451,7 @@ class Project:
 
     @property
     def members(self):
-        return Members(self.resource)
+        return ProjectMembers(self.resource)
 
     @property
     def users(self):
