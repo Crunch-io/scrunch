@@ -259,6 +259,7 @@ def create_team(name, connection=None):
         shoji_entity_wrapper({'name': name})).refresh()
     return Team(shoji_team)
 
+
 def list_geodata(name=None, connection=None):
     """
     :param connection: An scrunch session object
@@ -307,6 +308,18 @@ class User:
 
     def __str__(self):
         return self.email
+
+    @staticmethod
+    def teams():
+        """
+        Returns a list of Teams where for the current session user
+        """
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+        return list(connection.teams.by('name').keys())
 
 
 class Members:
@@ -904,7 +917,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
                            'archived', 'end_date', 'start_date'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time'}
+    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time',
+                             'size'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
     _EDITABLE_SETTINGS = {'viewers_can_export', 'viewers_can_change_weight',
                           'viewers_can_share', 'dashboard_deck',
@@ -2285,6 +2299,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
+        from scrunch.mutable_dataset import MutableDataset
         nforks = len(self.resource.forks.index)
         if name is None:
             if six.PY2:
@@ -2310,10 +2325,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
-        # return a MutableDataset or StreamingDataset depending
-        # on the class that the fork comes from
+        # return a MutableDataset always
         user = get_user(self.resource.session.email)
-        fork_ds = self.__class__(_fork)
+        fork_ds = MutableDataset(_fork)
         fork_ds.change_editor(user)
         return fork_ds
 
