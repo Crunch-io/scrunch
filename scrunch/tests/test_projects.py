@@ -8,7 +8,7 @@ from unittest import TestCase
 from pycrunch.shoji import Entity, Catalog, Order
 
 from scrunch.order import InvalidPathError
-from scrunch.datasets import Project, ProjectDatasetsOrder
+from scrunch.datasets import Project, ProjectDatasetsOrder, get_personal_project
 
 from .mock_session import MockSession
 
@@ -396,3 +396,69 @@ class TestProjectNesting(TestCase):
         project = Project(mock_resource)
         project.delete()
         mock_resource.delete.assert_called_once()
+
+
+class TestPersonalProject(TestCase):
+    PERSONAL_URL = "http://example.com/api/projects/personal/"
+
+    def _get_root(self):
+        session = MockSession()
+        root_url = "http://example.com/api/"
+        projects_url = "http://example.com/api/projects/"
+        session.add_fixture(root_url, {
+            "self": root_url,
+            "element": "shoji:catalog",
+            "catalogs": {
+                "projects": projects_url
+            },
+            "index": {}
+        })
+        session.add_fixture(projects_url, {
+            "self": projects_url,
+            "element": "shoji:catalog",
+            "catalogs": {
+                "personal": self.PERSONAL_URL
+            },
+            "index": {}
+        })
+        session.add_fixture(self.PERSONAL_URL, {
+            "self": self.PERSONAL_URL,
+            "element": "shoji:catalog",
+            "index": {}
+        })
+        return session.get(root_url).payload
+
+    def test_get_personal(self):
+        root = self._get_root()
+        personal = get_personal_project(root)
+        self.assertEqual(personal.url, self.PERSONAL_URL)
+
+    def test_move_to_personal(self):
+        root = self._get_root()
+        a_res_url = 'http://example.com/api/projects/A/'
+        root.session.add_fixture(a_res_url, {
+            'self': a_res_url,
+            'element': 'shoji:entity',
+            'catalogs': {
+                'project': 'http://example.com/api/projects/'
+            },
+            'body': {
+                'name': 'project A'
+            },
+            'index': {},
+            'graph': []
+        })
+        personal = get_personal_project(root)
+        project_a = Project(root.session.get(a_res_url).payload)
+        personal.move_here(project_a)
+        patch_request = root.session.requests[-3]
+        self_refresh_request = root.session.requests[-2]
+        child_refresh_request = root.session.requests[-1]
+        self.assertEqual(child_refresh_request.method, 'GET')
+        self.assertEqual(self_refresh_request.method, 'GET')
+        self.assertEqual(self_refresh_request.url, self.PERSONAL_URL)
+        self.assertEqual(patch_request.url, self.PERSONAL_URL)
+        self.assertEqual(patch_request.method, 'PATCH')
+        self.assertEqual(json.loads(patch_request.body)['index'], {
+            project_a.url: {}
+        })
