@@ -309,7 +309,7 @@ class User:
     def __str__(self):
         return self.email
 
-    staticmethod
+    @staticmethod
     def teams():
         """
         Returns a list of Teams where for the current session user
