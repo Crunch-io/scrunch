@@ -99,3 +99,5 @@ crunch.ini
 # Pycharm/Idea
 .idea/
 
+# Vim
+*.swp
