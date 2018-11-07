@@ -111,6 +111,15 @@ def _get_connection(file_path='crunch.ini'):
             "or environment variables.")
 
 
+def _default_connection(connection):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    return connection
+
 def _get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Helper method for specific get_dataset and get_streaming_dataset
@@ -132,12 +141,7 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
     use the /search endpoint from crunch, but currently it's not working
     by id's.
     """
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+    connection = _default_connection(connection)
     root = connection
     shoji_ds = None
     # search on project if specifed
@@ -194,12 +198,7 @@ def get_project(project, connection=None):
     :param connection: An scrunch session object
     :return: Project class instance
     """
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+    connection = _default_connection(connection)
     try:
         ret = connection.projects.by('name')[project].entity
     except KeyError:
@@ -210,18 +209,24 @@ def get_project(project, connection=None):
     return Project(ret)
 
 
+def get_personal_project(connection=None):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+    root = connection
+    return Project(root.projects.personal)
+
+
 def get_user(user, connection=None):
     """
     :param user: Crunch user email address
     :param connection: An scrunch session object
     :return: User class instance
     """
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AuthenticationError(
-                "Unable to find crunch session, crunch.ini file or \
-                environment variables.")
+    connection = _default_connection(connection)
     try:
         ret = connection.users.by('email')[user].entity
     except KeyError:
@@ -235,12 +240,7 @@ def get_team(team, connection=None):
     :param connection: An scrunch session object
     :return: Team class instance
     """
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+    connection = _default_connection(connection)
     try:
         ret = connection.teams.by('name')[team].entity
     except KeyError:
@@ -249,12 +249,7 @@ def get_team(team, connection=None):
 
 
 def create_team(name, connection=None):
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+    connection = _default_connection(connection)
     shoji_team = connection.teams.create(
         shoji_entity_wrapper({'name': name})).refresh()
     return Team(shoji_team)
@@ -265,13 +260,7 @@ def list_geodata(name=None, connection=None):
     :param connection: An scrunch session object
     :return: Dict of geodata objects, keyed by geodata name
     """
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AuthenticationError(
-                "Unable to find crunch session, crunch.ini file or \
-                environment variables.")
-
+    connection = _default_connection(connection)
     return connection.geodata.by('name')
 
 
@@ -579,6 +568,7 @@ class Project:
     def move_here(self, items, **kwargs):
         if not items:
             return
+        items = items if isinstance(items, (list, tuple)) else [items]
         position, before, after = [kwargs.get('position'),
                                    kwargs.get('before'), kwargs.get('after')]
         graph = self._position_items(items, position, before, after)
@@ -590,7 +580,7 @@ class Project:
             item.resource.refresh()
 
     def _position_items(self, new_items, position, before, after):
-        graph = self.resource.graph
+        graph = getattr(self.resource, 'graph', [])
         if before is not None or after is not None:
             # Before and After are strings that map to a Project or Dataset.name
             target = before or after
