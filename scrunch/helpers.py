@@ -98,6 +98,7 @@ def validate_categorical_else_is_last(categories):
             if i != len(categories) -1:
                 raise ValueError('case "else" needs to appear last in categories')
             return True
+    return False
 
 
 def validate_categories(categories):
