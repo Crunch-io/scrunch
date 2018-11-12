@@ -27,7 +27,8 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias, validate_categories, SELECTED_ID,
+                             subvar_alias, validate_categories,
+                             validate_categorical_else_is_last, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
@@ -1164,9 +1165,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
         """
+        has_else = validate_categorical_else_is_last(categories)
         cases = []
         for cat in categories:
-            cases.append(cat.pop('case'))
+            case = cat.pop('case')
+            if case != 'else':
+                cases.append(case)
             # append a default numeric_value if not found
             if 'numeric_value' not in cat:
                 cat['numeric_value'] = None
@@ -1194,6 +1198,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 name='No Data',
                 numeric_value=None,
                 missing=True))
+
+        # if there exists an else case, negate and `and` concatenate all previous cases
+        if has_else:
+            else_case = ' and '.join(['not({})'.format(case) for case in cases])
+            cases.append(else_case)
 
         more_args = []
         for case in cases:

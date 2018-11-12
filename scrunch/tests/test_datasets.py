@@ -2044,7 +2044,164 @@ class TestRecode(TestDatasetBase):
         }
         with pytest.raises(ValueError) as err:
             ds.create_categorical(**kwargs)
-        assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)        
+        assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)
+
+    def test_create_categorical_else_case_last(self):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        kwargs = {
+            'name': 'Age Range',
+            'alias': 'agerange',
+            'multiple': False,
+            'categories': [
+                {'id': 1, 'name': '21', 'case': 'age == 20'},
+                {'id': 3, 'name': 'The rest', 'case': 'else'},
+                {'id': 2, 'name': '51', 'case': 'age == 30'},
+            ]
+        }
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(**kwargs)
+        assert 'case "else" needs to appear last in categories' in str(err.value)
+
+    def test_create_categorical_else_case_negates_all(self):
+        variables = {
+            'var_a': {
+                'id': '001',
+                'alias': 'var_a',
+                'name': 'Variable A',
+                'type': 'numeric',
+                'is_subvar': False
+            },
+            'var_b': {
+                'id': '002',
+                'alias': 'var_b',
+                'name': 'Variable B',
+                'type': 'numeric',
+                'is_subvar': False
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = StreamingDataset(ds_mock)
+        kwargs = {
+            'name': 'Age Range',
+            'alias': 'agerange',
+            'multiple': False,
+            'categories': [
+                {'id': 1, 'name': 'Facebook', 'case': 'var_a == 1'},
+                {'id': 2, 'name': 'Twitter', 'case': 'var_b == 1'},
+                {'id': 3, 'name': 'The rest', 'case': 'else'},
+            ]
+        }
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(**kwargs)
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        ds.resource.variables.create.assert_called_with({
+            "element": "shoji:entity",
+            "body": {
+                "alias": "agerange",
+                "name": "Age Range",
+                "expr": {
+                    "function": "case",
+                    "args": [
+                        {
+                            "column": [1, 2, 3, -1],
+                            "type": {
+                                "value": {
+                                    "class": "categorical",
+                                    "categories": [
+                                        {
+                                            "id": 1,
+                                            "name": "Facebook",
+                                            "numeric_value": None,
+                                            "missing": False
+                                        },
+                                        {
+                                            "id": 2,
+                                            "name": "Twitter",
+                                            "numeric_value": None,
+                                            "missing": False
+                                        },
+                                        {
+                                            "id": 3,
+                                            "name": "The rest",
+                                            "numeric_value": None,
+                                            "missing": False
+                                        },
+                                        {
+                                            "id": -1,
+                                            "name": "No Data",
+                                            "numeric_value": None,
+                                            "missing": True
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "function": "==",
+                            "args": [
+                                {
+                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_a/"
+                                },
+                                {
+                                    "value": 1
+                                }
+                            ]
+                        },
+                        {
+                            "function": "==",
+                            "args": [
+                                {
+                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_b/"
+                                },
+                                {
+                                    "value": 1
+                                }
+                            ]
+                        },
+                        {
+                            "function": "and",
+                            "args": [
+                                {
+                                    "function": "not",
+                                    "args": [
+                                        {
+                                            "function": "==",
+                                            "args": [
+                                                {
+                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_a/"
+                                                },
+                                                {
+                                                    "value": 1
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "function": "not",
+                                    "args": [
+                                        {
+                                            "function": "==",
+                                            "args": [
+                                                {
+                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_b/"
+                                                },
+                                                {
+                                                    "value": 1
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "description": "",
+                "notes": ""
+            }
+        })
 
     def test_create_categorical_missing_case(self):
         variables = {
