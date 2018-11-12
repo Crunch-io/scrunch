@@ -82,6 +82,24 @@ def download_file(url, filename):
     return filename
 
 
+def validate_categorical_else_is_last(categories):
+    """
+    When creating a categorical like:
+        categories=[
+            {'id': 1, 'name': '30', 'case': 'age == 30'}
+            {'id': 2, 'name': '40', 'case': 'age == 40'}
+            {'id': 3, 'name': 'Other', 'case': 'else'}
+        ]
+    validate that else is the last case in the list and 
+    return if categories has a valid else
+    """
+    for i, cat in enumerate(categories):
+        if cat['case'] == 'else':
+            if i != len(categories) -1:
+                raise ValueError('case "else" needs to appear last in categories')
+            return True
+
+
 def validate_categories(categories):
     """
     Categories can be defined as simple as:
