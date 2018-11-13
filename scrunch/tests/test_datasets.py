@@ -2046,24 +2046,7 @@ class TestRecode(TestDatasetBase):
             ds.create_categorical(**kwargs)
         assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)
 
-    def test_create_categorical_else_case_last(self):
-        ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
-        kwargs = {
-            'name': 'Age Range',
-            'alias': 'agerange',
-            'multiple': False,
-            'categories': [
-                {'id': 1, 'name': '21', 'case': 'age == 20'},
-                {'id': 3, 'name': 'The rest', 'case': 'else'},
-                {'id': 2, 'name': '51', 'case': 'age == 30'},
-            ]
-        }
-        with pytest.raises(ValueError) as err:
-            ds.create_categorical(**kwargs)
-        assert 'case "else" needs to appear last in categories' in str(err.value)
-
-    def test_create_categorical_else_case_negates_all(self):
+    def test_create_categorical_else_case(self):
         variables = {
             'var_a': {
                 'id': '001',
@@ -2200,6 +2183,170 @@ class TestRecode(TestDatasetBase):
                 },
                 "description": "",
                 "notes": ""
+            }
+        })
+
+    def test_create_2_multiple_response_else_case(self):
+        variables = {
+            'age': {
+                'id': '001',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'numeric',
+                'is_subvar': False
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = StreamingDataset(ds_mock)
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(
+                categories=[
+                    {'id': 1, 'name': '20', 'case': 'age == 20'},
+                    {'id': 2, 'name': '50', 'case': 'age == 50'},
+                    {'id': 3, 'name': 'The rest', 'case': 'else'},
+                ],
+                alias='agerange_multi',
+                name='Age range multi',
+                multiple=True
+            )
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        categories_arg = {
+            "column": [1, 2],
+            "type": {
+                "value": {
+                    "class": "categorical",
+                    "categories": [
+                        {
+                            "id": 1,
+                            "name": "Selected",
+                            "missing": False,
+                            "numeric_value": None,
+                            "selected": True
+                        },
+                        {
+                            "id": 2,
+                            "name": "Not selected",
+                            "missing": False,
+                            "numeric_value": None,
+                            "selected": False
+                        }
+                    ]
+                }
+            }
+        }
+        ds.resource.variables.create.assert_called_with({
+           "element": "shoji:entity",
+            "body": {
+                "name": "Age range multi",
+                "alias": "agerange_multi",
+                "description": "",
+                "notes": "",
+                "derivation": {
+                    "function": "array",
+                    "args": [
+                        {
+                            "function": "select",
+                            "args": [
+                                {
+                                    "map": {
+                                        "0001": {
+                                            "references": {
+                                                "name": "20",
+                                                "alias": "agerange_multi_1"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                categories_arg,
+                                                {
+                                                    "function": "==",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        },
+                                                        {
+                                                            "value": 20
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "0002": {
+                                            "references": {
+                                                "name": "50",
+                                                "alias": "agerange_multi_2"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                categories_arg,
+                                                {
+                                                    "function": "==",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        },
+                                                        {
+                                                            "value": 50
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "0003": {
+                                            "references": {
+                                                "name": "The rest",
+                                                "alias": "agerange_multi_3"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                categories_arg,
+                                                {
+                                                    "function": "and",
+                                                    "args": [
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 20
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 50
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": ["0001", "0002", "0003"]
+                                }
+                            ]
+                        }
+                    ]
+                }
             }
         })
 
@@ -2418,6 +2565,18 @@ class TestRecode(TestDatasetBase):
         with pytest.raises(ValueError) as err:
             ds.derive_multiple_response(**kwargs)
         assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        categories_arg = {
+            'column': [1, 2],
+            'type': {
+                'value': {
+                    'class': 'categorical',
+                    'categories': [
+                        {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
+                        {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
+                    ]
+                }
+            }
+        }
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -2438,32 +2597,22 @@ class TestRecode(TestDatasetBase):
                                         'alias': 'mr_1',
                                     },
                                     'function': 'case',
-                                    'args': [{
-                                        'column': [1, 2],
-                                        'type': {
-                                            'value': {
-                                                'class': 'categorical',
-                                                'categories': [
-                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
-                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
-                                                ]
-                                            }
+                                    'args': [
+                                        categories_arg,
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                                {'value': 1}
+                                            ]
+                                        },
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                                {'value': 2}
+                                            ]
                                         }
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
-                                            {'value': 1}
-                                        ]
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
-                                            {'value': 2}
-                                        ]
-                                    }
                                     ]
                                 },
                                 '0002': {
@@ -2472,32 +2621,22 @@ class TestRecode(TestDatasetBase):
                                         'name': 'Twitter',
                                     },
                                     'function': 'case',
-                                    'args': [{
-                                        'column': [1, 2],
-                                        'type': {
-                                            'value': {
-                                                'class': 'categorical',
-                                                'categories': [
-                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
-                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
-                                                ]
-                                            }
+                                    'args': [
+                                        categories_arg,
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'value': 1}
+                                            ]
+                                        },
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'value': 2}
+                                            ]
                                         }
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
-                                            {'value': 1}
-                                        ]
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
-                                            {'value': 2}
-                                        ]
-                                    }
                                     ]
                                 },
                                 '0003': {
@@ -2506,32 +2645,22 @@ class TestRecode(TestDatasetBase):
                                         'name': 'Google+',
                                     },
                                     'function': 'case',
-                                    'args': [{
-                                        'column': [1, 2],
-                                        'type': {
-                                            'value': {
-                                                'class': 'categorical',
-                                                'categories': [
-                                                    {'missing': False, 'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Yes'},
-                                                    {'missing': False, 'numeric_value': None, 'selected': False, 'id': 2, 'name': 'No'}
-                                                ]
-                                            }
+                                    'args': [
+                                        categories_arg,
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'value': 1}
+                                            ]
+                                        },
+                                        {
+                                            'function': '==',
+                                            'args': [
+                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'value': 2}
+                                            ]
                                         }
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
-                                            {'value': 1}
-                                        ]
-                                    },
-                                    {
-                                        'function': '==',
-                                        'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
-                                            {'value': 2}
-                                        ]
-                                    }
                                     ]
                                 }
                             }

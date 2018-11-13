@@ -82,23 +82,21 @@ def download_file(url, filename):
     return filename
 
 
-def validate_categorical_else_is_last(categories):
+def get_categorical_else_case(case, responses):
     """
     When creating a categorical like:
-        categories=[
+        responses=[
             {'id': 1, 'name': '30', 'case': 'age == 30'}
             {'id': 2, 'name': '40', 'case': 'age == 40'}
             {'id': 3, 'name': 'Other', 'case': 'else'}
         ]
-    validate that else is the last case in the list and 
-    return if categories has a valid else
+    build the case for else: 'not (age==30) and not (age==40)'
     """
-    for i, cat in enumerate(categories):
-        if cat['case'] == 'else':
-            if i != len(categories) -1:
-                raise ValueError('case "else" needs to appear last in categories')
-            return True
-    return False
+    if case == 'else':
+        case = ' and '.join(
+            ['not({})'.format(_case['case']) for _case in responses if _case['case'] != 'else']
+        )
+    return case
 
 
 def validate_categories(categories):
