@@ -1,4 +1,5 @@
 import collections
+import copy
 import datetime
 import json
 import logging
@@ -1165,7 +1166,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Creates a categorical variable deriving from other variables.
         Uses Crunch's `case` function.
         """
-        import copy
         cases = []
         # keep a copy of categories because we are gonna mutate it later
         categories_copy = [copy.copy(c) for c in categories]
