@@ -8,7 +8,7 @@ from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
 
 
-def get_mutable_dataset(dataset, connection=None, editor=False, project=None):
+def get_mutable_dataset(dataset, connection=None, editor=False, project=None, lazy=False):
     """
     A simple wrapper of _get_dataset with streaming=False
     """
@@ -17,7 +17,7 @@ def get_mutable_dataset(dataset, connection=None, editor=False, project=None):
     if shoji_ds['body'].get('streaming') == 'streaming':
         raise InvalidDatasetTypeError("Dataset %s is of type 'streaming',\
             use get_streaming_dataset method instead" % dataset)
-    ds = MutableDataset(shoji_ds)
+    ds = MutableDataset(shoji_ds, lazy=lazy)
     if editor is True:
         ds.change_editor(root.session.email)
     return ds

@@ -201,6 +201,32 @@ class TestDatasetBase(object):
 
 class TestDatasets(TestDatasetBase, TestCase):
 
+    def test_get_streaming_dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+
+        assert ds.name == 'test_dataset_name'
+
+    def test_get_mutable_dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = MutableDataset(ds_mock)
+
+        assert ds.name == 'test_dataset_name'
+
+    def test_get_streaming_lazy_dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock, lazy=True)
+
+        assert ds.name == 'test_dataset_name'
+        assert str(type(ds['var1_alias'])) == "<class 'scrunch.datasets.Variable'>"
+
+    def test_get_mutable_lazy_dataset(self):
+        ds_mock = self._dataset_mock()
+        ds = MutableDataset(ds_mock, lazy=True)
+
+        assert ds.name == 'test_dataset_name'
+        assert str(type(ds['var1_alias'])) == "<class 'scrunch.datasets.Variable'>"
+
     def test_edit_dataset(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
@@ -2044,7 +2070,7 @@ class TestRecode(TestDatasetBase):
         }
         with pytest.raises(ValueError) as err:
             ds.create_categorical(**kwargs)
-        assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)        
+        assert 'missing_case as an argument and as element of "categories" is not allowed' in str(err.value)
 
     def test_create_categorical_missing_case(self):
         variables = {
@@ -2085,20 +2111,20 @@ class TestRecode(TestDatasetBase):
         }
         with pytest.raises(ValueError) as err:
             ds.create_categorical(**kwargs)
-        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value) 
-        ds.resource.variables.create.assert_called_with({  
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        ds.resource.variables.create.assert_called_with({
             'element':'shoji:entity',
-            'body':{  
+            'body':{
                 'name':'my mr',
                 'alias':'mr',
                 'description':'',
                 'notes':'',
                 'uniform_basis': False,
-                'derivation': {  
+                'derivation': {
                     'function':'array',
-                    'args': [{  
+                    'args': [{
                         'function':'select',
-                        'args': [{  
+                        'args': [{
                             'map': {
                                 '0001': {
                                     'references':{
@@ -2119,7 +2145,7 @@ class TestRecode(TestDatasetBase):
                                             }
                                         }
                                     },
-                                    {  
+                                    {
                                         'function':'==',
                                         'args':[
                                             {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_a/'},
@@ -2139,7 +2165,7 @@ class TestRecode(TestDatasetBase):
                                             }]},
                                         {
                                             'function':'not',
-                                            'args':[{  
+                                            'args':[{
                                             'function':'==',
                                             'args':[
                                                 {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
@@ -2147,9 +2173,9 @@ class TestRecode(TestDatasetBase):
                                             ]}]
                                         }]
                                         },
-                                        {  
+                                        {
                                             'function':'==',
-                                            'args':[  
+                                            'args':[
                                                 {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
                                                 {'value':0}
                                             ]
@@ -2161,7 +2187,7 @@ class TestRecode(TestDatasetBase):
                                         'alias':'mr_2'
                                     },
                                     'function':'case',
-                                    'args':[{ 
+                                    'args':[{
                                         'column':[1, 2, -1],
                                         'type':{
                                             'value':{
@@ -2194,7 +2220,7 @@ class TestRecode(TestDatasetBase):
                                             }]},
                                         {
                                             'function':'not',
-                                            'args':[{  
+                                            'args':[{
                                             'function':'==',
                                             'args':[
                                                 {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
@@ -2204,7 +2230,7 @@ class TestRecode(TestDatasetBase):
                                     },
                                     {
                                         'function':'==',
-                                        'args':[  
+                                        'args':[
                                             {'variable':'https://test.crunch.io/api/datasets/123456/variables/var_b/'},
                                             {'value':0}
                                         ]
