@@ -2350,6 +2350,336 @@ class TestRecode(TestDatasetBase):
             }
         })
 
+    def test_create_3_multiple_response_else_case(self):
+        variables = {
+            'age': {
+                'id': '001',
+                'alias': 'age',
+                'name': 'Age',
+                'type': 'numeric',
+                'is_subvar': False
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = StreamingDataset(ds_mock)
+        with pytest.raises(ValueError) as err:
+            ds.create_categorical(
+                categories = [
+                    {
+                        'id': 1,
+                        'name': '21',
+                        'case': 'age == 21',
+                        'missing_case': 'missing(age)'
+                    },
+                    {
+                        'id': 2,
+                        'name': '51',
+                        'case': 'age == 51',
+                        'missing_case': 'missing(age)'
+                    },
+                    {
+                        'id': 3,
+                        'name': 'The rest',
+                        'case': 'else',
+                        'missing_case': 'age > 100'
+                    },
+                ],
+                alias='agerange_multi3',
+                name='Age range multi3',
+                multiple=True
+            )
+        assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        column_args = {
+            "column": [1, 2, -1],
+            "type": {
+                "value": {
+                    "class": "categorical",
+                    "categories": [
+                        {
+                            "missing": False,
+                            "numeric_value": None,
+                            "selected": True,
+                            "id": 1,
+                            "name": "Selected"
+                        },
+                        {
+                            "missing": False,
+                            "numeric_value": None,
+                            "selected": False,
+                            "id": 2,
+                            "name": "Not Selected"
+                        },
+                        {
+                            "missing": True,
+                            "numeric_value": None,
+                            "selected": False,
+                            "id": -1,
+                            "name": "No Data"
+                        }
+                    ]
+                }
+            }
+        }
+        ds.resource.variables.create.assert_called_with({
+            "element": "shoji:entity",
+            "body": {
+                "name": "Age range multi3",
+                "alias": "agerange_multi3",
+                "description": "",
+                "notes": "",
+                "uniform_basis": False,
+                "derivation": {
+                    "function": "array",
+                    "args": [
+                        {
+                            "function": "select",
+                            "args": [
+                                {
+                                    "map": {
+                                        "0001": {
+                                            "references": {
+                                                "name": "21",
+                                                "alias": "agerange_multi3_1"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                column_args,
+                                                {
+                                                    "function": "==",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        },
+                                                        {
+                                                            "value": 21
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": "and",
+                                                    "args": [
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 21
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "is_missing",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": "is_missing",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "0002": {
+                                            "references": {
+                                                "name": "51",
+                                                "alias": "agerange_multi3_2"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                column_args,
+                                                {
+                                                    "function": "==",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        },
+                                                        {
+                                                            "value": 51
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": "and",
+                                                    "args": [
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 51
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "is_missing",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": "is_missing",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        "0003": {
+                                            "references": {
+                                                "name": "The rest",
+                                                "alias": "agerange_multi3_3"
+                                            },
+                                            "function": "case",
+                                            "args": [
+                                                column_args,
+                                                {
+                                                    "function": "and",
+                                                    "args": [
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 21
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 51
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": "and",
+                                                    "args": [
+                                                        {
+                                                            "function": "or",
+                                                            "args": [
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 21
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "function": "==",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 51
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
+                                                                {
+                                                                    "function": ">",
+                                                                    "args": [
+                                                                        {
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                        },
+                                                                        {
+                                                                            "value": 100
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    ]
+                                                },
+                                                {
+                                                    "function": ">",
+                                                    "args": [
+                                                        {
+                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                        },
+                                                        {
+                                                            "value": 100
+                                                        }
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                {
+                                    "value": ["0001", "0002", "0003"]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        })
+
     def test_create_categorical_missing_case(self):
         variables = {
             'var_a': {
