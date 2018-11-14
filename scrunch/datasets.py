@@ -856,11 +856,13 @@ class DatasetVariablesMixin(collections.Mapping):
         """
         self._set_catalog()
         self._vars = self._catalog.index.items()
-        order = self._catalog.hier
 
-        # The `order` property, which provides a high-level API for
-        # manipulating the "Hierarchical Order" structure of a Dataset.
-        self.order = DatasetVariablesOrder(self._catalog, order)
+        if self.lazy is False:
+            order = self._catalog.hier
+
+            # The `order` property, which provides a high-level API for
+            # manipulating the "Hierarchical Order" structure of a Dataset.
+            self.order = DatasetVariablesOrder(self._catalog, order)
 
     def __iter__(self):
         for var in self._vars:
@@ -914,16 +916,18 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                           'viewers_can_share', 'dashboard_deck',
                           'variable_folders'}
 
-    def __init__(self, resource):
+    def __init__(self, resource, lazy=False):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
         super(BaseDataset, self).__init__(resource)
+        self.lazy = lazy
         self._settings = None
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
-        self.folders = DatasetFolders(self)
+        if self.lazy is False:
+            self.folders = DatasetFolders(self)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:

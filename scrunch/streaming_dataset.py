@@ -4,7 +4,7 @@ from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.helpers import shoji_entity_wrapper
 
 
-def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
+def get_streaming_dataset(dataset, connection=None, editor=False, project=None, lazy=False):
     """
     A simple wrapper of _get_dataset with streaming=True
     """
@@ -13,7 +13,7 @@ def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
     if shoji_ds['body'].get('streaming') != 'streaming':
         raise InvalidDatasetTypeError("Dataset %s is of type 'mutable',\
             use get_mutable_dataset method instead" % dataset)
-    ds = StreamingDataset(shoji_ds)
+    ds = StreamingDataset(shoji_ds, lazy=lazy)
     if editor is True:
         ds.change_editor(root.session.email)
     return ds
