@@ -1,4 +1,5 @@
 import collections
+import copy
 import datetime
 import json
 import logging
@@ -27,7 +28,8 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias, validate_categories, SELECTED_ID,
+                             subvar_alias, validate_categories,
+                             get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
@@ -1165,8 +1167,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Uses Crunch's `case` function.
         """
         cases = []
+        # keep a copy of categories because we are gonna mutate it later
+        categories_copy = [copy.copy(c) for c in categories]
         for cat in categories:
-            cases.append(cat.pop('case'))
+            case = cat.pop('case')
+            case = get_else_case(case, categories_copy)
+            cases.append(case)
             # append a default numeric_value if not found
             if 'numeric_value' not in cat:
                 cat['numeric_value'] = None
@@ -1338,6 +1344,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         for resp in responses:
             case = resp['case']
+            case = get_else_case(case, responses)
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
 
@@ -1452,6 +1459,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             categories=[
                 {'id': 1, 'name': 'Millennial', 'case': 'age_var < 25'},
                 {'id': 2, 'name': 'Gen X', 'case': 'age_var > 25'},
+                {'id': 3, 'name': 'Other', 'case': 'else'}  --> optional
             ],
             multiple=False
 
@@ -1464,6 +1472,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 {'id': 1, 'name': 'variable 1', 'case': 'var_1 == 1'},
                 {'id': 2, 'name': 'variable 2', 'case': 'var_2 == 2'},
                 {'id': 3, 'name': 'variable_3', 'case': 'var_3 == 3'},
+                {'id': 4, 'name': 'Other', 'case': 'else'}  --> optional
             ],
             multiple=True
 
@@ -1497,6 +1506,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                         'case': 'var_1 == 3',
                         'name': 'subvar_3',
                         'id': 3,
+                    },
+                    {
+                        'case': 'else',
+                        'name': 'Other',
+                        'id': 4,  --> optional
                     }],
                 multiple=True
                 (B) If the missing_case is constant across all subvariables, then the argument
@@ -1516,6 +1530,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                         'case': 'var_1 == 3',
                         'name': 'subvar_3',
                         'id': 3,
+                    },
+                    {
+                        'case': 'else',
+                        'name': 'Other',
+                        'id': 4,  --> optional
                     }],
                 multiple=True,
                 missing_case='missing(var_1)'
@@ -1548,11 +1567,19 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     'id': sv['id'],
                     'name': sv['name']
                 }
+
+                # build special expressions for 'else' case if exist
+                else_not_selected = else_case_not_selected(sv['case'], categories, sv.get('missing_case'))
+                sv['case'] = get_else_case(sv['case'], categories)
+
                 if 'missing_case' in sv:
+                    not_selected_case = 'not ({}) and not ({})'.format(sv['case'], sv['missing_case'])
+                    if else_not_selected:
+                        not_selected_case = else_not_selected
                     data.update({
                         'cases': {
                             SELECTED_ID: sv['case'],
-                            NOT_SELECTED_ID: 'not ({}) and not ({})'.format(sv['case'], sv['missing_case']),
+                            NOT_SELECTED_ID: not_selected_case,
                             NO_DATA_ID: sv['missing_case']
                         }
                     })

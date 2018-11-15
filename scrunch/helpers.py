@@ -82,6 +82,58 @@ def download_file(url, filename):
     return filename
 
 
+def get_else_case(case, responses):
+    """
+    When creating a categorical like:
+        responses=[
+            {'id': 1, 'name': '30', 'case': 'age == 30'}
+            {'id': 2, 'name': '40', 'case': 'age == 40'}
+            {'id': 3, 'name': 'Other', 'case': 'else'}
+        ]
+    build the case for else: 'not (age==30) and not (age==40)'
+    """
+    if case == 'else':
+        case = ' and '.join(
+            ['not({})'.format(_case['case']) for _case in responses if _case['case'] != 'else']
+        )
+    return case
+
+
+def else_case_not_selected(case, responses, missing_case):
+    """
+    When creating a multiple response through derive_multiple_response with:
+        categories = [
+            {
+                'id': 1,
+                'name': 'Coke',
+                'case': 'q1 in [1]',
+                'missing_case': 'missing(q1)'
+            },
+            {
+                'id': 2,
+                'name': 'Pepsi',
+                'case': 'q1 in [2]',
+                'missing_case': 'missing(q1)'
+            },
+            {
+                'id': 3,
+                'name': 'Other',
+                'case': 'else',
+                'missing_case': 'missing(screener4)'
+            }]
+    In this case, the else case needs to be manually built in the form:
+        - not selected: '((q1 in [1]) or (q1 in [2]) and not (missing(screener4)))'
+    """
+    if case == 'else' and missing_case:
+        missing = ' or '.join(
+            ['({})'.format(_case['case']) for _case in responses if _case['case'] != 'else']
+        )
+        missing = '({})'.format(missing)
+        missing += ' and not ({}) '.format(missing_case)
+        return missing
+    return None
+
+
 def validate_categories(categories):
     """
     Categories can be defined as simple as:
