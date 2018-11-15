@@ -1574,7 +1574,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
                 if 'missing_case' in sv:
                     selected_case = '({}) and not ({})'.format(sv['case'], sv['missing_case'])
-                    not_selected_case = 'not ({})'.format(selected_case)
+                    not_selected_case = 'not {}'.format(selected_case)
                     if else_not_selected:
                         not_selected_case = else_not_selected
                     data.update({

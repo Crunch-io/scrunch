@@ -2474,10 +2474,10 @@ class TestRecode(TestDatasetBase):
                                                     ]
                                                 },
                                                 {
-                                                    "function": "not",
+                                                    "function": "and",
                                                     "args": [
                                                         {
-                                                            "function": "and",
+                                                            "function": "not",
                                                             "args": [
                                                                 {
                                                                     "function": "==",
@@ -2489,17 +2489,17 @@ class TestRecode(TestDatasetBase):
                                                                             "value": 21
                                                                         }
                                                                     ]
-                                                                },
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
                                                                 {
-                                                                    "function": "not",
+                                                                    "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "function": "is_missing",
-                                                                            "args": [
-                                                                                {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
-                                                                                }
-                                                                            ]
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
                                                                         }
                                                                     ]
                                                                 }
@@ -2555,10 +2555,10 @@ class TestRecode(TestDatasetBase):
                                                     ]
                                                 },
                                                 {
-                                                    "function": "not",
+                                                    "function": "and",
                                                     "args": [
                                                         {
-                                                            "function": "and",
+                                                            "function": "not",
                                                             "args": [
                                                                 {
                                                                     "function": "==",
@@ -2570,17 +2570,17 @@ class TestRecode(TestDatasetBase):
                                                                             "value": 51
                                                                         }
                                                                     ]
-                                                                },
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
                                                                 {
-                                                                    "function": "not",
+                                                                    "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "function": "is_missing",
-                                                                            "args": [
-                                                                                {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
-                                                                                }
-                                                                            ]
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
                                                                         }
                                                                     ]
                                                                 }
@@ -2728,13 +2728,13 @@ class TestRecode(TestDatasetBase):
                                     }
                                 },
                                 {
-                                    "value": ["0001","0002","0003"]
+                                    "value": ["0001", "0002", "0003"]
                                 }
                             ]
                         }
                     ]
                 }
-            }
+            }            
         })
 
     def test_create_categorical_missing_case(self):
@@ -2855,10 +2855,10 @@ class TestRecode(TestDatasetBase):
                                                     ]
                                                 },
                                                 {
-                                                    "function": "not",
+                                                    "function": "and",
                                                     "args": [
                                                         {
-                                                            "function": "and",
+                                                            "function": "not",
                                                             "args": [
                                                                 {
                                                                     "function": ">",
@@ -2870,17 +2870,17 @@ class TestRecode(TestDatasetBase):
                                                                             "value": 40
                                                                         }
                                                                     ]
-                                                                },
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
                                                                 {
-                                                                    "function": "not",
+                                                                    "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "function": "is_missing",
-                                                                            "args": [
-                                                                                {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
-                                                                                }
-                                                                            ]
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
                                                                         }
                                                                     ]
                                                                 }
@@ -2936,10 +2936,10 @@ class TestRecode(TestDatasetBase):
                                                     ]
                                                 },
                                                 {
-                                                    "function": "not",
+                                                    "function": "and",
                                                     "args": [
                                                         {
-                                                            "function": "and",
+                                                            "function": "not",
                                                             "args": [
                                                                 {
                                                                     "function": "<=",
@@ -2951,17 +2951,17 @@ class TestRecode(TestDatasetBase):
                                                                             "value": 40
                                                                         }
                                                                     ]
-                                                                },
+                                                                }
+                                                            ]
+                                                        },
+                                                        {
+                                                            "function": "not",
+                                                            "args": [
                                                                 {
-                                                                    "function": "not",
+                                                                    "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "function": "is_missing",
-                                                                            "args": [
-                                                                                {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
-                                                                                }
-                                                                            ]
+                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
                                                                         }
                                                                     ]
                                                                 }
