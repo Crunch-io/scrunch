@@ -1573,12 +1573,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 sv['case'] = get_else_case(sv['case'], categories)
 
                 if 'missing_case' in sv:
-                    not_selected_case = 'not ({}) and not ({})'.format(sv['case'], sv['missing_case'])
+                    selected_case = '({}) and not ({})'.format(sv['case'], sv['missing_case'])
+                    not_selected_case = 'not ({})'.format(selected_case)
                     if else_not_selected:
                         not_selected_case = else_not_selected
                     data.update({
                         'cases': {
-                            SELECTED_ID: sv['case'],
+                            SELECTED_ID: selected_case,
                             NOT_SELECTED_ID: not_selected_case,
                             NO_DATA_ID: sv['missing_case']
                         }
