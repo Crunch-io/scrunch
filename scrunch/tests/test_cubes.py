@@ -18,7 +18,7 @@ def test_crtabs_passes_string_arguments(mock_fetch_cube, variables_fixture):
     mock_fetch_cube.return_value = {'result': {}}
     urls, _ = variables_fixture
     crtabs(fake_ds, urls)
-    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count())
+    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count(), filter=None, weight=None)
 
 
 @patch('scrunch.cubes.fetch_cube')
@@ -28,7 +28,7 @@ def test_crtabs_passes_urls_for_variables(mock_fetch_cube, variables_fixture):
     mock_fetch_cube.return_value = {'result': {}}
     urls, variables = variables_fixture
     crtabs(fake_ds, variables)
-    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count())
+    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count(), filter=None, weight=None)
 
 
 @pytest.fixture(params=[
