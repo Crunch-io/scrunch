@@ -2556,6 +2556,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if isinstance(variable, six.string_types):
             variable = self[variable]
 
+        if sum(targets.values()) != 1.0:
+            raise ValueError('Weights for targets need to add up to 1.0')
+
         payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
