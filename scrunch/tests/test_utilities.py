@@ -12,6 +12,8 @@ from scrunch.mutable_dataset import MutableDataset
 from scrunch.order import Path
 from scrunch.exceptions import InvalidPathError
 
+from .mock_session import MockSession
+
 
 @pytest.fixture(scope='function')
 def envpatch():
@@ -66,6 +68,23 @@ def _by_side_effect(shoji, entity_mock):
     def _get(*args):
         return d.get(args[0])
     return _get
+
+
+def mocked_project_get_child(name):
+    session = MockSession()
+    session.feature_flags = {'old_projects_order': False}
+    res_url = 'http://example.com/api/projects/A/'
+    payload = {
+        'element': 'shoji:entity',
+        'self': res_url,
+        'catalogs': {},
+        'body': {'name': name, 'id': 1},
+        'index': {},
+        'graph': []
+    }
+    session.add_fixture(res_url, payload)
+
+    return Project(session.get(res_url).payload)
 
 
 class TestUtilities(object):
@@ -173,6 +192,33 @@ class TestUtilities(object):
         session.projects.by.assert_called_with('name')
         assert isinstance(project, Project)
         assert project.id == '614a7b2ebe9a4292bba54edce83563ae'
+
+    @mock.patch('pycrunch.session')
+    @mock.patch('scrunch.datasets.Project.get_child', side_effect=mocked_project_get_child)
+    def test_get_project_nested(self, mocked_get_child, session):
+
+        shoji_entity = {
+            "element": "shoji:catalog",
+            "body": {
+                "name": "Y Team",
+                "id": "614a7b2ebe9a4292bba54edce83563ae"
+            },
+            "index": {
+                "9165e5f4eb004bb4b257a90645bfb968": {
+                    "name": "California",
+                    "id": "9165e5f4eb004bb4b257a90645bfb968",
+                    "type": "project"
+                }
+            }
+        }
+
+        site_mock = mock.MagicMock(**shoji_entity)
+        site_mock.entity = mock.MagicMock(**shoji_entity)
+        session.projects.by.side_effect = _by_side_effect(shoji_entity, site_mock)
+
+        project = get_project('Y Team|California')
+        assert isinstance(project, Project)
+        mocked_get_child.assert_called_with('California')
 
     @mock.patch('pycrunch.session')
     def test_get_project_by_id(self, session):
