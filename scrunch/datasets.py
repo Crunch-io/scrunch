@@ -201,6 +201,13 @@ def get_project(project, connection=None):
     :return: Project class instance
     """
     connection = _default_connection(connection)
+    sub_project = None
+
+    if '|' in project:
+        project_split = project.split('|')
+        project = project_split.pop(0)
+        sub_project = '|' + '|'.join(project_split)
+
     try:
         ret = connection.projects.by('name')[project].entity
     except KeyError:
@@ -208,7 +215,13 @@ def get_project(project, connection=None):
             ret = connection.projects.by('id')[project].entity
         except KeyError:
             raise KeyError("Project (name or id: %s) not found." % project)
-    return Project(ret)
+
+    _project = Project(ret)
+
+    if sub_project:
+        _project = _project.get(sub_project)
+
+    return _project
 
 
 def get_personal_project(connection=None):
