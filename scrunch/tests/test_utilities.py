@@ -218,6 +218,7 @@ class TestUtilities(object):
 
         project = get_project('Y Team|California')
         assert isinstance(project, Project)
+        assert str(project) == 'California'
         mocked_get_child.assert_called_with('California')
 
     @mock.patch('pycrunch.session')
