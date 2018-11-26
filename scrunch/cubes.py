@@ -1,3 +1,5 @@
+import six
+
 from pycrunch.cubes import fetch_cube, count
 from scrunch.datasets import Variable
 from scrunch.expressions import parse_expr, process_expr
@@ -19,6 +21,8 @@ def crtabs(dataset, variables, weight=None, filter=None, **measures):
         elif isinstance(weight, six.string_types):
             if weight in dataset.keys():
                 weight = dataset[weight].url
+        else:
+            raise KeyError('{} not found in dataset'.format(weight))
     dataset = dataset.resource
     if filter:
         filter = process_expr(parse_expr(filter), dataset)
