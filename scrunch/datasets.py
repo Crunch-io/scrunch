@@ -864,6 +864,17 @@ class DatasetVariablesMixin(collections.Mapping):
         # manipulating the "Hierarchical Order" structure of a Dataset.
         self.order = DatasetVariablesOrder(self._catalog, order)
 
+    def _var_create_reload_return(self, payload):
+        """
+        helper function for POSTing to variables, reload
+        the catalog of variables and return newly created var
+        """
+        new_var = self.resource.variables.create(payload)
+        # needed to update the variables collection
+        self._reload_variables()
+        # return an instance of Variable
+        return self[new_var['body']['alias']]
+
     def __iter__(self):
         for var in self._vars:
             yield var
@@ -1215,12 +1226,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             expr=expr,
             description=description,
             notes=notes))
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return the variable instance
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def rollup(self, variable_alias, name, alias, resolution, description='',
         notes=''):
@@ -1328,12 +1334,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return an instance of Variable
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def create_multiple_response(self, responses, name, alias, description='',
         notes=''):
@@ -1371,12 +1372,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return an instance of Variable
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def bind_categorical_array(self, name, alias, subvariables, description='',
         notes=''):
@@ -1403,7 +1399,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if 'id' not in elem:
                 elem.update({'id': i})
 
-        payload = {
+        payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
@@ -1417,11 +1413,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     }]
                 }]
             }
-        }
-
-        self.resource.variables.create(shoji_entity_wrapper(payload))
-        self._reload_variables()
-        return self[alias]
+        })
+        self._var_create_reload_return(payload)
 
     def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
@@ -1440,12 +1433,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             description=description,
             notes=notes
         ))
-
-        self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return the variable instance
-        return self[alias]
+        self._var_create_reload_return(payload)
 
     def create_categorical(self, categories, alias, name, multiple, description='',
         notes='', missing_case=None, uniform_basis=False):
@@ -1686,9 +1674,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             ]
         if values:
             payload['values'] = values
-        self.resource.variables.create(shoji_entity_wrapper(payload))
-        self._reload_variables()
-        return self[name]
+
+        self._var_create_reload_return(shoji_entity_wrapper(payload))
 
     def copy_variable(self, variable, name, alias, derived=None):
         _subvar_alias = re.compile(r'.+_(\d+)$')
@@ -1751,11 +1738,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if derived is False or derived:
             payload['body']['derived'] = derived
 
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return an instance of Variable
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def combine_categories(self, variable, map, categories, missing=None,
         default=None, name='', alias='', description=''):
@@ -1803,12 +1786,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': combine_categories_expr(
                 variable.resource.self, combinations)
         })
-        # this returns an entity
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # at this point we are returning a Variable instance
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
         name='', alias='', description=''):
@@ -1840,11 +1818,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': combine_responses_expr(
                 variable.resource.self, responses)
         })
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return an instance of Variable
-        return self[new_var['body']['alias']]
+        self._var_create_reload_return(payload)
 
     def cast_summary(self, variable, cast_type):
         """
@@ -2593,6 +2567,39 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         Exposes the dataset's size object as a property of the dataset instance
         """
         return self.resource.body.size
+
+    def derive_weight(self, variable, targets, alias, name, description=''):
+        """
+        Derives a new variable to be used as raked weight.
+        https://docs.crunch.io/feature-guide/feature-deriving.html?highlight=rake#weights
+        :param variable: variable alias or variable instance to derive from (categorical)
+        :param targets: A dictionary of categories mapping weights.
+        An example:
+            variable='age',
+            targets = {
+                1: 0.55
+                2: 0.45
+            },
+        """
+        if isinstance(variable, six.string_types):
+            variable = self[variable]
+
+        if sum(targets.values()) != 1.0:
+            raise ValueError('Weights for targets need to add up to 1.0')
+
+        payload = shoji_entity_wrapper({
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'derivation': {
+                'function': 'rake',
+                'args': [{
+                    'variable': variable.id,
+                    'targets': list(map(list, targets.items()))
+                }]
+            }
+        })
+        self._var_create_reload_return(payload)
 
 
 class Dataset(BaseDataset):
