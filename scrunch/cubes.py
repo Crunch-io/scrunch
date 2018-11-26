@@ -6,7 +6,7 @@ from scrunch.expressions import parse_expr, process_expr
 from cr.cube.crunch_cube import CrunchCube
 
 
-def variable_to_url(variable, ds):
+def variable_to_url(variable, dataset):
     """
     Get a variable alias, instance or url and return
     the url
@@ -14,8 +14,8 @@ def variable_to_url(variable, ds):
     if isinstance(variable, Variable):
         return variable.url
     elif isinstance(variable, six.string_types):
-        if variable in ds.keys():
-            return ds[variable].url
+        if variable in dataset.keys():
+            return dataset[variable].url
     return variable
 
 
