@@ -1239,7 +1239,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             expr=expr,
             description=description,
             notes=notes))
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def rollup(self, variable_alias, name, alias, resolution, description='',
         notes=''):
@@ -1347,7 +1347,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def create_multiple_response(self, responses, name, alias, description='',
         notes=''):
@@ -1385,7 +1385,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def bind_categorical_array(self, name, alias, subvariables, description='',
         notes=''):
@@ -1427,7 +1427,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
@@ -1446,7 +1446,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             description=description,
             notes=notes
         ))
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def create_categorical(self, categories, alias, name, multiple, description='',
         notes='', missing_case=None, uniform_basis=False):
@@ -1751,7 +1751,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if derived is False or derived:
             payload['body']['derived'] = derived
 
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def combine_categories(self, variable, map, categories, missing=None,
         default=None, name='', alias='', description=''):
@@ -1799,7 +1799,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': combine_categories_expr(
                 variable.resource.self, combinations)
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
         name='', alias='', description=''):
@@ -1831,7 +1831,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': combine_responses_expr(
                 variable.resource.self, responses)
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
     def cast_summary(self, variable, cast_type):
         """
@@ -2612,7 +2612,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 }]
             }
         })
-        self._var_create_reload_return(payload)
+        return self._var_create_reload_return(payload)
 
 
 class Dataset(BaseDataset):
