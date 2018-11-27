@@ -28,9 +28,10 @@ def crtabs(dataset, variables, weight=None, filter=None, **measures):
     :param filter: Scrunch filter expression
     """
     variables = [variable_to_url(var, dataset) for var in variables]
-    if weight:
+    if weight is not None:
         weight = variable_to_url(weight, dataset)
-    if filter:
+    if filter is not None:
         filter = process_expr(parse_expr(filter), dataset.resource)
+
     return CrunchCube(fetch_cube(
         dataset.resource, variables, count=count(), weight=weight, filter=filter, **measures))
