@@ -1,40 +1,56 @@
 import pytest
 from mock import patch, MagicMock
+from unittest import TestCase
+
 from pycrunch.cubes import fetch_cube, count
-from scrunch.cubes import crtabs, prepare_variables
+from scrunch.streaming_dataset import StreamingDataset
+from scrunch.tests.test_datasets import TestDatasetBase
+from scrunch.cubes import crtabs, variable_to_url
 from scrunch.datasets import Variable
 
 
-def test_prepare_variables(variables_fixture):
-    """Test if urls are extracted from variables."""
-    urls, variables = variables_fixture
-    assert prepare_variables(variables) == urls
+class TestCubes(TestDatasetBase, TestCase):
 
+    @patch('scrunch.cubes.fetch_cube')
+    def test_crtabs_passes_string_arguments(self, mock_fetch_cube):
+        """
+        Test url aliases are converted to urls
+        """
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        variables = ['var1_alias', 'var2_alias']
+        urls = [variable_to_url(var, ds) for var in variables]
+        crtabs(dataset=ds, variables=variables)
+        mock_fetch_cube.assert_called_once_with(
+            ds.resource, urls, count=count(), weight=None, filter=None)
 
-@patch('scrunch.cubes.fetch_cube')
-def test_crtabs_passes_string_arguments(mock_fetch_cube, variables_fixture):
-    """Test if url strings are passed to fetch_cube."""
-    fake_ds = MagicMock(resource=MagicMock())
-    mock_fetch_cube.return_value = {'result': {}}
-    urls, _ = variables_fixture
-    crtabs(fake_ds, urls)
-    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count())
+    @patch('scrunch.cubes.fetch_cube')
+    def test_weight_to_url(self, mock_fetch_cube):
+        """
+        Test weight alias is converted to url
+        """
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        variables = ['var1_alias', 'var2_alias']
+        weight_url = variable_to_url('var3_alias', ds)
+        urls = [variable_to_url(var, ds) for var in variables]
+        crtabs(dataset=ds, variables=variables, weight='var3_alias')
+        mock_fetch_cube.assert_called_once_with(
+            ds.resource, urls, count=count(), weight=weight_url, filter=None)
 
-
-@patch('scrunch.cubes.fetch_cube')
-def test_crtabs_passes_urls_for_variables(mock_fetch_cube, variables_fixture):
-    """Test if urls are from variables are passed to fetch_cube."""
-    fake_ds = MagicMock(resource=MagicMock())
-    mock_fetch_cube.return_value = {'result': {}}
-    urls, variables = variables_fixture
-    crtabs(fake_ds, variables)
-    mock_fetch_cube.assert_called_once_with(fake_ds.resource, urls, count=count())
-
-
-@pytest.fixture(params=[
-    ['fake url 1', 'fake url 2']
-])
-def variables_fixture(request):
-    urls = request.param
-    variables = [Variable(MagicMock(entity_url=url), MagicMock()) for url in urls]
-    return urls, variables
+    @patch('scrunch.cubes.fetch_cube')
+    def test_pass_filter_expression(self, mock_fetch_cube):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        variables = ['var1_alias', 'var2_alias']
+        urls = [variable_to_url(var, ds) for var in variables]
+        crtabs(dataset=ds, variables=variables, filter='var1_alias > 1')
+        processed_filter = {
+            'function': '>',
+            'args': [
+                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'},
+                {'value': 1}
+            ]
+        }
+        mock_fetch_cube.assert_called_once_with(
+            ds.resource, urls, count=count(), filter=processed_filter, weight=None)

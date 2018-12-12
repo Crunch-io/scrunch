@@ -2408,8 +2408,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             LOG.info("Dataset merged")
             return
         elif resp.status_code == 202:
-            LOG.info(
-                "Dataset merge in progress, see %s" % resp.headers['location'])
+            if 'location' in resp.headers:
+                LOG.info("Dataset merge in progress, see %s" %
+                         resp.headers['location'])
+            else:
+                LOG.info("Dataset merge in progress, but no location header. "
+                         "Content %s" % resp.content)
         return resp
 
     def delete_forks(self):
