@@ -2585,24 +2585,40 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         return self.resource.body.size
 
-    def derive_weight(self, variable, targets, alias, name, description=''):
+    def derive_weight(self, targets, alias, name, description=''):
         """
         Derives a new variable to be used as raked weight.
         https://docs.crunch.io/feature-guide/feature-deriving.html?highlight=rake#weights
-        :param variable: variable alias or variable instance to derive from (categorical)
-        :param targets: A dictionary of categories mapping weights.
+        :param targets: A list of dictionaries where each dictionary is keyed by a variable alias
+            and the items are the actual targets to that particular variable.
         An example:
-            variable='age',
-            targets = {
-                1: 0.55
-                2: 0.45
-            },
+            targets = [
+                {
+                    'gender' : {
+                        1: .45,
+                        2: .55
+                    }
+                },
+                {
+                    'locality': {
+                        1: .10,
+                        2: .15,
+                        3: .20,
+                        4: .25,
+                        5: .30
+                    }
+                }
+            ]
         """
-        if isinstance(variable, six.string_types):
-            variable = self[variable]
-
-        if sum(targets.values()) != 1.0:
-            raise ValueError('Weights for targets need to add up to 1.0')
+        _targets = []
+        for target in targets:
+            for key, val in target.items():
+                if sum(val.values()) != 1.0:
+                    raise ValueError('Weights for target {} need to add up to 1.0'.format(key))
+                _targets.append({
+                    'variable': self[key].id,
+                    'targets': list(map(list, val.items()))
+                })
 
         payload = shoji_entity_wrapper({
             'name': name,
@@ -2610,10 +2626,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'description': description,
             'derivation': {
                 'function': 'rake',
-                'args': [{
-                    'variable': variable.id,
-                    'targets': list(map(list, targets.items()))
-                }]
+                'args': _targets
             }
         })
         return self._var_create_reload_return(payload)
