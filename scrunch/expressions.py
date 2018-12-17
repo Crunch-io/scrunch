@@ -59,14 +59,16 @@ ARRAY_TYPES = ('categorical_array', 'multiple_response')
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
     'missing': 'is_missing',
-    'bin': 'bin'
+    'bin': 'bin',
+    'not_selected': 'not_selected',
 }
 
 CRUNCH_METHOD_MAP = {
     'any': 'any',
     'all': 'all',
     'duplicates': 'duplicates',
-    'bin': 'bin'
+    'bin': 'bin',
+    'not_selected': 'not_selected',
 }
 
 # according to http://docs.crunch.io/#function-terms
