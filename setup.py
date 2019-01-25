@@ -33,7 +33,7 @@ params = dict(
     ),
     python_requires='>=2.7',
     install_requires=[
-        'pycrunch>=0.4.8',
+        'pycrunch>=0.4.11',
         'requests',
         'six',
         'cr.cube',
