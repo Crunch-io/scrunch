@@ -122,6 +122,7 @@ def _default_connection(connection):
                 "config/environment variables")
     return connection
 
+
 def _get_dataset(dataset, connection=None, editor=False, project=None):
     """
     Helper method for specific get_dataset and get_streaming_dataset
@@ -166,17 +167,14 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
                 raise e
 
         if shoji_ds is None:
-            # calling root.datasets performs a hit to the dataset's catalog,
-            # do it as late as possible, and only if needed
-            root_datasets = root.datasets
-
-            # search by dataset name
-            try:
-                shoji_ds = root_datasets.by('name')[dataset].entity
-            except KeyError:
+            result = root.follow("datasets_by_name", {
+                "name": dataset
+            })
+            if not result.index:
                 raise KeyError(
                     "Dataset (name or id: %s) not found in context."
                     % dataset)
+            shoji_ds = result.by("name")[dataset].entity
 
     return shoji_ds, root
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 import mock
-from pycrunch import ClientError
+from pycrunch import ClientError, shoji, lemonpy
 
 import scrunch
 from scrunch.variables import validate_variable_url
@@ -115,31 +115,57 @@ class TestUtilities(object):
         assert connect_mock.call_args[0] == (user, pw)
 
     @mock.patch('pycrunch.session')
-    def test_get_dataset(self, session):
+    def test_get_dataset(self, root):
+        session = root.session
+        dataset_url = "/api/datasets/123456/"
         shoji_entity = {
             'element': 'shoji:entity',
             'body': {
                 'id': '123456',
                 'name': 'dataset_name',
                 'streaming': 'no'
+            },
+            'catalogs': {
+                "variables": "variables/"
             }
         }
 
-        ds_mock = mock.MagicMock(**shoji_entity)
-        ds_mock.entity = mock.MagicMock(**shoji_entity)
-
         def _get(url, *args, **kwargs):
             if url == '/api/datasets/dataset_name/':
+                # This is the first attempt to get by ID, which should fail
                 resp = mock.MagicMock(status_code=404)
                 raise ClientError(resp)
+            elif url == dataset_url:
+                # This is when we GET by the correct URL that has been
+                # discovered by using `datasets_by_name`
+                payload = mock.MagicMock(**shoji_entity)
+                payload.self = dataset_url
+                return mock.MagicMock(payload=payload)
 
-        session.session.get.side_effect = _get
-        session.catalogs.datasets = '/api/datasets/'
-        session.datasets.by.side_effect = _by_side_effect(shoji_entity, ds_mock)
+        session.get.side_effect = _get
+
+        root.catalogs.datasets = '/api/datasets/'
+        catalog_url = lemonpy.URL("/api/datasets/by_name/", None)
+
+        # Calling root.follow should return the "by_name" catalog
+        by_name_catalog = shoji.Catalog(session, **{
+            "index": shoji.Index(session, catalog_url, **{
+                dataset_url: shoji.Tuple(session, dataset_url, **{
+                    "name": "dataset_name"
+                })
+            })
+        })
+        root.follow.return_value = by_name_catalog
         ds = get_mutable_dataset('dataset_name')
-        session.datasets.by.assert_called_with('name')
+
+        # We called indeed the `datasets_by_name` with the right arg
+        root.follow.assert_called_with("datasets_by_name", {
+            "name": "dataset_name"
+        })
+
         assert isinstance(ds, MutableDataset)
         assert ds.name == 'dataset_name'
+        assert ds.url == dataset_url
 
     @mock.patch('pycrunch.session')
     def test_get_dataset_from_project_no_name(self, session):
