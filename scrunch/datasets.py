@@ -1,5 +1,4 @@
 import collections
-import copy
 import datetime
 import json
 import logging
@@ -990,6 +989,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     def make_mutable(self):
         from scrunch.mutable_dataset import MutableDataset
         return MutableDataset(self.resource)
+
+    def make_streaming(self):
+        from scrunch.streaming_dataset import StreamingDataset
+        self.edit(streaming='streaming')
+        return StreamingDataset(self.resource)
 
     @property
     def owner(self):

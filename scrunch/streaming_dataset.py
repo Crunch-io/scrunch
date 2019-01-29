@@ -1,7 +1,16 @@
+import json
+
 from pycrunch.importing import Importer
 from scrunch.datasets import BaseDataset, _get_dataset
 from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.helpers import shoji_entity_wrapper
+
+try:
+    import pandas as pd
+except ImportError:
+    # pandas has not been installed, don't worry!
+    # ... unless you have to worry about pandas
+    pd = None
 
 
 def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
@@ -52,3 +61,30 @@ class StreamingDataset(BaseDataset):
                     'stream': count,
                     'type': 'ldjson'}
                 ))
+
+    def replace_from_csv(self, filename, chunksize=1000, push_rows=True):
+        """
+        Given a csv file in the format:
+        id, var1_alias, var2_alias
+        1,  14,         15
+
+        where the first column is the Dataset PK
+
+        Replace the values of the matching id, for the given variables
+        in the Dataset using the /stream endpoint:
+
+        [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
+        """
+        importer = Importer()
+        df_chunks = pd.read_csv(
+            filename,
+            header=0,
+            chunksize=chunksize
+        )
+        for chunk in df_chunks:
+            # This is a trick to get rid of np.int64, which is not
+            # json serializable
+            stream = chunk.to_json(orient='records')
+            stream = json.loads(stream)
+            importer.stream_rows(self.resource, stream)
+            self.push_rows(chunksize)
