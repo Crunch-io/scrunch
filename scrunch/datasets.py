@@ -2369,6 +2369,36 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return
         return resp
 
+    def replace_from_csv(self, filename, chunksize=1000, push_rows=True):
+        """
+        Given a csv file in the format:
+        id, var1_alias, var2_alias
+        1,  14,         15
+
+        where the first column is the Dataset PK
+
+        Replace the values of the matching id, for the given variables
+        in the Dataset using the /stream endpoint:
+
+        [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
+        """
+        streaming_state = self.resource.body.streaming
+        streaming_ds = self.make_streaming()
+        importer = pycrunch.importing.Importer()
+        df_chunks = pd.read_csv(
+            filename,
+            header=0,
+            chunksize=chunksize
+        )
+        for chunk in df_chunks:
+            # This is a trick to get rid of np.int64, which is not
+            # json serializable
+            stream = chunk.to_json(orient='records')
+            stream = json.loads(stream)
+            importer.stream_rows(self.resource, stream)
+            streaming_ds.push_rows(chunksize)
+        self.edit(streaming=streaming_state)
+
     def merge(self, fork_id=None, autorollback=True):
         """
         :param fork_id: str or int
