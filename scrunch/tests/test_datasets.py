@@ -29,7 +29,7 @@ import scrunch
 from scrunch.datasets import Variable, BaseDataset, Project
 from scrunch.subentity import Filter, Multitable, Deck
 from scrunch.mutable_dataset import MutableDataset
-from scrunch.streaming_dataset import StreamtingDataset
+from scrunch.streaming_dataset import StreamingDataset
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -81,6 +81,7 @@ class TestDatasetBase(object):
             'notes': '',
             'description': '',
             'is_published': False,
+            'streaming': 'streaming',
             'archived': False,
             'end_date': None,
             'start_date': None,
@@ -256,10 +257,15 @@ class TestDatasets(TestDatasetBase, TestCase):
         return expr
 
     def test_replace_from_csv(self):
+        ds_mock = self._dataset_mock()
+        ds = StreamingDataset(ds_mock)
+        assert ds.resource.body.get('streaming') == 'streaming'
         file = StringIO()
         file.write("id, age\n1, 15")
         file.seek(0)
-        self.replace_from_csv(file, push_rows=False)
+        with pytest.raises(AttributeError):
+            assert ds.replace_from_csv(file, push_rows=False) == 1
+        assert ds.resource.body.get('streaming') == 'streaming'
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):

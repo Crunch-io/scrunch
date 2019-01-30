@@ -2382,7 +2382,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
         """
-        streaming_state = self.resource.body.streaming
+        streaming_state = self.resource.body.get('streaming', 'no')
         streaming_ds = self.make_streaming()
         importer = pycrunch.importing.Importer()
         df_chunks = pd.read_csv(
