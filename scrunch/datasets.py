@@ -2396,7 +2396,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             stream = chunk.to_json(orient='records')
             stream = json.loads(stream)
             importer.stream_rows(self.resource, stream)
-            streaming_ds.push_rows(chunksize)
+            if push_rows:
+                streaming_ds.push_rows(chunksize)
         self.edit(streaming=streaming_state)
 
     def merge(self, fork_id=None, autorollback=True):

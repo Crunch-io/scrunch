@@ -14,6 +14,11 @@ except:
     # pandas is not installed
     pandas = None
 
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 from unittest import TestCase
 
 import pytest
@@ -24,7 +29,7 @@ import scrunch
 from scrunch.datasets import Variable, BaseDataset, Project
 from scrunch.subentity import Filter, Multitable, Deck
 from scrunch.mutable_dataset import MutableDataset
-from scrunch.streaming_dataset import StreamingDataset
+from scrunch.streaming_dataset import StreamtingDataset
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 
@@ -249,6 +254,12 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def process_expr_side_effect(self, expr, ds):
         return expr
+
+    def test_replace_from_csv(self):
+        file = StringIO()
+        file.write("id, age\n1, 15")
+        file.seek(0)
+        self.replace_from_csv(file, push_rows=False)
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):
