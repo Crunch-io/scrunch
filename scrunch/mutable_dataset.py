@@ -50,6 +50,15 @@ class MutableDataset(BaseDataset):
     method that varies the state of the dataset and/or it's data.
     """
 
+    _BASE_MUTABLE_ATTRIBUTES = {'streaming'}
+
+    def __init__(self, resource):
+        """
+        A MutableDataset should be able to change it's streaming status
+        """
+        super(MutableDataset, self).__init__(resource)
+        self._MUTABLE_ATTRIBUTES = self._BASE_MUTABLE_ATTRIBUTES | self._BASE_MUTABLE_ATTRIBUTES
+
     def delete(self):
         """
         Delete a dataset.

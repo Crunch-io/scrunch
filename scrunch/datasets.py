@@ -2369,7 +2369,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return
         return resp
 
-    def replace_from_csv(self, filename, chunksize=1000, push_rows=True):
+    def replace_from_csv(self, filename, chunksize=1000):
         """
         Given a csv file in the format:
         id, var1_alias, var2_alias
@@ -2383,7 +2383,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
         """
         streaming_state = self.resource.body.get('streaming', 'no')
-        streaming_ds = self.make_streaming()
+        ds = self
+        if streaming_state != 'streaming':
+            ds = self.make_streaming()
         importer = pycrunch.importing.Importer()
         df_chunks = pd.read_csv(
             filename,
@@ -2396,9 +2398,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             stream = chunk.to_json(orient='records')
             stream = json.loads(stream)
             importer.stream_rows(self.resource, stream)
-            if push_rows:
-                streaming_ds.push_rows(chunksize)
-        self.edit(streaming=streaming_state)
+            # We force the row push to instantly see any errors in the data
+            # and to allow changing to streaming status back to it's previous
+            # state
+            ds.push_rows(chunksize)
+        if streaming_state != 'streaming':
+            ds.edit(streaming=streaming_state)
 
     def merge(self, fork_id=None, autorollback=True):
         """
