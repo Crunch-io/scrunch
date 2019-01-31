@@ -81,7 +81,7 @@ class TestDatasetBase(object):
             'notes': '',
             'description': '',
             'is_published': False,
-            'streaming': 'no',
+            'streaming': '',
             'archived': False,
             'end_date': None,
             'start_date': None,
@@ -259,16 +259,18 @@ class TestDatasets(TestDatasetBase, TestCase):
     @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
     @mock.patch('pycrunch.importing.Importer.stream_rows')
     def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
-        ds_mock = self._dataset_mock()
+        ds_shoji = self.ds_shoji
+        ds_shoji['body']['streaming'] = 'negative'
+        ds_mock = self._dataset_mock(ds_shoji=ds_shoji)
         ds = MutableDataset(ds_mock)
-        assert ds.resource.body.get('streaming') == 'no'
+        assert ds.resource.body.get('streaming') == 'negative'
         file = StringIO()
         file.write("id, age\n1, 15")
         file.seek(0)
         ds.replace_from_csv(file, chunksize=5)
         mocked_stream_rows.assert_called_with(ds_mock, [{'id': 1, ' age': 15}])
         mocked_push_rows.assert_called_with(5)
-        assert ds.resource.body.get('streaming') == 'no'
+        assert ds.resource.body.get('streaming') == 'negative'
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):
@@ -6085,7 +6087,8 @@ class TestHeadingSubtotals(TestDatasetBase):
             'type': 'categorical',
             'categories': TEST_CATEGORIES(),
             'is_subvar': False,
-            'view': {}
+            'view': {},
+            'derived': False,
         },
     }
 

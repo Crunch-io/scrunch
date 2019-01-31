@@ -930,7 +930,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     """
 
     _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
-                           'archived', 'end_date', 'start_date'}
+                           'archived', 'end_date', 'start_date', 'streaming'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time',
                              'size'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
