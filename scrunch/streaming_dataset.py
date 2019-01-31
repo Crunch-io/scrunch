@@ -25,8 +25,6 @@ class StreamingDataset(BaseDataset):
     of the "streaming" class
     """
 
-    _BASE_MUTABLE_ATTRIBUTES = {'streaming'}
-
     def stream_rows(self, columns):
         """
         Receives a dict with columns of values to add and streams them

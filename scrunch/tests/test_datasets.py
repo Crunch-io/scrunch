@@ -81,7 +81,7 @@ class TestDatasetBase(object):
             'notes': '',
             'description': '',
             'is_published': False,
-            'streaming': 'streaming',
+            'streaming': 'no',
             'archived': False,
             'end_date': None,
             'start_date': None,
@@ -256,16 +256,19 @@ class TestDatasets(TestDatasetBase, TestCase):
     def process_expr_side_effect(self, expr, ds):
         return expr
 
-    def test_replace_from_csv(self):
+    @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
+    @mock.patch('pycrunch.importing.Importer.stream_rows')
+    def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
-        assert ds.resource.body.get('streaming') == 'streaming'
+        ds = MutableDataset(ds_mock)
+        assert ds.resource.body.get('streaming') == 'no'
         file = StringIO()
         file.write("id, age\n1, 15")
         file.seek(0)
-        with pytest.raises(AttributeError):
-            assert ds.replace_from_csv(file, push_rows=False) == 1
-        assert ds.resource.body.get('streaming') == 'streaming'
+        ds.replace_from_csv(file, chunksize=5)
+        mocked_stream_rows.assert_called_with(ds_mock, [{'id': 1, ' age': 15}])
+        mocked_push_rows.assert_called_with(5)
+        assert ds.resource.body.get('streaming') == 'no'
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):
