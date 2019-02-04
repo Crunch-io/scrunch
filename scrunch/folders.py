@@ -1,7 +1,11 @@
 # coding: utf-8
-
 from pycrunch.shoji import Catalog
 from scrunch.exceptions import InvalidPathError
+
+try:
+    basestring
+except NameError:
+    basestring = str
 
 
 class Folder(object):
