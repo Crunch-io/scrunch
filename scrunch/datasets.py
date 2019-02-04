@@ -2881,7 +2881,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                                  before=before, after=after)
 
     def move_to_folder(self, path, position=None, after=None, before=None):
-        target = self.folders.get(path)
+        target = self.dataset.folders.get(path)
         target.move_here(self, position=position, after=after, before=before)
 
     def unbind(self):
