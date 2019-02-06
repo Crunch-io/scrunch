@@ -7,6 +7,8 @@ import os
 import re
 import sys
 
+from math import fsum
+
 try:
     import pandas as pd
 except ImportError:
@@ -2611,7 +2613,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         _targets = []
         for target in targets:
             for key, val in target.items():
-                if sum(val.values()) != 1.0:
+                if fsum(val.values()) != 1.0:
                     raise ValueError('Weights for target {} need to add up to 1.0'.format(key))
                 _targets.append({
                     'variable': self[key].id,
