@@ -35,5 +35,6 @@ install:
 
 script:
   - env
+  - # catch this travis
   - tox
   - tox -e pandas
