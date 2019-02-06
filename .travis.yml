@@ -35,4 +35,4 @@ install:
 
 script:
   - tox
-  - tox -e pandas
+  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then tox -e pandas; fi
