@@ -34,7 +34,5 @@ install:
 - pip install tox tox-venv
 
 script:
-  - env
-  - # catch this travis
   - tox
-  - tox -e pandas
+  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then tox -e pandas; fi
