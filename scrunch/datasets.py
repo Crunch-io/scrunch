@@ -1906,6 +1906,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         sp = self.resource.savepoints.by('description').get(description)
         self.resource.session.post(sp.revert)
+        self._reload_variables()
 
     def savepoint_attributes(self, attrib):
         """
