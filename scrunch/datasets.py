@@ -19,7 +19,7 @@ import six
 import pycrunch
 from pycrunch.elements import JSONObject
 from pycrunch.exporting import export_dataset
-from pycrunch.shoji import Entity
+from pycrunch.shoji import Entity, TaskProgressTimeoutError
 from scrunch.session import connect
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
@@ -2398,11 +2398,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             # json serializable
             stream = chunk.to_json(orient='records')
             stream = json.loads(stream)
-            importer.stream_rows(self.resource, stream)
-            # We force the row push to instantly see any errors in the data
-            # and to allow changing to streaming status back to it's previous
-            # state
-            ds.push_rows(chunksize)
+            # trap the timeout and allow it to finish
+            try:
+                importer.stream_rows(self.resource, stream)
+                # We force the row push to instantly see any errors in the data
+                # and to allow changing to streaming status back to it's previous
+                # state
+                ds.push_rows(chunksize)
+            except TaskProgressTimeoutError as exc:
+                exc.entity.wait_progress(exc.response)
         if streaming_state != 'streaming':
             ds.edit(streaming=streaming_state)
 
