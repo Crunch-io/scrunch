@@ -7,6 +7,8 @@ import os
 import re
 import sys
 
+from math import fsum
+
 try:
     import pandas as pd
 except ImportError:
@@ -1909,6 +1911,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         sp = self.resource.savepoints.by('description').get(description)
         self.resource.session.post(sp.revert)
+        self._reload_variables()
 
     def savepoint_attributes(self, attrib):
         """
@@ -2656,7 +2659,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         _targets = []
         for target in targets:
             for key, val in target.items():
-                if sum(val.values()) != 1.0:
+                if fsum(val.values()) != 1.0:
                     raise ValueError('Weights for target {} need to add up to 1.0'.format(key))
                 _targets.append({
                     'variable': self[key].id,
@@ -2926,7 +2929,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                                  before=before, after=after)
 
     def move_to_folder(self, path, position=None, after=None, before=None):
-        target = self.folders.get(path)
+        target = self.dataset.folders.get(path)
         target.move_here(self, position=position, after=after, before=before)
 
     def unbind(self):

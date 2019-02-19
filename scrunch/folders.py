@@ -1,6 +1,6 @@
 # coding: utf-8
-
 from pycrunch.shoji import Catalog
+from six import string_types
 from scrunch.exceptions import InvalidPathError
 
 
@@ -143,7 +143,7 @@ class Folder(object):
             return
         children = children[0] if isinstance(children[0], list) else children
         children = [
-            self.root.dataset[c] if isinstance(c, basestring) else c
+            self.root.dataset[c] if isinstance(c, string_types) else c
             for c in children
         ]
         index = {c.url: {} for c in children}
@@ -190,7 +190,7 @@ class Folder(object):
         items = items[0] if isinstance(items[0], list) else items
         name2tup = self.folder_ent.by('name')
         graph = [
-            name2tup[c].entity_url if isinstance(c, basestring) else c.url
+            name2tup[c].entity_url if isinstance(c, string_types) else c.url
             for c in items
         ]
         self.folder_ent.patch({

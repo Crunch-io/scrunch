@@ -1,4 +1,4 @@
-    # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import collections
 import json
@@ -467,6 +467,83 @@ class TestDatasets(TestDatasetBase, TestCase):
 
         ds.create_crunchbox()
         ds_mock.boxdata.create.assert_called_with(expected_payload)
+
+    def test_derive_weight(self):
+        variables = {
+            '001': {
+                'id': '001',
+                'alias': 'foo',
+                'name': 'bar',
+                'type': 'numeric',
+            }
+        }
+        ds_mock = self._dataset_mock(variables=variables)
+        ds = MutableDataset(ds_mock)
+
+        targets = [
+            {
+                "foo": {
+                    1: 0.141,
+                    2: 0.079,
+                    3: 0.029,
+                    4: 0.005,
+                    5: 0.009,
+                    6: 0.061,
+                    7: 0.036,
+                    8: 0.059,
+                    9: 0.009,
+                    10: 0.004,
+                    11: 0.026,
+                    12: 0.064,
+                    13: 0.054,
+                    14: 0.006,
+                    15: 0.005,
+                    16: 0.036,
+                    17: 0.07,
+                    18: 0.099,
+                    19: 0.01,
+                    20: 0.005,
+                    21: 0.004,
+                    22: 0.053,
+                    23: 0.019,
+                    24: 0.018,
+                    25: 0.005,
+                    26: 0.025,
+                    27: 0.02,
+                    28: 0.013,
+                    29: 0.019,
+                    30: 0.002,
+                    31: 0.004,
+                    32: 0.011
+                }
+            }
+        ]
+
+        def _test_sum(dct, use_fsum=False):
+            from math import fsum
+            func = fsum if use_fsum else sum
+            res = func(dct.values())
+
+            if not use_fsum and res != 1.0:
+                raise Exception('not 1.0')
+            if use_fsum and res == 1.0:
+                raise Exception('1.0')
+
+        # `sum` fails
+        with pytest.raises(Exception, message='not 1.0'):
+            _test_sum(targets[0]['foo'])
+
+        # `fsum` does not
+        with pytest.raises(Exception, message='1.0'):
+            _test_sum(targets[0]['foo'], use_fsum=True)
+
+        # Now test that we don't fail on the above targets in `derive_weight`
+        # Using sum, this would raise:
+        # ValueError('Weights for target {} need to add up to 1.0'.format(key))
+
+        # mock the variable creation
+        ds._var_create_reload_return = MagicMock()
+        ds.derive_weight(targets=targets, alias='weight', name='Weight')
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
