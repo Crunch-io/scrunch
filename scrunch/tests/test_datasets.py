@@ -256,6 +256,7 @@ class TestDatasets(TestDatasetBase, TestCase):
     def process_expr_side_effect(self, expr, ds):
         return expr
 
+    @pytest.mark.skipif(pandas is None, reason='pandas is not installed')
     @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
     @mock.patch('pycrunch.importing.Importer.stream_rows')
     def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
