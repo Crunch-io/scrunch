@@ -1046,8 +1046,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if not isinstance(project, Project):
                 project = get_project(project)
 
-        project.move_here([self])
-        self.resource.refresh()
+        project.move_here([self])  # This performs .resource.refresh()
 
     @property
     def settings(self):
