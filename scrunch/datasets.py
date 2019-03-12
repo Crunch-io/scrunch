@@ -1042,9 +1042,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             raise AttributeError("Can't set owner")
 
     def move(self, project):
-        if project:
-            if not isinstance(project, Project):
-                project = get_project(project)
+        if not isinstance(project, Project):
+            project = get_project(project)
 
         project.move_here([self])  # This performs .resource.refresh()
 
