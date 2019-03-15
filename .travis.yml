@@ -8,6 +8,19 @@ python:
 - 3.5
 - &latest_py3 3.6
 
+env:
+  matrix:
+    - TOXENV=py27
+    - TOXENV=py34
+    - TOXENV=py35
+    - TOXENV=py36
+    - TOXENV=py37
+    - TOXENV=py27-pandas
+    - TOXENV=py35-pandas
+    - TOXENV=py36-pandas
+    - TOXENV=py37-pandas
+
+
 jobs:
   fast_finish: true
   include:
@@ -34,5 +47,4 @@ install:
 - pip install tox tox-venv
 
 script:
-  - tox
-  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then tox -e pandas; fi
+  - tox -e $TOXENV
