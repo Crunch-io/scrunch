@@ -36,6 +36,7 @@ class AttributeDict(dict):
         super(AttributeDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
+
 class dict_to_obj(object):
     def __init__(self, d):
         for a, b in d.items():
@@ -43,6 +44,7 @@ class dict_to_obj(object):
                setattr(self, a, [dict_to_obj(x) if isinstance(x, dict) else x for x in b])
             else:
                setattr(self, a, dict_to_obj(b) if isinstance(b, dict) else b)
+
 
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
@@ -1524,7 +1526,6 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         dataset = StreamingDataset(dataset_resource)
         dataset.move(project)
         project.move_here.assert_called_once_with([dataset])
-        dataset_resource.refresh.assert_called_once()
 
     def test_owner_to_project(self):
         session = MockSession()
@@ -1552,7 +1553,6 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         ])
 
         project.move_here.assert_called_once_with([dataset])
-        dataset_resource.refresh.assert_called_once()
 
     def test_dataset_project(self):
         session = MockSession()
@@ -2910,7 +2910,7 @@ class TestRecode(TestDatasetBase):
                         }
                     ]
                 }
-            }            
+            }
         })
 
     def test_create_categorical_missing_case(self):
