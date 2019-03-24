@@ -17,6 +17,7 @@ except:
 from unittest import TestCase
 
 import pytest
+from pycrunch.shoji import Entity, Catalog, Order
 from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
@@ -27,11 +28,14 @@ from scrunch.mutable_dataset import MutableDataset
 from scrunch.streaming_dataset import StreamingDataset
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
+from .mock_session import MockSession
+
 
 class AttributeDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttributeDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
 
 class dict_to_obj(object):
     def __init__(self, d):
@@ -40,6 +44,7 @@ class dict_to_obj(object):
                setattr(self, a, [dict_to_obj(x) if isinstance(x, dict) else x for x in b])
             else:
                setattr(self, a, dict_to_obj(b) if isinstance(b, dict) else b)
+
 
 class _CrunchPayload(dict):
     def __init__(self, *args, **kwargs):
@@ -1484,6 +1489,100 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
             'owner': self.user_url
         })
 
+    def _load_dataset(self, dataset_resource):
+        dataset_resource.variables = MagicMock()
+        dataset_resource.settings = MagicMock()
+        dataset_resource.folders = MagicMock()
+        dataset_resource.refresh = MagicMock()
+
+    def _project(self, session, project_url):
+        project = Project(Entity(session, **{
+            "self": project_url,
+            "element": "shoji:entity",
+            "body": {
+                "name": "Targer project"
+            }
+        }))
+        project.move_here = MagicMock()
+        return project
+
+    def test_move_to_project(self):
+        session = MockSession()
+        project_url = 'http://host/api/projects/abc/'
+        dataset_url = 'http://host/api/projects/abc/'
+        dataset_resource = Entity(session, **{
+            "element": "shoji:entity",
+            "self": dataset_url,
+            "body": {
+                "name": "test_dataset_project"
+            },
+            "catalogs": {
+                "project": project_url,
+            }
+        })
+        self._load_dataset(dataset_resource)
+        project = self._project(session, project_url)
+
+        dataset = StreamingDataset(dataset_resource)
+        dataset.move(project)
+        project.move_here.assert_called_once_with([dataset])
+
+    def test_owner_to_project(self):
+        session = MockSession()
+        project_url = 'http://host/api/projects/abc/'
+        dataset_url = 'http://host/api/projects/abc/'
+        dataset_resource = Entity(session, **{
+            "element": "shoji:entity",
+            "self": dataset_url,
+            "body": {
+                "name": "test_dataset_project"
+            },
+            "catalogs": {
+                "project": project_url,
+            }
+        })
+        self._load_dataset(dataset_resource)
+        project = self._project(session, project_url)
+
+        dataset = StreamingDataset(dataset_resource)
+        with mock.patch("scrunch.datasets.warn") as mock_warn:
+            dataset.change_owner(project=project)
+
+        mock_warn.assert_has_calls([
+            mock.call("Use Dataset.move() to move datasets between projects", DeprecationWarning)
+        ])
+
+        project.move_here.assert_called_once_with([dataset])
+
+    def test_dataset_project(self):
+        session = MockSession()
+        project_url = 'http://host/api/projects/abc/'
+        dataset_url = 'http://host/api/projects/abc/'
+        dataset_resource = Entity(session, **{
+            "element": "shoji:entity",
+            "self": dataset_url,
+            "body": {
+                "name": "test_dataset_project"
+            },
+            "catalogs": {
+                "project": project_url,
+            }
+        })
+        self._load_dataset(dataset_resource)
+
+        project_payload = {
+            "element": "shoji:entity",
+            "self": project_url,
+            "body": {
+                "name": "My Project"
+            }
+        }
+        session.add_fixture(project_url, project_payload)
+        dataset = StreamingDataset(dataset_resource)
+        project = dataset.project
+        assert project.name == "My Project"
+        assert project.url == project_url
+
 
 class TestCast(TestCase):
 
@@ -2811,7 +2910,7 @@ class TestRecode(TestDatasetBase):
                         }
                     ]
                 }
-            }            
+            }
         })
 
     def test_create_categorical_missing_case(self):

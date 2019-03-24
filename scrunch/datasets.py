@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import sys
-
+from warnings import warn
 from math import fsum
 
 try:
@@ -19,7 +19,6 @@ except ImportError:
 import six
 
 import pycrunch
-from pycrunch.elements import JSONObject
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity
 from scrunch.session import connect
@@ -994,7 +993,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return MutableDataset(self.resource)
 
     @property
+    def project(self):
+        return Project(self.resource.project)
+
+    @property
     def owner(self):
+        warn("Access Dataset.project instead", DeprecationWarning)
         owner_url = self.resource.body.owner
         try:
             if '/users/' in owner_url:
@@ -1017,25 +1021,31 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param project: id, name or Project object
         :return:
         """
+        warn("Use Dataset.move() to move datasets between projects", DeprecationWarning)
         if user and project:
             raise AttributeError(
                 "Must provide user or project. Not both"
             )
-        owner_url = None
+
         if user:
+            warn("Changing owner to users is deprecated. Move to projects", DeprecationWarning)
             if not isinstance(user, User):
                 user = get_user(user)
             owner_url = user.url
-        if project:
+            self.resource.patch({'owner': owner_url})
+            self.resource.refresh()
+        elif project:
             if not isinstance(project, Project):
                 project = get_project(project)
-            owner_url = project.url
-
-        if not owner_url:
+            self.move(project)
+        else:
             raise AttributeError("Can't set owner")
 
-        self.resource.patch({'owner': owner_url})
-        self.resource.refresh()
+    def move(self, project):
+        if not isinstance(project, Project):
+            project = get_project(project)
+
+        project.move_here([self])  # This performs .resource.refresh()
 
     @property
     def settings(self):
