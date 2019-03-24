@@ -260,7 +260,7 @@ class TestDatasets(TestDatasetBase, TestCase):
     @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
     @mock.patch('pycrunch.importing.Importer.stream_rows')
     def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
-        ds_shoji = self.ds_shoji
+        ds_shoji = copy.deepcopy(self.ds_shoji)
         ds_shoji['body']['streaming'] = 'negative'
         ds_mock = self._dataset_mock(ds_shoji=ds_shoji)
         ds = MutableDataset(ds_mock)
