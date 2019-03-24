@@ -14,6 +14,11 @@ except:
     # pandas is not installed
     pandas = None
 
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
 from unittest import TestCase
 
 import pytest
@@ -81,6 +86,7 @@ class TestDatasetBase(object):
             'notes': '',
             'description': '',
             'is_published': False,
+            'streaming': '',
             'archived': False,
             'end_date': None,
             'start_date': None,
@@ -254,6 +260,23 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def process_expr_side_effect(self, expr, ds):
         return expr
+
+    @pytest.mark.skipif(pandas is None, reason='pandas is not installed')
+    @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
+    @mock.patch('pycrunch.importing.Importer.stream_rows')
+    def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
+        ds_shoji = copy.deepcopy(self.ds_shoji)
+        ds_shoji['body']['streaming'] = 'negative'
+        ds_mock = self._dataset_mock(ds_shoji=ds_shoji)
+        ds = MutableDataset(ds_mock)
+        assert ds.resource.body.get('streaming') == 'negative'
+        file = StringIO()
+        file.write("id, age\n1, 15")
+        file.seek(0)
+        ds.replace_from_csv(file, chunksize=5)
+        mocked_stream_rows.assert_called_with(ds_mock, [{'id': 1, ' age': 15}])
+        mocked_push_rows.assert_called_with(5)
+        assert ds.resource.body.get('streaming') == 'negative'
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_replace_values(self, mocked_process):
@@ -513,11 +536,11 @@ class TestDatasets(TestDatasetBase, TestCase):
                 raise Exception('1.0')
 
         # `sum` fails
-        with pytest.raises(Exception, message='not 1.0'):
+        with pytest.raises(Exception, match='not 1.0'):
             _test_sum(targets[0]['foo'])
 
         # `fsum` does not
-        with pytest.raises(Exception, message='1.0'):
+        with pytest.raises(Exception, match='1.0'):
             _test_sum(targets[0]['foo'], use_fsum=True)
 
         # Now test that we don't fail on the above targets in `derive_weight`
@@ -1203,58 +1226,70 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
         ds = StreamingDataset(ds_mock)
         assert ds.name == 'test_dataset_name'
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.name = 'forbidden'
         assert ds.name == 'test_dataset_name'
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.notes = 'forbidden'
         assert ds.notes == ''
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.description = 'forbidden'
         assert ds.description == ''
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.is_published = True
         assert ds.is_published is False
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.archived = True
         assert ds.archived is False
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.end_date = 'forbidden'
         assert ds.end_date is None
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             ds.start_date = 'forbidden'
         assert ds.start_date is None
+        assert str(excinfo.value) == self.error_msg
 
     def test_Variable_attribute_writes(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
         var = ds['var1_alias']
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             var.name = 'forbidden'
         assert var.name == 'var1_name'
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             var.description = 'forbidden'
         assert var.description == ''
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             var.notes = 'forbidden'
         assert var.notes == ''
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             var.format = 'forbidden'
         assert var.format is None
+        assert str(excinfo.value) == self.error_msg
 
-        with pytest.raises(AttributeError, message=self.error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             var.view = 'forbidden'
         assert var.view is None
+        assert str(excinfo.value) == self.error_msg
 
 
 class TestVariables(TestDatasetBase, TestCase):
@@ -1593,10 +1628,11 @@ class TestCast(TestCase):
         ds_res = MagicMock(session=sess)
         ds_res.views.cast = MagicMock()
         ds = StreamingDataset(ds_res)
-        with pytest.raises(AssertionError, message="Cast type not allowed"):
+        with pytest.raises(AssertionError) as excinfo:
             ds.cast('var_a', 'not_allowed')
             ds_res.resource.session.post.assert_called_with(
                 {'cast_as': 'not_allowed'})
+        assert str(excinfo.value) == "Cast type not allowed"
 
 
 class TestSavepoints(TestCase):
@@ -1889,10 +1925,11 @@ class TestForks(TestCase):
         ds_res.reset_mock()
 
         # ValueError if no unique fork could be found
-        error_msg = "Couldn't find a (unique) fork. "
-        "Please try again using its id"
-        with pytest.raises(ValueError, message=error_msg):
+        error_msg = "Couldn't find a (unique) fork. " \
+                    "Please try again using its id"
+        with pytest.raises(ValueError) as excinfo:
             ds.merge('myFork')
+        assert str(excinfo.value) == error_msg
 
         expected_call['body']['dataset'] = fork2_url
         expected_call['body']['autorollback'] = True
@@ -6241,7 +6278,8 @@ class TestHeadingSubtotals(TestDatasetBase):
             'type': 'categorical',
             'categories': TEST_CATEGORIES(),
             'is_subvar': False,
-            'view': {}
+            'view': {},
+            'derived': False,
         },
     }
 

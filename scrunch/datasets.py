@@ -20,7 +20,7 @@ import six
 
 import pycrunch
 from pycrunch.exporting import export_dataset
-from pycrunch.shoji import Entity
+from pycrunch.shoji import Entity, TaskProgressTimeoutError
 from scrunch.session import connect
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
@@ -931,7 +931,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     """
 
     _MUTABLE_ATTRIBUTES = {'name', 'notes', 'description', 'is_published',
-                           'archived', 'end_date', 'start_date'}
+                           'archived', 'end_date', 'start_date', 'streaming'}
     _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'modification_time',
                              'size'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
@@ -991,6 +991,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
     def make_mutable(self):
         from scrunch.mutable_dataset import MutableDataset
         return MutableDataset(self.resource)
+
+    def make_streaming(self):
+        from scrunch.streaming_dataset import StreamingDataset
+        self.edit(streaming='streaming')
+        return StreamingDataset(self.resource)
 
     @property
     def project(self):
@@ -2377,6 +2382,46 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             LOG.info('Dataset Updated')
             return
         return resp
+
+    def replace_from_csv(self, filename, chunksize=1000):
+        """
+        Given a csv file in the format:
+        id, var1_alias, var2_alias
+        1,  14,         15
+
+        where the first column is the Dataset PK
+
+        Replace the values of the matching id, for the given variables
+        in the Dataset using the /stream endpoint:
+
+        [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
+        """
+        streaming_state = self.resource.body.get('streaming', 'no')
+        ds = self
+        if streaming_state != 'streaming':
+            ds = self.make_streaming()
+        importer = pycrunch.importing.Importer()
+        df_chunks = pd.read_csv(
+            filename,
+            header=0,
+            chunksize=chunksize
+        )
+        for chunk in df_chunks:
+            # This is a trick to get rid of np.int64, which is not
+            # json serializable
+            stream = chunk.to_json(orient='records')
+            stream = json.loads(stream)
+            # trap the timeout and allow it to finish
+            try:
+                importer.stream_rows(self.resource, stream)
+                # We force the row push to instantly see any errors in the data
+                # and to allow changing to streaming status back to it's previous
+                # state
+                ds.push_rows(chunksize)
+            except TaskProgressTimeoutError as exc:
+                exc.entity.wait_progress(exc.response)
+        if streaming_state != 'streaming':
+            ds.edit(streaming=streaming_state)
 
     def merge(self, fork_id=None, autorollback=True):
         """

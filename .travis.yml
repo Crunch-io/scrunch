@@ -1,38 +1,57 @@
-dist: trusty
+dist: xenial
 sudo: false
 language: python
 
-python:
-- 2.7
-- 3.4
-- 3.5
-- &latest_py3 3.6
-
 jobs:
-  fast_finish: true
   include:
-  - stage: deploy
-    if: tag IS present
-    python: *latest_py3
-    install: skip
-    script: skip
-    deploy:
-      provider: pypi
-      on:
-        tags: true
-        all_branches: true
-      user: jaraco
-      password:
-        secure: f+AUtW6EUqe9DmbjpbJO0q/wesmpyS3zaeKAxENu2klRsV1xpKj55HBj/RP8EIHDrJHi2+GkF0Ml5BRXV8rtAzLSIP5OHWNlBWUPzJzZ+iaTHQAKXWG2po1b3SR+4t/of89tcmr7QybZmibApzT3Vs1Uq66IZ2mRdYN7w9U1TOpgFU1ZGxWgMXQEg9B8/IPlkWFP4pSSOkd+ASNlr9I3jWSpCsBYLSLKs9exUez8UScxmFn0i9Rbql0y/yiT/yagBDgU+T7f5H6KEQr30V0taPpiE+NFpV0iHtR4NnUfYHqtK2nvPmDWQqSGy80U/gwSsXR44k4trSQQBdrp1laO5/XHr5QHrcejrHIu6PYxyAXzMwX611Cll6Dsi+gakPZZCRWgek5Hp96RIBSBuwnjCypsr33T8GRtRrpfRvNLA8ouKhcl5CoWoPocRwyWxPXLOpG3uNbEQNApdbCKBkCHpq+pT4Xa8l7yWFS8nGC5CaGuX9NCkA5njs4RlwpKZpxi0vvr6Iwygq8hYGnKBLg7zCvqJKq8AL1iGKkwxlx4TBIlNcKuZZELKvLRYteg8JKwI+otghgHox+V51jB15j3yBrBqm1rSWT+dk4z03shFYAInBZjD7Lt/CoRd9it8ttgxbX+dVzsy5l4qWY7f5F80UftyClmIcVhbq27FudoKsk=
-      distributions: dists
-      skip_cleanup: true
-      skip_upload_docs: true
+    - stage: test
+      python: 2.7
+      env: TOXENV=py27
+    - stage: test-pandas
+      python: 2.7
+      env: TOXENV=py27-pandas
+    - stage: test
+      python: 3.4
+      env: TOXENV=py34
+    - stage: test
+      python: 3.5
+      env: TOXENV=py35
+    - stage: test-pandas
+      python: 3.5
+      env: TOXENV=py35-pandas
+    - stage: test
+      python: 3.6
+      env: TOXENV=py36
+    - stage: test-pandas
+      python: 3.6
+      env: TOXENV=py36-pandas
+    - stage: test
+      python: 3.7
+      env: TOXENV=py37
+    - stage: test-pandas
+      python: 3.7
+      env: TOXENV=py37-pandas
+    - stage: deploy
+      if: tag IS present
+      python: *latest_py3
+      install: skip
+      script: skip
+      deploy:
+        provider: pypi
+        on:
+          tags: true
+          all_branches: true
+        user: jaraco
+        password:
+          secure: f+AUtW6EUqe9DmbjpbJO0q/wesmpyS3zaeKAxENu2klRsV1xpKj55HBj/RP8EIHDrJHi2+GkF0Ml5BRXV8rtAzLSIP5OHWNlBWUPzJzZ+iaTHQAKXWG2po1b3SR+4t/of89tcmr7QybZmibApzT3Vs1Uq66IZ2mRdYN7w9U1TOpgFU1ZGxWgMXQEg9B8/IPlkWFP4pSSOkd+ASNlr9I3jWSpCsBYLSLKs9exUez8UScxmFn0i9Rbql0y/yiT/yagBDgU+T7f5H6KEQr30V0taPpiE+NFpV0iHtR4NnUfYHqtK2nvPmDWQqSGy80U/gwSsXR44k4trSQQBdrp1laO5/XHr5QHrcejrHIu6PYxyAXzMwX611Cll6Dsi+gakPZZCRWgek5Hp96RIBSBuwnjCypsr33T8GRtRrpfRvNLA8ouKhcl5CoWoPocRwyWxPXLOpG3uNbEQNApdbCKBkCHpq+pT4Xa8l7yWFS8nGC5CaGuX9NCkA5njs4RlwpKZpxi0vvr6Iwygq8hYGnKBLg7zCvqJKq8AL1iGKkwxlx4TBIlNcKuZZELKvLRYteg8JKwI+otghgHox+V51jB15j3yBrBqm1rSWT+dk4z03shFYAInBZjD7Lt/CoRd9it8ttgxbX+dVzsy5l4qWY7f5F80UftyClmIcVhbq27FudoKsk=
+        distributions: dists
+        skip_cleanup: true
+        skip_upload_docs: true
 
 cache: pip
 
 install:
-- pip install tox tox-venv
+- pip install tox
 
 script:
   - tox
-  - if [[ "$TRAVIS_PYTHON_VERSION" != "3.4" ]]; then tox -e pandas; fi

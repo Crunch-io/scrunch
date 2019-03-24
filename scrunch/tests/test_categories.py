@@ -90,32 +90,37 @@ class TestCategories(TestCase):
         )
         variable = Variable(resource, MagicMock())
 
-        error_msg = 'use the edit() method for mutating attributes'
+        error_msg = "use the edit() method for mutating attributes"
 
-        with pytest.raises(AttributeError, message=error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             variable.categories[1].id = 42
         # nothing has changed
         assert variable.categories[1].id == 1
+        assert str(excinfo.value) == "Can't edit attibute 'id'"
 
-        with pytest.raises(AttributeError, message=error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             variable.categories[1].name = 'forbidden'
         # nothing has changed
         assert variable.categories[1].name == 'Female'
+        assert str(excinfo.value) == error_msg
 
-        with pytest.raises(AttributeError, message=error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             variable.categories[1].numeric_value = 42
         # nothing has changed
         assert variable.categories[1].numeric_value is None
+        assert str(excinfo.value) == error_msg
 
-        with pytest.raises(AttributeError, message=error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             variable.categories[1].missing = True
         # nothing has changed
         assert variable.categories[1].missing is False
+        assert str(excinfo.value) == error_msg
 
-        with pytest.raises(AttributeError, message=error_msg):
+        with pytest.raises(AttributeError) as excinfo:
             variable.categories[1].selected = True
         # nothing has changed, default is False
         assert variable.categories[1].selected is False
+        assert str(excinfo.value) == error_msg
 
     def test_edit_derived(self):
         resource = EditableMock()
@@ -127,7 +132,7 @@ class TestCategories(TestCase):
         variable = Variable(resource, MagicMock())
 
         error_msg = "Cannot edit categories on derived variables. Re-derive with the appropriate expression"
-        with pytest.raises(TypeError, message=error_msg):
+        with pytest.raises(TypeError, match=error_msg):
             variable.categories[1].edit(name='Mujer')
 
         # Try again with an empty derivation

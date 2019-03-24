@@ -60,6 +60,7 @@ CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
     'missing': 'is_missing',
     'bin': 'bin',
+    'selected': 'selected',
     'not_selected': 'not_selected',
 }
 
@@ -68,6 +69,7 @@ CRUNCH_METHOD_MAP = {
     'all': 'all',
     'duplicates': 'duplicates',
     'bin': 'bin',
+    'selected': 'selected',
     'not_selected': 'not_selected',
 }
 
@@ -740,9 +742,12 @@ def prettify(expr, ds=None):
                 op = ' %s ' % f
                 result = op.join(str(x) for x in args)
         elif f in methods:
-            result = '%s.%s(%s)' % (
-                args[0], methods[f], ', '.join(str(x) for x in args[1:])
-            )
+            if f in ['selected', 'not_selected']:
+                result = '%s(%s)%s' % (methods[f], args[0], ', '.join(str(x) for x in args[1:]))
+            else:    
+                result = '%s.%s(%s)' % (
+                    args[0], methods[f], ', '.join(str(x) for x in args[1:])
+                )
         elif f in functions:
             result = '%s(%s)' % (functions[f], args[0])
         else:

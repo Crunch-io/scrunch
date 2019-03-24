@@ -266,8 +266,11 @@ class TestUtilities(object):
         session.projects.by.assert_called_with('id')
         assert isinstance(project, Project)
 
-        with pytest.raises(KeyError, message='Project invalidid not found.'):
+        with pytest.raises(KeyError) as excinfo:
             get_project('invalidid')
+        assert str(excinfo.value) == \
+               "'Project (name or id: invalidid) not found.'"
+        # ^ That exception message is wrapped in quotes? Ugh?
 
     @mock.patch('pycrunch.session')
     def test_get_user(self, session):
@@ -289,11 +292,13 @@ class TestUtilities(object):
         assert isinstance(user, User)
 
     def test_path(self):
-        with pytest.raises(TypeError, message='The path must be a string object'):
+        with pytest.raises(TypeError) as excinfo:
             Path(1234)
+        assert str(excinfo.value) == 'The path must be a string object'
 
-        with pytest.raises(InvalidPathError, message='Invalid path |If SkadefÃ¶rsÃ¤kring: it contains invalid characters.'):
+        with pytest.raises(InvalidPathError) as excinfo:
             Path('|If SkadefÃ¶rsÃ¤kring')
+        assert str(excinfo.value) == 'Invalid path |If SkadefÃ¶rsÃ¤kring: it contains invalid characters.'
 
         Path('|If Skadeförsäkring')
         Path('|æøå')
