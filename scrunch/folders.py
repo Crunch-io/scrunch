@@ -210,7 +210,7 @@ class DatasetFolders(object):
             self.root = Folder(folders_root, self, None)
             self.hidden = Folder(folders_root.hidden, self, None)
             self.trash = Folder(folders_root.trash, self, None)
-            if hasattr(folders_root, "secure"):
+            if "secure" in folders_root.catalogs:
                 self.secure = Folder(folders_root.secure, self, None)
 
     def get(self, path):
