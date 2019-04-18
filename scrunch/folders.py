@@ -206,9 +206,12 @@ class DatasetFolders(object):
         self.dataset = dataset
         if self.enabled:
             self.dataset = dataset
-            self.root = Folder(dataset.resource.folders, self, None)
-            self.hidden = Folder(dataset.resource.folders.hidden, self, None)
-            self.trash = Folder(dataset.resource.folders.trash, self, None)
+            folders_root = dataset.resource.folders
+            self.root = Folder(folders_root, self, None)
+            self.hidden = Folder(folders_root.hidden, self, None)
+            self.trash = Folder(folders_root.trash, self, None)
+            if "secure" in folders_root.catalogs:
+                self.secure = Folder(folders_root.secure, self, None)
 
     def get(self, path):
         if self.enabled:
