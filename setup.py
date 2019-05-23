@@ -37,6 +37,7 @@ params = dict(
         'requests',
         'six',
         'cr.cube',
+        'importlib_metadata',
     ],
     extras_require={
         'testing': [
