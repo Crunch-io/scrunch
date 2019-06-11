@@ -208,8 +208,11 @@ class DatasetFolders(object):
             self.dataset = dataset
             folders_root = dataset.resource.folders
             self.root = Folder(folders_root, self, None)
-            self.hidden = Folder(folders_root.hidden, self, None)
-            self.trash = Folder(folders_root.trash, self, None)
+            # Dataset viewers may not get all folders exposed
+            if "hidden" in folders_root.catalogs:
+                self.hidden = Folder(folders_root.hidden, self, None)
+            if "trash" in folders_root.catalogs:
+                self.trash = Folder(folders_root.trash, self, None)
             if "secure" in folders_root.catalogs:
                 self.secure = Folder(folders_root.secure, self, None)
 
