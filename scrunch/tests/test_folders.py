@@ -158,8 +158,6 @@ def test_unique_folders_no_hidden():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
     folders_url = 'http://host/api/datasets/abc/folders/'
-    hidden_url = 'http://host/api/datasets/abc/folders/hidden/'
-    trash_url = 'http://host/api/datasets/abc/folders/trash/'
     dataset_resource = Entity(session, **{
         "element": "shoji:entity",
         "self": dataset_url,
