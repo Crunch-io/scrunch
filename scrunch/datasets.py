@@ -885,7 +885,7 @@ class DatasetVariablesMixin(collections.Mapping):
         # needed to update the variables collection
         self._reload_variables()
         # return an instance of Variable
-        return self[new_var['body']['alias']]
+        return self[new_var['self']]
 
     def __iter__(self):
         for var in self._vars:
