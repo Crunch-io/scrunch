@@ -585,10 +585,16 @@ class Project:
         items = items if isinstance(items, (list, tuple)) else [items]
         position, before, after = [kwargs.get('position'),
                                    kwargs.get('before'), kwargs.get('after')]
-        graph = self._position_items(items, position, before, after)
-        self.resource.patch(shoji_entity_wrapper({}, index={
-            item.url: {} for item in items
-        }, graph=graph))
+        kwargs = {
+            'index': {
+                item.url: {} for item in items
+            }
+        }
+        if {position, before, after} != {None}:
+            # Some of the positional args was not None
+            graph = self._position_items(items, position, before, after)
+            kwargs['graph'] = graph
+        self.resource.patch(shoji_entity_wrapper({}, **kwargs))
         self.resource.refresh()
         for item in items:
             item.resource.refresh()

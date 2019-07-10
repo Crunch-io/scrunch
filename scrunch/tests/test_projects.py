@@ -245,7 +245,7 @@ class TestProjectNesting(TestCase):
                 project_c.url: {},
                 dataset.url: {}
             },
-            'graph': [project_c.url, dataset.url]
+            # 'graph': [project_c.url, dataset.url]
         })
 
     def test_move_project(self):
