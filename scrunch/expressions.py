@@ -632,7 +632,7 @@ def process_expr(obj, ds):
             elif op == 'is_valid':
                 real_op = 'all_valid'
             elif op == 'is_missing':
-                real_op = 'all_missing'
+                real_op = 'is_missing'
 
             if op in ('is_valid', 'is_missing'):
                 if len(values) != 0:

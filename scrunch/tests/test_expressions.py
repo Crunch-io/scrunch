@@ -2170,7 +2170,7 @@ class TestExpressionProcessing(TestCase):
         expr = 'missing(hobbies)'
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
-            'function': 'all_missing',
+            'function': 'is_missing',
             'args': [
                 {
                     'variable': var_url
@@ -2184,7 +2184,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'not',
             'args': [
                 {
-                    'function': 'all_missing',
+                    'function': 'is_missing',
                     'args': [
                         {
                             'variable': var_url
