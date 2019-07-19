@@ -2277,8 +2277,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         else:
             expr_obj = expr
 
-        print(expr_obj)
-
         return self.resource.session.patch(
             self.resource.fragments.exclusion,
             data=json.dumps(dict(expression=expr_obj))
