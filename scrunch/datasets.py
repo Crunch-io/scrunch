@@ -1708,8 +1708,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 subrefs = {'name': item['name']}
                 if item.get('alias'):
                     subrefs['alias'] = item['alias']
-                if item.get('id'):
-                    subrefs['id'] = item['id']
                 payload['subreferences'].append(subrefs)
         if values:
             payload['values'] = values
