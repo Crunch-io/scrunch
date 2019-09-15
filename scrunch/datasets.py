@@ -1703,9 +1703,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if categories:
             payload['categories'] = categories
         if subvariables:
-            payload['subreferences'] = [
-                {'name': item['name']} for item in subvariables
-            ]
+            payload['subreferences'] = []
+            for item in subvariables:
+                subrefs = {'name': item['name']}
+                if item.get('alias'):
+                    subrefs['alias'] = item['alias']
+                payload['subreferences'].append(subrefs)
         if values:
             payload['values'] = values
 
