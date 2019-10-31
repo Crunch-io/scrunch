@@ -2422,7 +2422,7 @@ class Dataset(ReadOnly, DatasetVariablesMixin):
         streaming_state = self.resource.body.get('streaming', 'no')
         ds = self
         if streaming_state != 'streaming':
-            ds = self.make_streaming()
+            ds.edit(streaming='streaming')
         importer = pycrunch.importing.Importer()
         df_chunks = pd.read_csv(
             filename,
