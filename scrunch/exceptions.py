@@ -18,10 +18,6 @@ class InvalidReferenceError(ValueError):
     pass
 
 
-class InvalidDatasetTypeError(Exception):
-    pass
-
-
 class InvalidVariableTypeError(Exception):
     pass
 

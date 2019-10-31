@@ -707,7 +707,7 @@ def prettify(expr, ds=None):
 
         if not is_url:
             return var
-        elif not isinstance(ds, scrunch.datasets.BaseDataset):
+        elif not isinstance(ds, scrunch.datasets.Dataset):
             raise Exception(
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'

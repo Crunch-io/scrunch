@@ -3,10 +3,9 @@ from mock import patch, MagicMock
 from unittest import TestCase
 
 from pycrunch.cubes import fetch_cube, count
-from scrunch.streaming_dataset import StreamingDataset
 from scrunch.tests.test_datasets import TestDatasetBase
 from scrunch.cubes import crtabs, variable_to_url
-from scrunch.datasets import Variable
+from scrunch.datasets import Variable, Dataset
 
 
 class TestCubes(TestDatasetBase, TestCase):
@@ -17,7 +16,7 @@ class TestCubes(TestDatasetBase, TestCase):
         Test url aliases are converted to urls
         """
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         variables = ['var1_alias', 'var2_alias']
         urls = [variable_to_url(var, ds) for var in variables]
         crtabs(dataset=ds, variables=variables)
@@ -30,7 +29,7 @@ class TestCubes(TestDatasetBase, TestCase):
         Test weight alias is converted to url
         """
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         variables = ['var1_alias', 'var2_alias']
         weight_url = variable_to_url('var3_alias', ds)
         urls = [variable_to_url(var, ds) for var in variables]
@@ -41,7 +40,7 @@ class TestCubes(TestDatasetBase, TestCase):
     @patch('scrunch.cubes.fetch_cube')
     def test_pass_filter_expression(self, mock_fetch_cube):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         variables = ['var1_alias', 'var2_alias']
         urls = [variable_to_url(var, ds) for var in variables]
         crtabs(dataset=ds, variables=variables, filter='var1_alias > 1')

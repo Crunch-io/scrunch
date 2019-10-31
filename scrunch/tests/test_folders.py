@@ -1,6 +1,6 @@
 from mock import MagicMock
 from scrunch.folders import Folder
-from scrunch.mutable_dataset import MutableDataset
+from scrunch.datasets import Dataset
 from pycrunch.shoji import Entity, Catalog
 
 from .test_datasets import AttributeDict
@@ -87,7 +87,7 @@ def test_unique_folders():
     session.add_fixture(hidden_url, hidden_resource)
     session.add_fixture(secure_url, secure_resource)
     session.add_fixture(trash_url, trash_resource)
-    dataset = MutableDataset(dataset_resource)
+    dataset = Dataset(dataset_resource)
 
     assert dataset.folders.root.name == "Root"
     assert dataset.folders.hidden.name == "Hidden"
@@ -146,7 +146,7 @@ def test_unique_folders_no_secure():
     session.add_fixture(folders_url, folders_resource)
     session.add_fixture(hidden_url, hidden_resource)
     session.add_fixture(trash_url, trash_resource)
-    dataset = MutableDataset(dataset_resource)
+    dataset = Dataset(dataset_resource)
 
     assert dataset.folders.root.name == "Root"
     assert dataset.folders.hidden.name == "Hidden"
@@ -190,7 +190,7 @@ def test_unique_folders_no_hidden():
         }
     })
     session.add_fixture(folders_url, folders_resource)
-    dataset = MutableDataset(dataset_resource)
+    dataset = Dataset(dataset_resource)
 
     assert dataset.folders.root.name == "Root"
     assert not hasattr(dataset.folders, "secure")

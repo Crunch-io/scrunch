@@ -2,8 +2,7 @@ import mock
 from unittest import TestCase
 
 import pytest
-from scrunch.datasets import Variable
-from scrunch.mutable_dataset import MutableDataset
+from scrunch.datasets import Variable, Dataset
 from scrunch.variables import responses_from_map
 from scrunch.helpers import subvar_alias
 
@@ -141,7 +140,7 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
         resource.variables.index = {}  # Var not present
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('unknown', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
 
@@ -156,7 +155,7 @@ class TestCombine(TestCase):
             'test': entity_mock,
         }
         resource.variables.index = {}
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
@@ -177,7 +176,7 @@ class TestCombine(TestCase):
         tuple_mock.entity.self = var_url
 
         entity = Variable(tuple_mock, resource)
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
@@ -207,7 +206,7 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
 
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
 
@@ -237,7 +236,7 @@ class TestCombine(TestCase):
         }
 
         # make the actual response call
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
         resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
@@ -270,7 +269,7 @@ class TestCombine(TestCase):
             'test': entity_mock
         }
 
-        ds = MutableDataset(resource)
+        ds = Dataset(resource)
 
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response(entity_mock, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
@@ -338,7 +337,7 @@ class TestRecode(TestCase):
         ds_res = mock.MagicMock()
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
-        dataset = MutableDataset(ds_res)
+        dataset = Dataset(ds_res)
         dataset.create_categorical([
             {'id': 1, 'name': 'Straight', 'case': 'sexuality.any([1])'},
             {'id': 2, 'name': 'LGBTQ+', 'case': 'sexuality.any([2, 3, 4, 5])'}
@@ -468,7 +467,7 @@ class TestRecode(TestCase):
         ds_res = mock.MagicMock()
         ds_res.self = dataset_url
         ds_res.follow.return_value = table_mock
-        dataset = MutableDataset(ds_res)
+        dataset = Dataset(ds_res)
         subvar_mock = mock.MagicMock()
         subvar_mock.self = var_url
         subvar_mock.id = 'subvar'

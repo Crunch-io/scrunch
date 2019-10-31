@@ -93,7 +93,7 @@ class Group(object):
             # TODO unreached code
             elif isinstance(element, scrunch.datasets.Variable):
                 self.elements[element.alias] = element
-            elif isinstance(element, scrunch.datasets.BaseDataset):
+            elif isinstance(element, scrunch.datasets.Dataset):
                 self.elements[element.id] = element
             else:
                 raise TypeError('Invalid OrderObject %s' % element)
@@ -106,7 +106,7 @@ class Group(object):
                     elements.append({key: _get_elements(obj)})
                 # TODO unreached code
                 elif isinstance(obj, (scrunch.datasets.Variable,
-                                      scrunch.datasets.BaseDataset)):
+                                      scrunch.datasets.Dataset)):
                     elements.append(obj.name)
                 else:
                     elements.append(obj.name)
@@ -479,7 +479,7 @@ class Order(object):
         target_group = self.group[str(path)]
         if isinstance(entity, scrunch.datasets.Variable):
             element = entity.alias
-        elif isinstance(entity, scrunch.datasets.BaseDataset):
+        elif isinstance(entity, scrunch.datasets.Dataset):
             element = entity.id
         else:
             raise TypeError('entity must be a `Variable` or `Dataset`')

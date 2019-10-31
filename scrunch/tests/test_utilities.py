@@ -7,8 +7,7 @@ from pycrunch import ClientError, shoji, lemonpy
 import scrunch
 from scrunch.variables import validate_variable_url
 from scrunch import get_project, get_mutable_dataset, get_user
-from scrunch.datasets import Project, User
-from scrunch.mutable_dataset import MutableDataset
+from scrunch.datasets import Project, User, Dataset
 from scrunch.order import Path
 from scrunch.exceptions import InvalidPathError
 
@@ -163,7 +162,7 @@ class TestUtilities(object):
             "name": "dataset_name"
         })
 
-        assert isinstance(ds, MutableDataset)
+        assert isinstance(ds, Dataset)
         assert ds.name == 'dataset_name'
         assert ds.url == dataset_url
 
@@ -195,7 +194,7 @@ class TestUtilities(object):
         ds = get_mutable_dataset(dataset_id)
         session.session.get.assert_called_with('https://test.crunch.io/api/b2c4c6b7d3a94e58937b23c1fed1b65e/')
 
-        assert isinstance(ds, MutableDataset)
+        assert isinstance(ds, Dataset)
         assert ds.name == 'dataset_name'
         assert ds.id == dataset_id
 
