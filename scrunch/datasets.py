@@ -20,6 +20,7 @@ import six
 
 import pycrunch
 from pycrunch.exporting import export_dataset
+from pycrunch.importing import Importer
 from pycrunch.shoji import Entity, TaskProgressTimeoutError
 from scrunch.session import connect
 from scrunch.categories import CategoryList
@@ -140,7 +141,7 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
     Returns a Dataset Entity record if the dataset exists.
     Raises a KeyError if no such dataset exists.
 
-    To get a.BaseDataset from a Project we are building a url and
+    To get a.Dataset from a Project we are building a url and
     making a request through pycrunch.session object, we instead should
     use the /search endpoint from crunch, but currently it's not working
     by id's.
@@ -180,8 +181,6 @@ def _get_dataset(dataset, connection=None, editor=False, project=None):
     return shoji_ds, root
 
 
-# FIXME: to be deprecated in favor of get_streaming_dataset and
-# get_mutable_dataset
 def get_dataset(dataset, connection=None, editor=False, project=None):
     """
     A simple wrapper of _get_dataset with streaming=False
@@ -191,6 +190,27 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     if editor is True:
         ds.change_editor(root.session.email)
     return ds
+
+
+def create_dataset(name, variables, connection=None, **kwargs):
+    if connection is None:
+        connection = _get_connection()
+        if not connection:
+            raise AttributeError(
+                "Authenticate first with scrunch.connect() or by providing "
+                "config/environment variables")
+
+    dataset_doc = {
+        'name': name,
+        'table': {
+            'element': 'crunch:table',
+            'metadata': variables
+        }
+    }
+    dataset_doc.update(**kwargs)
+
+    shoji_ds = connection.datasets.create(shoji_entity_wrapper(dataset_doc)).refresh()
+    return Dataset(shoji_ds)
 
 
 def get_project(project, connection=None):
@@ -398,11 +418,14 @@ class Members:
             'permissions': {self._EDIT_ATTRIBUTE: edit}}
         })
 
+
 class ProjectMembers(Members):
     _EDIT_ATTRIBUTE = 'edit'
 
+
 class TeamMembers(Members):
     _EDIT_ATTRIBUTE = 'team_admin'
+
 
 class Team:
     _MUTABLE_ATTRIBUTES = {'name'}
@@ -430,6 +453,7 @@ class Team:
 
     def delete(self):
         return self.resource.delete()
+
 
 class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
@@ -517,7 +541,7 @@ class Project:
             except KeyError:
                 raise KeyError(
                     "Dataset (name or id: %s) not found in project." % dataset)
-        ds = BaseDataset(shoji_ds)
+        ds = Dataset(shoji_ds)
         return ds
 
     def create_project(self, name):
@@ -695,7 +719,7 @@ class CrunchBox(object):
     index with the updated metadata.
 
     :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
-    :param     dataset: scrunch.datasets.BaseDataset instance
+    :param     dataset: scrunch.datasets.Dataset instance
 
     NOTE: since the boxdata entity is different regarding the mapping of body
           and metadata fields, methods etc... it is made `readonly`.
@@ -931,7 +955,7 @@ class DefaultWeight:
     pass
 
 
-class BaseDataset(ReadOnly, DatasetVariablesMixin):
+class Dataset(ReadOnly, DatasetVariablesMixin):
     """
     A pycrunch.shoji.Entity wrapper that provides basic dataset methods.
     """
@@ -949,7 +973,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         :param resource: Points to a pycrunch Shoji Entity for a dataset.
         """
-        super(BaseDataset, self).__init__(resource)
+        super(Dataset, self).__init__(resource)
         self._settings = None
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
@@ -993,15 +1017,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             user = get_user(user)
         self.resource.patch({'current_editor': user.url})
         self.resource.refresh()
-
-    def make_mutable(self):
-        from scrunch.mutable_dataset import MutableDataset
-        return MutableDataset(self.resource)
-
-    def make_streaming(self):
-        from scrunch.streaming_dataset import StreamingDataset
-        self.edit(streaming='streaming')
-        return StreamingDataset(self.resource)
 
     @property
     def project(self):
@@ -2328,9 +2343,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             dataset otherwise the owner will be the current user in the
             session and the Dataset will be set under `Persona Project`
 
-        :returns _fork: scrunch.datasets.BaseDataset
+        :returns _fork: scrunch.datasets.Dataset
         """
-        from scrunch.mutable_dataset import MutableDataset
         nforks = len(self.resource.forks.index)
         if name is None:
             if six.PY2:
@@ -2356,9 +2370,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
-        # return a MutableDataset always
         user = get_user(self.resource.session.email)
-        fork_ds = MutableDataset(_fork)
+        fork_ds = Dataset(_fork)
         fork_ds.change_editor(user)
         return fork_ds
 
@@ -2697,18 +2710,334 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         })
         return self._var_create_reload_return(payload)
 
+    # --------------------------------------------------------------------------------
+    # Methods inherited from MutableDataset, need to make sure self.streaming == 'no'
+    # --------------------------------------------------------------------------------
+    def delete(self):
+        """
+        Delete a non-streaming dataset.
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        self.resource.delete()
 
-class Dataset(BaseDataset):
+    def join(self, left_var, right_ds, right_var, columns=None,
+             filter=None, wait=True):
+        """
+        Joins a given variable. In crunch joins are left joins, where
+        left is the dataset variable and right is other dataset variable.
+        For more information see:
+        http://docs.crunch.io/?http#merging-and-joining-datasets
 
-    _BASE_MUTABLE_ATTRIBUTES = {'streaming'}
+        :param: columns: Specify a list of variables from right dataset
+        to bring in the merge:
+        http://docs.crunch.io/?http#joining-a-subset-of-variables
 
-    def __init__(self, resource):
-        LOG.warning("""Dataset is deprecated, instead use now
-            mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset
-            with it's corresponding get_mutable_dataset and get_streaming_dataset
-            methods""")  # noqa: E501
-        super(Dataset, self).__init__(resource)
-        self._MUTABLE_ATTRIBUTES = self._BASE_MUTABLE_ATTRIBUTES | self._BASE_MUTABLE_ATTRIBUTES
+        :param: wait: Wait for the join progress to finish by polling
+        or simply return a url to the progress resource
+
+        :param: filter: Filters out rows based on the given expression,
+        or on a given url for an existing filter. TODO: for the moment
+        we only allow expressions
+        """
+        if self.resource.body.get('streaming', 'no') == 'streaming':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        right_var_url = right_ds[right_var].url
+        left_var_url = self[left_var].url
+        # this dictionary sets the main part of the join
+        adapter = {
+            'function': 'adapt',
+            'args': [
+                {'dataset': right_ds.url},
+                {'variable': right_var_url},
+                {'variable': left_var_url}
+            ]
+        }
+
+        # wrap the adapter method on a shoji and body entity
+        payload = shoji_entity_wrapper(adapter)
+
+        if columns and isinstance(columns, list):
+            # overwrite body to new format
+            payload['body'] = {
+                'frame': adapter,
+                'function': 'select',
+                'args': [
+                    {'map': {}}
+                ]
+            }
+            # add the individual variable columns to the payload
+            for var in columns:
+                var_url = right_ds[var].url
+                payload['body']['args'][0]['map'][var_url] = {'variable': var_url}
+
+        if filter:
+            # in the case of a filter, convert it to crunch
+            # and attach the filter to the payload
+            expr = process_expr(parse_expr(filter), right_ds)
+            payload['body']['filter'] = {'expression': expr}
+
+        progress = self.resource.variables.post(payload)
+        # poll for progress to finish or return the url to progress
+        if wait:
+            return wait_progress(r=progress, session=self.resource.session, entity=self)
+        return progress.json()['value']
+
+    def compare_dataset(self, dataset, use_crunch=False):
+        """
+        compare the difference in structure between datasets. The
+        criterion is the following:
+
+        (1) variables that, when matched across datasets by alias, have different types.
+        (2) variables that have the same name but don't match on alias.
+        (3) for variables that match and have categories, any categories that have the
+        same id but don't match on name.
+        (4) for array variables that match, any subvariables that have the same name but
+        don't match on alias.
+        (5) array variables that, after assembling the union of their subvariables,
+        point to subvariables that belong to other ds (Not implemented)
+        (6) missing rules of the variable.
+
+        :param: dataset: Daatset instance to append from
+        :param: use_crunch: Use the Crunch comparison to compare
+        :return: a dictionary of differences
+
+        NOTE: this sould be done via: http://docs.crunch.io/#post217
+        but doesn't seem to be a working feature of Crunch
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        if use_crunch:
+            resp = self.resource.batches.follow(
+                'compare', 'dataset={}'.format(dataset.url))
+            return resp
+
+        diff = {
+            'variables': {
+                'by_type': [],
+                'by_alias': [],
+                'by_missing_rules': [],
+            },
+            'categories': {},
+            'subvariables': {}
+        }
+
+        array_types = ['multiple_response', 'categorical_array']
+
+        vars_a = {v.alias: v.type for v in self.values()}
+        vars_b = {v.alias: v.type for v in dataset.values()}
+
+        # 1. match variables by alias and compare types
+        common_aliases = frozenset(vars_a.keys()) & frozenset(vars_b.keys())
+        for alias in common_aliases:
+            if vars_a[alias] != vars_b[alias]:
+                diff['variables']['by_type'].append(dataset[alias].name)
+
+            # 3. match variable alias and distcint categories names for same id's
+            if vars_b[alias] == 'categorical' and vars_a[alias] == 'categorical':
+                a_ids = frozenset([v.id for v in self[alias].categories.values()])
+                b_ids = frozenset([v.id for v in dataset[alias].categories.values()])
+                common_ids = a_ids & b_ids
+
+                for id in common_ids:
+                    a_name = self[alias].categories[id].name
+                    b_name = dataset[alias].categories[id].name
+                    if a_name != b_name:
+                        if diff['categories'].get(dataset[alias].name):
+                            diff['categories'][dataset[alias].name].append(id)
+                        else:
+                            diff['categories'][dataset[alias].name] = []
+                            diff['categories'][dataset[alias].name].append(id)
+
+        # 2. match variables by names and compare aliases
+        common_names = frozenset(self.variable_names()) & frozenset(dataset.variable_names())
+        for name in common_names:
+            if self[name].alias != dataset[name].alias:
+                diff['variables']['by_alias'].append(name)
+
+            # 4. array types that match, subvars with same name and != alias
+            if dataset[name].type == self[name].type and \
+                self[name].type in array_types and \
+                    self[name].type in array_types:
+
+                a_names = frozenset(self[name].variable_names())
+                b_names = frozenset(dataset[name].variable_names())
+                common_subnames = a_names & b_names
+
+                for sv_name in common_subnames:
+                    if self[name][sv_name].alias != dataset[name][sv_name].alias:
+                        if diff['subvariables'].get(name):
+                            diff['subvariables'][name].append(dataset[name][sv_name].alias)
+                        else:
+                            diff['subvariables'][name] = []
+                            diff['subvariables'][name].append(dataset[name][sv_name].alias)
+
+            # 6. missing rules mismatch
+            if self[name].type not in CATEGORICAL_TYPES and dataset[name].type not in CATEGORICAL_TYPES:
+                if self[name].missing_rules != dataset[name].missing_rules:
+                    rules1 = self[name].missing_rules
+                    rules2 = dataset[name].missing_rules
+                    if len(rules1.keys()) == len(rules2.keys()):
+                        for key, value in rules1.items():
+                            if key not in rules2 or rules2[key] != value:
+                                diff['variables']['by_missing_rules'].append(name)
+                    else:
+                        diff['variables']['by_missing_rules'].append(name)
+        return diff
+
+    def append_dataset(self, dataset, filter=None, variables=None,
+                       autorollback=True, delete_pk=True):
+        """ Append dataset into self. If this operation fails, the
+        append is rolledback. Dataset variables and subvariables
+        are matched on their aliases and categories are matched by name.
+
+        :param: dataset: Daatset instance to append from
+        :param: filter: An expression to filter dataset rows. cannot be a Filter
+            according to: http://docs.crunch.io/#get211
+        :param: variables: A list of variable names to include from dataset
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        if self.url == dataset.url:
+            raise ValueError("Cannot append dataset to self")
+
+        if variables and not isinstance(variables, list):
+            raise AttributeError("'variables' must be a list of variable names")
+
+        if delete_pk:
+            LOG.info("Any pk's found will be deleted, to avoid these pass delete_pk=False")
+            self.resource.pk.delete()
+            dataset.resource.pk.delete()
+
+        payload = shoji_entity_wrapper({'dataset': dataset.url})
+        payload['autorollback'] = autorollback
+
+        if variables:
+            id_vars = []
+            for var in variables:
+                id_vars.append(dataset[var].url)
+            # build the payload with selected variables
+            payload['body']['where'] = {
+                'function': 'select',
+                'args': [{
+                    'map': {
+                        x: {'variable': x} for x in id_vars
+                    }
+                }]
+            }
+
+        if filter:
+            # parse the filter expression
+            payload['body']['filter'] = process_expr(parse_expr(filter), dataset.resource)
+
+        return self.resource.batches.create(payload)
+
+    def move_to_categorical_array(
+            self, name, alias, subvariables, description='', notes=''):
+        """
+        This is a dangerous method that allows moving variables (effectively
+        translating them as variables in a dataset) as subvariables in the
+        newly created categorical_array created.
+
+        :param: name: Name of the new variable.
+        :param: alias: Alias of the new variable
+        :param: subvariables: A list of existing Dataset variables aliases
+            to move into the new variable as subvariables .i.e;
+                subvariables = ['var1_alias', 'var2_alias']
+        :param: description: A description of the new variable
+        :param: notes: Notes to attach to the new variable
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        payload = {
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'type': 'categorical_array',
+            'subvariables': [self[v].url for v in subvariables]
+        }
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[alias]
+
+    def move_to_multiple_response(
+            self, name, alias, subvariables, description='', notes=''):
+        """
+        This method is a replication of the method move_to_categorical_array,
+        only this time we are creting a multiple_response variable.
+        Note: the subvariables need to have at least 1 selected catagory.
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        payload = {
+            'name': name,
+            'alias': alias,
+            'description': description,
+            'notes': notes,
+            'type': 'multiple_response',
+            'subvariables': [self[v].url for v in subvariables]
+        }
+        self.resource.variables.create(shoji_entity_wrapper(payload))
+        self._reload_variables()
+        return self[alias]
+
+    def move_as_subvariable(self, destination, source):
+        """
+        Moves a variable as a subvariable of an existing array
+        type variable.
+
+        :param: destination: The alias of the variable that will receive the subvariable
+        :param: source: Alias of the variable to move into destination as subvariable
+        """
+        if self.resource.body.get('streaming', 'no') != 'no':
+            LOG.warning('Method not allowed in Datasets of type "streaming"')
+            return
+        payload = json.dumps({"element": "shoji:catalog", "index": {self[source].url: {}}})
+        self[destination].resource.subvariables.patch(payload)
+
+    # --------------------------------------------------------------------------------
+    # Methods inherited from MutableDataset, need to make sure self.streaming == 'no'
+    # --------------------------------------------------------------------------------
+    def stream_rows(self, columns):
+        """
+        Receives a dict with columns of values to add and streams them
+        into the dataset. Client must call .push_rows(n) later or wait until
+        Crunch automatically processes the batch.
+
+        Returns the total of rows streamed
+        """
+        if self.resource.body.get('streaming', 'no') != 'streaming':
+            LOG.warning('Method not allowed in non-streaming Datasets')
+            return
+        importer = Importer()
+        count = len(list(columns.values())[0])
+        for x in range(count):
+            importer.stream_rows(self.resource,
+                                 {a: columns[a][x] for a in columns})
+        return count
+
+    def push_rows(self, count=None):
+        """
+        Batches in the rows that have been recently streamed. This forces
+        the rows to appear in the dataset instead of waiting for crunch
+        automatic batcher process.
+        """
+        if self.resource.body.get('streaming', 'no') != 'streaming':
+            LOG.warning('Method not allowed in non-streaming Datasets')
+            return
+        if bool(self.resource.stream.body.pending_messages):
+            self.resource.batches.create(
+                shoji_entity_wrapper({
+                    'stream': count,
+                    'type': 'ldjson'}
+                ))
 
 
 class DatasetSubvariablesMixin(DatasetVariablesMixin):

@@ -27,10 +27,8 @@ from pycrunch.elements import JSONObject, ElementSession
 from pycrunch.variables import cast
 
 import scrunch
-from scrunch.datasets import Variable, BaseDataset, Project
+from scrunch.datasets import Variable, Dataset, Project
 from scrunch.subentity import Filter, Multitable, Deck
-from scrunch.mutable_dataset import MutableDataset
-from scrunch.streaming_dataset import StreamingDataset
 from scrunch.tests.test_categories import EditableMock, TEST_CATEGORIES
 
 from .mock_session import MockSession
@@ -86,7 +84,7 @@ class TestDatasetBase(object):
             'notes': '',
             'description': '',
             'is_published': False,
-            'streaming': '',
+            'streaming': 'no',
             'archived': False,
             'end_date': None,
             'start_date': None,
@@ -214,7 +212,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def test_edit_dataset(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         assert ds.name == 'test_dataset_name'
         changes = dict(name='changed')
@@ -262,13 +260,13 @@ class TestDatasets(TestDatasetBase, TestCase):
         return expr
 
     @pytest.mark.skipif(pandas is None, reason='pandas is not installed')
-    @mock.patch('scrunch.streaming_dataset.StreamingDataset.push_rows')
+    @mock.patch('scrunch.streaming_dataset.Dataset.push_rows')
     @mock.patch('pycrunch.importing.Importer.stream_rows')
     def test_replace_from_csv(self, mocked_stream_rows, mocked_push_rows):
         ds_shoji = copy.deepcopy(self.ds_shoji)
         ds_shoji['body']['streaming'] = 'negative'
         ds_mock = self._dataset_mock(ds_shoji=ds_shoji)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
         assert ds.resource.body.get('streaming') == 'negative'
         file = StringIO()
         file.write("id, age\n1, 15")
@@ -296,7 +294,7 @@ class TestDatasets(TestDatasetBase, TestCase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
         ds.resource = mock.MagicMock()
         ds.replace_values({'birthyr': 9, 'level': 8})
         call = json.loads(ds.resource.table.post.call_args[0][0])
@@ -324,7 +322,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         }
 
         ds_mock = self._dataset_mock(variables=variables)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
         ds.resource = mock.MagicMock()
         ds.create_numeric(
             alias='monthly_rent',
@@ -371,7 +369,7 @@ class TestDatasets(TestDatasetBase, TestCase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
         ds.resource = mock.MagicMock()
         ds.rollup('datetime_var', 'new_rolledup_var', 'new_rolledup_var', 'Y')
         ds.resource.variables.create.assert_called_with(
@@ -395,7 +393,7 @@ class TestDatasets(TestDatasetBase, TestCase):
 
     def test_create_crunchbox_full(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         call_params = dict(
             title='my title',
@@ -455,7 +453,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds_mock = self._dataset_mock()
         # we need to include weight in preferences to test defaults
         mock_ds_preferences(ds_mock)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         expected_payload = {
             'element': 'shoji:entity',
@@ -481,10 +479,11 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'alias': 'foo',
                 'name': 'bar',
                 'type': 'numeric',
+                'derived': False,
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         targets = [
             {
@@ -560,7 +559,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         apply an exclusion filter to a dataset.
         """
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         var = ds['var1_alias']
 
         # Action!
@@ -590,7 +589,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         clear (i.e. remove) the exclusion filter from a dataset.
         """
         ds_res = MagicMock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.exclude()
 
         ds.resource.session.patch.assert_called_once_with(
@@ -605,7 +604,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_gt(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias > 5')
@@ -622,7 +621,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_in(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in [32766]')
@@ -640,7 +639,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_in_multiple(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in (32766, 32767)')
@@ -662,18 +661,20 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 id='0001',
                 alias='disposition',
                 name='Disposition',
-                type='numeric'
+                type='numeric',
+                derived=False,
             ),
             '0002': dict(
                 id='0002',
                 alias='exit_status',
                 name='Exit',
-                type='numeric'
+                type='numeric',
+                derived=False,
             )
         }
 
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var1 = ds['disposition']
         var2 = ds['exit_status']
 
@@ -720,7 +721,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_any(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766])')
@@ -744,7 +745,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_any(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.any([32766])')
@@ -773,7 +774,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_any_multiple(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766, 32767])')
@@ -798,7 +799,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_all(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([32767])')
@@ -820,7 +821,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_all(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.all([32767])')
@@ -849,7 +850,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_all_or_all(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([1]) or var1_alias.all([2])')
@@ -891,7 +892,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_all_or_all(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not(var1_alias.all([1]) or var1_alias.all([2]))')
@@ -938,7 +939,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_duplicates(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.duplicates()')
@@ -957,7 +958,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_valid(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'valid(var1_alias)')
@@ -976,7 +977,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_valid(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not valid(var1_alias)')
@@ -1000,7 +1001,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_missing(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'missing(var1_alias)')
@@ -1019,7 +1020,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_not_missing(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not missing(var1_alias)')
@@ -1043,7 +1044,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_equal(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias == 1')
@@ -1069,17 +1070,19 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 id='0001',
                 alias='disposition',
                 name='Disposition',
-                type='numeric'
+                type='numeric',
+                derived=False,
             ),
             '0002': dict(
                 id='0002',
                 alias='exit_status',
                 name='Exit',
-                type='numeric'
+                type='numeric',
+                derived=False,
             )
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var1 = ds['disposition']
         var2 = ds['exit_status']
 
@@ -1200,7 +1203,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
     def test_dict_expr(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         expr = {
             "args": [
@@ -1223,7 +1226,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 
     def test_Dataset_attribute_writes(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         assert ds.name == 'test_dataset_name'
 
         with pytest.raises(AttributeError) as excinfo:
@@ -1263,7 +1266,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 
     def test_Variable_attribute_writes(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         with pytest.raises(AttributeError) as excinfo:
@@ -1295,7 +1298,7 @@ class TestProtectAttributes(TestDatasetBase, TestCase):
 class TestVariables(TestDatasetBase, TestCase):
     def test_variable_as_member(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         assert ds.name == self.ds_shoji['body']['name']
         assert ds.id == self.ds_shoji['body']['id']
 
@@ -1309,7 +1312,7 @@ class TestVariables(TestDatasetBase, TestCase):
         with pytest.raises(AttributeError) as err:
             ds.some_variable
         assert str(err.value) == \
-            "'StreamingDataset' object has no attribute 'some_variable'"
+            "'Dataset' object has no attribute 'some_variable'"
 
     def test_variable_cast(self):
         variable = MagicMock()
@@ -1331,7 +1334,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_edit_Variables(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         assert var.name == 'var1_name'
@@ -1366,10 +1369,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_edit_alias(self):
         ds_mock = self._dataset_mock()
-        ds = BaseDataset(ds_mock)
-        var = ds['var1_alias']
-        with pytest.raises(AttributeError) as e:
-            var.edit(alias='test1')
+        ds = Dataset(ds_mock)
         ds.resource.body['streaming'] = 'no'
         var = ds['var1_alias']
         var.edit(alias='test1')
@@ -1390,7 +1390,7 @@ class TestVariables(TestDatasetBase, TestCase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = MutableDataset(ds_mock)
+        ds = Dataset(ds_mock)
         ds.resource = mock.MagicMock()
         var = ds['datetime_var']
         updated_var = var.edit_resolution('M')
@@ -1405,7 +1405,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_add_category(self):
         ds_mock = self._dataset_mock()
-        ds = BaseDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var4_alias']
         var.resource.body['type'] = 'categorical'
         var.resource.body['categories'] = [
@@ -1441,7 +1441,7 @@ class TestVariables(TestDatasetBase, TestCase):
 
     def test_update_missing_rules(self):
         ds_mock = self._dataset_mock()
-        ds = BaseDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var1_alias']
 
         assert var.name == 'var1_name'
@@ -1491,7 +1491,7 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
         ds_res = MagicMock(session=sess)
         ds_res.self = self.ds_url
         ds_res.patch = MagicMock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.change_editor('jane.doe@crunch.io')
 
         ds_res.patch.assert_called_with({
@@ -1506,7 +1506,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
 
     def test_change_owner_exception(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         with pytest.raises(AttributeError) as e:
             ds.change_owner(user=self.user_url, project=self.project_url)
             assert e.message == "Must provide user or project. Not both"
@@ -1518,7 +1518,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         user.url = self.user_url
         mocked_get_user.return_value = user
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         ds.change_owner(user=user)
         ds_mock.patch.assert_called_with({
             'owner': self.user_url
@@ -1558,7 +1558,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         self._load_dataset(dataset_resource)
         project = self._project(session, project_url)
 
-        dataset = StreamingDataset(dataset_resource)
+        dataset = Dataset(dataset_resource)
         dataset.move(project)
         project.move_here.assert_called_once_with([dataset])
 
@@ -1579,7 +1579,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         self._load_dataset(dataset_resource)
         project = self._project(session, project_url)
 
-        dataset = StreamingDataset(dataset_resource)
+        dataset = Dataset(dataset_resource)
         with mock.patch("scrunch.datasets.warn") as mock_warn:
             dataset.change_owner(project=project)
 
@@ -1613,7 +1613,7 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
             }
         }
         session.add_fixture(project_url, project_payload)
-        dataset = StreamingDataset(dataset_resource)
+        dataset = Dataset(dataset_resource)
         project = dataset.project
         assert project.name == "My Project"
         assert project.url == project_url
@@ -1627,7 +1627,7 @@ class TestCast(TestCase):
         sess = MagicMock()
         ds_res = MagicMock(session=sess)
         ds_res.views.cast = MagicMock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         with pytest.raises(AssertionError) as excinfo:
             ds.cast('var_a', 'not_allowed')
             ds_res.resource.session.post.assert_called_with(
@@ -1643,7 +1643,7 @@ class TestSavepoints(TestCase):
         sess = MagicMock()
         ds_res = MagicMock(session=sess)
         ds_res.savepoints = MagicMock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.create_savepoint('savepoint description')
         ds_res.savepoints.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1661,7 +1661,7 @@ class TestSavepoints(TestCase):
                 'description': 'savepoint description'
             }
         }
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
@@ -1674,7 +1674,7 @@ class TestSavepoints(TestCase):
                 'description': 'savepoint description'
             }
         }
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         with pytest.raises(KeyError):
             ds.create_savepoint('savepoint description')
 
@@ -1683,7 +1683,7 @@ class TestSavepoints(TestCase):
         ds_res = MagicMock(session=sess)
         ds_res.savepoints = MagicMock()
         ds_res.savepoints.index = {}
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         with pytest.raises(KeyError):
             ds.load_savepoint('savepoint')
 
@@ -1722,9 +1722,9 @@ class TestForks(TestCase):
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         forked_ds = ds.fork(preserve_owner=False)
-        assert isinstance(forked_ds, MutableDataset)
+        assert isinstance(forked_ds, Dataset)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -1763,7 +1763,7 @@ class TestForks(TestCase):
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.fork(preserve_owner=True)
         ds_res.forks.create.assert_called_with({
             'element': 'shoji:entity',
@@ -1788,7 +1788,7 @@ class TestForks(TestCase):
             'abc3': f3
         }
 
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.delete_forks()
 
         assert f1.entity.delete.call_count == 1
@@ -1815,7 +1815,7 @@ class TestForks(TestCase):
             'abc1': f1
         }
 
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
         df = ds.forks_dataframe()
         assert isinstance(df, DataFrame)
         keys = [k for k in df.keys()]
@@ -1832,7 +1832,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
 
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
         df = ds.forks_dataframe()
 
         assert df is None
@@ -1845,7 +1845,7 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
 
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
         with pytest.raises(ImportError) as err:
             ds.forks_dataframe()
 
@@ -1877,7 +1877,7 @@ class TestForks(TestCase):
         }
         fork_url = 'http://test.crunch.io/api/datasets/123/actions/'
         ds_res.actions.self = fork_url
-        ds = BaseDataset(ds_res)
+        ds = Dataset(ds_res)
 
         expected_call = {
             'element': 'shoji:entity',
@@ -1984,7 +1984,7 @@ class TestRecode(TestDatasetBase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
@@ -2106,7 +2106,7 @@ class TestRecode(TestDatasetBase):
             },
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
 
         responses = [
             {'id': 1, 'name': 'Facebook', 'case': 'var_a > 5'},
@@ -2240,7 +2240,7 @@ class TestRecode(TestDatasetBase):
 
     def test_create_categorical_missing_case_dups(self):
         ds_mock = self._dataset_mock()
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         kwargs = {
             'name': 'my mr',
             'alias': 'mr',
@@ -2277,7 +2277,7 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         kwargs = {
             'name': 'Age Range',
             'alias': 'agerange',
@@ -2410,7 +2410,7 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         with pytest.raises(ValueError) as err:
             ds.create_categorical(
                 categories=[
@@ -2574,7 +2574,7 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         with pytest.raises(ValueError) as err:
             ds.create_categorical(
                 categories = [
@@ -2961,7 +2961,7 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         kwargs = {
             'name': 'age2',
             'alias': 'age2',
@@ -3229,7 +3229,7 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds_mock = self._dataset_mock(variables=variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         kwargs = {
             'name': 'my mr',
             'alias': 'mr',
@@ -3366,7 +3366,7 @@ class TestCopyVariable(TestCase):
                 return False
         var_res.__getitem__.side_effect = getitem
         var_res.entity.self = '/variable/url/'
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
@@ -3408,7 +3408,7 @@ class TestCopyVariable(TestCase):
                 }]
             }}
         var_res.entity.self = '/variable/url/'
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         var = Variable(var_res, ds_res)
         ds.copy_variable(var, name='copy', alias='copy')
         ds_res.variables.create.assert_called_with({
@@ -3509,7 +3509,7 @@ class TestProjectsHierarchicalOrder(TestCase):
             _datasets[ds.name] = ds
 
         # we only need one Dataset to move around
-        self.ds = StreamingDataset(_datasets['12345'])
+        self.ds = Dataset(_datasets['12345'])
 
         datasets = AttributeDict()
         datasets.by = MagicMock(return_value=_datasets)
@@ -4041,7 +4041,7 @@ class TestDatasetsHierarchicalOrder(TestCase):
         ds_resource = MagicMock()
         ds_resource.self = self.ds_url
         ds_resource.variables = variables
-        self.ds = BaseDataset(ds_resource)
+        self.ds = Dataset(ds_resource)
 
     def test_order_property_is_loaded_correctly(self):
         ds = self.ds
@@ -5625,7 +5625,7 @@ class TestDatasetSettings(TestCase):
         ds_resource.self = self.ds_url
         ds_resource.fragments.settings = '%ssettings/' % self.ds_url
         ds_resource.session.get.side_effect = _session_get
-        self.ds = StreamingDataset(ds_resource)
+        self.ds = Dataset(ds_resource)
 
     def test_settings_are_displayed_as_dict_obj(self):
         ds = self.ds
@@ -5732,7 +5732,7 @@ class TestDatasetJoins(TestCase):
         left_ds_res = MagicMock()
         left_ds_res.self = self.left_ds_url
         left_ds_res.variables.by.return_value = left_variable
-        self.left_ds = MutableDataset(left_ds_res)
+        self.left_ds = Dataset(left_ds_res)
 
         # setup for right dataset
         _right_var_mock = self._variable_mock(self.right_ds_url, var)
@@ -5741,7 +5741,7 @@ class TestDatasetJoins(TestCase):
         right_ds_res = MagicMock()
         right_ds_res.self = self.right_ds_url
         right_ds_res.variables.by.return_value = right_variable
-        self.right_ds = MutableDataset(right_ds_res)
+        self.right_ds = Dataset(right_ds_res)
 
     def test_dataset_joins(self):
         left_ds = self.left_ds
@@ -5779,7 +5779,7 @@ class TestDatasetExport(TestCase):
     def setUp(self):
         ds_resource = mock.MagicMock()
         ds_resource.self = self.ds_url
-        self.ds = StreamingDataset(ds_resource)
+        self.ds = Dataset(ds_resource)
 
     def test_basic_csv_export(self, export_ds_mock, dl_file_mock):
         ds = self.ds
@@ -5916,12 +5916,12 @@ class TestVariableIterator(TestDatasetBase):
 
     def test_ds_keys(self):
         ds_mock = self._dataset_mock(variables=self.variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         assert isinstance(ds.keys(), list)
 
     def test_ds_values(self):
         ds_mock = self._dataset_mock(variables=self.variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         assert isinstance(ds.values(), list)
 
     def test_subvar_order(self):
@@ -5994,10 +5994,10 @@ class TestFilter(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.streaming_dataset.StreamingDataset.filters')
+    @mock.patch('scrunch.streaming_dataset.Dataset.filters')
     def test_add_filter(self, filters):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         var = ds['var1_alias']
 
         ds.add_filter(name='filter', expr='var1_alias != 0')
@@ -6045,10 +6045,10 @@ class TestDeck(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.streaming_dataset.StreamingDataset.decks')
+    @mock.patch('scrunch.streaming_dataset.Dataset.decks')
     def test_add_deck(self, decks):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
 
         ds.add_deck(name='mydeck', description='description')
 
@@ -6064,7 +6064,7 @@ class TestDeck(TestDatasetBase, TestCase):
 
     def test_deck_accessor(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
 
         deck = EditableMock(entity=self._deck)
         Deck(deck)
@@ -6105,10 +6105,10 @@ class TestMultitable(TestDatasetBase, TestCase):
         }
     }
 
-    @mock.patch('scrunch.streaming_dataset.StreamingDataset.multitables')
+    @mock.patch('scrunch.streaming_dataset.Dataset.multitables')
     def test_add_multitable(self, multitables):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         ds.create_multitable(name='mymulti', template=['var1_alias'])
         expected_payload = {
             'element': 'shoji:entity',
@@ -6128,14 +6128,14 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_multitable_accessor(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         Multitable(mt, ds)
         assert type(ds.multitables) == dict
 
     def test_edit_multitable(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         with pytest.raises(AttributeError):
@@ -6144,17 +6144,17 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_multitable_class(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         mt = MagicMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         assert mockmulti
 
     def test_multitable_import(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
-        ds_2 = StreamingDataset(ds_res)
+        ds_2 = Dataset(ds_res)
         expected_payload = {
             'element': 'shoji:entity',
             'body': {
@@ -6168,7 +6168,7 @@ class TestMultitable(TestDatasetBase, TestCase):
 
     def test_export_tabbook(self):
         ds_res = self._dataset_mock()
-        ds = StreamingDataset(ds_res)
+        ds = Dataset(ds_res)
         mt = EditableMock(entity=self._multitable)
         mockmulti = Multitable(mt, ds)
         expected_payload = {
@@ -6231,9 +6231,9 @@ class TestMutableMixin(TestDatasetBase):
 
     def test_compare_datasets(self):
         ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = MutableDataset(ds_a_mock)
+        ds_a = Dataset(ds_a_mock)
         ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = MutableDataset(ds_b_mock)
+        ds_b = Dataset(ds_b_mock)
         diff = ds_b.compare_dataset(ds_a)
         expected_diff = {
             'variables': {
@@ -6248,9 +6248,9 @@ class TestMutableMixin(TestDatasetBase):
 
     def test_append_dataset(self):
         ds_a_mock = self._dataset_mock(variables=self.variables)
-        ds_a = MutableDataset(ds_a_mock)
+        ds_a = Dataset(ds_a_mock)
         ds_b_mock = self._dataset_mock(variables=self.variables_b)
-        ds_b = MutableDataset(ds_b_mock)
+        ds_b = Dataset(ds_b_mock)
 
         with pytest.raises(ValueError) as e:
             ds_b.append_dataset(ds_a)
@@ -6285,7 +6285,7 @@ class TestHeadingSubtotals(TestDatasetBase):
 
     def test_categories_as_int(self):
         ds_mock = self._dataset_mock(variables=self.variables)
-        ds = StreamingDataset(ds_mock)
+        ds = Dataset(ds_mock)
         var = ds['var_a']
 
         expected_payload = {
