@@ -9,13 +9,15 @@ Tests that the variable Folders API is properly suported
 import os
 from unittest import TestCase
 
+from pycrunch.shoji import Catalog
+
+from fixtures import NEWS_DATASET
 from scrunch import connect
 from scrunch import get_dataset
 from scrunch.datasets import Variable
-from scrunch.folders import Folder
 from scrunch.exceptions import InvalidPathError
-from fixtures import NEWS_DATASET
-from pycrunch.shoji import Catalog
+from scrunch.folders import Folder
+
 
 HOST = os.environ['SCRUNCH_HOST']
 username = os.environ['SCRUNCH_USER']
@@ -306,25 +308,6 @@ class TestFolders(TestCase):
         sf.delete()
         # Folder isn't in root anymore
         self.assertFalse(sf.url in [c.url for c in root.children])
-
-    def test_enable_disable(self):
-        pycrunch_ds = site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'test_folders',
-                'table': {
-                    'element': 'crunch:table',
-                    'metadata': NEWS_DATASET
-                },
-            }
-        }).refresh()
-        scrcunch_ds = get_dataset(pycrunch_ds.body.id)
-        scrcunch_ds.change_settings(variable_folders=False)
-        self.assertFalse(scrcunch_ds.folders.enabled)
-        self.assertFalse(hasattr(scrcunch_ds.folders, 'root'))
-        scrcunch_ds.change_settings(variable_folders=True)
-        self.assertTrue(scrcunch_ds.folders.enabled)
-        self.assertTrue(hasattr(scrcunch_ds.folders, 'root'))
 
     def test_dict_protocol(self):
         root = self.ds.folders.root

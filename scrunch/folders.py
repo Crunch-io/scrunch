@@ -1,6 +1,7 @@
 # coding: utf-8
 from pycrunch.shoji import Catalog
 from six import string_types
+
 from scrunch.exceptions import InvalidPathError
 
 
@@ -202,23 +203,19 @@ class Folder(object):
 
 class DatasetFolders(object):
     def __init__(self, dataset):
-        self.enabled = dataset.resource.settings.body.variable_folders
         self.dataset = dataset
-        if self.enabled:
-            self.dataset = dataset
-            folders_root = dataset.resource.folders
-            self.root = Folder(folders_root, self, None)
-            # Dataset viewers may not get all folders exposed
-            if "hidden" in folders_root.catalogs:
-                self.hidden = Folder(folders_root.hidden, self, None)
-            if "trash" in folders_root.catalogs:
-                self.trash = Folder(folders_root.trash, self, None)
-            if "secure" in folders_root.catalogs:
-                self.secure = Folder(folders_root.secure, self, None)
+        folders_root = dataset.resource.folders
+        self.root = Folder(folders_root, self, None)
+        # Dataset viewers may not get all folders exposed
+        if "hidden" in folders_root.catalogs:
+            self.hidden = Folder(folders_root.hidden, self, None)
+        if "trash" in folders_root.catalogs:
+            self.trash = Folder(folders_root.trash, self, None)
+        if "secure" in folders_root.catalogs:
+            self.secure = Folder(folders_root.secure, self, None)
 
     def get(self, path):
-        if self.enabled:
-            return self.root.get(path)
+        return self.root.get(path)
 
     def __getitem__(self, path):
         return self.root.get(path)
