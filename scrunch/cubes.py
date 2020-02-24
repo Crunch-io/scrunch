@@ -3,7 +3,7 @@ import six
 from pycrunch.cubes import fetch_cube, count
 from scrunch.datasets import Variable
 from scrunch.expressions import parse_expr, process_expr
-from cr.cube.crunch_cube import CrunchCube
+from cr.cube.cube import Cube
 
 
 def variable_to_url(variable, dataset):
@@ -19,8 +19,8 @@ def variable_to_url(variable, dataset):
     return variable
 
 
-def crtabs(dataset, variables, weight=None, filter=None, **measures):
-    """Return CrunchCube representation of crosstab.
+def crtabs(dataset, variables, weight=None, filter=None, transforms=None, **measures):
+    """Return Cube representation of crosstab.
 
     :param dataset: Dataset instance
     :param variables: List of variable urls, aliases or Variable instances
@@ -33,5 +33,14 @@ def crtabs(dataset, variables, weight=None, filter=None, **measures):
     if filter is not None:
         filter = process_expr(parse_expr(filter), dataset.resource)
 
-    return CrunchCube(fetch_cube(
-        dataset.resource, variables, count=count(), weight=weight, filter=filter, **measures))
+    return Cube(
+        fetch_cube(
+            dataset.resource,
+            variables,
+            count=count(),
+            weight=weight,
+            filter=filter,
+            **measures
+        ),
+        transforms=transforms,
+    )
