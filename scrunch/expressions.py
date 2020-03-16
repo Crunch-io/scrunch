@@ -54,58 +54,47 @@ if six.PY2:
 else:
     from urllib.parse import urlencode
 
-ARRAY_TYPES = ('categorical_array', 'multiple_response')
+ARRAY_TYPES = ("categorical_array", "multiple_response")
 
 CRUNCH_FUNC_MAP = {
-    'valid': 'is_valid',
-    'missing': 'is_missing',
-    'bin': 'bin',
-    'selected': 'selected',
-    'not_selected': 'not_selected',
+    "valid": "is_valid",
+    "missing": "is_missing",
+    "bin": "bin",
+    "selected": "selected",
+    "not_selected": "not_selected",
 }
 
 CRUNCH_METHOD_MAP = {
-    'any': 'any',
-    'all': 'all',
-    'duplicates': 'duplicates',
-    'bin': 'bin',
-    'selected': 'selected',
-    'not_selected': 'not_selected',
+    "any": "any",
+    "all": "all",
+    "duplicates": "duplicates",
+    "bin": "bin",
+    "selected": "selected",
+    "not_selected": "not_selected",
 }
 
 # according to http://docs.crunch.io/#function-terms
-BINARY_FUNC_OPERATORS = [
-    '+',
-    '-',
-    '*',
-    '/',
-    '//',
-    '^',
-    '%',
-    '&',
-    '|',
-    '~',
-]
+BINARY_FUNC_OPERATORS = ["+", "-", "*", "/", "//", "^", "%", "&", "|", "~"]
 
 COMPARISSON_OPERATORS = [
-    '==',
-    '!=',
-    '=><=',
-    '<',
-    '>',
-    '<=',
-    '>=',
-    '~=',
-    'in',
-    'and',
-    'or',
-    'not',
+    "==",
+    "!=",
+    "=><=",
+    "<",
+    ">",
+    "<=",
+    ">=",
+    "~=",
+    "in",
+    "and",
+    "or",
+    "not",
 ]
 
 COMPARISSON_FUNCS = [
     # 'between',
-    'all',
-    'any',
+    "all",
+    "any",
 ]
 
 BUILTIN_FUNCTIONS = []
@@ -125,14 +114,11 @@ def _nest(args, func, concatenator=None):
         # multiple arguments and nest them
         concatenator = func
     # for the moment we are just nesting and & or
-    if func not in ['or', 'and', 'is_missing', 'is_valid'] or len(args) < 3:
-        return {
-            'function': concatenator,
-            'args': args
-        }
+    if func not in ["or", "and", "is_missing", "is_valid"] or len(args) < 3:
+        return {"function": concatenator, "args": args}
     return {
-        'function': concatenator,
-        'args': [args[0], _nest(args[1:], func, concatenator)]
+        "function": concatenator,
+        "args": [args[0], _nest(args[1:], func, concatenator)],
     }
 
 
@@ -142,7 +128,7 @@ def unfold_list(_list):
         for e in _list:
             if isinstance(e, ast.Call):
                 name = e.func.id
-                if name == 'r':
+                if name == "r":
                     try:
                         lower = e.args[0].n
                         upper = e.args[1].n
@@ -150,8 +136,7 @@ def unfold_list(_list):
                         for elem in r_list:
                             new_list.append(ast.Num(elem))
                     except Exception:
-                        raise AttributeError(
-                            "function 'r' needs 2 integer arguments")
+                        raise AttributeError("function 'r' needs 2 integer arguments")
                 else:
                     return _list
             else:
@@ -166,7 +151,6 @@ def r(lower, upper):
 
 
 def parse_expr(expr):
-
     def _parse(node, parent=None):
         obj = {}
         args = []
@@ -182,84 +166,79 @@ def parse_expr(expr):
                 _id = fields[0][1]
 
                 # A function identifier.
-                if getattr(node, '_func_type', None) == 'function':
+                if getattr(node, "_func_type", None) == "function":
                     return _id
 
                 # A variable identifier.
-                return {
-                    'variable': _id
-                }
+                return {"variable": _id}
             elif isinstance(node, ast.Num) or isinstance(node, ast.Str):
-                if isinstance(parent, ast.Call) \
-                        and 'func' in parent._fields:
+                if isinstance(parent, ast.Call) and "func" in parent._fields:
                     _id = fields[0][1]
-                    return {
-                        'variable': _id
-                    }
+                    return {"variable": _id}
 
                 _val = fields[0][1]
-                return {
-                    'value': _val
-                }
+                return {"value": _val}
             elif isinstance(node, ast.Add):
-                return '+'
+                return "+"
             elif isinstance(node, ast.Sub):
-                return '-'
+                return "-"
             elif isinstance(node, ast.Mult):
-                return '*'
+                return "*"
             elif isinstance(node, ast.Div):
-                return '/'
+                return "/"
             elif isinstance(node, ast.FloorDiv):
-                return '//'
+                return "//"
             elif isinstance(node, ast.Pow):
-                return '^'
+                return "^"
             elif isinstance(node, ast.Mod):
-                return '%'
+                return "%"
             elif isinstance(node, ast.BitAnd):
-                return '&'
+                return "&"
             elif isinstance(node, ast.BitOr):
-                return '|'
+                return "|"
             elif isinstance(node, ast.Invert):
-                return '~'
+                return "~"
             elif isinstance(node, ast.Eq):
-                return '=='
+                return "=="
             elif isinstance(node, ast.NotEq):
-                return '!='
+                return "!="
             elif isinstance(node, ast.Lt):
-                return '<'
+                return "<"
             elif isinstance(node, ast.LtE):
-                return '<='
+                return "<="
             elif isinstance(node, ast.Gt):
-                return '>'
+                return ">"
             elif isinstance(node, ast.GtE):
-                return '>='
+                return ">="
             elif isinstance(node, ast.In):
-                return 'in'
+                return "in"
             elif isinstance(node, ast.NotIn):
                 return NOT_IN
             elif isinstance(node, ast.List) or isinstance(node, ast.Tuple):
                 _list = fields[0][1]
                 # checks for special helper functions like `r`
                 _list = unfold_list(_list)
-                if not (all(isinstance(el, ast.Str) for el in _list) or
-                        all(isinstance(el, ast.Num) for el in _list)):
+                if not (
+                    all(isinstance(el, ast.Str) for el in _list)
+                    or all(isinstance(el, ast.Num) for el in _list)
+                ):
                     # Only list-of-int or list-of-str are currently supported
-                    raise ValueError('Only list-of-int or list-of-str are currently supported')
+                    raise ValueError(
+                        "Only list-of-int or list-of-str are currently supported"
+                    )
 
                 return {
-                    'value': [
-                        getattr(el, 's', None) or getattr(el, 'n')
-                        for el in _list
+                    "value": [
+                        getattr(el, "s", None) or getattr(el, "n") for el in _list
                     ]
                 }
-            elif isinstance(node, ast.Attribute) \
-                    and isinstance(parent, ast.Call):
+            elif isinstance(node, ast.Attribute) and isinstance(parent, ast.Call):
                 # The variable.
                 _id_node = fields[0][1]
                 if not isinstance(_id_node, ast.Name):
                     msg = (
                         'calling methods of "{}" object not allowed, '
-                        'variable name expected.'
+                        "variable name expected."
                     ).format(type(_id_node).__name__)
                     raise SyntaxError(msg)
 
@@ -270,8 +249,7 @@ def parse_expr(expr):
                 if method not in CRUNCH_METHOD_MAP.keys():
                     raise ValueError(
                         'unknown method "{}", valid methods are: [{}]'.format(
-                            method,
-                            ', '.join(CRUNCH_METHOD_MAP.keys())
+                            method, ", ".join(CRUNCH_METHOD_MAP.keys())
                         )
                     )
 
@@ -281,85 +259,93 @@ def parse_expr(expr):
             else:
                 for _name, _val in fields:
                     if not isinstance(node, ast.UnaryOp) and (
-                            isinstance(_val, (ast.BoolOp, ast.UnaryOp, ast.Compare, ast.Call))):
+                        isinstance(
+                            _val, (ast.BoolOp, ast.UnaryOp, ast.Compare, ast.Call)
+                        )
+                    ):
                         # Descend.
                         obj.update(_parse(_val, parent=node))
                     elif isinstance(_val, ast.And):
-                        op = 'and'
+                        op = "and"
                     elif isinstance(_val, ast.Or):
-                        op = 'or'
+                        op = "or"
                     elif isinstance(_val, ast.Not):
-                        op = 'not'
+                        op = "not"
                     elif isinstance(_val, ast.Mult):
-                        op = '*'
+                        op = "*"
                     elif isinstance(_val, ast.Add):
-                        op = '+'
+                        op = "+"
                     elif isinstance(_val, ast.Div):
-                        op = '/'
+                        op = "/"
                     elif isinstance(_val, ast.Sub):
-                        op = '-'
-                    elif _name == 'left':
+                        op = "-"
+                    elif _name == "left":
                         left = _parse(_val, parent=node)
                         args.append(left)
-                    elif _name == 'right':
+                    elif _name == "right":
                         right = _parse(_val, parent=node)
                         args.append(right)
-                    elif _name == 'func' and isinstance(_val, ast.Attribute):
+                    elif _name == "func" and isinstance(_val, ast.Attribute):
                         # Method-like call. Example:
                         #       variable.any([1,2])
-                        func_type = 'method'
-                        setattr(_val, '_func_type', func_type)
+                        func_type = "method"
+                        setattr(_val, "_func_type", func_type)
                         left, op = _parse(_val, parent=node)
                         args.append(left)
-                    elif _name == 'func' and isinstance(_val, ast.Name):
+                    elif _name == "func" and isinstance(_val, ast.Name):
                         # Function call. Example:
                         #       valid(birthyear, birthmonth)
-                        func_type = 'function'
-                        setattr(_val, '_func_type', func_type)
+                        func_type = "function"
+                        setattr(_val, "_func_type", func_type)
                         _id = _parse(_val, parent=node)
                         if _id not in CRUNCH_FUNC_MAP.keys():
                             raise ValueError(
                                 'unknown method "{}", valid methods are: [{}]'.format(
-                                    _id,
-                                    ', '.join(CRUNCH_METHOD_MAP.keys())
+                                    _id, ", ".join(CRUNCH_METHOD_MAP.keys())
                                 )
                             )
                         op = CRUNCH_FUNC_MAP[_id]
-                    elif _name == 'ops':
+                    elif _name == "ops":
                         if len(_val) != 1:
-                            raise ValueError('only one logical operator at a time')
+                            raise ValueError("only one logical operator at a time")
                         op = _parse(_val[0], parent=node)
-                    elif _name == 'comparators' or _name == 'args':  # right
+                    elif _name == "comparators" or _name == "args":  # right
                         if len(_val) == 0:
                             continue
 
-                        if func_type == 'method':
+                        if func_type == "method":
                             if len(_val) > 1:
-                                raise ValueError('1 argument expected, got {}'.format(len(_val)))
+                                raise ValueError(
+                                    "1 argument expected, got {}".format(len(_val))
+                                )
 
-                            if op == 'duplicates':
+                            if op == "duplicates":
                                 # No parameters allowed for 'duplicates'.
-                                raise ValueError('No parameters allowed for "duplicates"')
+                                raise ValueError(
+                                    'No parameters allowed for "duplicates"'
+                                )
 
                         for arg in _val:
                             right = _parse(arg, parent=node)
 
                             # For method calls, we only allow list-of-int
                             # parameters.
-                            if _name == 'args' and func_type == 'method':
-                                if not isinstance(right.get('value'), list):
+                            if _name == "args" and func_type == "method":
+                                if not isinstance(right.get("value"), list):
                                     raise ValueError(
                                         'expected list, got "{}"'.format(
-                                            type(right.get('value'))
+                                            type(right.get("value"))
                                         )
                                     )
 
                             args.append(right)
 
-                    elif _name in ('keywords', 'starargs', 'kwargs') and _val:
+                    elif _name in ("keywords", "starargs", "kwargs") and _val:
                         # We don't support these in function/method calls.
-                        raise ValueError('unsupported call with argument "{}"'.format(_name))
-                    elif _name == 'operand' and isinstance(node, ast.UnaryOp):
+                        raise ValueError(
+                            'unsupported call with argument "{}"'.format(_name)
+                        )
+                    elif _name == "operand" and isinstance(node, ast.UnaryOp):
                         right = _parse(_val, parent=node)
                         args.append(right)
                     elif isinstance(_val, list):
@@ -374,42 +360,32 @@ def parse_expr(expr):
                     if op is NOT_IN:
                         # Special treatment for the `not in` operator.
                         obj = {
-                            'function': 'not',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': []
-                                }
-                            ]
+                            "function": "not",
+                            "args": [{"function": "in", "args": []}],
                         }
-                    elif op in CRUNCH_FUNC_MAP.values() \
-                            and isinstance(args, list) and len(args) > 1:
-                        obj = {
-                            'function': 'or',
-                            'args': []
-                        }
+                    elif (
+                        op in CRUNCH_FUNC_MAP.values()
+                        and isinstance(args, list)
+                        and len(args) > 1
+                    ):
+                        obj = {"function": "or", "args": []}
                     else:
-                        obj = {
-                            'function': op,
-                            'args': []
-                        }
+                        obj = {"function": op, "args": []}
 
-                if args and 'args' in obj:
+                if args and "args" in obj:
                     if op is NOT_IN:
                         # Special treatment for the args in a `not in` expr.
-                        obj['args'][0]['args'] = args
-                    elif op in CRUNCH_FUNC_MAP.values() \
-                            and isinstance(args, list) and len(args) > 1:
+                        obj["args"][0]["args"] = args
+                    elif (
+                        op in CRUNCH_FUNC_MAP.values()
+                        and isinstance(args, list)
+                        and len(args) > 1
+                    ):
                         for arg in args:
-                            obj['args'].append(
-                                {
-                                    'function': op,
-                                    'args': [arg]
-                                }
-                            )
+                            obj["args"].append({"function": op, "args": [arg]})
                         # concatenate with or when there is more than
                         # 2 arguments in the list
-                        obj = _nest(obj['args'], op, concatenator='or')
+                        obj = _nest(obj["args"], op, concatenator="or")
                     else:
                         obj = _nest(args, op)
 
@@ -423,30 +399,28 @@ def parse_expr(expr):
     if expr is None:
         return dict()
 
-    return _parse(ast.parse(expr, mode='eval'))
+    return _parse(ast.parse(expr, mode="eval"))
 
 
 def get_dataset_variables(ds):
-    table = ds.follow("table", urlencode({
-        'limit': 0
-    }))
+    table = ds.follow("table", urlencode({"limit": 0}))
 
     # Build the variables dict, using `alias` as the key.
     variables = dict()
     for _id, var in table.metadata.items():
-        var['id'] = _id
-        variables[var['alias']] = var
+        var["id"] = _id
+        variables[var["alias"]] = var
 
-        if var['type'] in ARRAY_TYPES:
-            subreferences = var.get('subreferences', {})
+        if var["type"] in ARRAY_TYPES:
+            subreferences = var.get("subreferences", {})
             for subvar_id, subvar in subreferences.items():
-                subvar['is_subvar'] = True
-                subvar['id'] = subvar_id
-                subvar['parent_id'] = _id
-                subvar['type'] = 'categorical'
-                subvar['description'] = ''
-                subvar['categories'] = copy.deepcopy(var['categories'])
-                variables[subvar['alias']] = subvar
+                subvar["is_subvar"] = True
+                subvar["id"] = subvar_id
+                subvar["parent_id"] = _id
+                subvar["type"] = "categorical"
+                subvar["description"] = ""
+                subvar["categories"] = copy.deepcopy(var["categories"])
+                variables[subvar["alias"]] = subvar
 
     return variables
 
@@ -467,8 +441,8 @@ def process_expr(obj, ds):
 
     def get_subvariables_resource(var_url):
         variable = var_index[var_url].entity
-        subvariables = variable.subvariables['index']
-        return [(sv['id'], sv['alias']) for sv in subvariables.values()]
+        subvariables = variable.subvariables["index"]
+        return [(sv["id"], sv["alias"]) for sv in subvariables.values()]
 
     def adapt_multiple_response(var_url, values):
         """
@@ -484,15 +458,16 @@ def process_expr(obj, ds):
         # Some derived variables will append a # to the subvariables id's
         # so we need to strip those charactes out
         cat_to_ids = [
-            tup[0] for tup in aliases if int(tup[1].strip('#').split('_')[-1]) in values]
-        return [{'variable': var_url}, {'column': cat_to_ids}], False
+            tup[0] for tup in aliases if int(tup[1].strip("#").split("_")[-1]) in values
+        ]
+        return [{"variable": var_url}, {"column": cat_to_ids}], False
 
     def ensure_category_ids(subitems, variables=variables):
         var_id = None
         _subitems = []
 
         def variable_id(variable_url):
-            return variable_url.split('/')[-2]
+            return variable_url.split("/")[-2]
 
         def category_ids(var_id, var_value, variables=variables):
             value = None
@@ -505,11 +480,11 @@ def process_expr(obj, ds):
                         value.append(val)
                         continue
                     for var in variables:
-                        if variables[var]['id'] == var_id:
-                            if 'categories' in variables[var]:
-                                for cat in variables[var]['categories']:
-                                    if cat['name'] == val:
-                                        value.append(cat['id'])
+                        if variables[var]["id"] == var_id:
+                            if "categories" in variables[var]:
+                                for cat in variables[var]["categories"]:
+                                    if cat["name"] == val:
+                                        value.append(cat["id"])
                             else:
                                 # variable has no categories, return original
                                 # list of values
@@ -518,18 +493,24 @@ def process_expr(obj, ds):
             elif isinstance(var_value, str):
                 for var in variables:
                     # if the variable is a date, don't try to process it's categories
-                    if variables[var]['type'] == 'datetime':
+                    if variables[var]["type"] == "datetime":
                         return var_value
-                    if variables[var]['id'] == var_id and 'categories' in variables[var]:
+                    if (
+                        variables[var]["id"] == var_id
+                        and "categories" in variables[var]
+                    ):
                         found = False
-                        for cat in variables[var]['categories']:
-                            if cat['name'] == var_value:
-                                value = cat['id']
+                        for cat in variables[var]["categories"]:
+                            if cat["name"] == var_value:
+                                value = cat["id"]
                                 found = True
                                 break
                         if not found:
-                            raise ValueError("Couldn't find a category id for category %s in filter for variable %s" % (var_value, var))
-                    elif 'categories' not in variables[var]:
+                            raise ValueError(
+                                "Couldn't find a category id for category %s in filter for variable %s"
+                                % (var_value, var)
+                            )
+                    elif "categories" not in variables[var]:
                         return var_value
 
             else:
@@ -538,16 +519,19 @@ def process_expr(obj, ds):
 
         # special case for multiple_response variables
         if len(subitems) == 2:
-            if 'value' in subitems[1] and 'variable' in subitems[0]:
-                var_url = subitems[0]['variable']
-                if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
-                    return adapt_multiple_response(var_url, subitems[1]['value'])
+            if "value" in subitems[1] and "variable" in subitems[0]:
+                var_url = subitems[0]["variable"]
+                if (
+                    var_url in var_index
+                    and var_index[var_url]["type"] == "multiple_response"
+                ):
+                    return adapt_multiple_response(var_url, subitems[1]["value"])
 
         for item in subitems:
-            if isinstance(item, dict) and 'variable' in item:
-                var_id = variable_id(item['variable'])
-            elif isinstance(item, dict) and 'value' in item:
-                item['value'] = category_ids(var_id, item['value'])
+            if isinstance(item, dict) and "variable" in item:
+                var_id = variable_id(item["variable"])
+            elif isinstance(item, dict) and "value" in item:
+                item["value"] = category_ids(var_id, item["value"])
             _subitems.append(item)
 
         return _subitems, True
@@ -561,15 +545,20 @@ def process_expr(obj, ds):
 
         # inspect function, then inspect variable, if multiple_response,
         # then change in --> any
-        if 'function' in obj and 'args' in obj:
-            if obj['function'] == 'in':
-                args = obj['args']
-                if 'variable' in args[0]:
+        if "function" in obj and "args" in obj:
+            if obj["function"] == "in":
+                args = obj["args"]
+                if "variable" in args[0]:
                     try:
-                        if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                            obj['function'] = 'any'
+                        if (
+                            variables.get(args[0]["variable"])["type"]
+                            == "multiple_response"
+                        ):
+                            obj["function"] = "any"
                     except TypeError:
-                        raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
+                        raise ValueError(
+                            "Invalid variable alias '%s'" % args[0]["variable"]
+                        )
 
         for key, val in obj.items():
             if isinstance(val, dict):
@@ -579,67 +568,72 @@ def process_expr(obj, ds):
                 for subitem in val:
                     if isinstance(subitem, dict):
                         subitem = _process(subitem, variables)
-                        if 'subvariables' in subitem:
-                            arrays.append(subitem.pop('subvariables'))
-                        elif 'value' in subitem:
+                        if "subvariables" in subitem:
+                            arrays.append(subitem.pop("subvariables"))
+                        elif "value" in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
 
-                has_value = any('value' in item for item in subitems
-                    if not str(item).isdigit())
+                has_value = any(
+                    "value" in item for item in subitems if not str(item).isdigit()
+                )
 
-                has_variable = any('variable' in item for item in subitems
-                    if not str(item).isdigit())
+                has_variable = any(
+                    "variable" in item for item in subitems if not str(item).isdigit()
+                )
                 if has_value and has_variable:
                     subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
-            elif key == 'variable':
+            elif key == "variable":
                 var = variables.get(val)
                 if var:
                     # TODO: We shouldn't stitch URLs together, use the API
-                    if var.get('is_subvar'):
-                        obj[key] = '%svariables/%s/subvariables/%s/' \
-                                   % (base_url, var['parent_id'], var['id'])
+                    if var.get("is_subvar"):
+                        obj[key] = "%svariables/%s/subvariables/%s/" % (
+                            base_url,
+                            var["parent_id"],
+                            var["id"],
+                        )
                     else:
-                        obj[key] = '%svariables/%s/' % (base_url, var['id'])
+                        obj[key] = "%svariables/%s/" % (base_url, var["id"])
 
-                    if var['type'] in ARRAY_TYPES:
+                    if var["type"] in ARRAY_TYPES:
                         subvariables = [
-                            '%svariables/%s/subvariables/%s/'
-                            % (base_url, var['id'], subvar_id)
-                            for subvar_id in var.get('subvariables', [])
+                            "%svariables/%s/subvariables/%s/"
+                            % (base_url, var["id"], subvar_id)
+                            for subvar_id in var.get("subvariables", [])
                         ]
                 else:
                     raise ValueError("Invalid variable alias '%s'" % val)
 
-            elif key == 'function':
+            elif key == "function":
                 op = val
 
         if subvariables:
-            obj['subvariables'] = subvariables
+            obj["subvariables"] = subvariables
 
-        if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
+        if arrays and op in ("any", "all", "is_valid", "is_missing") and needs_wrap:
             # Support for array variables.
 
             if len(arrays) != 1:
                 raise ValueError
 
-            real_op = 'in'
-            expansion_op = 'or'
-            if op == 'all':
-                real_op = '=='
-                expansion_op = 'and'
-            elif op == 'is_valid':
-                real_op = 'all_valid'
-            elif op == 'is_missing':
-                real_op = 'is_missing'
+            real_op = "in"
+            expansion_op = "or"
+            if op == "all":
+                real_op = "=="
+                expansion_op = "and"
+            elif op == "is_valid":
+                real_op = "all_valid"
+            elif op == "is_missing":
+                real_op = "is_missing"
 
-            if op in ('is_valid', 'is_missing'):
+            if op in ("is_valid", "is_missing"):
                 if len(values) != 0:
                     raise ValueError
 
                 # Just swap the op. Yep, that's it.
-                obj['function'] = real_op
+                obj["function"] = real_op
             else:
                 if len(values) != 1:
                     raise ValueError
@@ -647,43 +641,30 @@ def process_expr(obj, ds):
                 subvariables = arrays[0]
                 value = values[0]
 
-                if op == 'all':
-                    if len(value['value']) != 1:
+                if op == "all":
+                    if len(value["value"]) != 1:
                         raise ValueError
-                    value['value'] = value['value'][0]
+                    value["value"] = value["value"][0]
 
                 if len(subvariables) == 1:
-                    obj['function'] = real_op
-                    obj['args'][0] = {'variable': subvariables[0]}
-                    obj['args'][1] = value
+                    obj["function"] = real_op
+                    obj["args"][0] = {"variable": subvariables[0]}
+                    obj["args"][1] = value
                 else:
-                    obj = {
-                        'function': expansion_op,
-                        'args': []
-                    }
-                    args_ref = obj['args']
+                    obj = {"function": expansion_op, "args": []}
+                    args_ref = obj["args"]
                     for i, subvar in enumerate(subvariables):
                         args_ref.append(
-                            {
-                                'function': real_op,
-                                'args': [
-                                    {'variable': subvar},
-                                    value
-                                ]
-                            }
+                            {"function": real_op, "args": [{"variable": subvar}, value]}
                         )
                         if i < len(subvariables) - 2:
-                            args_ref.append(
-                                {'function': expansion_op, 'args': []}
-                            )
-                            args_ref = args_ref[-1]['args']
+                            args_ref.append({"function": expansion_op, "args": []})
+                            args_ref = args_ref[-1]["args"]
 
         return obj
 
     if isinstance(obj, list):
-        return [
-            _process(copy.deepcopy(element), variables) for element in obj
-        ]
+        return [_process(copy.deepcopy(element), variables) for element in obj]
     else:
         return _process(copy.deepcopy(obj), variables)
 
@@ -709,70 +690,71 @@ def prettify(expr, ds=None):
             return var
         elif not isinstance(ds, scrunch.datasets.BaseDataset):
             raise Exception(
-                'Valid Dataset instance is required to resolve variable urls '
-                'in the expression'
+                "Valid Dataset instance is required to resolve variable urls "
+                "in the expression"
             )
         return ds.resource.session.get(var).payload.body.alias
 
     def _resolve_variables(_expr):
-        new_expr = dict(
-            function=_expr['function'],
-            args=[]
-        )
-        for arg in _expr['args']:
-            if 'function' in arg:
+        new_expr = dict(function=_expr["function"], args=[])
+        for arg in _expr["args"]:
+            if "function" in arg:
                 # arg is a function, resolve inner variables
-                new_expr['args'].append(_resolve_variables(arg))
-            elif 'variable' in arg:
+                new_expr["args"].append(_resolve_variables(arg))
+            elif "variable" in arg:
                 # arg is a variable, resolve
-                new_expr['args'].append(
-                    {'variable': _resolve_variable(arg['variable'])}
+                new_expr["args"].append(
+                    {"variable": _resolve_variable(arg["variable"])}
                 )
             else:
                 # arg is neither a variable or function, pass as is
-                new_expr['args'].append(arg)
+                new_expr["args"].append(arg)
         return new_expr
 
     def _transform(f, args, nest=False):
-        result = ''
+        result = ""
         if f in operators:
             if len(args) == 1:
-                result = '%s %s' % (f, args[0])
+                result = "%s %s" % (f, args[0])
             else:
-                op = ' %s ' % f
+                op = " %s " % f
                 result = op.join(str(x) for x in args)
         elif f in methods:
-            if f in ['selected', 'not_selected']:
-                result = '%s(%s)%s' % (methods[f], args[0], ', '.join(str(x) for x in args[1:]))
-            else:    
-                result = '%s.%s(%s)' % (
-                    args[0], methods[f], ', '.join(str(x) for x in args[1:])
+            if f in ["selected", "not_selected"]:
+                result = "%s(%s)%s" % (
+                    methods[f],
+                    args[0],
+                    ", ".join(str(x) for x in args[1:]),
+                )
+            else:
+                result = "%s.%s(%s)" % (
+                    args[0],
+                    methods[f],
+                    ", ".join(str(x) for x in args[1:]),
                 )
         elif f in functions:
-            result = '%s(%s)' % (functions[f], args[0])
+            result = "%s(%s)" % (functions[f], args[0])
         else:
             raise Exception('Unknown function "%s"' % f)
 
         if nest:
-            result = '(%s)' % result
+            result = "(%s)" % result
 
         return result
 
     def _quote_value(v):
         # escape the quotes from the string, also escape the backslash
-        return "'{}'".format(
-            v.replace("\\", "\\\\").replace("\'", "\\\'")
-        )
+        return "'{}'".format(v.replace("\\", "\\\\").replace("'", "\\'"))
 
     def _process(fragment, parent=None):
-        _func = fragment.get('function')
+        _func = fragment.get("function")
 
         if _func is None:
             # This is not a function, but a plain argument
 
-            if 'value' in fragment:
+            if "value" in fragment:
                 # This argument is a value, not a variable
-                value = fragment['value']
+                value = fragment["value"]
 
                 if isinstance(value, six.string_types):
                     # Must escape single-quote from string value
@@ -782,16 +764,17 @@ def prettify(expr, ds=None):
 
             return list(fragment.values())[0]
 
-        args = [_process(arg, _func) for arg in fragment['args']]
+        args = [_process(arg, _func) for arg in fragment["args"]]
         child_functions = [
-            arg.get('function')
-            for arg in fragment['args'] if arg.get('function') is not None
+            arg.get("function")
+            for arg in fragment["args"]
+            if arg.get("function") is not None
         ]
-        has_child_and_or = 'or' in child_functions
+        has_child_and_or = "or" in child_functions
         nest = parent is not None and (
-            has_child_and_or or
-            (parent == 'or' and len(child_functions) > 1) or
-            _func == 'or'
+            has_child_and_or
+            or (parent == "or" and len(child_functions) > 1)
+            or _func == "or"
         )
         return _transform(_func, args, nest=nest)
 
