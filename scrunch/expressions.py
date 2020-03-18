@@ -399,6 +399,9 @@ def parse_expr(expr):
     if expr is None:
         return dict()
 
+    if isinstance(expr, dict):
+        return expr
+
     return _parse(ast.parse(expr, mode="eval"))
 
 
