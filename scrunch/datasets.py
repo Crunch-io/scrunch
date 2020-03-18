@@ -1690,7 +1690,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             )
         else:
             return self.create_single_response(
-                categories, alias=alias, name=name, description=description, notes=notes
+                categories,
+                alias=alias,
+                name=name,
+                description=description,
+                notes=notes,
+                missing=missing_case,
             )
 
     def _validate_vartypes(
