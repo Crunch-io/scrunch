@@ -111,9 +111,30 @@ class TestRecodes(TestCase):
         # Export some rows
         output = tempfile.NamedTemporaryFile('rw', delete=True)
         dataset.export(output.name)
-        result = [l.strip() for l in output.read().strip().split('\n')]
-        expected = RECODES_CSV_OUTPUT.split('\n')
-        # Rows are unordered under streaming conditions
-        self.assertEqual(sorted(result), sorted(expected))
+
+        # put the data into columns
+        actual = {}
+        line = output.readline()
+        headers = line.strip().split(',')
+        line = 1
+        while line:
+            line = output.readline().strip()
+            # skip the last, blank line
+            if len(line) == 0:
+                break
+            data = line.split(',')
+            for i, item in enumerate(data):
+                actual.setdefault(headers[i], []).append(item)
+
+        # put expected into columns (column order doesn't matter)
+        expected_raw = RECODES_CSV_OUTPUT.split('\n')
+        headers = expected_raw[0].split(',')
+        expected = {}
+        for line in expected_raw[1:]:
+            data = line.split(',')
+            for i, item in enumerate(data):
+                expected.setdefault(headers[i], []).append(item)
+
+        assert expected == actual
         output.close()
         ds.delete()
