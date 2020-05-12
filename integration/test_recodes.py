@@ -5,10 +5,8 @@ This example shows a more complex example using different recodes and combines
 to create new variables.
 """
 
-import csv
 import os
 import tempfile
-from StringIO import StringIO
 from unittest import TestCase
 
 from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT
@@ -113,22 +111,9 @@ class TestRecodes(TestCase):
         # Export some rows
         output = tempfile.NamedTemporaryFile('rw', delete=True)
         dataset.export(output.name)
-
-
-        reader = csv.DictReader(output)
-
-        # put the data into columns
-        actual = {}
-        for row in reader:
-            for k, v in row.items():
-                actual.setdefault(k, []).append(v)
-
-        reader = csv.DictReader(StringIO(RECODES_CSV_OUTPUT))
-        expected = {}
-        for row in reader:
-            for k, v in row.items():
-                expected.setdefault(k, []).append(v)
-
-        assert expected == actual
+        result = [l.strip() for l in output.read().strip().split('\n')]
+        expected = RECODES_CSV_OUTPUT.split('\n')
+        # Rows are unordered under streaming conditions
+        self.assertEqual(sorted(result), sorted(expected))
         output.close()
         ds.delete()
