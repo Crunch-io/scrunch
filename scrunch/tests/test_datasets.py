@@ -1971,15 +1971,18 @@ class TestFillVariables(TestCase):
             "index": {
                 "001": {
                     "alias": "var_a",
-                    "type": "categorical"
+                    "type": "categorical",
+                    "id": "001",
                 },
                 "002": {
                     "alias": "var_b",
-                    "type": "categorical"
+                    "type": "categorical",
+                    "id": "002",
                 },
                 new_var_url: {
                     "alias": "filled",
-                    "type": "categorical"
+                    "type": "categorical",
+                    "id": "123"
                 }
             },
             "catalogs": {
@@ -2018,10 +2021,8 @@ class TestFillVariables(TestCase):
         }
         session.add_post_response(response)
 
-        # Mocks that aren't reelevant for the test
-        dataset_resource.settings = MagicMock()
+        # Mocks that aren't relevant for the test
         dataset_resource.folders = MagicMock()
-        dataset_resource.refresh = MagicMock()
 
         ds = StreamingDataset(dataset_resource)
         responses = [
@@ -2071,8 +2072,8 @@ class TestFillVariables(TestCase):
                 case_expr,
                 {
                     "map": {
-                        "1": {"variable": "var_a"},
-                        "2": {"variable": "var_b"}
+                        "1": {"variable": "001"},
+                        "2": {"variable": "002"}
                     }
                 }
             ],
@@ -2082,7 +2083,8 @@ class TestFillVariables(TestCase):
             "body": {
                 "alias": "filled",
                 "derivation": fill_expr,
-                "name": "Filled var"
+                "name": "Filled var",
+                "description": ""
             },
         })
 
