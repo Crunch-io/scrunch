@@ -222,6 +222,6 @@ class TestFill(TestCase):
             cats["Weekly"],
             cats["Daily"],
         ])
-
+        ds.delete()
 
 
