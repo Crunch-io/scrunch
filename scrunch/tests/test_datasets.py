@@ -1946,10 +1946,10 @@ class TestForks(TestCase):
 
 
 class TestFillVariables(TestCase):
-    def test_recode_w_fill(self):
+    def prepare_ds(self):
         session = MockSession()
         dataset_url = 'http://host/api/projects/abc/'
-        variables_url = 'http://host/api/projects/abc/variables/'
+        variables_url = "http://host/api/projects/abc/variables/"
         new_var_url = "http://host/api/projects/abc/variables/123/"
         hier_url = "http://host/api/projects/abc/variables/hier/"
         table_url = "http://host/api/projects/abc/table/?limit=0"
@@ -2025,6 +2025,10 @@ class TestFillVariables(TestCase):
         dataset_resource.folders = MagicMock()
 
         ds = StreamingDataset(dataset_resource)
+        return ds, session
+
+    def test_recode_w_fill(self):
+        ds, session = self.prepare_ds()
         responses = [
             {"case": "var_a == 1", "variable": "var_a"},
             {"case": "var_b == 1", "variable": "var_b"}
@@ -2036,7 +2040,7 @@ class TestFillVariables(TestCase):
         # Check that the POST request contains the expected expression
         post_request = session.requests[-4]
         self.assertEqual(post_request.method, "POST")
-        self.assertEqual(post_request.url, variables_url)
+        self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
         case_expr = {
             "function": "case",
             "args": [
@@ -2074,6 +2078,121 @@ class TestFillVariables(TestCase):
                     "map": {
                         "1": {"variable": "001"},
                         "2": {"variable": "002"}
+                    }
+                }
+            ],
+        }
+        self.assertEqual(json.loads(post_request.body), {
+            "element": "shoji:entity",
+            "body": {
+                "alias": "filled",
+                "derivation": fill_expr,
+                "name": "Filled var",
+                "description": ""
+            },
+        })
+
+    def test_else_code(self):
+        ds, session = self.prepare_ds()
+        responses = [
+            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "else", "missing": True, "name": "Not Asked", "id": 99}
+        ]
+
+        # This is what we want to test for!
+        ds.create_fill_values(responses, alias="filled", name="Filled var")
+
+        # Check that the POST request contains the expected expression
+        post_request = session.requests[-4]
+        self.assertEqual(post_request.method, "POST")
+        self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
+        case_expr = {
+            "function": "case",
+            "args": [
+                {
+                    "column": [1, 99],
+                    "type": {
+                        "class": "categorical",
+                        "ordinal": False,
+                        "categories": [
+                            {"id": 1, "missing": False, "name": "1", "numeric_value": None},
+                            {"id": 99, "missing": True, "name": "Not Asked", "numeric_value": None}
+                        ]}
+                },
+                {
+                    "function": "==",
+                    "args": [
+                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"value": 1}
+                    ]
+                },
+            ]
+        }
+        fill_expr = {
+            "function": "fill",
+            "args": [
+                case_expr,
+                {
+                    "map": {
+                        "1": {"variable": "001"},
+                    }
+                }
+            ],
+        }
+        self.assertEqual(json.loads(post_request.body), {
+            "element": "shoji:entity",
+            "body": {
+                "alias": "filled",
+                "derivation": fill_expr,
+                "name": "Filled var",
+                "description": ""
+            },
+        })
+
+    def test_else_var(self):
+        ds, session = self.prepare_ds()
+        responses = [
+            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "else", "variable": "var_b"}
+        ]
+
+        # This is what we want to test for!
+        ds.create_fill_values(responses, alias="filled", name="Filled var")
+
+        # Check that the POST request contains the expected expression
+        post_request = session.requests[-4]
+        self.assertEqual(post_request.method, "POST")
+        self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
+        case_expr = {
+            "function": "case",
+            "args": [
+                {
+                    "column": [1],
+                    "type": {
+                        "class": "categorical",
+                        "ordinal": False,
+                        "categories": [
+                            {"id": 1, "missing": False, "name": "1",
+                             "numeric_value": None},
+                        ]}
+                },
+                {
+                    "function": "==",
+                    "args": [
+                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"value": 1}
+                    ]
+                },
+            ]
+        }
+        fill_expr = {
+            "function": "fill",
+            "args": [
+                case_expr,
+                {
+                    "map": {
+                        "1": {"variable": "001"},
+                        "-1": {"variable": "002"}
                     }
                 }
             ],
