@@ -20,6 +20,7 @@ except ImportError:
     from io import StringIO
 
 from unittest import TestCase
+from requests import Response
 
 import pytest
 from pycrunch.shoji import Entity, Catalog, Order
@@ -1942,6 +1943,148 @@ class TestForks(TestCase):
         expected_call['body']['dataset'] = fork3_url
         ds.merge('ghi')
         assert_expected(ds_res.session.post.mock_calls[0])
+
+
+class TestFillVariables(TestCase):
+    def test_recode_w_fill(self):
+        session = MockSession()
+        dataset_url = 'http://host/api/projects/abc/'
+        variables_url = 'http://host/api/projects/abc/variables/'
+        new_var_url = "http://host/api/projects/abc/variables/123/"
+        hier_url = "http://host/api/projects/abc/variables/hier/"
+        table_url = "http://host/api/projects/abc/table/?limit=0"
+        dataset_resource = Entity(session, **{
+            "element": "shoji:entity",
+            "self": dataset_url,
+            "body": {
+                "name": "test_dataset_project"
+            },
+            "catalogs": {
+                "variables": variables_url,
+                "table": table_url
+            }
+        })
+
+        variables_payload = {
+            "element": "shoji:entity",
+            "self": variables_url,
+            "index": {
+                "001": {
+                    "alias": "var_a",
+                    "type": "categorical"
+                },
+                "002": {
+                    "alias": "var_b",
+                    "type": "categorical"
+                },
+                new_var_url: {
+                    "alias": "filled",
+                    "type": "categorical"
+                }
+            },
+            "catalogs": {
+                "hier": hier_url
+            }
+        }
+        hier_payload = {
+            "element": "shoji:order",
+            "self": hier_url,
+            "graph": ["../001/", "../002/"]
+        }
+        table_payload = {
+            "element": "crunch:table",
+            "self": table_url,
+            "metadata": variables_payload["index"],
+            "data": {}
+        }
+        new_var_payload = {
+            "element": "shoji:entity",
+            "self": new_var_url,
+            "body": {
+                "name": "Filled var",
+                "alias": "filled",
+                "type": "categorical"
+            }
+        }
+        session.add_fixture(variables_url, variables_payload)
+        session.add_fixture(hier_url, hier_payload)
+        session.add_fixture(table_url, table_payload)
+        session.add_fixture(new_var_url, new_var_payload)
+
+        response = Response()
+        response.status_code = 201
+        response.headers = {
+            "Location": new_var_url
+        }
+        session.add_post_response(response)
+
+        # Mocks that aren't reelevant for the test
+        dataset_resource.settings = MagicMock()
+        dataset_resource.folders = MagicMock()
+        dataset_resource.refresh = MagicMock()
+
+        ds = StreamingDataset(dataset_resource)
+        responses = [
+            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "var_b == 1", "variable": "var_b"}
+        ]
+
+        # This is what we want to test for!
+        ds.create_fill_values(responses, alias="filled", name="Filled var")
+
+        # Check that the POST request contains the expected expression
+        post_request = session.requests[-4]
+        self.assertEqual(post_request.method, "POST")
+        self.assertEqual(post_request.url, variables_url)
+        case_expr = {
+            "function": "case",
+            "args": [
+                {
+                    "column": [1, 2],
+                    "type": {
+                    "class": "categorical",
+                    "ordinal": False,
+                    "categories": [
+                        {"id": 1, "missing": False, "name": "1", "numeric_value": None},
+                        {"id": 2, "missing": False, "name": "2", "numeric_value": None}
+                    ]}
+                },
+                {
+                    "function": "==",
+                    "args": [
+                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"value": 1}
+                    ]
+                },
+                {
+                    "function": "==",
+                    "args": [
+                        {"variable": "http://host/api/projects/abc/variables/002/"},
+                        {"value": 1}
+                    ]
+                }
+            ]
+        }
+        fill_expr = {
+            "function": "fill",
+            "args": [
+                case_expr,
+                {
+                    "map": {
+                        "1": {"variable": "var_a"},
+                        "2": {"variable": "var_b"}
+                    }
+                }
+            ],
+        }
+        self.assertEqual(json.loads(post_request.body), {
+            "element": "shoji:entity",
+            "body": {
+                "alias": "filled",
+                "derivation": fill_expr,
+                "name": "Filled var"
+            },
+        })
 
 
 class TestRecode(TestDatasetBase):
