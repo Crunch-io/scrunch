@@ -23,7 +23,7 @@ from unittest import TestCase
 
 import pytest
 from pycrunch.shoji import Entity, Catalog, Order
-from pycrunch.elements import JSONObject, ElementSession
+from pycrunch.elements import JSONObject, ElementSession, Document
 from pycrunch.variables import cast
 
 import scrunch
@@ -212,6 +212,9 @@ class TestDatasetBase(object):
 
 class TestDatasets(TestDatasetBase, TestCase):
 
+    class Table(Document):
+        element = 'crunch:table'
+
     def test_edit_dataset(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
@@ -297,7 +300,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         }
         ds_mock = self._dataset_mock(variables=variables)
         ds = MutableDataset(ds_mock)
-        ds.resource = mock.MagicMock()
+        ds.resource = MagicMock()
         ds.replace_values({'birthyr': 9, 'level': 8})
         call = json.loads(ds.resource.table.post.call_args[0][0])
         assert 'command' in call
@@ -309,6 +312,16 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert '002' in call['variables']
         assert 'value' in call['variables']['002']
         assert call['variables']['002']['value'] == 8
+
+    @mock.patch('scrunch.datasets.process_expr')
+    def test_replace_values_filter(self, mocked_process):
+        mocked_process.side_effect = self.process_expr_side_effect
+        ds_mock = self._dataset_mock()
+        ds = MutableDataset(ds_mock)
+        ds.resource = MagicMock()
+        ds.resource.table = self.Table(session=MagicMock(), self='http://a/?b=c')
+        ds.replace_values({'var3_alias': 1}, filter='var4_alias == 2')
+        assert ds.resource.table.self == 'http://a/'
 
     @mock.patch('scrunch.datasets.process_expr')
     def test_create_numeric(self, mocked_process):
