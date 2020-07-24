@@ -14,6 +14,9 @@ from unittest import TestCase
 from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT
 from scrunch import connect
 from scrunch.streaming_dataset import get_streaming_dataset
+from scrunch.mutable_dataset import get_mutable_dataset
+from pycrunch.importing import Importer
+
 
 HOST = os.environ['SCRUNCH_HOST']
 username = os.environ['SCRUNCH_USER']
@@ -21,6 +24,7 @@ password = os.environ['SCRUNCH_PASS']
 
 
 site = connect(username, password, HOST)
+assert site is not None, "Unable to connect to %s" % HOST
 
 
 class TestRecodes(TestCase):
@@ -125,7 +129,6 @@ class TestRecodes(TestCase):
         reader = csv.reader(StringIO(RECODES_CSV_OUTPUT))
         headers = reader.next()
 
-
         # rewrite the actual csv in the same order as the expected csv
         actualf = StringIO()
         writer = csv.writer(actualf)
@@ -141,3 +144,173 @@ class TestRecodes(TestCase):
 
         output.close()
         ds.delete()
+
+
+class TestFill(TestCase):
+    def prepare_ds(self):
+        cats = [
+            {"id": 1, "name": "Daily", "missing": False, "numeric_value": None},
+            {"id": 2, "name": "Weekly", "missing": False,
+             "numeric_value": None},
+            {"id": 3, "name": "Monthly", "missing": False,
+             "numeric_value": None},
+            {"id": -1, "name": "No Data", "missing": True,
+             "numeric_value": None},
+        ]
+        metadata = {
+            "coke_freq": {
+                "name": "frequency coke",
+                "type": "categorical",
+                "categories": cats
+            },
+            "pepsi_freq": {
+                "name": "frequency pepsi",
+                "type": "categorical",
+                "categories": cats
+            },
+            "pop_pref": {
+                "name": "Soda preference",
+                "type": "categorical",
+                "categories": [
+                    {"id": 1, "name": "Coke", "missing": False,
+                     "numeric_value": None},
+                    {"id": 2, "name": "Pepsi", "missing": False,
+                     "numeric_value": None},
+                    {"id": -1, "name": "No Data", "missing": True,
+                     "numeric_value": None},
+                ]
+            }
+        }
+        ds_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'test_fill',
+                'table': {
+                    'element': 'crunch:table',
+                    'metadata': metadata
+                },
+            }
+        }
+
+        rows = [
+            ["coke_freq", "pepsi_freq", "pop_pref"],
+            [1, 3, 1],
+            [2, 2, 1],
+            [3, 1, 1],
+            [1, 3, 2],
+            [2, 2, 2],
+            [3, 1, 2],
+        ]
+        ds = site.datasets.create(ds_payload).refresh()
+        dataset = get_mutable_dataset(ds.body.id, site)
+        Importer().append_rows(ds, rows)
+        return dataset, ds
+
+    def test_fill(self):
+        dataset, api_ds = self.prepare_ds()
+        dataset.create_fill_values([
+            {"case": "pop_pref == 1", "variable": "coke_freq"},
+            {"case": "pop_pref == 2", "variable": "pepsi_freq"},
+        ], alias="pop_freq", name="Pop frequency")
+
+        variables = api_ds.variables.by("alias")
+        new_id = variables["pop_freq"]["id"]
+        new_var = variables["pop_freq"].entity
+        self.assertTrue(new_var.body.derived)
+        self.assertEqual(new_var.body.name, "Pop frequency")
+
+        data = api_ds.follow("table", "limit=6")
+        cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
+        self.assertEqual(data["data"][new_id], [
+            # Coke chunk
+            cats["Daily"],
+            cats["Weekly"],
+            cats["Monthly"],
+            # Pepsi chunk
+            cats["Monthly"],
+            cats["Weekly"],
+            cats["Daily"],
+        ])
+        api_ds.delete()
+
+    def test_fill_w_else(self):
+        dataset, ds = self.prepare_ds()
+        dataset.create_fill_values([
+            {"case": "pop_pref == 1", "variable": "coke_freq"},
+            {"case": "else", "variable": "pepsi_freq"},
+        ], alias="pop_freq", name="Pop frequency")
+
+        variables = ds.variables.by("alias")
+        new_id = variables["pop_freq"]["id"]
+        new_var = variables["pop_freq"].entity
+        self.assertTrue(new_var.body.derived)
+        self.assertEqual(new_var.body.name, "Pop frequency")
+
+        data = ds.follow("table", "limit=6")
+        cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
+        self.assertEqual(data["data"][new_id], [
+            # Coke chunk
+            cats["Daily"],
+            cats["Weekly"],
+            cats["Monthly"],
+            # Pepsi chunk - Default case
+            cats["Monthly"],
+            cats["Weekly"],
+            cats["Daily"],
+        ])
+        ds.delete()
+
+    def test_fill_w_else_code(self):
+        dataset, ds = self.prepare_ds()
+        dataset.create_fill_values([
+            {"case": "pop_pref == 1", "variable": "coke_freq"},
+            {"case": "else", "name": "Not Asked", "id": 99, "missing": False},
+        ], alias="pop_freq", name="Pop frequency")
+
+        variables = ds.variables.by("alias")
+        new_id = variables["pop_freq"]["id"]
+        new_var = variables["pop_freq"].entity
+        self.assertTrue(new_var.body.derived)
+        self.assertEqual(new_var.body.name, "Pop frequency")
+
+        data = ds.follow("table", "limit=6")
+        cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
+        self.assertEqual(data["data"][new_id], [
+            # Coke chunk
+            cats["Daily"],
+            cats["Weekly"],
+            cats["Monthly"],
+            # Default value
+            cats["Not Asked"],
+            cats["Not Asked"],
+            cats["Not Asked"],
+        ])
+        ds.delete()
+
+    def test_fill_w_else_default(self):
+        dataset, ds = self.prepare_ds()
+        dataset.create_fill_values([
+            {"case": "pop_pref == 1", "variable": "coke_freq"},
+        ], alias="pop_freq", name="Pop frequency")
+
+        variables = ds.variables.by("alias")
+        new_id = variables["pop_freq"]["id"]
+        new_var = variables["pop_freq"].entity
+        self.assertTrue(new_var.body.derived)
+        self.assertEqual(new_var.body.name, "Pop frequency")
+
+        data = ds.follow("table", "limit=6")
+        cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
+        self.assertEqual(data["data"][new_id], [
+            # Coke chunk
+            cats["Daily"],
+            cats["Weekly"],
+            cats["Monthly"],
+            # Default value
+            {"?": -1},
+            {"?": -1},
+            {"?": -1},
+        ])
+        ds.delete()
+
+

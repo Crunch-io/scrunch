@@ -1205,6 +1205,101 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         }
         self.resource.permissions.patch(payload)
 
+    def create_fill_values(self, variables, name, alias, description=''):
+        """
+        This function is similar to create_single_categorical in the sense
+        that the output is a 1D variable.
+
+        Will create a derived variable using a combination of Crunch's `fill`
+        and `case` functions, to create a new variable using the values from
+        the specified variables according to each expression.
+
+            dataset.create_fill_values([
+                {"case": "pop_pref == 1", "variable": "coke_freq"},
+                {"case": "pop_pref == 2", "variable": "pepsi_freq"},
+                # {"case": "else", "variable": "any_freq"},
+                {"case": "else", "missing": True, "name": "Not Asked", "id": 99},
+            ], alias="pop_freq", name="Pop frequency")
+
+        The `else` case can be either a variable or a default category.
+            * In the case of variable it should have the shape:
+                {"case": "else", "variable": "<alias>"}
+            * In the case of a default category, it should indicate:
+                {"case": "else", "name": "Cat Name", "missing": <bool>, "id": <int cat code>}
+
+        :param variables: list of dictionaries with an `variable` and `case`
+        :param name: Name of the new variable
+        :param alias: Alias of the new variable
+        :param description: Description of the new variable
+        :return:
+        """
+        if not hasattr(self.resource, 'variables'):
+            self.resource.refresh()
+
+        # Pluck `else` case out.
+        else_case = [c for c in variables if c["case"] == "else"]
+        else_case = else_case[0] if else_case else {}
+        variables = [c for c in variables if c["case"] != "else"]
+
+        if "variable" in else_case and "name" in else_case:
+            raise ValueError("Else case can be either variable or category not both")
+
+        aliases = {c["variable"] for c in variables}
+        vars_by_alias = self.resource.variables.by("alias")
+        types = {vars_by_alias[al]["type"] for al in aliases}
+        if types != {"categorical"}:
+            raise ValueError("All variables must be of type `categorical`")
+
+        cat_ids = list(range(1, len(variables) + 1))
+        args = [{
+            "column": cat_ids,
+            "type": {
+                "class": "categorical",
+                "ordinal": False,
+                "categories": [
+                    {"id": c, "name": str(c), "missing": False, "numeric_value": None}
+                    for c in cat_ids
+                ]
+            }
+        }]
+        exprs = [parse_expr(c["case"]) for c in variables]
+        exprs = process_expr(exprs, self.resource)
+        args.extend(exprs)
+
+        if "name" in else_case:
+            # We are in the else_case of a category. Add there the extra default
+            args[0]["column"].append(else_case["id"])
+            args[0]["type"]["categories"].append({
+                "name": else_case["name"],
+                "missing": else_case.get("missing", False),
+                "id": else_case["id"],
+                "numeric_value": else_case.get("numeric_value", None),
+            })
+
+        expr = {"function": "case", "args": args}
+        fill_map = {str(cid): {"variable": vars_by_alias[v["variable"]]["id"]}
+                    for cid, v in zip(cat_ids, variables)}
+
+        if "variable" in else_case:
+            # We are in the case of a default fill, replace the -1 with the new
+            # variable
+            fill_map["-1"] = {"variable": vars_by_alias[else_case["variable"]]["id"]}
+
+        fill_expr = {
+            "function": "fill",
+            "args": [
+                expr,
+                {"map": fill_map}
+            ]
+        }
+        payload = shoji_entity_wrapper({
+            "alias": alias,
+            "name": name,
+            "description": description,
+            "derivation": fill_expr
+        })
+        return self._var_create_reload_return(payload)
+
     def create_single_response(self, categories, name, alias, description='',
         missing=True, notes=''):
         """
