@@ -43,7 +43,7 @@ jobs:
           all_branches: true
         user: __token__
         password:
-          secure: pypi-AgEIcHlwaS5vcmcCJDMwZjY3Y2ZmLWE4YzYtNGI4Ni05NDU4LTgzNDAyMzRhMGZjYgACOHsicGVybWlzc2lvbnMiOiB7InByb2plY3RzIjogWyJzY3J1bmNoIl19LCAidmVyc2lvbiI6IDF9AAAGIPgz--kOdedlCrCnOtjH40TsDvKxZbTWl4Bu8cjM5mXs
+          secure: pypi-AgEIcHlwaS5vcmcCJGQ5YjY2YjkwLTAzYzUtNDlhNi05NTA1LTIxMjlmZjMxODZhOAACOHsicGVybWlzc2lvbnMiOiB7InByb2plY3RzIjogWyJzY3J1bmNoIl19LCAidmVyc2lvbiI6IDF9AAAGIAqN6vocnm-ih-EVNNADwCwtssbVsHjvqj3ACSron_tu
         distributions: dists
         skip_cleanup: true
         skip_upload_docs: true
