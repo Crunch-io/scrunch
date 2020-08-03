@@ -1,57 +1,54 @@
 dist: xenial
 sudo: false
 language: python
-
 jobs:
   include:
-    - stage: test
-      python: 2.7
-      env: TOXENV=py27
-    - stage: test-pandas
-      python: 2.7
-      env: TOXENV=py27-pandas
-    - stage: test
-      python: 3.4
-      env: TOXENV=py34
-    - stage: test
-      python: 3.5
-      env: TOXENV=py35
-    - stage: test-pandas
-      python: 3.5
-      env: TOXENV=py35-pandas
-    - stage: test
-      python: 3.6
-      env: TOXENV=py36
-    - stage: test-pandas
-      python: 3.6
-      env: TOXENV=py36-pandas
-    - stage: test
-      python: 3.7
-      env: TOXENV=py37
-    - stage: test-pandas
-      python: 3.7
-      env: TOXENV=py37-pandas
-    - stage: deploy
-      if: tag IS present
-      python: *latest_py3
-      install: skip
-      script: skip
-      deploy:
-        provider: pypi
-        on:
-          tags: true
-          all_branches: true
-        user: __token__
-        password:
-          secure: pypi-AgEIcHlwaS5vcmcCJGQ5YjY2YjkwLTAzYzUtNDlhNi05NTA1LTIxMjlmZjMxODZhOAACOHsicGVybWlzc2lvbnMiOiB7InByb2plY3RzIjogWyJzY3J1bmNoIl19LCAidmVyc2lvbiI6IDF9AAAGIAqN6vocnm-ih-EVNNADwCwtssbVsHjvqj3ACSron_tu
-        distributions: dists
-        skip_cleanup: true
-        skip_upload_docs: true
-
+  - stage: test
+    python: 2.7
+    env: TOXENV=py27
+  - stage: test-pandas
+    python: 2.7
+    env: TOXENV=py27-pandas
+  - stage: test
+    python: 3.4
+    env: TOXENV=py34
+  - stage: test
+    python: 3.5
+    env: TOXENV=py35
+  - stage: test-pandas
+    python: 3.5
+    env: TOXENV=py35-pandas
+  - stage: test
+    python: 3.6
+    env: TOXENV=py36
+  - stage: test-pandas
+    python: 3.6
+    env: TOXENV=py36-pandas
+  - stage: test
+    python: 3.7
+    env: TOXENV=py37
+  - stage: test-pandas
+    python: 3.7
+    env: TOXENV=py37-pandas
+  - stage: deploy
+    if: tag IS present
+    python: latest_py3
+    install: skip
+    script: skip
+    deploy:
+      provider: pypi
+      on:
+        tags: true
+        all_branches: true
+      user: __token__
+      password:
+        secure: jOE5XiO7CnOUEbueK+esYvw/Fa9Vs19WQe9cpgli+NprB31Bkzbfo6r8UykaaPUX5IEaYW3sjexpgAEIY4hdpUVuKNEBv4aHhHTCJq8EaccFzfTXguP8bz00IrtzL6JFKinfOvo5wwXmpwJqDS7ZXQIsKo/ECIxMq3J2kTqpU744FTwic4UwXTfbKSh4dVzh7TleFI/TsMWUiAI8pflKgxlepqY4QfaaRhXPjdFYIMpQi03Rlo2d/hmRbDkAWVwPpDIehH1JVtCd4b4YBTU4w1WJaP9aBbYW/HkHlKeFmhPE5b7Rjw1vXVCeKZqn1mHcBDMR1mD4D+aFpglLK8BlVX4sL+W0iOm/6C+t2n8U1ndYvx8OnzSnvVRNI0iiLtTe1wmH5QBXnKA/CqrxADCd1z2iWWUZ/uDD4h8Dc76dwtOyBEBbbvhbcRm/ueCKJqjPYXTIvSIZL056eT/EaJ1kRVf1Xm4swMlvgk948GlIa782ogCf9Af2XXmAska7HR8tokCpCwJtSur2vah8RJFrYwA9+13D0zyp6OOyUGVyi+MFvjFa4PH0NMOrpjmYHFuJiDXE8/jv3rmyar0UCn5wHHzvdarYnurQDy6V2Vh4xiqYxNYRjxcfmeMR062gpgiEnRdIC/4SUanijxor4UDEvzmVUORLZRwLsppXvBIFpzA=
+      distributions: dists
+      skip_cleanup: true
+      skip_upload_docs: true
 cache: pip
-
 install:
 - pip install tox
-
 script:
-  - tox
+- tox
+
