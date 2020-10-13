@@ -12,6 +12,13 @@ def TEST_CATEGORIES():
         {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
     ]
 
+def TEST_CATEGORIES_WITH_DATE():
+    return [
+        {"id": 1, "name": "Female", "missing": False, "numeric_value": None, "date": "2020-01-01"},
+        {"id": 2, "name": "Male", "missing": False, "numeric_value": None, "date": "2020-02-02"},
+        {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
+    ]
+
 
 class EditableMock(MagicMock):
     def edit(self, **kwargs):
@@ -82,7 +89,7 @@ class TestCategories(TestCase):
             {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
         ])
 
-    def test_Category_attribute_writes(self):
+    def test_category_attribute_writes(self):
         resource = EditableMock()
         resource.entity.body = dict(
             categories=TEST_CATEGORIES(),
@@ -150,6 +157,35 @@ class TestCategories(TestCase):
             {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male'},
             {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
         ])
+
+    def test_read_category_date(self):
+        resource = EditableMock()
+        resource.entity.body = dict(
+            categories=TEST_CATEGORIES_WITH_DATE(),
+            type='categorical'
+        )
+        variable = Variable(resource, MagicMock())
+        self.assertEqual(variable.categories[1].date, '2020-01-01')
+        self.assertEqual(variable.categories[2].date, '2020-02-02')
+        with self.assertRaises(KeyError):
+            # The `No Data` category doesn't provide a `date field
+            _ = variable.categories[3].date
+
+    def test_edit_category_date(self):
+        resource = EditableMock()
+        resource.entity.body = dict(
+            categories=TEST_CATEGORIES_WITH_DATE(),
+            type='categorical'
+        )
+        variable = Variable(resource, MagicMock())
+        variable.categories[1].edit(date='2021-01-01')
+        resource.entity._edit.assert_called_with(categories=[
+            {'numeric_value': None, 'selected': False, 'id': 1, 'missing': False, 'name': 'Female', 'date': '2021-01-01'},
+            {'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Male', 'date': '2020-02-02'},
+            {'numeric_value': None, 'missing': True, 'id': -1, 'name': 'No Data'}
+        ])
+        resource.entity.refresh.assert_called_once()
+        self.assertEqual(variable.categories[1].date, '2021-01-01')
 
 
 class TestCategoryList(TestCase):
