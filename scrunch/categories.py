@@ -6,7 +6,7 @@ from scrunch.helpers import ReadOnly
 
 
 class Category(ReadOnly):
-    _MUTABLE_ATTRIBUTES = {'name', 'numeric_value', 'missing', 'selected'}
+    _MUTABLE_ATTRIBUTES = {'name', 'numeric_value', 'missing', 'selected', 'date'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
@@ -21,16 +21,23 @@ class Category(ReadOnly):
                 return self._category.get('selected', False)
             return self._category[item]  # Has to exist
 
-        # Attribute doesn't exists, must raise an AttributeError
-        raise AttributeError('Category %s has no attribute %s' % (
-            self.category['name'], item))
+        # Attribute doesn't exist, must raise an AttributeError
+        raise AttributeError(
+            'Category %s has no attribute %s' % (self.category['name'], item)
+        )
 
     def __repr__(self):
         attrs = self.as_dict()
         return 'Category(%s)' % ', '.join('%s=%s' % c for c in attrs.items())
 
     def as_dict(self, **kwargs):
-        dct = {attr: getattr(self, attr) for attr in self._ENTITY_ATTRIBUTES}
+        attributes = self._ENTITY_ATTRIBUTES - {'date'}  # `date` needs special handling
+        dct = {attr: getattr(self, attr) for attr in attributes}
+        try:
+            dct['date'] = getattr(self, 'date')
+        except KeyError:
+            # `date` is not there, just move on
+            pass
         if PY2:
             dct['name'] = dct['name'].encode("ascii", "replace")
         dct.update(**kwargs or {})
