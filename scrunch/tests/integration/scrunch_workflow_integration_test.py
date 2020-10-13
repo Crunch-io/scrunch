@@ -418,7 +418,7 @@ def isnan(obj):
 
 def main():
     assert not invalid_credentials()
-    assert pandaslib
+    assert pandaslib, 'Pandas library not installed'
 
     # Login.
     site = connect(CRUNCH_USER, CRUNCH_PASSWORD, CRUNCH_URL)
