@@ -9,6 +9,12 @@ import pytest
 
 pytest.mark.skip('skip test discovery on this module')
 
+try:
+    from pycrunch import pandaslib
+except ImportError:
+    # pandas is not installed
+    pandaslib = None
+
 from scrunch import connect
 from scrunch.datasets import Variable, get_geodata
 from scrunch.streaming_dataset import StreamingDataset
@@ -412,6 +418,7 @@ def isnan(obj):
 
 def main():
     assert not invalid_credentials()
+    assert pandaslib
 
     # Login.
     site = connect(CRUNCH_USER, CRUNCH_PASSWORD, CRUNCH_URL)
