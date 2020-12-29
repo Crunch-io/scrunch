@@ -76,7 +76,7 @@ jobs:
     - name: Build sdist and dist_wheels
       run: python setup.py sdist bdist_wheel
 
-    - name: Publish a Python distribution to PyPI
+    - name: Publish scrunch to PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
