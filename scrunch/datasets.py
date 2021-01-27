@@ -3337,6 +3337,10 @@ class BackfillFromCSV:
         return tmp_ds
 
     def join_tmp_ds(self, tmp_ds):
+        """
+        We will perform the join with the presumption that both datasets
+        have the same PK alias.
+        """
         pk_url = self.dataset.pk.body["pk"][0]
         ds_vars = self.dataset.variables
         pk_alias = ds_vars["index"][pk_url]["alias"]
