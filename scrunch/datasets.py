@@ -2493,8 +2493,20 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             return
         return resp
 
-    def backfill_from_csv(self, aliases, filename):
-        BackfillFromCSV(self, aliases).execute(filename)
+    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter):
+        """
+
+        :param aliases: List of strings for the aliases present in the CSV file
+        :param pk_alias: Alias of the column to use as PK (Must be the same in
+            the dataset and present in the CSV file)
+        :param csv_fh: File handler for the CSV file
+        :param rows_expr: String expression that corresponds for the rows
+            we want to backfil "pk > 100 and pk < 150"
+        :return:
+        """
+        rows_filter = process_expr(parse_expr(rows_filter), self.resource)
+        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter)
+        back_filler.execute(csv_fh)
 
     def replace_from_csv(self, filename, chunksize=1000):
         """
@@ -3302,19 +3314,59 @@ class BackfillFromCSV:
 
     """
 
-    def __init__(self, dataset, aliases):
+    def __init__(self, dataset, pk_alias, aliases, rows_expr):
         self.root = _default_connection(None)
         self.dataset = dataset
-        self.aliases = aliases
+        self.aliases = set(aliases)
+        self.pk_alias = pk_alias
+        self.rows_expr = rows_expr
+        self.alias_to_url = self.load_vars_by_alias()
         self.tmp_aliases = {
             a: "{}-{}".format(dataset.id, a) for a in aliases
         }
 
+    def load_vars_by_alias(self):
+        """
+        Returns a dict mapping each variable to its url and also
+        fills it up for subvariables
+        """
+        ds = self.dataset.resource
+        alias_to_url = {}
+        for alias, vdef in ds.variables.by("alias").items():
+            alias_to_url[alias] = vdef.entity_url
+            if "subvariables" in vdef:
+                for sv_alias, svdef in vdef.entity.subvariables.by("alias").items():
+                    alias_to_url[sv_alias] = svdef.entity_url
+
+        return alias_to_url
+
     def obtain_schema(self):
         md = self.dataset.resource.schema.metadata
-        return {alias: md[alias] for alias in self.aliases}
+        schema = {self.pk_alias: md[self.pk_alias]}
+        schema.update({a: md[a] for a in self.aliases if a in md})
+        subvar_aliases = self.aliases.difference(schema)
+        for array_alias, vdef in md.items():
+            if "subvariables" not in vdef:
+                continue
+            array_subvar_aliases = {v["alias"] for v in vdef["subvariables"]}
+            for a in array_subvar_aliases.intersection(subvar_aliases):
+                svdef = {
+                    "alias": a,
+                    "name": a,
+                    "type": "categorical",
+                    "categories": vdef["categories"],
+                }
+                schema[a] = svdef
+        return schema
 
     def create_tmp_ds(self, csv_file):
+        """
+        Creates a new pycrunch dataset:
+
+         * Creates using the schema for the corresponding variables to backfill
+         * Uploads the CSV file
+         * Renames the variables to disambiguate on the join
+        """
         tmp_name = "Scrunch-backfill-{}-{}".format(self.dataset.name, self.dataset.id)
 
         # Create the new tmp dataset with the schema for the variables
@@ -3326,13 +3378,13 @@ class BackfillFromCSV:
                 "element": "crunch:table",
                 "metadata": metadata
             }
-        }))
+        })).refresh()
         importing.importer.append_csv_string(tmp_ds, csv_file)
 
         # Rename the aliases in the tmp dataset to disambiguate on the join
         tmp_aliases = tmp_ds.variables.by("alias")
         tmp_ds.variables.patch(shoji_catalog_wrapper({
-            tmp_aliases[a].entity_url: self.tmp_aliases[a] for a in self.aliases
+            tmp_aliases[a].entity_url: {"alias": self.tmp_aliases[a]} for a in self.aliases
         }))
         return tmp_ds
 
@@ -3341,30 +3393,31 @@ class BackfillFromCSV:
         We will perform the join with the presumption that both datasets
         have the same PK alias.
         """
-        pk_url = self.dataset.pk.body["pk"][0]
-        ds_vars = self.dataset.variables
-        pk_alias = ds_vars["index"][pk_url]["alias"]
-        tmp_pk_url = tmp_ds.variables.by("alias")[pk_alias].entity_url
-        resp = ds_vars.post(
-            shoji_entity_wrapper(
-                {
-                    "function": "adapt",
-                    "args": [
-                        {"dataset": tmp_ds.self},
-                        {"variable": pk_url},
-                        {"variable": tmp_pk_url},
-                    ],
-                }
-            )
+        pk_url = self.alias_to_url[self.pk_alias]
+        tmp_pk_url = tmp_ds.variables.by("alias")[self.pk_alias].entity_url
+        join_payload = shoji_entity_wrapper(
+            {
+                "function": "adapt",
+                "args": [
+                    {"dataset": tmp_ds.self},
+                    {"variable": tmp_pk_url},
+                    {"variable": pk_url},
+                ],
+            }
         )
+        resp = self.dataset.resource.variables.post(join_payload)
         pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
 
     def backfill(self):
-        vars_by_alias = self.dataset.variables.by("alias")
+        variables_expr = {}
+
+        # We need to fetch the variables dictionary again since it's going
+        # to be re-read after the join to include the new variables.
+        joined_vars_by_alias = self.dataset.resource.variables.by("alias")
 
         for alias in self.aliases:
-            var_w_gaps = vars_by_alias[alias].entity_url
-            var_w_values = vars_by_alias[self.tmp_aliases[alias]].entity_url
+            var_w_gaps = self.alias_to_url[alias]
+            var_w_values = joined_vars_by_alias[self.tmp_aliases[alias]].entity_url
             fill_expr = {
                 "function": "fill",
                 "args": [
@@ -3374,9 +3427,17 @@ class BackfillFromCSV:
                     }}
                 ]
             }
-            vars_by_alias[alias].entity.patch(shoji_entity_wrapper({
-                "derivation": fill_expr
-            }))
+            variables_expr[var_w_gaps] = fill_expr
+
+        # We can perform an update command here because we're guaranteed
+        # that the types for each of the variables matches the column we
+        # want to backfill.
+        update_expr = {
+            "command": "update",
+            "variables": variables_expr,
+            "filter": self.rows_expr
+        }
+        self.dataset.resource.table.post(update_expr)
 
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
@@ -3388,7 +3449,7 @@ class BackfillFromCSV:
                 self.backfill()
             finally:
                 # Delete the joined variables
-                self.dataset.folders.by("name")[tmp_ds.body["name"]].entity.delete()
+                self.dataset.resource.folders.by("name")[tmp_ds.body["name"]].entity.delete()
         finally:
             # Always delete the tmp dataset no matter what
             tmp_ds.delete()
