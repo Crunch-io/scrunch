@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import os
+import pytest
 import textwrap
 from StringIO import StringIO
 from unittest import TestCase
@@ -218,5 +219,35 @@ class TestBackFill(TestCase):
             [3, 1],
             [1, 2]
         ]
+
+        ds.delete()
+
+    def test_bad_csv(self):
+        original_data = {
+            "pk": [1, 2, 3, 4],
+            "cat1": [1, -1, 2, 3],
+            "cat2": [11, 22, 33, -1],
+            "cat3": [1, -1, 3, -1],
+        }
+        ds = self._prepare_ds(original_data)
+        csv_file = StringIO(textwrap.dedent("""pk,BOGUS,BAD
+            2,1,22
+        """))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+
+        rows_expr = "pk == 2"
+        with pytest.raises(ValueError) as err:
+            scrunch_dataset.backfill_from_csv(["cat1", "cat2"], "pk", csv_file,
+                rows_expr)
+        assert err.value.args[0] == "Error importing CSV file - Columns should match specified types"
+
+        # Verify that the backfill didn't proceed
+        data = ds.follow("table", "limit=10")["data"]
+        variables = ds.variables.by("alias")
+        assert data[variables["cat1"]["id"]] == [1, {"?": -1}, 2, 3]
+        assert data[variables["cat2"]["id"]] == [11, 22, 33, {"?": -1}]
+
+        assert len(data) == 4  # Only PK and cat1 and cat2 and cat3
+        assert "folder" not in ds.folders.by("type")  # Nothing of type folder
 
         ds.delete()

@@ -74,11 +74,7 @@ class SavepointRestore:
         return self.savepoint
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            # No exception? Then delete the savepoint
-            #self.savepoint.delete()
-            pass
-        else:
+        if exc_type is not None:
             # Exception! Revert to the savepoint
             self.savepoint.refresh()
             resp = self.savepoint.revert.post({})
@@ -3407,7 +3403,12 @@ class BackfillFromCSV:
                 "metadata": metadata
             }
         })).refresh()
-        importing.importer.append_csv_string(tmp_ds, csv_file)
+        try:
+            importing.importer.append_csv_string(tmp_ds, csv_file)
+        except Exception as exc:
+            # Error importing CSV file
+            tmp_ds.delete()
+            raise ValueError("Error importing CSV file - Columns should match specified types")
 
         # Rename the aliases in the tmp dataset to disambiguate on the join
         tmp_aliases = tmp_ds.variables.by("alias")
@@ -3470,8 +3471,8 @@ class BackfillFromCSV:
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
-        with SavepointRestore(self.dataset, "Backfill savepoint"):
-            tmp_ds = self.create_tmp_ds(csv_file)
+        tmp_ds = self.create_tmp_ds(csv_file)
+        with SavepointRestore(self.dataset, "Savepoint before backfill"):
             try:
                 self.join_tmp_ds(tmp_ds)
                 self.backfill()
