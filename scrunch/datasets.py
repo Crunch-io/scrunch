@@ -57,6 +57,34 @@ CATEGORICAL_TYPES = {
 RESOLUTION_TYPES = ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms']
 
 
+class SavepointRestore:
+    """
+    Use this class around a Dataset instance in case you need to restore
+    the state when something goes wrong.
+
+    It will create a Savepoint version before starting and delete it
+    on success or restore on failure.
+    """
+
+    def __init__(self, dataset, description):
+        self.dataset = dataset
+        self.savepoint = dataset.create_savepoint(description)
+
+    def __enter__(self):
+        return self.savepoint
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            # No exception? Then delete the savepoint
+            #self.savepoint.delete()
+            pass
+        else:
+            # Exception! Revert to the savepoint
+            self.savepoint.refresh()
+            resp = self.savepoint.revert.post({})
+            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+
+
 def _set_debug_log():
     # ref: http://docs.python-requests.org/en/master/api/#api-changes
     #
@@ -2005,7 +2033,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
 
         sp = shoji_entity_wrapper({'description': description})
-        self.resource.savepoints.create(sp)
+        return self.resource.savepoints.create(sp)
 
     def load_savepoint(self, description=None):
         """
@@ -3442,16 +3470,18 @@ class BackfillFromCSV:
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
-        tmp_ds = self.create_tmp_ds(csv_file)
-        try:
-            self.join_tmp_ds(tmp_ds)
+        with SavepointRestore(self.dataset, "Backfill savepoint"):
+            tmp_ds = self.create_tmp_ds(csv_file)
             try:
+                self.join_tmp_ds(tmp_ds)
                 self.backfill()
             finally:
                 # Delete the joined variables
-                self.dataset.resource.folders.by("name")[tmp_ds.body["name"]].entity.delete()
-        finally:
-            # Always delete the tmp dataset no matter what
-            tmp_ds.delete()
+                folder_name = tmp_ds.body["name"]
+                folders_by_name = self.dataset.resource.folders.by("name")
+                if folder_name in folders_by_name:
+                    folders_by_name[folder_name].entity.delete()
+                # Always delete the tmp dataset no matter what
+                tmp_ds.delete()
 
 
