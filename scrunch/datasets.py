@@ -19,6 +19,7 @@ except ImportError:
 import six
 
 import pycrunch
+from pycrunch import importing
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity, TaskProgressTimeoutError
 from scrunch.session import connect
@@ -29,7 +30,7 @@ from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
-                             subvar_alias, validate_categories,
+                             subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
@@ -54,6 +55,30 @@ CATEGORICAL_TYPES = {
     'categorical', 'multiple_response', 'categorical_array',
 }
 RESOLUTION_TYPES = ['Y', 'Q', 'M', 'W', 'D', 'h', 'm', 's', 'ms']
+
+
+class SavepointRestore:
+    """
+    Use this class around a Dataset instance in case you need to restore
+    the state when something goes wrong.
+
+    It will create a Savepoint version before starting and delete it
+    on success or restore on failure.
+    """
+
+    def __init__(self, dataset, description):
+        self.dataset = dataset
+        self.savepoint = dataset.create_savepoint(description)
+
+    def __enter__(self):
+        return self.savepoint
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            # Exception! Revert to the savepoint
+            self.savepoint.refresh()
+            resp = self.savepoint.revert.post({})
+            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
 
 
 def _set_debug_log():
@@ -2004,7 +2029,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
 
         sp = shoji_entity_wrapper({'description': description})
-        self.resource.savepoints.create(sp)
+        return self.resource.savepoints.create(sp)
 
     def load_savepoint(self, description=None):
         """
@@ -2491,6 +2516,21 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             LOG.info('Dataset Updated')
             return
         return resp
+
+    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter):
+        """
+
+        :param aliases: List of strings for the aliases present in the CSV file
+        :param pk_alias: Alias of the column to use as PK (Must be the same in
+            the dataset and present in the CSV file)
+        :param csv_fh: File handler for the CSV file
+        :param rows_expr: String expression that corresponds for the rows
+            we want to backfil "pk > 100 and pk < 150"
+        :return:
+        """
+        rows_filter = process_expr(parse_expr(rows_filter), self.resource)
+        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter)
+        back_filler.execute(csv_fh)
 
     def replace_from_csv(self, filename, chunksize=1000):
         """
@@ -3281,3 +3321,168 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         view['rollup_resolution'] = resolution
         self.resource.edit(view=view)
         return self
+
+
+class BackfillFromCSV:
+    """
+    Performs backfilling of cells in a dataset given a CSV with the new values.
+
+    Works by uploading the CSV to a temporary dataset and joining it by PK
+    to the dataset with gaps.
+
+    Will perform a `fill` operation for each of the aliases in the CSV file
+    from the joined columns to the target ones.
+
+    After all variables have been backfilled, the joined variables and tmp
+    dataset are deleted.
+
+    """
+
+    def __init__(self, dataset, pk_alias, aliases, rows_expr):
+        self.root = _default_connection(None)
+        self.dataset = dataset
+        self.aliases = set(aliases)
+        self.pk_alias = pk_alias
+        self.rows_expr = rows_expr
+        self.alias_to_url = self.load_vars_by_alias()
+        self.tmp_aliases = {
+            a: "{}-{}".format(dataset.id, a) for a in aliases
+        }
+
+    def load_vars_by_alias(self):
+        """
+        Returns a dict mapping each variable to its url and also
+        fills it up for subvariables
+        """
+        ds = self.dataset.resource
+        alias_to_url = {}
+        for alias, vdef in ds.variables.by("alias").items():
+            alias_to_url[alias] = vdef.entity_url
+            if "subvariables" in vdef:
+                for sv_alias, svdef in vdef.entity.subvariables.by("alias").items():
+                    alias_to_url[sv_alias] = svdef.entity_url
+
+        return alias_to_url
+
+    def obtain_schema(self):
+        md = self.dataset.resource.schema.metadata
+        schema = {self.pk_alias: md[self.pk_alias]}
+        schema.update({a: md[a] for a in self.aliases if a in md})
+        subvar_aliases = self.aliases.difference(schema)
+        for array_alias, vdef in md.items():
+            if "subvariables" not in vdef:
+                continue
+            array_subvar_aliases = {v["alias"] for v in vdef["subvariables"]}
+            for a in array_subvar_aliases.intersection(subvar_aliases):
+                svdef = {
+                    "alias": a,
+                    "name": a,
+                    "type": "categorical",
+                    "categories": vdef["categories"],
+                }
+                schema[a] = svdef
+        return schema
+
+    def create_tmp_ds(self, csv_file):
+        """
+        Creates a new pycrunch dataset:
+
+         * Creates using the schema for the corresponding variables to backfill
+         * Uploads the CSV file
+         * Renames the variables to disambiguate on the join
+        """
+        tmp_name = "Scrunch-backfill-{}-{}".format(self.dataset.name, self.dataset.id)
+
+        # Create the new tmp dataset with the schema for the variables
+        # from the target dataset. To ensure they are all the same type
+        metadata = self.obtain_schema()
+        tmp_ds = self.root.datasets.create(shoji_entity_wrapper({
+            "name": tmp_name,
+            "table": {
+                "element": "crunch:table",
+                "metadata": metadata
+            }
+        })).refresh()
+        try:
+            importing.importer.append_csv_string(tmp_ds, csv_file)
+        except Exception as exc:
+            # Error importing CSV file
+            tmp_ds.delete()
+            raise ValueError("Error importing CSV file - Columns should match specified types")
+
+        # Rename the aliases in the tmp dataset to disambiguate on the join
+        tmp_aliases = tmp_ds.variables.by("alias")
+        tmp_ds.variables.patch(shoji_catalog_wrapper({
+            tmp_aliases[a].entity_url: {"alias": self.tmp_aliases[a]} for a in self.aliases
+        }))
+        return tmp_ds
+
+    def join_tmp_ds(self, tmp_ds):
+        """
+        We will perform the join with the presumption that both datasets
+        have the same PK alias.
+        """
+        pk_url = self.alias_to_url[self.pk_alias]
+        tmp_pk_url = tmp_ds.variables.by("alias")[self.pk_alias].entity_url
+        join_payload = shoji_entity_wrapper(
+            {
+                "function": "adapt",
+                "args": [
+                    {"dataset": tmp_ds.self},
+                    {"variable": tmp_pk_url},
+                    {"variable": pk_url},
+                ],
+            }
+        )
+        resp = self.dataset.resource.variables.post(join_payload)
+        pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+
+    def backfill(self):
+        variables_expr = {}
+
+        # We need to fetch the variables dictionary again since it's going
+        # to be re-read after the join to include the new variables.
+        joined_vars_by_alias = self.dataset.resource.variables.by("alias")
+
+        for alias in self.aliases:
+            var_w_gaps = self.alias_to_url[alias]
+            var_w_values = joined_vars_by_alias[self.tmp_aliases[alias]].entity_url
+            fill_expr = {
+                "function": "fill",
+                "args": [
+                    {"variable": var_w_gaps},
+                    {"map": {
+                        "-1": {"variable": var_w_values}
+                    }}
+                ]
+            }
+            variables_expr[var_w_gaps] = fill_expr
+
+        # We can perform an update command here because we're guaranteed
+        # that the types for each of the variables matches the column we
+        # want to backfill.
+        update_expr = {
+            "command": "update",
+            "variables": variables_expr,
+            "filter": self.rows_expr
+        }
+        self.dataset.resource.table.post(update_expr)
+
+    def execute(self, csv_file):
+        # Create a new dataset with the CSV file, We want this TMP dataset
+        # to have the same types as the variables we want to replace.
+        tmp_ds = self.create_tmp_ds(csv_file)
+        with SavepointRestore(self.dataset, "Savepoint before backfill"):
+            try:
+                self.join_tmp_ds(tmp_ds)
+                self.backfill()
+            finally:
+                # Delete the joined variables
+                folder_name = tmp_ds.body["name"]
+                folders_by_name = self.dataset.resource.folders.by("name")
+                if folder_name in folders_by_name:
+                    folders_by_name[folder_name].entity.delete()
+                # Always delete the tmp dataset no matter what
+                tmp_ds.delete()
+
+
