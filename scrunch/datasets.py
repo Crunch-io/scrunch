@@ -3469,19 +3469,13 @@ class BackfillFromCSV:
         # to be re-read after the join to include the new variables.
         joined_vars_by_alias = self.dataset.resource.variables.by("alias")
 
+        # Replace with the traight column. This is a safe operation because
+        # we know by definition the types of the incoming columns have the exact
+        # same type as the targets
         for alias in self.aliases:
             var_w_gaps = self.alias_to_url[alias]
             var_w_values = joined_vars_by_alias[self.tmp_aliases[alias]].entity_url
-            fill_expr = {
-                "function": "fill",
-                "args": [
-                    {"variable": var_w_gaps},
-                    {"map": {
-                        "-1": {"variable": var_w_values}
-                    }}
-                ]
-            }
-            variables_expr[var_w_gaps] = fill_expr
+            variables_expr[var_w_gaps] = {"variable": var_w_values}
 
         # We can perform an update command here because we're guaranteed
         # that the types for each of the variables matches the column we

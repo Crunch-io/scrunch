@@ -222,6 +222,30 @@ class TestBackFill(TestCase):
 
         ds.delete()
 
+    def test_backfill_on_non_missing(self):
+        ds = self._prepare_ds({
+            "pk": [1, 2, 3, 4, 5],
+            "cat1": [1, 2, 3, 3, 3],
+            "cat2": [11, 22, 33, 11, 22],
+            "cat3": [1, 1, 1, 1, 1]
+        })
+        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+                4,1,2
+                5,2,3
+                """))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+
+        rows_expr = "pk >= 4 and pk <=5"
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
+            rows_expr)
+
+        vars = ds.variables.by("alias")
+        data = ds.follow("table", "limit=10")["data"]
+        assert data[vars["cat3"]["id"]] == [1, 1, 1, 2, 3]
+        assert data[vars["cat1"]["id"]] == [1, 2, 3, 1, 2]
+
+        ds.delete()
+
     def test_bad_csv(self):
         original_data = {
             "pk": [1, 2, 3, 4],
