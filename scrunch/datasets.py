@@ -19,6 +19,7 @@ except ImportError:
 import six
 
 import pycrunch
+import warnings
 from pycrunch import importing
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity, TaskProgressTimeoutError
@@ -2566,6 +2567,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         [{id: 1, var1_alias: 14, var2_alias: 15}, ...]
         """
+        warnings.warn(
+            "This method is deprecated. Use Dataset.backfill_from_csv",
+            PendingDeprecationWarning)
         streaming_state = self.resource.body.get('streaming', 'no')
         ds = self
         if streaming_state != 'streaming':
