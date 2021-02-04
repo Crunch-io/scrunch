@@ -78,7 +78,28 @@ class SavepointRestore:
             # Exception! Revert to the savepoint
             self.savepoint.refresh()
             resp = self.savepoint.revert.post({})
+            if resp.status_code == 204:
+                return   # Empty response, reverted.
             pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+
+
+class NoExclusion:
+    """
+    Use this context manager to temporarily operate on a dataset ignoring
+    the exclusion filter. This will unset and re-set on exit.
+    """
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.exclusion = dataset.get_exclusion()
+        empty_exclusion = shoji_entity_wrapper({"expression": {}})
+        self.dataset.resource.exclusion.patch(empty_exclusion)
+
+    def __enter__(self):
+        return self.dataset
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Always set the exclusion back, exception or not
+        self.dataset.exclude(self.exclusion)
 
 
 def _set_debug_log():
@@ -3466,7 +3487,10 @@ class BackfillFromCSV:
             "variables": variables_expr,
             "filter": self.rows_expr
         }
-        self.dataset.resource.table.post(update_expr)
+        with NoExclusion(self.dataset) as ds:
+            print("Current excl")
+            print(ds.resource.exclusion)
+            ds.resource.table.post(update_expr)
 
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset

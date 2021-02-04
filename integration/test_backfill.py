@@ -251,3 +251,33 @@ class TestBackFill(TestCase):
         assert "folder" not in ds.folders.by("type")  # Nothing of type folder
 
         ds.delete()
+
+    def test_with_exclusion_filter(self):
+        ds = self._prepare_ds({
+            "pk": [1, 2, 3, 4, 5],
+            "cat1": [1, 2, 3, 3, 3],
+            "cat2": [11, 11, 11, 11, 11],
+            "cat3": [1, 1, 1, 1, 1]
+        })
+        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+                        4,1,2
+                        5,2,3
+                        """))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+
+        excl = "pk == 4"
+        scrunch_dataset.exclude(excl)
+        rows_expr = "pk in [4, 5]"
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
+            rows_expr)
+
+        # Exclusion gets set after backfilling
+        assert scrunch_dataset.get_exclusion() == excl
+
+        ds.exclusion.patch({"expression": {}})
+        varsiables = ds.variables.by("alias")
+        data = ds.follow("table", "limit=10")["data"]
+        assert data[varsiables["cat1"]["id"]] == [1, 2, 3, 1, 2]
+        assert data[varsiables["cat3"]["id"]] == [1, 1, 1, 2, 3]
+
+        ds.delete()
