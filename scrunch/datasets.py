@@ -3486,8 +3486,6 @@ class BackfillFromCSV:
             "filter": self.rows_expr
         }
         with NoExclusion(self.dataset) as ds:
-            print("Current excl")
-            print(ds.resource.exclusion)
             ds.resource.table.post(update_expr)
 
     def execute(self, csv_file):
