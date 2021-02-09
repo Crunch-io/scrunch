@@ -2537,6 +2537,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if resp.status_code == 204:
             LOG.info('Dataset Updated')
             return
+        pycrunch.shoji.wait_progress(resp, self.resource.session)
         return resp
 
     def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter):
