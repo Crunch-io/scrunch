@@ -322,6 +322,9 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds = MutableDataset(ds_mock)
         ds.resource = MagicMock()
         ds.resource.table = self.Table(session=MagicMock(), self='http://a/?b=c')
+        post_mock = MagicMock()
+        post_mock.side_effect = [MagicMock(status_code=204)]
+        setattr(ds.resource.table, "post", post_mock)
         ds.replace_values({'var3_alias': 1}, filter='var4_alias == 2')
         assert ds.resource.table.self == 'http://a/'
 
