@@ -283,7 +283,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert ds.resource.body.get('streaming') == 'negative'
 
     @mock.patch('scrunch.datasets.process_expr')
-    def test_replace_values(self, mocked_process):
+    def test_replace_values_sync(self, mocked_process):
         mocked_process.side_effect = self.process_expr_side_effect
         variables = {
             '001': {
@@ -302,6 +302,7 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds_mock = self._dataset_mock(variables=variables)
         ds = MutableDataset(ds_mock)
         ds.resource = MagicMock()
+        ds.resource.table.post.side_effect = [MagicMock(status_code=204)]
         ds.replace_values({'birthyr': 9, 'level': 8})
         call = json.loads(ds.resource.table.post.call_args[0][0])
         assert 'command' in call
@@ -321,6 +322,9 @@ class TestDatasets(TestDatasetBase, TestCase):
         ds = MutableDataset(ds_mock)
         ds.resource = MagicMock()
         ds.resource.table = self.Table(session=MagicMock(), self='http://a/?b=c')
+        post_mock = MagicMock()
+        post_mock.side_effect = [MagicMock(status_code=204)]
+        setattr(ds.resource.table, "post", post_mock)
         ds.replace_values({'var3_alias': 1}, filter='var4_alias == 2')
         assert ds.resource.table.self == 'http://a/'
 
