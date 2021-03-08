@@ -29,6 +29,7 @@ from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
+from scrunch.scripts import DatasetScripts
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
@@ -445,11 +446,14 @@ class Members:
             'permissions': {self._EDIT_ATTRIBUTE: edit}}
         })
 
+
 class ProjectMembers(Members):
     _EDIT_ATTRIBUTE = 'edit'
 
+
 class TeamMembers(Members):
     _EDIT_ATTRIBUTE = 'team_admin'
+
 
 class Team:
     _MUTABLE_ATTRIBUTES = {'name'}
@@ -477,6 +481,7 @@ class Team:
 
     def delete(self):
         return self.resource.delete()
+
 
 class Project:
     _MUTABLE_ATTRIBUTES = {'name', 'description', 'icon'}
@@ -1002,6 +1007,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
         self.folders = DatasetFolders(self)
+        self.scripts = DatasetScripts(self)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
