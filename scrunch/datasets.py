@@ -1007,7 +1007,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
         self.folders = DatasetFolders(self)
-        self.scripts = DatasetScripts(self)
+        self.scripts = DatasetScripts(self.resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
