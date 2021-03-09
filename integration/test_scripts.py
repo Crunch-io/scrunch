@@ -48,6 +48,7 @@ class TestSripts(TestCase):
         variable.refresh()
         assert variable.body["alias"] == "varA"
         assert variable.body["name"] == "Variable A"
+        ds.delete()
 
     def test_handle_error(self):
         ds, variable = self._create_ds()
@@ -64,6 +65,7 @@ class TestSripts(TestCase):
             "line": 1,
             "message": "Invalid command: BAD"
         }]
+        ds.delete()
 
     def test_revert_script(self):
         ds, variable = self._create_ds()
@@ -77,6 +79,7 @@ class TestSripts(TestCase):
         scrunch_dataset.scripts.revert_to(script_number=0)  # Reverted
         variable.refresh()
         assert variable.body["name"] == "pk"
+        ds.delete()
 
     def test_fetch_all_and_collapse(self):
         raise self.skipTest("Collapse is 504ing in the server.")
