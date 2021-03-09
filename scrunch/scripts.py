@@ -21,11 +21,6 @@ class DatasetScripts:
         self.dataset_resource = dataset_resource
 
     def execute(self, script_body):
-
-        self.dataset_resource.scripts.create({
-            'element': 'shoji:entity',
-            'body': {"body": script_body},
-        })
         try:
             self.dataset_resource.scripts.create({
                 'element': 'shoji:entity',
