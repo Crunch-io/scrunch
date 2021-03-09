@@ -79,7 +79,7 @@ class TestSripts(TestCase):
         assert variable.body["name"] == "pk"
 
     def test_fetch_all_and_collapse(self):
-        raise self.skipTest("Collapse is 504ing")
+        raise self.skipTest("Collapse is 504ing in the server.")
         ds, variable = self._create_ds()
         scrunch_dataset = get_mutable_dataset(ds.body.id, site)
         s1 = "RENAME pk TO varA;"

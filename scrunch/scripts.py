@@ -54,9 +54,9 @@ class DatasetScripts:
         elif id is not None:
             # We have to do this because currently the API does not expose the
             # script ID directly.
-            import pdb;pdb.set_trace()
             script = [s for s in all_scripts if "scripts/{}/".format(id) in s.self][0]
         else:
             raise ValueError("Must indicate either ID or script number")
 
-        script.revert.post({})
+        resp = script.revert.post({})  # Asynchronous request
+        pycrunch.shoji.wait_progress(resp, self.dataset_resource.session)
