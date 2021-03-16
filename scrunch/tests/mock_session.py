@@ -47,6 +47,7 @@ class MockSession(ScrunchSession):
         ScrunchSession.__init__(self)
         self.adapter = FixtureAdapter()
         self.adapters['http://'] = self.adapter
+        self.adapters['https://'] = self.adapter
 
     def add_fixture(self, url, fixture):
         self.adapter.add_fixture(url, fixture)
