@@ -222,6 +222,44 @@ class TestBackFill(TestCase):
 
         ds.delete()
 
+    def test_backfill_on_subvars_full_row(self):
+        ds = self._prepare_ds({
+            "pk": [1, 2, 3, 4, 5],
+            "cat1": [1, 2, 3, -1, -1],
+            "cat2": [11, 22, 33, -1, -1],
+            "cat3": [2, 3, 1, -1, -1]
+        })
+        vars = ds.variables.by("alias")
+        subvars = [vars["cat1"].entity_url, vars["cat2"].entity_url,  vars["cat3"].entity_url]
+        array = ds.variables.create(as_entity({
+            "name": "array",
+            "alias": "array",
+            "type": "categorical_array",
+            "subvariables": subvars,
+        })).refresh()
+
+        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+                1,1,2
+                2,2,3
+                3,3,1
+                4,2,3
+                5,2,1
+                """))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+
+        # Not including a row_filter, same as passing None
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file)
+
+        assert ds.follow("table", "limit=5")["data"][array.body["id"]] == [
+            [1, 1, 2],
+            [2, 2, 3],
+            [3, 3, 1],
+            [2, {"?": -1}, 3],
+            [2, {"?": -1}, 1]
+        ]
+
+        ds.delete()
+
     def test_backfill_on_non_missing(self):
         ds = self._prepare_ds({
             "pk": [1, 2, 3, 4, 5],

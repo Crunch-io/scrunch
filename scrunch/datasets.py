@@ -2546,7 +2546,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         pycrunch.shoji.wait_progress(resp, self.resource.session)
         return resp
 
-    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter):
+    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None):
         """
 
         :param aliases: List of strings for the aliases present in the CSV file
@@ -2557,7 +2557,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             we want to backfil "pk > 100 and pk < 150"
         :return:
         """
-        rows_filter = process_expr(parse_expr(rows_filter), self.resource)
+        if rows_filter is not None:
+            rows_filter = process_expr(parse_expr(rows_filter), self.resource)
         back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter)
         back_filler.execute(csv_fh)
 
@@ -3490,8 +3491,9 @@ class BackfillFromCSV:
         update_expr = {
             "command": "update",
             "variables": variables_expr,
-            "filter": self.rows_expr
         }
+        if self.rows_expr:
+            update_expr["filter"] = self.rows_expr
         with NoExclusion(self.dataset) as ds:
             ds.resource.table.post(update_expr)
 
