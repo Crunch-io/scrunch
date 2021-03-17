@@ -2,6 +2,11 @@ name: Scrunch package test and deploy
 
 on:
   push:
+    branches:
+      - main
+      - master
+    tags:
+      - '**'
   pull_request:
     branches:
       - main
