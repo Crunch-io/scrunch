@@ -3477,7 +3477,7 @@ class BackfillFromCSV:
         # to be re-read after the join to include the new variables.
         joined_vars_by_alias = self.dataset.resource.variables.by("alias")
 
-        # Replace with the traight column. This is a safe operation because
+        # Replace with the straight column. This is a safe operation because
         # we know by definition the types of the incoming columns have the exact
         # same type as the targets
         for alias in self.aliases:
