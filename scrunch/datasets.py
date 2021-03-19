@@ -3496,9 +3496,12 @@ class BackfillFromCSV:
             update_expr["filter"] = self.rows_expr
         with NoExclusion(self.dataset) as ds:
             resp = ds.resource.table.post(update_expr)
-            if resp.status_code == 202:
-                # If the response was async. Wait for it finishing
-                pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+
+        # Continue handling this outside of the `with` block, so the exclusion
+        # filter gets re-applied while we wait.
+        if resp.status_code == 202:
+            # If the response was async. Wait for it finishing
+            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
 
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
