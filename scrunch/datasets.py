@@ -21,6 +21,7 @@ import six
 import pycrunch
 import warnings
 from pycrunch import importing
+from pycrunch.progress import DefaultProgressTracking
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity, TaskProgressTimeoutError
 from scrunch.session import connect
@@ -3370,6 +3371,7 @@ class BackfillFromCSV:
     dataset are deleted.
 
     """
+    TIMEOUT = 60 * 10  # 10 minutes
 
     def __init__(self, dataset, pk_alias, aliases, rows_expr):
         self.root = _default_connection(None)
@@ -3381,6 +3383,7 @@ class BackfillFromCSV:
         self.tmp_aliases = {
             a: "{}-{}".format(dataset.id, a) for a in aliases
         }
+        self.progress_tracker = DefaultProgressTracking(self.TIMEOUT)
 
     def load_vars_by_alias(self):
         """
@@ -3468,7 +3471,8 @@ class BackfillFromCSV:
             }
         )
         resp = self.dataset.resource.variables.post(join_payload)
-        pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+        pycrunch.shoji.wait_progress(resp, self.dataset.resource.session,
+                                     progress_tracker=self.progress_tracker)
 
     def backfill(self):
         variables_expr = {}
@@ -3501,7 +3505,8 @@ class BackfillFromCSV:
         # filter gets re-applied while we wait.
         if resp.status_code == 202:
             # If the response was async. Wait for it finishing
-            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session,
+                                         progress_tracker=self.progress_tracker)
 
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
