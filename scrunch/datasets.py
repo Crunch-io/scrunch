@@ -3428,7 +3428,8 @@ class BackfillFromCSV:
          * Uploads the CSV file
          * Renames the variables to disambiguate on the join
         """
-        tmp_name = "Scrunch-backfill-{}-{}-{}".format(self.dataset.name, self.dataset.id, self.timestamp)
+        tmp_name = "Scrunch-backfill-{}-{}-{}".format(
+            self.dataset.name, self.dataset.id, self.timestamp)
 
         # Create the new tmp dataset with the schema for the variables
         # from the target dataset. To ensure they are all the same type
