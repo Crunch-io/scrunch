@@ -3384,6 +3384,7 @@ class BackfillFromCSV:
             a: "{}-{}".format(dataset.id, a) for a in aliases
         }
         self.progress_tracker = DefaultProgressTracking(timeout or self.TIMEOUT)
+        self.timestamp = datetime.datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
 
     def load_vars_by_alias(self):
         """
@@ -3427,7 +3428,7 @@ class BackfillFromCSV:
          * Uploads the CSV file
          * Renames the variables to disambiguate on the join
         """
-        tmp_name = "Scrunch-backfill-{}-{}".format(self.dataset.name, self.dataset.id)
+        tmp_name = "Scrunch-backfill-{}-{}-{}".format(self.dataset.name, self.dataset.id, self.timestamp)
 
         # Create the new tmp dataset with the schema for the variables
         # from the target dataset. To ensure they are all the same type
@@ -3512,8 +3513,7 @@ class BackfillFromCSV:
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
         tmp_ds = self.create_tmp_ds(csv_file)
-        tstamp = datetime.datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
-        sp_msg = "Savepoint before backfill: {}".format(tstamp)
+        sp_msg = "Savepoint before backfill: {}".format(self.timestamp)
         with SavepointRestore(self.dataset, sp_msg):
             try:
                 self.join_tmp_ds(tmp_ds)
