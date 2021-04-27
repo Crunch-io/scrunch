@@ -2547,7 +2547,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         pycrunch.shoji.wait_progress(resp, self.resource.session)
         return resp
 
-    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None):
+    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None, timeout=None):
         """
 
         :param aliases: List of strings for the aliases present in the CSV file
@@ -2560,7 +2560,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         if rows_filter is not None:
             rows_filter = process_expr(parse_expr(rows_filter), self.resource)
-        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter)
+        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter, timeout)
         back_filler.execute(csv_fh)
 
     def replace_from_csv(self, filename, chunksize=1000):
@@ -3373,7 +3373,7 @@ class BackfillFromCSV:
     """
     TIMEOUT = 60 * 10  # 10 minutes
 
-    def __init__(self, dataset, pk_alias, aliases, rows_expr):
+    def __init__(self, dataset, pk_alias, aliases, rows_expr, timeout=None):
         self.root = _default_connection(None)
         self.dataset = dataset
         self.aliases = set(aliases)
@@ -3383,7 +3383,7 @@ class BackfillFromCSV:
         self.tmp_aliases = {
             a: "{}-{}".format(dataset.id, a) for a in aliases
         }
-        self.progress_tracker = DefaultProgressTracking(self.TIMEOUT)
+        self.progress_tracker = DefaultProgressTracking(timeout or self.TIMEOUT)
 
     def load_vars_by_alias(self):
         """
