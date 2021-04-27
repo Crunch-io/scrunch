@@ -3512,7 +3512,9 @@ class BackfillFromCSV:
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
         tmp_ds = self.create_tmp_ds(csv_file)
-        with SavepointRestore(self.dataset, "Savepoint before backfill"):
+        tstamp = datetime.datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
+        sp_msg = "Savepoint before backfill: {}".format(tstamp)
+        with SavepointRestore(self.dataset, sp_msg):
             try:
                 self.join_tmp_ds(tmp_ds)
                 self.backfill()
