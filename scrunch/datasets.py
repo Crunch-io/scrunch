@@ -3443,10 +3443,18 @@ class BackfillFromCSV:
         })).refresh()
         try:
             importing.importer.append_csv_string(tmp_ds, csv_file)
-        except Exception as exc:
+        except pycrunch.ClientError as exc:
             # Error importing CSV file
             tmp_ds.delete()
-            raise ValueError("Error importing CSV file - Columns should match specified types")
+            if exc.status_code == 400:
+                # This is a validation error from the server
+                raise ValueError("Error importing CSV file - Columns should match specified types")
+            elif exc.status_code == 413:
+                raise ValueError("Upload failed because the CSV file is too large. Limit is 150MB")
+            else:
+                # Other kind of error. Probably 413, or other kind. Don'w
+                # swallow it. Expose it.
+                raise
 
         # Rename the aliases in the tmp dataset to disambiguate on the join
         tmp_aliases = tmp_ds.variables.by("alias")
