@@ -12,6 +12,7 @@ def TEST_CATEGORIES():
         {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
     ]
 
+
 def TEST_CATEGORIES_WITH_DATE():
     return [
         {"id": 1, "name": "Female", "missing": False, "numeric_value": None, "date": "2020-01-01"},
