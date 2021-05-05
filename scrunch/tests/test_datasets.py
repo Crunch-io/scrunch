@@ -6630,8 +6630,5 @@ class TestHeadingSubtotals(TestDatasetBase):
             }
         }
 
-        var.add_subtotal("F - M", {
-            "add": ["Female"],
-            "minus": ["Male"]
-        }, anchor="bottom")
+        var.add_subtotal_difference("F - M", add=["Female"], subtract=["Male"], anchor="bottom")
         var.resource.patch.assert_called_once_with(expected_payload)

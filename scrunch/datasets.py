@@ -3309,8 +3309,6 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             * Categories, when only one value, can be passed as single arguments as:
                 categories=1 or categories='var_age'
             * Passing categories=None will remove all subtotals from the variable.
-            * When categories is a dictionary it can include positive and negative
-              values {"add": [...], "minus": [...]}
         :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
             if the anchor isn't any of the above, it will default to be shown
             at the bottom of the last category ID specified in categories.
@@ -3320,13 +3318,21 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         var = var.add_subtotal('At the bottom', [3], 'bottom')
         var = ...
         """
-        negative = None
-        if isinstance(categories, dict):
-            if "minus" in categories:
-                negative = categories["minus"]
-            categories = categories["add"]
+        return self._subtotal_headings('subtotal', name, categories, anchor)
 
-        return self._subtotal_headings('subtotal', name, categories, anchor, negative)
+    def add_subtotal_difference(self, name, add, subtract, anchor):
+        """
+        :param: name: Name for the displayed subtotal
+        :param: add: a list of categories ID's or category Names to group in a heading.
+        :param: subtract: List of category IDs or Names to be subtracted from the added terms
+        :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
+            if the anchor isn't any of the above, it will default to be shown
+            at the bottom of the last category ID specified in categories.
+
+        Note: to concatenate subtotals the procedure requires to reassign the variable:
+        var.add_subtotal_difference("F - M", add=["Female"], subtract=["Male"], anchor="bottom")
+        """
+        return self._subtotal_headings('subtotal', name, add, anchor, subtract)
 
     def add_heading(self, name, categories=None, anchor=None):
         """
