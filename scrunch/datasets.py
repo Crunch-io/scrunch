@@ -23,7 +23,7 @@ import warnings
 from pycrunch import importing
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.exporting import export_dataset
-from pycrunch.shoji import Entity, TaskProgressTimeoutError
+from pycrunch.shoji import Entity, TaskProgressTimeoutError, TaskError
 from scrunch.session import connect
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
@@ -3443,6 +3443,8 @@ class BackfillFromCSV:
         })).refresh()
         try:
             importing.importer.append_csv_string(tmp_ds, csv_file)
+        except TaskError as err:
+            raise ValueError(err.args[0])
         except pycrunch.ClientError as exc:
             # Error importing CSV file
             tmp_ds.delete()
@@ -3518,9 +3520,20 @@ class BackfillFromCSV:
             pycrunch.shoji.wait_progress(resp, self.dataset.resource.session,
                                          progress_tracker=self.progress_tracker)
 
+    MAX_FILE_SIZE = 150 * 2 ** 20  # 150MB
+
+    def check_csv_file_size(self, csv_file):
+        file_size = len(csv_file.read())
+        if file_size >= self.MAX_FILE_SIZE:
+            raise ValueError("Max CSV allowed size is currently 150MB")
+        if hasattr(csv_file, "seek"):
+            csv_file.seek(0)
+        return csv_file
+
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
+        #csv_file = self.check_csv_file_size(csv_file)
         tmp_ds = self.create_tmp_ds(csv_file)
         sp_msg = "Savepoint before backfill: {}".format(self.timestamp)
         with SavepointRestore(self.dataset, sp_msg):

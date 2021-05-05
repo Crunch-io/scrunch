@@ -301,7 +301,7 @@ class TestBackFill(TestCase):
         with pytest.raises(ValueError) as err:
             scrunch_dataset.backfill_from_csv(["cat1", "cat2"], "pk", csv_file,
                 rows_expr)
-        assert err.value.args[0] == "Error importing CSV file - Columns should match specified types"
+        assert err.value.args[0] == 'Invalid data provided: Expected column "cat1" not found'
 
         # Verify that the backfill didn't proceed
         data = ds.follow("table", "limit=10")["data"]
