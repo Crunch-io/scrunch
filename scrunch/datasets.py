@@ -2558,6 +2558,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             we want to backfil "pk > 100 and pk < 150"
         :return:
         """
+
+        MAX_FILE_SIZE = 150 * 2 ** 20  # 150MB
+
+        file_size = len(csv_fh.read())
+        if file_size >= MAX_FILE_SIZE:
+            raise ValueError("Max CSV allowed size is currently 150MB")
+        csv_fh.seek(0)
+
         if rows_filter is not None:
             rows_filter = process_expr(parse_expr(rows_filter), self.resource)
         back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter, timeout)

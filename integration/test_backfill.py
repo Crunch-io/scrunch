@@ -301,7 +301,7 @@ class TestBackFill(TestCase):
         with pytest.raises(ValueError) as err:
             scrunch_dataset.backfill_from_csv(["cat1", "cat2"], "pk", csv_file,
                 rows_expr)
-        assert err.value.args[0] == 'Invalid data provided: Expected column "cat1" not found'
+        assert err.value.args[0].startswith("Invalid data provided: Expected column ")
 
         # Verify that the backfill didn't proceed
         data = ds.follow("table", "limit=10")["data"]
@@ -343,3 +343,18 @@ class TestBackFill(TestCase):
         assert data[varsiables["cat3"]["id"]] == [1, 1, 1, 2, 3]
 
         ds.delete()
+
+    def test_too_big_file(self):
+        ds = self._prepare_ds({
+            "pk": [1, 2, 3, 4, 5],
+            "cat1": [1, 2, 3, 3, 3],
+            "cat2": [11, 11, 11, 11, 11],
+            "cat3": [1, 1, 1, 1, 1]
+        })
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+
+        size_200MB = 200 * 2 ** 20
+        csv_file = StringIO("x" * size_200MB)
+        with pytest.raises(ValueError) as err:
+            scrunch_dataset.backfill_from_csv(["cat1"], "pk", csv_file, None)
+        assert err.value.args[0] == "Max CSV allowed size is currently 150MB"
