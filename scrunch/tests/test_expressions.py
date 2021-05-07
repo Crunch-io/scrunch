@@ -4,7 +4,7 @@ from unittest import TestCase, mock
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
-from scrunch.expressions import prettify
+from scrunch.expressions import prettify, get_dataset_variables
 
 
 class TestExpressionParsing(TestCase):
@@ -3444,3 +3444,18 @@ class TestDateTimeExpression(TestCase):
                 }
             ]
         }
+
+
+class TestGetDatasetVariables(TestCase):
+    """
+    Test for get_dataset_variables not adding param 'limit=0' in ds.follow
+    """
+
+    ds_url = 'http://test.crunch.io/api/datasets/12345/'
+
+    def test_follow(self):
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = mock.MagicMock(metadata={})
+        _ = get_dataset_variables(ds)
+        ds.follow.assert_called_once_with("table")

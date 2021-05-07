@@ -2535,10 +2535,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if filter:
             payload['filter'] = process_expr(parse_expr(filter), self.resource)
 
-        # Remove query parameters from table url
-        table = self.resource.table
-        table.self = table.self[:table.self.find('?')]
-
         resp = self.resource.table.post(json.dumps(payload))
         if resp.status_code == 204:
             LOG.info('Dataset Updated')

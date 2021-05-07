@@ -427,9 +427,7 @@ def parse_expr(expr):
 
 
 def get_dataset_variables(ds):
-    table = ds.follow("table", urlencode({
-        'limit': 0
-    }))
+    table = ds.follow("table")
 
     # Build the variables dict, using `alias` as the key.
     variables = dict()

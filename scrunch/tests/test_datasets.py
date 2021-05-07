@@ -316,19 +316,6 @@ class TestDatasets(TestDatasetBase, TestCase):
         assert call['variables']['002']['value'] == 8
 
     @mock.patch('scrunch.datasets.process_expr')
-    def test_replace_values_filter(self, mocked_process):
-        mocked_process.side_effect = self.process_expr_side_effect
-        ds_mock = self._dataset_mock()
-        ds = MutableDataset(ds_mock)
-        ds.resource = MagicMock()
-        ds.resource.table = self.Table(session=MagicMock(), self='http://a/?b=c')
-        post_mock = MagicMock()
-        post_mock.side_effect = [MagicMock(status_code=204)]
-        setattr(ds.resource.table, "post", post_mock)
-        ds.replace_values({'var3_alias': 1}, filter='var4_alias == 2')
-        assert ds.resource.table.self == 'http://a/'
-
-    @mock.patch('scrunch.datasets.process_expr')
     def test_create_numeric(self, mocked_process):
         mocked_process.side_effect = self.process_expr_side_effect
         variables = {
