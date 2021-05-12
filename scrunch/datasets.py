@@ -3260,38 +3260,43 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         self.dataset._reload_variables()
         return self.dataset[self.alias]
 
-    def _subtotal_headings(self, operation, name, categories, anchor):
+    def cat_names_to_ids(self, cat_list):
+        cat_n2id = {c.name: c.id for c in self.categories.values()}
+        final = [cat_n2id.get(cid, cid) for cid in cat_list]
+        return final
+
+    def _subtotal_headings(self, operation, name, categories, anchor, negative=None):
+        insertions = []
         payload = {
             'view': {
                 'transform': {
-                    'insertions': []
+                    'insertions': insertions
                 }
             }
         }
-        # check if already exists any insertions
+
+        # Check if already exists any insertions
         if 'transform' in self.view:
-            payload['view']['transform']['insertions'] = [
-                i for i in self.view.transform.insertions if categories
-            ]
+            insertions = self.view.transform.insertions[:]
+
         if categories:
-            # allow categories to be a int or an alias
+            # allow categories to be a int or a category name
             if isinstance(categories, int) or isinstance(categories, str):
                 categories = [categories]
+
             # Convert category names to id's if no id's where passed
-            if not isinstance(categories[0], int):
-                to_ids = []
-                for cat in self.categories.values():
-                    if cat.name in categories:
-                        to_ids.append(cat.id)
-                categories = to_ids
+            categories = self.cat_names_to_ids(categories)
 
             insertion = {
-                'anchor': anchor,
-                'name': name,
-                'function': operation,
-                'args': categories
+                "anchor": anchor,
+                "name": name,
+                "args": categories,
+                "function": operation,
             }
-            payload['view']['transform']['insertions'].append(insertion)
+            if negative:
+                negative = self.cat_names_to_ids(negative)
+                insertion["kwargs"] = {"negative": negative}
+            insertions.append(insertion)
 
         self.resource.patch(payload)
         self.dataset._reload_variables()
@@ -3314,6 +3319,20 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         var = ...
         """
         return self._subtotal_headings('subtotal', name, categories, anchor)
+
+    def add_subtotal_difference(self, name, add, subtract, anchor):
+        """
+        :param: name: Name for the displayed subtotal
+        :param: add: a list of categories ID's or category Names to group in a heading.
+        :param: subtract: List of category IDs or Names to be subtracted from the added terms
+        :param: anchor: anchor can be any of, ['top', 'bottom', <category_id>].
+            if the anchor isn't any of the above, it will default to be shown
+            at the bottom of the last category ID specified in categories.
+
+        Note: to concatenate subtotals the procedure requires to reassign the variable:
+        var.add_subtotal_difference("F - M", add=["Female"], subtract=["Male"], anchor="bottom")
+        """
+        return self._subtotal_headings('subtotal', name, add, anchor, subtract)
 
     def add_heading(self, name, categories=None, anchor=None):
         """

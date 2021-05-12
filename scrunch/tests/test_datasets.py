@@ -6550,7 +6550,6 @@ class TestMutableMixin(TestDatasetBase):
 
 
 class TestHeadingSubtotals(TestDatasetBase):
-
     variables = {
         'var_a': {
             'id': '001',
@@ -6585,4 +6584,51 @@ class TestHeadingSubtotals(TestDatasetBase):
         }
 
         var.add_heading('Test', categories=1, anchor='top')
+        var.resource.patch.assert_called_once_with(expected_payload)
+
+    def test_categories_as_string(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = StreamingDataset(ds_mock)
+        var = ds['var_a']
+
+        expected_payload = {
+            'view': {
+                'transform': {
+                    'insertions': [
+                        {
+                            'anchor': 'top',
+                            'name': 'Test',
+                            'function': 'heading',
+                            'args': [2]
+                        }
+                    ]
+                }
+            }
+        }
+
+        var.add_heading('Test', categories=["Male"], anchor='top')
+        var.resource.patch.assert_called_once_with(expected_payload)
+
+    def test_add_subtotal_difference(self):
+        ds_mock = self._dataset_mock(variables=self.variables)
+        ds = StreamingDataset(ds_mock)
+        var = ds["var_a"]
+
+        expected_payload = {
+            "view": {
+                "transform": {
+                    "insertions": [
+                        {
+                            "anchor": "bottom",
+                            "name": "F - M",
+                            "function": "subtotal",
+                            "args": [1],
+                            "kwargs": {"negative": [2]}
+                        }
+                    ]
+                }
+            }
+        }
+
+        var.add_subtotal_difference("F - M", add=["Female"], subtract=["Male"], anchor="bottom")
         var.resource.patch.assert_called_once_with(expected_payload)
