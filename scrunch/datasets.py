@@ -21,8 +21,9 @@ import six
 import pycrunch
 import warnings
 from pycrunch import importing
+from pycrunch.progress import DefaultProgressTracking
 from pycrunch.exporting import export_dataset
-from pycrunch.shoji import Entity, TaskProgressTimeoutError
+from pycrunch.shoji import Entity, TaskProgressTimeoutError, TaskError
 from scrunch.session import connect
 from scrunch.categories import CategoryList
 from scrunch.exceptions import (AuthenticationError, InvalidParamError,
@@ -2546,7 +2547,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         pycrunch.shoji.wait_progress(resp, self.resource.session)
         return resp
 
-    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None):
+    def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None, timeout=None):
         """
 
         :param aliases: List of strings for the aliases present in the CSV file
@@ -2557,9 +2558,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             we want to backfil "pk > 100 and pk < 150"
         :return:
         """
+
+        MAX_FILE_SIZE = 150 * 2 ** 20  # 150MB
+
+        file_size = len(csv_fh.read())
+        if file_size >= MAX_FILE_SIZE:
+            raise ValueError("Max CSV allowed size is currently 150MB")
+        csv_fh.seek(0)
+
         if rows_filter is not None:
             rows_filter = process_expr(parse_expr(rows_filter), self.resource)
-        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter)
+        back_filler = BackfillFromCSV(self, pk_alias, aliases, rows_filter, timeout)
         back_filler.execute(csv_fh)
 
     def replace_from_csv(self, filename, chunksize=1000):
@@ -3389,8 +3398,9 @@ class BackfillFromCSV:
     dataset are deleted.
 
     """
+    TIMEOUT = 60 * 10  # 10 minutes
 
-    def __init__(self, dataset, pk_alias, aliases, rows_expr):
+    def __init__(self, dataset, pk_alias, aliases, rows_expr, timeout=None):
         self.root = _default_connection(None)
         self.dataset = dataset
         self.aliases = set(aliases)
@@ -3400,6 +3410,8 @@ class BackfillFromCSV:
         self.tmp_aliases = {
             a: "{}-{}".format(dataset.id, a) for a in aliases
         }
+        self.progress_tracker = DefaultProgressTracking(timeout or self.TIMEOUT)
+        self.timestamp = datetime.datetime.now().strftime("%Y-%m-%d:%H:%M:%S")
 
     def load_vars_by_alias(self):
         """
@@ -3443,7 +3455,8 @@ class BackfillFromCSV:
          * Uploads the CSV file
          * Renames the variables to disambiguate on the join
         """
-        tmp_name = "Scrunch-backfill-{}-{}".format(self.dataset.name, self.dataset.id)
+        tmp_name = "Scrunch-backfill-{}-{}-{}".format(
+            self.dataset.name, self.dataset.id, self.timestamp)
 
         # Create the new tmp dataset with the schema for the variables
         # from the target dataset. To ensure they are all the same type
@@ -3457,10 +3470,20 @@ class BackfillFromCSV:
         })).refresh()
         try:
             importing.importer.append_csv_string(tmp_ds, csv_file)
-        except Exception as exc:
+        except TaskError as err:
+            raise ValueError(err.args[0])
+        except pycrunch.ClientError as exc:
             # Error importing CSV file
             tmp_ds.delete()
-            raise ValueError("Error importing CSV file - Columns should match specified types")
+            if exc.status_code == 400:
+                # This is a validation error from the server
+                raise ValueError("Error importing CSV file - Columns should match specified types")
+            elif exc.status_code == 413:
+                raise ValueError("Upload failed because the CSV file is too large. Limit is 150MB")
+            else:
+                # Other kind of error. Probably 413, or other kind. Don'w
+                # swallow it. Expose it.
+                raise
 
         # Rename the aliases in the tmp dataset to disambiguate on the join
         tmp_aliases = tmp_ds.variables.by("alias")
@@ -3487,7 +3510,8 @@ class BackfillFromCSV:
             }
         )
         resp = self.dataset.resource.variables.post(join_payload)
-        pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+        pycrunch.shoji.wait_progress(resp, self.dataset.resource.session,
+                                     progress_tracker=self.progress_tracker)
 
     def backfill(self):
         variables_expr = {}
@@ -3520,13 +3544,15 @@ class BackfillFromCSV:
         # filter gets re-applied while we wait.
         if resp.status_code == 202:
             # If the response was async. Wait for it finishing
-            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session)
+            pycrunch.shoji.wait_progress(resp, self.dataset.resource.session,
+                                         progress_tracker=self.progress_tracker)
 
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
         tmp_ds = self.create_tmp_ds(csv_file)
-        with SavepointRestore(self.dataset, "Savepoint before backfill"):
+        sp_msg = "Savepoint before backfill: {}".format(self.timestamp)
+        with SavepointRestore(self.dataset, sp_msg):
             try:
                 self.join_tmp_ds(tmp_ds)
                 self.backfill()
