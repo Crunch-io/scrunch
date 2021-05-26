@@ -8,7 +8,7 @@ to create new variables.
 import csv
 import os
 import tempfile
-from StringIO import StringIO
+from six import StringIO
 from unittest import TestCase
 
 from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT

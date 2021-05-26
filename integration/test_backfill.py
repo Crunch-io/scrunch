@@ -3,7 +3,7 @@
 import os
 import pytest
 import textwrap
-from StringIO import StringIO
+from six import StringIO
 from unittest import TestCase
 
 from scrunch import connect
