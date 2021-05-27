@@ -109,18 +109,16 @@ class TestProjects(TestCase):
         fo_pa = get_project(pa.name, fo_site)
         fo_pa.place(ds4, path="| %s" % pb.name)
         pb.resource.refresh()
-        self.assertItemsEqual(pb.resource.index.keys(),
-            # Only ds4 here
-            [_ds4.self])
+        # Only ds4 here
+        assert sorted(pb.resource.index.keys()) == [_ds4.self]
 
         fo_ds1 = get_dataset(_ds1.body.id, connection=fo_site)
         fo_pa.place(fo_ds1, path="| %s" % pb.name)
 
         pb.resource.refresh()
-        self.assertItemsEqual(pb.resource.index.keys(), [_ds1.self, _ds4.self])
+        assert sorted(pb.resource.index.keys()) == sorted([_ds1.self, _ds4.self])
         pa.place(ds2, path="| %s" % pb.name)
 
         pb.resource.refresh()
-        self.assertItemsEqual(pb.resource.index.keys(),
-            [_ds1.self, _ds2.self, _ds4.self])
+        assert sorted(pb.resource.index.keys()) == sorted([_ds1.self, _ds2.self, _ds4.self])
         self.assertEqual(ds2.resource.project.self, pb.url)
