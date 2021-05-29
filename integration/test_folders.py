@@ -125,7 +125,7 @@ class TestFolders(TestCase):
         bad_path = '| bad folder'
         with self.assertRaises(InvalidPathError) as err:
             ds.folders.get(bad_path)
-        self.assertEqual(err.exception.message, "Invalid path: %s" % bad_path)
+        self.assertEqual(str(err.exception), "Invalid path: %s" % bad_path)
 
     def test_create_folder(self):
         ds = self.ds
