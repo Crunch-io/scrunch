@@ -1,5 +1,6 @@
 import requests
 import six
+from datetime import datetime
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
@@ -232,3 +233,25 @@ def shoji_catalog_wrapper(index, **kwargs):
     }
     payload.update(**kwargs)
     return payload
+
+
+def valid_categorical_date(date_str):
+    """
+    Categories accept a `date` attribute that needs to be a valid ISO8601 date.
+    In order to keep dependencies reduced (no dateutil) and Python2x support,
+    we will support a limited set of simple date formats.
+    """
+    valid_date_masks = [
+        "%Y",
+        "%Y-%m",
+        "%Y-%m-%d",
+    ]
+    for mask in valid_date_masks:
+        try:
+            datetime.strptime(date_str, mask)
+            return True
+        except ValueError:
+            # Did not validate for this mask
+            continue
+    return False
+

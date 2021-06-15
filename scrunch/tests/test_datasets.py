@@ -1437,6 +1437,36 @@ class TestVariables(TestDatasetBase, TestCase):
         var.add_category(2, 'New category', 2, before_id=9)
         var.resource._edit.assert_called_with(categories=var.resource.body['categories'])
 
+    def test_add_category_date(self):
+        ds_mock = self._dataset_mock()
+        ds = BaseDataset(ds_mock)
+        var = ds['var4_alias']
+        var.resource.body['type'] = 'categorical'
+        categories = [
+            {"id": 1, "name": "Female", "missing": False, "numeric_value": 1},
+            {"id": 8, "name": "Male", "missing": False, "numeric_value": 8},
+            {"id": 9, "name": "No Data", "missing": True, "numeric_value": 9}
+        ]
+        var.resource.body['categories'] = categories[:]
+
+        with pytest.raises(ValueError) as err:
+            var.add_category(2, 'New category', 2, date=object())
+        assert str(err.value) == "Date must be a string"
+
+        with pytest.raises(ValueError) as err:
+            var.add_category(2, 'New category', 2, date="invalid date")
+        assert str(err.value) == "Date must conform to Y-m-d format"
+
+        var.add_category(2, 'New category', 2, date="2021-12-12")
+        new_categories = categories[:] + [{
+            "id": 2,
+            "name": "New category",
+            "date": "2021-12-12",
+            "numeric_value": 2,
+            "missing": False
+        }]
+        var.resource._edit.assert_called_with(categories=new_categories)
+
     def test_integrate_variables(self):
         ds_mock = mock.MagicMock()
         var_tuple = mock.MagicMock()
