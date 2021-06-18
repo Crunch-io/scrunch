@@ -17,6 +17,7 @@ class FixtureAdapter(BaseAdapter):
         self.fixtures = {}
         self.requests = []
         self.post_responses = []
+        self.patch_responses = []
 
     def add_fixture(self, url, fixture):
         self.fixtures[url] = fixture
@@ -24,10 +25,15 @@ class FixtureAdapter(BaseAdapter):
     def add_post_response(self, response):
         self.post_responses.append(response)
 
+    def add_patch_response(self, response):
+        self.patch_responses.append(response)
+
     def send(self, request, **kwargs):
         self.requests.append(request)
         if request.method == 'POST':
             response = self.post_responses.pop(0)
+        elif request.method == "PATCH":
+            response = self.patch_responses.pop(0)
         else:
             url = request.url
             if url not in self.fixtures:
@@ -54,6 +60,9 @@ class MockSession(ScrunchSession):
 
     def add_post_response(self, response):
         self.adapter.add_post_response(response)
+
+    def add_patch_response(self, response):
+        self.adapter.add_patch_response(response)
 
     def get_fixture(self, url):
         return self.adapter.fixtures[url]

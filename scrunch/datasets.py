@@ -3275,18 +3275,12 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         return final
 
     def _subtotal_headings(self, operation, name, categories, anchor, negative=None):
-        insertions = []
-        payload = {
-            'view': {
-                'transform': {
-                    'insertions': insertions
-                }
-            }
-        }
-
         # Check if already exists any insertions
-        if 'transform' in self.view:
-            insertions = self.view.transform.insertions[:]
+        view = self.resource.body["view"]
+        if "transform" in view:
+            insertions = view["transform"]["insertions"][:]
+        else:
+            insertions = []
 
         if categories:
             # allow categories to be a int or a category name
@@ -3307,6 +3301,13 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
                 insertion["kwargs"] = {"negative": negative}
             insertions.append(insertion)
 
+        payload = {
+            'view': {
+                'transform': {
+                    'insertions': insertions
+                }
+            }
+        }
         self.resource.patch(payload)
         self.dataset._reload_variables()
         return self.dataset[self.alias]
