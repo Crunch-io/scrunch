@@ -23,7 +23,7 @@ from unittest import TestCase
 from requests import Response
 
 import pytest
-from pycrunch.shoji import Entity, Catalog, Order
+from pycrunch.shoji import Entity, Catalog, Order, Tuple
 from pycrunch.elements import JSONObject, ElementSession, Document
 from pycrunch.variables import cast
 
@@ -6632,3 +6632,86 @@ class TestHeadingSubtotals(TestDatasetBase):
 
         var.add_subtotal_difference("F - M", add=["Female"], subtract=["Male"], anchor="bottom")
         var.resource.patch.assert_called_once_with(expected_payload)
+
+    def test_add_multiple_subtotal_difference(self):
+        session = MockSession()
+        ds_url = "https://example.com/datasets/id/"
+        vars_url = "https://example.com/datasets/id/variables/"
+        var_url = "https://example.com/datasets/id/variable/id/"
+
+        var_tup = Tuple(session, var_url, **{
+            "alias": "my_var",
+            "name": "my_var",
+            "type": "categorical",
+            "view": {}
+        })
+
+        vars_cat = Catalog(session, **{
+            "self": vars_url,
+            "index": {
+                var_url: var_tup
+            }
+        })
+        vars_cat.hier = MagicMock()
+
+        existing_subtotal = {
+            "anchor": "bottom",
+            "name": "F - M",
+            "function": "subtotal",
+            "args": [1],
+            "kwargs": {"negative": [2]}
+        }
+        variable_body = {
+            "self": var_url,
+            "body": {
+                "alias": "my_var",
+                "name": "my_var",
+                "type": "categorical",
+                "categories": [
+                    {"id": 1, "name": "Male"},
+                    {"id": 2, "name": "Female"},
+                ],
+                "view": {
+                    "transform": {
+                        # One subtotal already exists
+                        "insertions": [existing_subtotal]
+                    }
+                }
+            }
+        }
+        var_res = Entity(session, **variable_body)
+        var_tup._entity = var_res
+
+        ds_res = Entity(session, **{
+            "self": ds_url,
+            "body": {},
+            "catalogs": {}
+        })
+        ds_res.variables = vars_cat
+        ds_res.settings = MagicMock()
+        ds_res.folders = MagicMock()
+        ds_res.refresh = MagicMock()
+
+        dataset = BaseDataset(ds_res)
+
+        response = Response()
+        response.status_code = 204
+        session.add_patch_response(response)
+        session.add_fixture(var_url, variable_body)
+
+        variable = Variable(var_tup, dataset)
+        variable.add_subtotal_difference("M - F", add=["Male"], subtract=["Female"], anchor="top")
+
+        # Assert that the last PATCH made contains paylod including BOTH
+        # transforms. The existing and the new one
+        final_patch = session.adapter.requests[-2]
+        payload = json.loads(final_patch.body)
+        assert final_patch.method == "PATCH"
+        assert final_patch.url == var_url
+        assert payload["view"]["transform"]["insertions"] == [existing_subtotal] + [{
+            "anchor": "top",
+            "args": [1],
+            "function": "subtotal",
+            "kwargs": {"negative": [2]},
+            "name": "M - F"
+        }]
