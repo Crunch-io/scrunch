@@ -35,7 +35,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
-                             NOT_SELECTED_ID, NO_DATA_ID)
+                             NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -3055,7 +3055,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             self.resource.edit(derived=False)
             self.dataset._reload_variables()
 
-    def add_category(self, id, name, numeric_value, missing=False, before_id=False):
+    def add_category(self, id, name, numeric_value, missing=False, date=None, before_id=False):
         if self.resource.body['type'] not in CATEGORICAL_TYPES:
             raise TypeError(
                 "Variable of type %s do not have categories"
@@ -3065,6 +3065,18 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             raise TypeError("Cannot add categories on derived variables. Re-derive with the appropriate expression")
 
         categories = self.resource.body['categories']
+        category_data = {
+            'id': id,
+            'missing': missing,
+            'name': name,
+            'numeric_value': numeric_value,
+        }
+        if date is not None:
+            if not isinstance(date, six.string_types):
+                raise ValueError("Date must be a string")
+            if not valid_categorical_date(date):
+                raise ValueError("Date must conform to Y-m-d format")
+            category_data["date"] = date
 
         if before_id:
             # only accept int type
@@ -3079,21 +3091,11 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
             new_categories = []
             for category in categories:
                 if category['id'] == before_id:
-                    new_categories.append({
-                        'id': id,
-                        'missing': missing,
-                        'name': name,
-                        'numeric_value': numeric_value,
-                    })
+                    new_categories.append(category_data)
                 new_categories.append(category)
             categories = new_categories
         else:
-            categories.append({
-                'id': id,
-                'missing': missing,
-                'name': name,
-                'numeric_value': numeric_value,
-            })
+            categories.append(category_data)
 
         resp = self.resource.edit(categories=categories)
         self._reload_variables()

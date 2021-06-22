@@ -9,6 +9,7 @@ class Category(ReadOnly):
     _MUTABLE_ATTRIBUTES = {'name', 'numeric_value', 'missing', 'selected', 'date'}
     _IMMUTABLE_ATTRIBUTES = {'id'}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
+    _NULLABLE_ATTRIBUTES = {"date", "numeric_value", "selected"}
 
     def __init__(self, variable_resource, category):
         super(Category, self).__init__(variable_resource)
@@ -19,7 +20,13 @@ class Category(ReadOnly):
             if item == 'selected':
                 # Default is False; not always present
                 return self._category.get('selected', False)
-            return self._category[item]  # Has to exist
+            try:
+                return self._category[item]
+            except KeyError:
+                if item in self._NULLABLE_ATTRIBUTES:
+                    return None
+                else:
+                    raise  # API returned an incomplete category? Error
 
         # Attribute doesn't exist, must raise an AttributeError
         raise AttributeError(
