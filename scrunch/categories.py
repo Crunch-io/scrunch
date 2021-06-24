@@ -45,6 +45,8 @@ class Category(ReadOnly):
         except KeyError:
             # `date` is not there, just move on
             pass
+        if "date" in dct and dct["date"] is None:
+            del dct["date"]
         if PY2:
             dct['name'] = dct['name'].encode("ascii", "replace")
         dct.update(**kwargs or {})
@@ -68,6 +70,7 @@ class Category(ReadOnly):
 
         categories = [self.as_dict(**kwargs) if cat['id'] == self.id else cat
                       for cat in self.resource.body['categories']]
+        print(categories)
         self.resource.edit(categories=categories)
         self.resource.refresh()
 
