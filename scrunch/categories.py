@@ -70,7 +70,6 @@ class Category(ReadOnly):
 
         categories = [self.as_dict(**kwargs) if cat['id'] == self.id else cat
                       for cat in self.resource.body['categories']]
-        print(categories)
         self.resource.edit(categories=categories)
         self.resource.refresh()
 
