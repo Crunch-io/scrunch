@@ -38,6 +38,29 @@ class TestCategories(TestCase):
         cat_list = variable.categories
         self.assertTrue(isinstance(cat_list, CategoryList))
 
+    def test_category_dict_attribytes(self):
+        resource = EditableMock()
+        resource.entity.body = dict(categories=TEST_CATEGORIES(), type='categorical')
+        variable = Variable(resource, MagicMock())
+        # Does not have `date` unnecessarily
+        assert variable.categories[1].as_dict() == {
+            'id': 1,
+            'missing': False,
+            'name': 'Female',
+            'numeric_value': None,
+            'selected': False
+        }
+        variable.categories[1].edit(date="1990-02-04")
+        # Contains .date if needed
+        assert variable.categories[1].as_dict() == {
+            'id': 1,
+            'missing': False,
+            'name': 'Female',
+            'numeric_value': None,
+            'selected': False,
+            "date": "1990-02-04"
+        }
+
     def test_edit_category(self):
         resource = EditableMock()
         resource.entity.body = dict(

@@ -3,6 +3,7 @@
 import json
 from mock import Mock
 from unittest import TestCase
+from requests import Response
 
 from scrunch.datasets import Team
 from scrunch.datasets import User
@@ -31,6 +32,11 @@ class TestTeams(TestCase):
         }
         session.add_fixture(team_url, team_payload)
         session.add_fixture(team_members_url, team_members_payload)
+        resp = Response()
+        resp.status_code = 204
+        session.add_patch_response(resp)
+        session.add_patch_response(resp)
+
         team_resource = session.get(team_url).payload
         team = Team(team_resource)
         return session, team

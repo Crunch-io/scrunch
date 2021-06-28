@@ -184,6 +184,11 @@ class TestProjectNesting(TestCase):
         session.add_fixture(c_res_url, c_payload)
         session.add_fixture(d_res_url, d_payload)
         session.add_fixture(projects_res_url, projects_catalog)
+
+        response_204 = Response()
+        response_204.status_code = 204
+        session.add_patch_response(response_204)
+        session.add_patch_response(response_204)
         return session
 
     def test_follow_path(self):
@@ -426,6 +431,9 @@ class TestPersonalProject(TestCase):
             "element": "shoji:catalog",
             "index": {}
         })
+        response = Response()
+        response.status_code = 204
+        session.add_patch_response(response)
         return session.get(root_url).payload
 
     def test_get_personal(self):

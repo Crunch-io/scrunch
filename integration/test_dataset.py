@@ -51,3 +51,30 @@ class TestDatasetMethods(TestCase):
         r = ds.follow("table", "limit=10")["data"]
         assert r[variable.body["id"]] == [1, 2, 3, 4, 5]
         ds.delete()
+
+
+class TestCategories(TestCase):
+    def test_edit_category(self):
+        ds = site.datasets.create(as_entity({"name": "test_edit_category"})).refresh()
+
+        categories = [
+            {"id": 1, "name": "One", "missing": False, "numeric_value": None},
+            {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
+            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
+        ]
+
+        my_cat = ds.variables.create(as_entity({
+            "name": "my_cat",
+            "alias": "my_cat",
+            "type": "categorical",
+            "categories": categories
+        }))
+
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        my_cat = scrunch_dataset[my_cat.body["alias"]]  # Ensure refreshed var
+        my_cat.categories[1].edit(numeric_value=1)
+
+        my_cat_reloaded = scrunch_dataset[my_cat.alias]
+        assert my_cat_reloaded.categories[1].as_dict() == dict(categories[0], numeric_value=1, selected=False)
+        assert my_cat_reloaded.categories[2].as_dict() == dict(categories[1], selected=False)
+
