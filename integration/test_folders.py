@@ -277,21 +277,6 @@ class TestFolders(TestCase):
         self.assertTrue(var1_id in self._ds.folders.by('id'))
         self.assertTrue(var1_id not in self._ds.folders.hidden.by('id'))
 
-    def test_trash_variables(self):
-        trash = self.ds.folders.trash
-        root = self.ds.folders.root
-        var1 = self.ds['testvar4']
-        var2 = self.ds['testvar5']
-        root.move_here(var1, var2)
-        trash.move_here(var2)
-
-        var1_id = var1.resource.body.id
-        var2_id = var2.resource.body.id
-        self.assertTrue(var2_id in self._ds.folders.trash.by('id'))
-        self.assertTrue(var2_id not in self._ds.folders.by('id'))
-        self.assertTrue(var1_id in self._ds.folders.by('id'))
-        self.assertTrue(var1_id not in self._ds.folders.trash.by('id'))
-
     def test_rename(self):
         root = self.ds.folders.root
         sf = root.create_folder('rename me')
