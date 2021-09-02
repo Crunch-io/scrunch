@@ -296,10 +296,6 @@ class TestUtilities(object):
             Path(1234)
         assert str(excinfo.value) == 'The path must be a string object'
 
-        with pytest.raises(InvalidPathError) as excinfo:
-            Path('|If SkadefÃ¶rsÃ¤kring')
-        assert str(excinfo.value) == 'Invalid path |If SkadefÃ¶rsÃ¤kring: it contains invalid characters.'
-
         Path('|If Skadeförsäkring')
         Path('|æøå')
 
