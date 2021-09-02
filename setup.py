@@ -36,7 +36,7 @@ params = dict(
         'pycrunch>=0.4.11',
         'requests',
         'six',
-        'cr.cube',
+        'cr.cube==2.3.9',
         'importlib_metadata',
     ],
     extras_require={
