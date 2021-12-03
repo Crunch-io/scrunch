@@ -12,7 +12,6 @@ HOST = os.environ["SCRUNCH_HOST"]
 username = os.environ["SCRUNCH_USER"]
 password = os.environ["SCRUNCH_PASS"]
 
-
 site = connect(username, password, HOST)
 assert site is not None, "Unable to connect to %s" % HOST
 
@@ -65,6 +64,20 @@ class TestSripts(TestCase):
             "line": 1,
             "message": "Invalid command: BAD"
         }]
+
+        # Script big enough to trigger async validation
+        async_script = ["""BAD-RENAME pk TO varA;"""] * 50000
+        async_script = "\n".join(async_script)
+        assert len(async_script) > 2 ** 20  # This is the threshold for async
+        with pytest.raises(ScriptExecutionError) as err:
+            scrunch_dataset.scripts.execute(async_script)
+        assert len(err.value.resolutions) == 50000  # All lines raised error
+        assert err.value.resolutions[0] == {
+            "column": 1,
+            "command": 1,
+            "line": 1,
+            "message": "Invalid command: BAD"
+        }
         ds.delete()
 
     def test_revert_script(self):
