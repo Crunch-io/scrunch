@@ -43,7 +43,7 @@ class TestDatasetMethods(TestCase):
             progress_url = resp.payload["value"]
             progress = site.session.get(progress_url)
             progress_status = progress.payload["value"]
-            assert progress_status == 100
+            assert progress_status == {'progress': 100, 'message': 'complete'}
         else:
             # This means the API handled this synchronously. 204 response
             pass
