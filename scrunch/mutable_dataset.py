@@ -100,9 +100,9 @@ class MutableDataset(BaseDataset):
                 ]
             }
             # add the individual variable columns to the payload
-            for var in columns:
-                var_url = right_ds[var].url
-                payload['body']['args'][0]['map'][var_url] = {'variable': var_url}
+            variables_index_urls = right_ds.resource.variables.index.keys()
+            for url in variables_index_urls:
+                payload['body']['args'][0]['map'][url] = {'variable': url}
 
         if filter:
             # in the case of a filter, convert it to crunch
