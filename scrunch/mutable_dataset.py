@@ -1,6 +1,7 @@
 import json
 
 from pycrunch.shoji import wait_progress
+from pycrunch.progress import DefaultProgressTracking
 from scrunch.datasets import (LOG, BaseDataset, _get_connection, _get_dataset,
                               CATEGORICAL_TYPES)
 from scrunch.exceptions import InvalidDatasetTypeError
@@ -57,7 +58,7 @@ class MutableDataset(BaseDataset):
         self.resource.delete()
 
     def join(self, left_var, right_ds, right_var, columns=None,
-             filter=None, wait=True):
+             filter=None, wait=True, timeout=30):
         """
         Joins a given variable. In crunch joins are left joins, where
         left is the dataset variable and right is other dataset variable.
@@ -114,7 +115,8 @@ class MutableDataset(BaseDataset):
         progress = self.resource.variables.post(payload)
         # poll for progress to finish or return the url to progress
         if wait:
-            return wait_progress(r=progress, session=self.resource.session, entity=self)
+            progress_tracker = DefaultProgressTracking(timeout)
+            return wait_progress(r=progress, session=self.resource.session, progress_tracker=progress_tracker, entity=self)
         return progress.json()['value']
 
     def compare_dataset(self, dataset, use_crunch=False):
