@@ -6082,18 +6082,15 @@ class TestDatasetJoins(TestCase):
     def test_dataset_joins_column_urls(self):
         left_ds = self.left_ds
         right_ds = self.right_ds
-        left_var = left_ds['id']
         right_var = right_ds['id']
 
         left_ds.join('id', right_ds, 'id', ['id'], wait=False)
         call_payload = left_ds.resource.variables.post.call_args[0][0]
         expected_payload = {
             'map': {
-                '%svariables/%s/' % (right_ds.url, right_var.id): {
-                    'variable': '%svariables/%s/' % (right_ds.url, right_var.id)
-                    }
-                }
+                right_var.url: {'variable': right_var.url}
             }
+        }
         assert call_payload['body']['args'][0] == expected_payload
 
 
