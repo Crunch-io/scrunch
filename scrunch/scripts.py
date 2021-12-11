@@ -2,12 +2,13 @@
 
 import json
 import pycrunch
+from pycrunch.shoji import TaskError
 
 
 class ScriptExecutionError(Exception):
-    def __init__(self, client_error):
+    def __init__(self, client_error, resolutions):
         self.client_error = client_error
-        self.resolutions = client_error.args[2]["resolutions"]
+        self.resolutions = resolutions
 
     def __repr__(self):
         return json.dumps(self.resolutions, indent=2)
@@ -27,8 +28,14 @@ class DatasetScripts:
                 'body': {"body": script_body},
             })
         except pycrunch.ClientError as err:
-            if err.status_code == 400:  # Script validation
-                raise ScriptExecutionError(err)
+            if isinstance(err, TaskError):
+                # For async script validation error
+                resolutions = err.message["resolutions"]
+                raise ScriptExecutionError(err, resolutions)
+            elif err.status_code == 400:
+                # For sync validation
+                resolutions = err.args[2]["resolutions"]
+                raise ScriptExecutionError(err, resolutions)
             raise err  # 404 or something else
 
     def collapse(self):
