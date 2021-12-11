@@ -6060,8 +6060,10 @@ class TestDatasetJoins(TestCase):
         left_var = left_ds['id']
         right_var = right_ds['id']
 
-        left_ds.join('id', right_ds, 'id', wait=False)
+        with mock.patch("scrunch.mutable_dataset.wait_progress") as mock_wait:
+            left_ds.join('id', right_ds, 'id', timeout=666)
 
+        assert mock_wait.call_args[1]["progress_tracker"].timeout == 666
         call_payload = left_ds.resource.variables.post.call_args[0][0]
         expected_payload = {
             'element': 'shoji:entity',
@@ -6084,7 +6086,8 @@ class TestDatasetJoins(TestCase):
         right_ds = self.right_ds
         right_var = right_ds['id']
 
-        left_ds.join('id', right_ds, 'id', ['id'], wait=False)
+        with mock.patch("scrunch.mutable_dataset.wait_progress") as mock_wait:
+            left_ds.join('id', right_ds, 'id', ['id'])
         call_payload = left_ds.resource.variables.post.call_args[0][0]
         expected_payload = {
             'map': {
