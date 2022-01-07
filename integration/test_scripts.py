@@ -62,6 +62,7 @@ class TestSripts(TestCase):
             "column": 1,
             "command": 1,
             "line": 1,
+            "hint": "BAD-RENAME...",
             "message": "Invalid command: BAD"
         }]
 
