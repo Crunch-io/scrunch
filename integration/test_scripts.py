@@ -62,7 +62,7 @@ class TestSripts(TestCase):
         assert resolutions["column"] == 1
         assert resolutions["line"] == 1
         assert resolutions["command"] == 1
-        assert resolutions["message"] == "message": "Invalid command: BAD"
+        assert resolutions["message"] == "Invalid command: BAD"
 
         # Script big enough to trigger async validation
         async_script = ["""BAD-RENAME pk TO varA;"""] * 50000
