@@ -58,13 +58,11 @@ class TestSripts(TestCase):
 
         variable.refresh()
         assert variable.body["alias"] == "pk"  # Unchanged
-        assert err.value.resolutions == [{
-            "column": 1,
-            "command": 1,
-            "line": 1,
-            "hint": "BAD-RENAME...",
-            "message": "Invalid command: BAD"
-        }]
+        resolutions = err.value.resolutions[0]
+        assert resolutions["column"] == 1
+        assert resolutions["line"] == 1
+        assert resolutions["command"] == 1
+        assert resolutions["message"] == "message": "Invalid command: BAD"
 
         # Script big enough to trigger async validation
         async_script = ["""BAD-RENAME pk TO varA;"""] * 50000
