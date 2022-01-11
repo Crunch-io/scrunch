@@ -71,12 +71,11 @@ class TestSripts(TestCase):
         with pytest.raises(ScriptExecutionError) as err:
             scrunch_dataset.scripts.execute(async_script)
         assert len(err.value.resolutions) == 50000  # All lines raised error
-        assert err.value.resolutions[0] == {
-            "column": 1,
-            "command": 1,
-            "line": 1,
-            "message": "Invalid command: BAD"
-        }
+        resolutions = err.value.resolutions[0]
+        assert resolutions["column"] == 1
+        assert resolutions["line"] == 1
+        assert resolutions["command"] == 1
+        assert resolutions["message"] == "Invalid command: BAD"
         ds.delete()
 
     def test_revert_script(self):
