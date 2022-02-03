@@ -205,7 +205,9 @@ class DatasetFolders(object):
     def __init__(self, dataset):
         self.dataset = dataset
         folders_root = dataset.resource.folders
-        # Dataset viewers may not get all folders exposed
+
+        # Due the rolling nature of the API we want Scrunch to work with both
+        # the new Public root and old style folders API as well
         if "public" in folders_root.catalogs:
             # New style with public folders
             self.public = Folder(folders_root.public, self, None)
@@ -215,6 +217,7 @@ class DatasetFolders(object):
             self.public = Folder(folders_root, self, None)
             self.root = Folder(folders_root, self, None)  # Legacy
 
+        # Dataset viewers may not get all folders exposed
         if "hidden" in folders_root.catalogs:
             self.hidden = Folder(folders_root.hidden, self, None)
         if "secure" in folders_root.catalogs:
