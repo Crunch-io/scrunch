@@ -31,9 +31,9 @@ def test_unique_folders():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
     folders_url = 'http://host/api/datasets/abc/folders/'
+    public_url = 'http://host/api/datasets/abc/folders/public/'
     hidden_url = 'http://host/api/datasets/abc/folders/hidden/'
     secure_url = 'http://host/api/datasets/abc/folders/secure/'
-    trash_url = 'http://host/api/datasets/abc/folders/trash/'
     dataset_resource = Entity(session, **{
         "element": "shoji:entity",
         "self": dataset_url,
@@ -54,10 +54,18 @@ def test_unique_folders():
             "name": "Root"
         },
         "catalogs": {
+            "public": public_url,
             "hidden": hidden_url,
             "secure": secure_url,
-            "trash": trash_url,
         }
+    })
+    public_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": public_url,
+        "index": {},
+        "body": {
+            "name": "Public"
+        },
     })
     hidden_resource = Catalog(session, **{
         "element": "shoji:catalog",
@@ -75,32 +83,60 @@ def test_unique_folders():
             "name": "Secure"
         },
     })
-    trash_resource = Catalog(session, **{
-        "element": "shoji:catalog",
-        "self": trash_url,
-        "index": {},
-        "body": {
-            "name": "Trash"
-        },
-    })
     session.add_fixture(folders_url, folders_resource)
+    session.add_fixture(public_url, public_resource)
     session.add_fixture(hidden_url, hidden_resource)
     session.add_fixture(secure_url, secure_resource)
-    session.add_fixture(trash_url, trash_resource)
+    dataset = MutableDataset(dataset_resource)
+
+    assert dataset.folders.public.name == "Public"
+    assert dataset.folders.hidden.name == "Hidden"
+    assert dataset.folders.secure.name == "Secure"
+
+
+def test_legacy_without_public():
+    session = MockSession()
+    dataset_url = 'http://host/api/datasets/abc/'
+    folders_url = 'http://host/api/datasets/abc/folders/'
+    dataset_resource = Entity(session, **{
+        "element": "shoji:entity",
+        "self": dataset_url,
+        "body": {
+            "name": "test_dataset_project"
+        },
+        "catalogs": {
+            "folders": folders_url,
+        }
+    })
+    dataset_resource.variables = MagicMock()
+    dataset_resource.settings = MagicMock()
+
+    # In this old format, there is no `public` catalog to follow. Scrunch
+    # should use the folder_root as the .public and .root
+    folders_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": folders_url,
+        "index": {},
+        "body": {
+            "name": "Root"
+        },
+        "catalogs": {
+        }
+    })
+    session.add_fixture(folders_url, folders_resource)
     dataset = MutableDataset(dataset_resource)
 
     assert dataset.folders.root.name == "Root"
-    assert dataset.folders.hidden.name == "Hidden"
-    assert dataset.folders.secure.name == "Secure"
-    assert dataset.folders.trash.name == "Trash"
+    # Note how the public endpoint has Root because it uses the old API response
+    assert dataset.folders.public.name == "Root"
 
 
 def test_unique_folders_no_secure():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
     folders_url = 'http://host/api/datasets/abc/folders/'
+    public_url = 'http://host/api/datasets/abc/folders/public/'
     hidden_url = 'http://host/api/datasets/abc/folders/hidden/'
-    trash_url = 'http://host/api/datasets/abc/folders/trash/'
     dataset_resource = Entity(session, **{
         "element": "shoji:entity",
         "self": dataset_url,
@@ -121,11 +157,19 @@ def test_unique_folders_no_secure():
             "name": "Root"
         },
         "catalogs": {
+            "public": public_url,
             "hidden": hidden_url,
             # Viewer users don't have the secure folder available
             # "secure": secure_url,
-            "trash": trash_url,
         }
+    })
+    public_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": hidden_url,
+        "index": {},
+        "body": {
+            "name": "Public"
+        },
     })
     hidden_resource = Catalog(session, **{
         "element": "shoji:catalog",
@@ -135,22 +179,13 @@ def test_unique_folders_no_secure():
             "name": "Hidden"
         },
     })
-    trash_resource = Catalog(session, **{
-        "element": "shoji:catalog",
-        "self": trash_url,
-        "index": {},
-        "body": {
-            "name": "Trash"
-        },
-    })
     session.add_fixture(folders_url, folders_resource)
+    session.add_fixture(public_url, public_resource)
     session.add_fixture(hidden_url, hidden_resource)
-    session.add_fixture(trash_url, trash_resource)
     dataset = MutableDataset(dataset_resource)
 
-    assert dataset.folders.root.name == "Root"
+    assert dataset.folders.public.name == "Public"
     assert dataset.folders.hidden.name == "Hidden"
-    assert dataset.folders.trash.name == "Trash"
     assert not hasattr(dataset.folders, "secure")
 
 
@@ -158,6 +193,7 @@ def test_unique_folders_no_hidden():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
     folders_url = 'http://host/api/datasets/abc/folders/'
+    public_url = 'http://host/api/datasets/abc/folders/public/'
     dataset_resource = Entity(session, **{
         "element": "shoji:entity",
         "self": dataset_url,
@@ -179,20 +215,27 @@ def test_unique_folders_no_hidden():
         },
         "catalogs": {
             # Standard exposed catalogs
+            "public": public_url,
             "personal": "./personal/",
             "parents": "./parents/",
             # Viewer users don't have the secure folder available
             # "secure": secure_url,
             # Viewers also don't get the hidden folder exposed
             # "hidden": hidden_url,
-            # Nor the trash
-            # "trash": trash_url,
         }
     })
+    public_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": public_url,
+        "index": {},
+        "body": {
+            "name": "Public"
+        },
+    })
     session.add_fixture(folders_url, folders_resource)
+    session.add_fixture(public_url, public_resource)
     dataset = MutableDataset(dataset_resource)
 
-    assert dataset.folders.root.name == "Root"
+    assert dataset.folders.public.name == "Public"
     assert not hasattr(dataset.folders, "secure")
     assert not hasattr(dataset.folders, "hidden")
-    assert not hasattr(dataset.folders, "trash")

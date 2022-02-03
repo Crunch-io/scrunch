@@ -205,34 +205,43 @@ class DatasetFolders(object):
     def __init__(self, dataset):
         self.dataset = dataset
         folders_root = dataset.resource.folders
-        self.root = Folder(folders_root, self, None)
+
+        # Due the rolling nature of the API we want Scrunch to work with both
+        # the new Public root and old style folders API as well
+        if "public" in folders_root.catalogs:
+            # New style with public folders
+            self.public = Folder(folders_root.public, self, None)
+            self.root = Folder(folders_root.public, self, None)  # Legacy
+        else:
+            # Old without public root
+            self.public = Folder(folders_root, self, None)
+            self.root = Folder(folders_root, self, None)  # Legacy
+
         # Dataset viewers may not get all folders exposed
         if "hidden" in folders_root.catalogs:
             self.hidden = Folder(folders_root.hidden, self, None)
-        if "trash" in folders_root.catalogs:
-            self.trash = Folder(folders_root.trash, self, None)
         if "secure" in folders_root.catalogs:
             self.secure = Folder(folders_root.secure, self, None)
 
     def get(self, path):
-        return self.root.get(path)
+        return self.public.get(path)
 
     def __getitem__(self, path):
-        return self.root.get(path)
+        return self.public.get(path)
 
     def __iter__(self):
-        return self.root.itervalues()
+        return self.public.itervalues()
 
     def iterkeys(self):
-        for child in self.root.children:
+        for child in self.public.children:
             yield child.alias
 
     def itervalues(self):
-        for child in self.root.children:
+        for child in self.public.children:
             yield child
 
     def iteritems(self):
-        for child in self.root.children:
+        for child in self.public.children:
             yield (child.alias, child)
 
     def values(self):

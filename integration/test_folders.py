@@ -96,12 +96,12 @@ class TestFolders(TestCase):
 
     def test_get_folders(self):
         ds = self.ds
-        root = ds.folders.get('|')
+        public = ds.folders.get('|')
         sf1 = ds.folders.get('| Subfolder 1')
         sfa = ds.folders.get('| Subfolder 1 | Subfolder A')
 
         # Equivalent ways of fetching Subfolder A
-        sfa2 = root.get('Subfolder 1 | Subfolder A')
+        sfa2 = public.get('Subfolder 1 | Subfolder A')
         sfa3 = sf1.get('Subfolder A')
         self.assertEqual(sfa.url, sfa2.url)
         self.assertEqual(sfa.url, sfa3.url)
@@ -115,7 +115,7 @@ class TestFolders(TestCase):
 
         self.assertEqual(sf1.name, 'Subfolder 1')
         self.assertEqual(sfa.name, 'Subfolder A')
-        self.assertEqual(sf1.parent, root)
+        self.assertEqual(sf1.parent, public)
         self.assertEqual(sfa.parent.name, sf1.name)
         self.assertEqual(sfa.parent.path, sf1.path)
         self.assertEqual(sfa.path, '| Subfolder 1 | Subfolder A')
@@ -129,26 +129,26 @@ class TestFolders(TestCase):
 
     def test_create_folder(self):
         ds = self.ds
-        root = ds.folders.get('|')
-        mit = root.create_folder('Made in test')
+        public = ds.folders.get('|')
+        mit = public.create_folder('Made in test')
         self.assertEqual(mit.path, "| Made in test")
-        mit2 = root.get(mit.name)
+        mit2 = public.get(mit.name)
         self.assertEqual(mit2.url, mit.url)
         nested = mit.create_folder('nested level')
         self.assertEqual(mit.get_child(nested.name).url, nested.url)
 
     def test_create_folder_with_variables(self):
         ds = self.ds
-        root = ds.folders.root
-        sf = root.create_folder("with children", alias=['testvar1', 'testvar2'])
+        public = ds.folders.public
+        sf = public.create_folder("with children", alias=['testvar1', 'testvar2'])
         self.assertEqual([Variable, Variable], [type(c) for c in sf.children])
         self.assertEqual(['testvar1', 'testvar2'],
             [c.alias for c in sf.children])
 
     def test_reorder_folder(self):
         ds = self.ds
-        root = ds.folders.get('|')
-        folder = root.create_folder('ToReorder')
+        public = ds.folders.get('|')
+        folder = public.create_folder('ToReorder')
         sf1 = folder.create_folder('1')
         sf2 = folder.create_folder('2')
         sf3 = folder.create_folder('3')
@@ -173,14 +173,14 @@ class TestFolders(TestCase):
 
     def test_move_to_folder(self):
         ds = self.ds
-        sf = ds.folders.root.create_folder("target")
+        sf = ds.folders.public.create_folder("target")
         ds['testvar1'].move_to_folder(sf.path)
         self.assertEqual(['testvar1'], [c.alias for c in sf.children])
 
     def test_move_between_folders(self):
-        root = self.ds.folders.root
-        target1 = root.create_folder("t1")
-        target2 = root.create_folder("t2")
+        public = self.ds.folders.public
+        target1 = public.create_folder("t1")
+        target2 = public.create_folder("t2")
         self.assertEqual(target1.children, [])
         self.assertEqual(target2.children, [])
         var1 = self.ds['testvar2']
@@ -228,8 +228,8 @@ class TestFolders(TestCase):
             [nested.url])
 
     def test_move_here_position(self):
-        root = self.ds.folders.root
-        sf = root.create_folder("here")
+        public = self.ds.folders.public
+        sf = public.create_folder("here")
         sf.move_here(self.ds['testvar1'])
         sf.move_here(self.ds['testvar2'], before='testvar1')
         self.assertEqual([c.name for c in sf.children], ['testvar2', 'testvar1'])
@@ -239,35 +239,35 @@ class TestFolders(TestCase):
         self.assertEqual([c.name for c in sf.children], ['testvar2', 'testvar4', 'testvar3', 'testvar1'])
 
     def test_move_by_alias(self):
-        root = self.ds.folders.root
-        target = root.create_folder("test_move_by_alias")
+        public = self.ds.folders.public
+        target = public.create_folder("test_move_by_alias")
         target.move_here('testvar2')
         self.assertEqual([c.name for c in target.children], ["testvar2"])
 
     def test_make_folder_in_position(self):
-        root = self.ds.folders.root.create_folder('testhere')
-        root.create_folder("p1")
-        root.create_folder("p2")
-        root.create_folder("p3")
+        public = self.ds.folders.public.create_folder('testhere')
+        public.create_folder("p1")
+        public.create_folder("p2")
+        public.create_folder("p3")
 
-        root.create_folder("A", before="p2")
-        self.assertEqual([c.name for c in root.children],
+        public.create_folder("A", before="p2")
+        self.assertEqual([c.name for c in public.children],
             ["p1", "A", "p2", "p3"])
 
-        root.create_folder("B", after="p2")
-        self.assertEqual([c.name for c in root.children],
+        public.create_folder("B", after="p2")
+        self.assertEqual([c.name for c in public.children],
             ["p1", "A", "p2", "B", "p3"])
 
-        root.create_folder("C", position=3)
-        self.assertEqual([c.name for c in root.children],
+        public.create_folder("C", position=3)
+        self.assertEqual([c.name for c in public.children],
             ["p1", "A", "p2", "C", "B", "p3"])
 
     def test_hide_variables(self):
         hidden_folder = self.ds.folders.hidden
-        root = self.ds.folders.root
+        public = self.ds.folders.public
         var1 = self.ds['testvar4']
         var2 = self.ds['testvar5']
-        root.move_here(var1, var2)
+        public.move_here(var1, var2)
         hidden_folder.move_here(var2)
 
         var1_id = var1.resource.body.id
@@ -278,49 +278,49 @@ class TestFolders(TestCase):
         self.assertTrue(var1_id not in self._ds.folders.hidden.by('id'))
 
     def test_rename(self):
-        root = self.ds.folders.root
-        sf = root.create_folder('rename me')
+        public = self.ds.folders.public
+        sf = public.create_folder('rename me')
         sf.rename("renamed")
-        self.assertTrue('renamed' in [c.name for c in root.children])
+        self.assertTrue('renamed' in [c.name for c in public.children])
         self.assertEqual(sf.name, 'renamed')
 
     def test_delete_folder(self):
-        root = self.ds.folders.root
+        public = self.ds.folders.public
         var = self.ds['testvar6']
-        sf = root.create_folder('delete me')
+        sf = public.create_folder('delete me')
         sf.move_here(var)
         self.assertTrue(var.url in self._ds.variables.index)
         sf.delete()
-        # Folder isn't in root anymore
-        self.assertFalse(sf.url in [c.url for c in root.children])
+        # Folder isn't in public anymore
+        self.assertFalse(sf.url in [c.url for c in public.children])
 
     def test_dict_protocol(self):
-        root = self.ds.folders.root
-        sf1 = root.create_folder("level1")
-        sf1a = root.create_folder("level1a")
+        public = self.ds.folders.public
+        sf1 = public.create_folder("level1")
+        sf1a = public.create_folder("level1a")
         sf2 = sf1.create_folder("level2")
 
         # Access by path []
-        self.assertEqual(root[sf2.path].url, sf2.url)
+        self.assertEqual(public[sf2.path].url, sf2.url)
 
         # Access by name
-        self.assertEqual(root[sf1.name].url, sf1.url)
+        self.assertEqual(public[sf1.name].url, sf1.url)
         self.assertEqual(sf1[sf2.name].url, sf2.url)
 
         # __iter__ method
-        self.assertEqual([c.url for c in root], [c.url for c in root.children])
+        self.assertEqual([c.url for c in public], [c.url for c in public.children])
 
         # more dict methods
-        self.assertEqual(set(dict(root).keys()), set(root.keys()))
-        self.assertEqual({c.url for c in dict(root).values()},
-            {c.url for c in root.children})
+        self.assertEqual(set(dict(public).keys()), set(public.keys()))
+        self.assertEqual({c.url for c in dict(public).values()},
+            {c.url for c in public.children})
         # The right key corresponds to the correct value
-        self.assertEqual(dict(root)[sf1.name].url, sf1.url)
+        self.assertEqual(dict(public)[sf1.name].url, sf1.url)
 
     def test_dict_protocol_on_helper(self):
-        root = self.ds.folders.root
-        sf1 = root.create_folder("level1")
-        sf1a = root.create_folder("level1a")
+        public = self.ds.folders.public
+        sf1 = public.create_folder("level1")
+        sf1a = public.create_folder("level1a")
         sf2 = sf1.create_folder("level2")
 
         top_level = self.ds.folders  # Testing over the helper class
@@ -332,12 +332,12 @@ class TestFolders(TestCase):
 
         # __iter__ method
         self.assertEqual([c.url for c in top_level],
-            [c.url for c in root.children])
+            [c.url for c in public.children])
 
         # more dict methods
-        self.assertEqual(set(dict(top_level).keys()), set(root.keys()))
+        self.assertEqual(set(dict(top_level).keys()), set(public.keys()))
         self.assertEqual({c.url for c in dict(top_level).values()},
-            {c.url for c in root.children})
+            {c.url for c in public.children})
         # The right key corresponds to the correct value
         self.assertEqual(dict(top_level)[sf1.name].url, sf1.url)
 
