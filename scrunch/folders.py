@@ -206,7 +206,15 @@ class DatasetFolders(object):
         self.dataset = dataset
         folders_root = dataset.resource.folders
         # Dataset viewers may not get all folders exposed
-        self.public = Folder(folders_root.public, self, None)
+        if "public" in folders_root.catalogs:
+            # New style with public folders
+            self.public = Folder(folders_root.public, self, None)
+            self.root = Folder(folders_root.public, self, None)  # Legacy
+        else:
+            # Old without public root
+            self.public = Folder(folders_root, self, None)
+            self.root = Folder(folders_root, self, None)  # Legacy
+
         if "hidden" in folders_root.catalogs:
             self.hidden = Folder(folders_root.hidden, self, None)
         if "secure" in folders_root.catalogs:

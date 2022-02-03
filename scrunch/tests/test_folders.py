@@ -94,6 +94,43 @@ def test_unique_folders():
     assert dataset.folders.secure.name == "Secure"
 
 
+def test_legacy_without_public():
+    session = MockSession()
+    dataset_url = 'http://host/api/datasets/abc/'
+    folders_url = 'http://host/api/datasets/abc/folders/'
+    dataset_resource = Entity(session, **{
+        "element": "shoji:entity",
+        "self": dataset_url,
+        "body": {
+            "name": "test_dataset_project"
+        },
+        "catalogs": {
+            "folders": folders_url,
+        }
+    })
+    dataset_resource.variables = MagicMock()
+    dataset_resource.settings = MagicMock()
+
+    # In this old format, there is no `public` catalog to follow. Scrunch
+    # should use the folder_root as the .public and .root
+    folders_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": folders_url,
+        "index": {},
+        "body": {
+            "name": "Root"
+        },
+        "catalogs": {
+        }
+    })
+    session.add_fixture(folders_url, folders_resource)
+    dataset = MutableDataset(dataset_resource)
+
+    assert dataset.folders.root.name == "Root"
+    # Note how the public endpoint has Root because it uses the old API response
+    assert dataset.folders.public.name == "Root"
+
+
 def test_unique_folders_no_secure():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
