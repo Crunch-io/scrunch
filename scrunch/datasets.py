@@ -238,7 +238,8 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     ds = Dataset(shoji_ds)
     if editor is True:
-        ds.change_editor(root.session.email)
+        authenticated_email = root.session.user["body"]["email"]
+        ds.change_editor(authenticated_email)
     return ds
 
 
@@ -2506,8 +2507,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset always
-        user = get_user(self.resource.session.email)
         fork_ds = MutableDataset(_fork)
+        authenticated_email = self.resource.session.user["body"]["email"]
+        user = get_user(authenticated_email)
         fork_ds.change_editor(user)
         return fork_ds
 
