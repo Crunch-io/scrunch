@@ -1046,7 +1046,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         if not isinstance(user, User):
             user = get_user(user)
-        self.resource.patch({'current_editor': user.url})
+        payload = shoji_entity_wrapper({'current_editor': user.url})
+        self.resource.patch(payload)
         self.resource.refresh()
 
     def make_mutable(self):
