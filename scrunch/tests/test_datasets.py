@@ -1540,10 +1540,20 @@ class TestCurrentEditor(TestDatasetBase, TestCase):
         ds_res.self = self.ds_url
         ds_res.patch = MagicMock()
         ds = StreamingDataset(ds_res)
-        ds.change_editor('jane.doe@crunch.io')
 
+        # Change sending user email
+        ds.change_editor('jane.doe@crunch.io')
         ds_res.patch.assert_called_with({
-            'current_editor': self.user_url
+            "element": "shoji:entity",
+            "body": {'current_editor': self.user_url}
+        })
+
+        # Change sending user URL
+        ds_res.patch = MagicMock()
+        ds.change_editor(self.user_url)
+        ds_res.patch.assert_called_with({
+            "element": "shoji:entity",
+            "body": {'current_editor': self.user_url}
         })
 
 

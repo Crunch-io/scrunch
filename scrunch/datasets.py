@@ -238,8 +238,8 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     ds = Dataset(shoji_ds)
     if editor is True:
-        authenticated_email = root.session.user["body"]["email"]
-        ds.change_editor(authenticated_email)
+        authenticated_url = root.session.views["user_url"]
+        ds.change_editor(authenticated_url)
     return ds
 
 
@@ -1044,9 +1044,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             The email or a User instance of the user who should
             be set as the new current editor of the given dataset.
         """
-        if not isinstance(user, User):
+        if isinstance(user, User):
+            user_url = user.url
+        elif "@" in user:
+            # Is this an email? Then discover the URL for that user
             user = get_user(user)
-        payload = shoji_entity_wrapper({'current_editor': user.url})
+            user_url = user.url
+        else:
+            # Otherwise, assume the provided argument is a URL
+            user_url = user
+
+        payload = shoji_entity_wrapper({'current_editor': user_url})
         self.resource.patch(payload)
         self.resource.refresh()
 
@@ -2509,9 +2517,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset always
         fork_ds = MutableDataset(_fork)
-        authenticated_email = self.resource.session.user["body"]["email"]
-        user = get_user(authenticated_email)
-        fork_ds.change_editor(user)
+        authenticated_url = self.resource.session.views["user_url"]
+        fork_ds.change_editor(authenticated_url)
         return fork_ds
 
     def replace_values(self, variables, filter=None, literal_subvar=False):
