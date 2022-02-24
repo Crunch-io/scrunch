@@ -238,7 +238,7 @@ def get_dataset(dataset, connection=None, editor=False, project=None):
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     ds = Dataset(shoji_ds)
     if editor is True:
-        authenticated_url = root.session.views["user_url"]
+        authenticated_url = root.urls["user_url"]
         ds.change_editor(authenticated_url)
     return ds
 
@@ -2517,7 +2517,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset always
         fork_ds = MutableDataset(_fork)
-        authenticated_url = self.resource.session.views["user_url"]
+        authenticated_url = root.urls["user_url"]
         fork_ds.change_editor(authenticated_url)
         return fork_ds
 

@@ -37,7 +37,7 @@ class TestSripts(TestCase):
 
     def test_execute(self):
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site, editor=True)
         script = """
         RENAME pk TO varA;
 
