@@ -20,7 +20,8 @@ def get_mutable_dataset(dataset, connection=None, editor=False, project=None):
             use get_streaming_dataset method instead" % dataset)
     ds = MutableDataset(shoji_ds)
     if editor is True:
-        ds.change_editor(root.session.email)
+        authenticated_url = root.session.views["user_url"]
+        ds.change_editor(authenticated_url)
     return ds
 
 
