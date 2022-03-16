@@ -23,7 +23,7 @@ from unittest import TestCase
 from requests import Response
 
 import pytest
-from pycrunch.shoji import Entity, Catalog, Order, Tuple
+from pycrunch.shoji import Entity, Catalog, Tuple, as_entity
 from pycrunch.elements import JSONObject, ElementSession, Document
 from pycrunch.variables import cast
 
@@ -1747,50 +1747,39 @@ class TestSavepoints(TestCase):
 
 
 class TestForks(TestCase):
-
     ds_url = 'http://test.crunch.io/api/datasets/123/'
     user_url = 'https://test.crunch.io/api/users/12345/'
 
-    @mock.patch('scrunch.datasets.get_user')
-    def test_fork(self, mocked_get_user):
+    def test_fork(self):
+        user_url = "some_user_url"
         sess = MagicMock()
-        response = MagicMock()
-        user = MagicMock()
-        user.resource.self = self.user_url
-        user.url = self.user_url
-        mocked_get_user.return_value = user
-        response.payload = {
-            'index': {
-                self.user_url: {
-                    'email': 'jane.doe@crunch.io'
-                }
-            }
+        sess.root.urls = {
+            "user_url": user_url
         }
-
-        def _get(*args, **kwargs):
-            return response
-
-        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': 'http://test.crunch.io/api/users/123/',
             'streaming': 'yes'
         })
+        fork_res = MagicMock()
+
+        def _create(*args):
+            created = MagicMock(refresh=lambda: fork_res)
+            return created
+
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
-        ds_res.forks.index = {}
+        ds_res.forks.create.side_effect = _create
         ds = StreamingDataset(ds_res)
         forked_ds = ds.fork(preserve_owner=False)
         assert isinstance(forked_ds, MutableDataset)
-        ds_res.forks.create.assert_called_with({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'FORK #1 of ds name',
-                'description': 'ds description',
-                'is_published': False,
-            }
-        })
+        ds_res.forks.create.assert_called_with(as_entity({
+            'name': 'FORK #1 of ds name',
+            'description': 'ds description',
+            'is_published': False,
+        }))
+        fork_res.patch.assert_called_with(as_entity({'current_editor': user_url}))
 
     @mock.patch('scrunch.datasets.get_user')
     def test_fork_preserve_owner(self, mocked_get_user):

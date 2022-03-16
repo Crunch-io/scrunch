@@ -2517,7 +2517,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset always
         fork_ds = MutableDataset(_fork)
-        authenticated_url = root.urls["user_url"]
+        authenticated_url = self.resource.session.root.urls["user_url"]
         fork_ds.change_editor(authenticated_url)
         return fork_ds
 

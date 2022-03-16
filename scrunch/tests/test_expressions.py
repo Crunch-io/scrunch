@@ -1,5 +1,6 @@
 import pytest
-from unittest import TestCase, mock
+import mock
+from unittest import TestCase
 
 import scrunch
 from scrunch.datasets import parse_expr
