@@ -47,10 +47,11 @@ class FixtureAdapter(BaseAdapter):
 
 
 class MockSession(ScrunchSession):
-    token = None
+    token = "xxx"
+    site_url = "https://example.com"
 
     def __init__(self):
-        ScrunchSession.__init__(self)
+        ScrunchSession.__init__(self, token=self.token, site_url=self.site_url)
         self.adapter = FixtureAdapter()
         self.adapters['http://'] = self.adapter
         self.adapters['https://'] = self.adapter
