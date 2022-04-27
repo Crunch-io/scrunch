@@ -132,31 +132,53 @@ def _get_connection(file_path='crunch.ini'):
     """
     if pycrunch.session is not None:
         return pycrunch.session
+
+    connection_kwargs = {}
+
     # try to get credentials from environment
+    site = os.environ.get('CRUNCH_URL')
+    if site:
+        connection_kwargs["site_url"] = site
+
+    api_key = os.environ.get('CRUNCH_API_KEY')
     username = os.environ.get('CRUNCH_USERNAME')
     password = os.environ.get('CRUNCH_PASSWORD')
-    site = os.environ.get('CRUNCH_URL')
-    if username and password and site:
-        return connect(username, password, site)
+    if api_key:
+        connection_kwargs["api_key"] = api_key
     elif username and password:
-        return connect(username, password)
+        connection_kwargs["username"] = username
+        connection_kwargs["pw"] = password
+
+    if connection_kwargs:
+        return connect(**connection_kwargs)
+
     # try reading from .ini file
     config = configparser.ConfigParser()
     config.read(file_path)
     try:
-        username = config.get('DEFAULT', 'CRUNCH_USERNAME')
-        password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
-    except Exception:
-        username = password = None
-    try:
         site = config.get('DEFAULT', 'CRUNCH_URL')
+        connection_kwargs["site_url"] = site
     except Exception:
-        site = None
+        pass
+
+    try:
+        api_key = config.get('DEFAULT', 'CRUNCH_API_KEY')
+        connection_kwargs["api_key"] = api_key
+    except Exception:
+        pass
+
+    if not api_key:
+        try:
+            username = config.get('DEFAULT', 'CRUNCH_USERNAME')
+            password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
+            connection_kwargs["username"] = username
+            connection_kwargs["pw"] = password
+        except Exception:
+            pass
+
     # now try to login with obtained creds
-    if username and password and site:
-        return connect(username, password, site)
-    elif username and password:
-        return connect(username, password)
+    if connection_kwargs:
+        return connect(**connection_kwargs)
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file "
