@@ -1997,7 +1997,6 @@ class TestFillVariables(TestCase):
         dataset_url = 'http://host/api/projects/abc/'
         variables_url = "http://host/api/projects/abc/variables/"
         new_var_url = "http://host/api/projects/abc/variables/123/"
-        hier_url = "http://host/api/projects/abc/variables/hier/"
         table_url = "http://host/api/projects/abc/table/?limit=0"
         dataset_resource = Entity(session, **{
             "element": "shoji:entity",
@@ -2030,16 +2029,7 @@ class TestFillVariables(TestCase):
                     "type": "categorical",
                     "id": "123"
                 }
-            },
-            "catalogs": {
-                "hier": hier_url
-            }
-        }
-        hier_payload = {
-            "element": "shoji:order",
-            "self": hier_url,
-            "graph": ["../001/", "../002/"]
-        }
+            }a        }
         table_payload = {
             "element": "crunch:table",
             "self": table_url,
@@ -2056,7 +2046,6 @@ class TestFillVariables(TestCase):
             }
         }
         session.add_fixture(variables_url, variables_payload)
-        session.add_fixture(hier_url, hier_payload)
         session.add_fixture(table_url, table_payload)
         session.add_fixture(new_var_url, new_var_payload)
 
@@ -2084,7 +2073,7 @@ class TestFillVariables(TestCase):
         ds.create_fill_values(responses, alias="filled", name="Filled var")
 
         # Check that the POST request contains the expected expression
-        post_request = session.requests[-4]
+        post_request = session.requests[-3]
         self.assertEqual(post_request.method, "POST")
         self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
         case_expr = {
@@ -2149,7 +2138,7 @@ class TestFillVariables(TestCase):
         ds.create_fill_values(responses, alias="filled", name="Filled var")
 
         # Check that the POST request contains the expected expression
-        post_request = session.requests[-4]
+        post_request = session.requests[-3]
         self.assertEqual(post_request.method, "POST")
         self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
         case_expr = {
@@ -2206,7 +2195,7 @@ class TestFillVariables(TestCase):
         ds.create_fill_values(responses, alias="filled", name="Filled var")
 
         # Check that the POST request contains the expected expression
-        post_request = session.requests[-4]
+        post_request = session.requests[-3]
         self.assertEqual(post_request.method, "POST")
         self.assertEqual(post_request.url, "http://host/api/projects/abc/variables/")
         case_expr = {

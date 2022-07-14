@@ -30,6 +30,7 @@ from scrunch.exceptions import (AuthenticationError, InvalidParamError,
                                 InvalidVariableTypeError)
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
+from scrunch.views import DatasetViews
 from scrunch.scripts import DatasetScripts
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
@@ -952,11 +953,22 @@ class DatasetVariablesMixin(collections.Mapping):
         """
         self._set_catalog()
         self._vars = self._catalog.index.items()
-        order = self._catalog.hier
+        self._order = None
 
-        # The `order` property, which provides a high-level API for
-        # manipulating the "Hierarchical Order" structure of a Dataset.
-        self.order = DatasetVariablesOrder(self._catalog, order)
+    @property
+    def order(self):
+        """
+        The `order` property, which provides a high-level API for
+        manipulating the "Hierarchical Order" structure of a Dataset.
+        """
+
+        if "hier" not in self._catalog.orders:
+            raise TypeError("This dataset does not expose a hierarchical order. Use .folders")
+
+        if self._order is None:
+            order = self._catalog.hier
+            self._order = DatasetVariablesOrder(self._catalog, order)
+        return self._order
 
     def _var_create_reload_return(self, payload):
         """
@@ -1027,6 +1039,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         super(BaseDataset, self).__init__(resource)
         self._settings = None
+        self._order = None
         # since we no longer have an __init__ on DatasetVariablesMixin because
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
@@ -2909,6 +2922,18 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             }
         })
         return self._var_create_reload_return(payload)
+
+    @property
+    def is_view(self):
+        return self.resource.body["view_of"] is not None
+
+    @property
+    def views(self):
+        if not self.is_view:
+            # This means that this is not a view, it is a regular dataset
+            return DatasetViews(self.resource)
+        else:
+            raise TypeError("Cannot access views of views")
 
 
 class Dataset(BaseDataset):
