@@ -6,7 +6,6 @@ from scrunch.helpers import shoji_entity_wrapper
 class DatasetViews:
     def __init__(self, dataset_resource):
         self.dataset_resource = dataset_resource
-        self.site = dataset_resource.session.root
 
     def create(self, name, columns):
         """
@@ -26,7 +25,8 @@ class DatasetViews:
             columns_url = [alias_2_url[a].entity_url for a in columns]
             view_args["view_cols"] = columns_url
 
-        view_res = self.site.datasets.create(shoji_entity_wrapper(view_args))
+        project = self.dataset_resource.parent
+        view_res = project.create(shoji_entity_wrapper(view_args))
         view_res.refresh()
 
         from scrunch.mutable_dataset import MutableDataset
