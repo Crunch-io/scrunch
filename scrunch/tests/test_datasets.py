@@ -2029,7 +2029,8 @@ class TestFillVariables(TestCase):
                     "type": "categorical",
                     "id": "123"
                 }
-            }a        }
+            }
+        }
         table_payload = {
             "element": "crunch:table",
             "self": table_url,
