@@ -21,7 +21,7 @@ as_entity = lambda b: {
 }
 
 
-class TestSripts(TestCase):
+class TestScripts(TestCase):
     def _create_ds(self):
         ds = site.datasets.create(as_entity({"name": "test_script"})).refresh()
         variable = ds.variables.create(
