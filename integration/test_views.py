@@ -49,6 +49,24 @@ class TestViews(TestCase):
         for alias, v_type in self.FIXTURE_VARIABLES:
             assert new_view[alias].type == v_type
 
+    def test_create_view_non_personal_ds(self):
+        api_ds = self._create_ds()
+
+        # Put the dataset in a public project
+        project = site.projects.create(as_entity({"name": "public project"}))
+        project.patch({"index": {api_ds.self: {}}})
+
+        scrunch_dataset = get_mutable_dataset(api_ds.body.id, site, editor=True)
+        new_view = scrunch_dataset.views.create("My view", None)
+
+        # Assert it is a view
+        assert new_view.resource.body["view_of"] == api_ds.self
+        assert new_view.resource.body["owner"] == project.self
+
+        # Assert the variables are here
+        for alias, v_type in self.FIXTURE_VARIABLES:
+            assert new_view[alias].type == v_type
+
     def test_create_var_subset(self):
         api_ds = self._create_ds()
         scrunch_dataset = get_mutable_dataset(api_ds.body.id, site, editor=True)
