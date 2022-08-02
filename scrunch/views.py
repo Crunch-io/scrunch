@@ -17,7 +17,8 @@ class DatasetViews:
         """
         view_args = {
             "name": name,
-            "view_of": self.dataset_resource.self
+            "view_of": self.dataset_resource.self,
+            "owner": self.dataset_resource.body["owner"]
         }
         if columns is not None:
             # Columns is a list of aliases, convert to URLs
@@ -25,7 +26,7 @@ class DatasetViews:
             columns_url = [alias_2_url[a].entity_url for a in columns]
             view_args["view_cols"] = columns_url
 
-        project = self.dataset_resource.parent
+        project = self.dataset_resource.session.root.datasets
         view_res = project.create(shoji_entity_wrapper(view_args))
         view_res.refresh()
 

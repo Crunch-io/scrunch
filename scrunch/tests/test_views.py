@@ -46,6 +46,8 @@ class TestViews:
     folders_url = "http://host/folders/url"
     project_url = "http://host/project/url/"
     variables_url = "http://host/variables/url/"
+    root_url = "http://host/api/"
+    datasets_url = "http://host/datasets/url/"
 
     def _set_folders_fixtures(self, session):
         folders_catalog_res = Catalog(session, **{
@@ -61,8 +63,20 @@ class TestViews:
             "index": {},
             "body": {},
         })
+        root_catalog_res = Catalog(session, **{
+            "self": self.root_url,
+            "index": {},
+            "catalogs": {"datasets": self.datasets_url}
+        })
+        dataset_catalog_res = Catalog(session, **{
+            "self": self.datasets_url,
+            "index": {},
+        })
+        session.site_url = self.root_url
         session.add_fixture(self.folders_url, folders_catalog_res)
         session.add_fixture(self.project_url, project_catalog_res)
+        session.add_fixture(self.root_url, root_catalog_res)
+        session.add_fixture(self.datasets_url, dataset_catalog_res)
 
     def test_create_view_no_cols(self):
         session = MockSession()
@@ -70,10 +84,12 @@ class TestViews:
         dataset_url = "http://host/datasets/id/"
         variables_url = "http://host/variables/url/"
         new_view_url = "http://host/new/view/url/"
+        project_url = "http://host/project/id"
         ds_res = Entity(session, **{
             'self': dataset_url,
             'body': {
-                "view_of": None
+                "view_of": None,
+                "owner": project_url
             },
             "catalogs": {
                 "views": views_url,
@@ -111,12 +127,13 @@ class TestViews:
         assert isinstance(new_view, MutableDataset)
         assert new_view.is_view
         assert new_view.resource.body["view_of"] == dataset_url
-        create_body = json.loads(session.requests[1].body)
+        create_body = json.loads(session.requests[2].body)
         assert create_body == {
             "element": "shoji:entity",
             "body": {
                 "name": "My view",
-                "view_of": dataset_url
+                "view_of": dataset_url,
+                "owner": project_url,
             },
         }
 
@@ -125,10 +142,12 @@ class TestViews:
         views_url = "http://host/views/url/"
         dataset_url = "http://host/datasets/id/"
         new_view_url = "http://host/new/view/url/"
+        project_url = "http://host/project/id"
         ds_res = Entity(session, **{
             'self': dataset_url,
             'body': {
-                "view_of": None
+                "view_of": None,
+                "owner": project_url,
             },
             "catalogs": {
                 "views": views_url,
@@ -166,13 +185,14 @@ class TestViews:
 
         views = DatasetViews(ds_res)
         views.create("My view", ["A", "B"])
-        create_body = json.loads(session.requests[2].body)
+        create_body = json.loads(session.requests[3].body)
         assert create_body == {
             "element": "shoji:entity",
             "body": {
                 "view_cols": ["idA", "idB"],
                 "name": "My view",
-                "view_of": dataset_url
+                "view_of": dataset_url,
+                "owner": project_url
             },
         }
 
