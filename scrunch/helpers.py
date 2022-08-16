@@ -209,6 +209,19 @@ def _validate_category_rules(categories, rules):
         )
 
 
+def shoji_view_wrapper(value, **kwargs):
+    """
+    receives a dictionary and wraps its content on a body keyed dictionary
+    with the appropiate shoji:<class> attribute
+    """
+    payload = {
+        'element': 'shoji:view',
+        'value': value
+    }
+    payload.update(**kwargs)
+    return payload
+
+
 def shoji_entity_wrapper(body, **kwargs):
     """
     receives a dictionary and wraps its content on a body keyed dictionary

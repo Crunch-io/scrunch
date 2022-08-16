@@ -470,3 +470,41 @@ class TestPersonalProject(TestCase):
         self.assertEqual(json.loads(patch_request.body)['index'], {
             project_a.url: {}
         })
+
+
+class TestProjectScripts:
+    def test_running_script(self):
+        project_execute_url = "http://example.com/project/id/run"
+        session = MockSession()
+        shoji_resource = Entity(session, **{
+            'self': 'http://example.com/project/id/',
+            'body': {},
+            'index': {},
+            'graph': [],
+            "views": {
+                "run": project_execute_url
+            }
+        })
+
+        run_resource = Catalog(session, **{
+            'self': project_execute_url,
+        })
+
+        response = Response()
+        response.status_code = 204
+        session.add_post_response(response)
+        session.add_fixture(project_execute_url, run_resource)
+        project = Project(shoji_resource)
+
+        # Execute script on this project
+        script_body = "NOOP;"
+        project.run_script(script_body)
+
+        # Verify the POST request was sent to the correct url with entity payload
+        execution_request = session.requests[-1]
+        assert execution_request.method == "POST"
+        assert execution_request.url == project_execute_url
+        assert json.loads(execution_request.body) == {
+            'element': 'shoji:view',
+            'value': script_body,
+        }

@@ -36,7 +36,8 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
-                             NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date)
+                             NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
+                             shoji_view_wrapper)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -541,6 +542,19 @@ class Project:
 
     def __str__(self):
         return self.name
+
+    def run_script(self, script_body):
+        """
+        Will run a system script on this project.
+
+        System scripts do not have a return value. If they execute correctly
+        they'll finish silently. Otherwise an error will raise.
+        """
+        payload = shoji_view_wrapper(script_body)
+        resp = self.resource.run.post(payload)
+        if resp.status_code == 202:
+            # if response is async, wait for it.
+            pycrunch.shoji.wait_progress(resp, self.resource.session)
 
     @property
     def members(self):
