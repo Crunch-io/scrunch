@@ -31,7 +31,7 @@ from scrunch.exceptions import (AuthenticationError, InvalidParamError,
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.views import DatasetViews
-from scrunch.scripts import DatasetScripts
+from scrunch.scripts import DatasetScripts, ScriptExecutionError
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
@@ -550,11 +550,13 @@ class Project:
         System scripts do not have a return value. If they execute correctly
         they'll finish silently. Otherwise an error will raise.
         """
+        # The project execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
-        resp = self.resource.run.post(payload)
-        if resp.status_code == 202:
-            # if response is async, wait for it.
-            pycrunch.shoji.wait_progress(resp, self.resource.session)
+        try:
+            self.resource.run.post(payload)
+        except pycrunch.ClientError as err:
+            resolutions = err.args[2]["resolutions"]
+            raise ScriptExecutionError(err, resolutions)
 
     @property
     def members(self):
