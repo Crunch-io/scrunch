@@ -3619,7 +3619,7 @@ class BackfillFromCSV:
             finally:
                 # Delete the joined variables
                 folder_name = tmp_ds.body["name"]
-                folders_by_name = self.dataset.resource.folders.by("name")
+                folders_by_name = self.dataset.resource.folders.public.by("name")
                 if folder_name in folders_by_name:
                     folders_by_name[folder_name].entity.delete()
                 # Always delete the tmp dataset no matter what
