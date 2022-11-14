@@ -8,6 +8,7 @@ from unittest import TestCase
 from pycrunch.shoji import Entity, Catalog, Order
 
 from scrunch.order import InvalidPathError
+from scrunch.scripts import ScriptExecutionError
 from scrunch.datasets import Project, ProjectDatasetsOrder, get_personal_project
 
 from .mock_session import MockSession
@@ -470,3 +471,76 @@ class TestPersonalProject(TestCase):
         self.assertEqual(json.loads(patch_request.body)['index'], {
             project_a.url: {}
         })
+
+
+class TestProjectScripts(TestCase):
+    project_execute_url = "http://example.com/project/id/run"
+
+    def test_running_script(self):
+        session = MockSession()
+        shoji_resource = Entity(session, **{
+            'self': 'http://example.com/project/id/',
+            'body': {},
+            'index': {},
+            'graph': [],
+            "views": {
+                "run": self.project_execute_url
+            }
+        })
+
+        run_resource = Catalog(session, **{
+            'self': self.project_execute_url,
+        })
+
+        response = Response()
+        response.status_code = 204
+        session.add_post_response(response)
+        session.add_fixture(self.project_execute_url, run_resource)
+        project = Project(shoji_resource)
+
+        # Execute script on this project
+        script_body = "NOOP;"
+        project.run_script(script_body)
+
+        # Verify the POST request was sent to the correct url with entity payload
+        execution_request = session.requests[-1]
+        assert execution_request.method == "POST"
+        assert execution_request.url == self.project_execute_url
+        assert json.loads(execution_request.body) == {
+            'element': 'shoji:view',
+            'value': script_body,
+        }
+
+    def test_error_handling(self):
+        session = MockSession()
+        shoji_resource = Entity(session, **{
+            'self': 'http://example.com/project/id/',
+            'body': {},
+            'index': {},
+            'graph': [],
+            "views": {
+                "run": self.project_execute_url
+            }
+        })
+
+        run_resource = Catalog(session, **{
+            'self': self.project_execute_url
+        })
+
+        resolutions = [{"line": 100}]
+        error_response = Response()
+        error_response.status_code = 400
+        error_response.headers = {"Content-Type": "application/json"}
+        error_response._content = json.dumps({"resolutions": resolutions})
+        error_response.request = Mock(url=self.project_execute_url)
+        session.add_post_response(error_response)
+
+        session.add_fixture(self.project_execute_url, run_resource)
+        project = Project(shoji_resource)
+
+        # Script will raise exception
+        with self.assertRaises(ScriptExecutionError) as err:
+            project.run_script("Bad script")
+        assert err.exception.resolutions == [{"line": 100}]
+        assert err.exception.client_error.status_code == 400
+
