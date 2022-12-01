@@ -2,8 +2,6 @@ import collections
 import copy
 import datetime
 import json
-import logging
-import os
 import re
 import sys
 from warnings import warn
@@ -24,10 +22,8 @@ from pycrunch import importing
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity, TaskProgressTimeoutError, TaskError
-from scrunch.session import connect
 from scrunch.categories import CategoryList
-from scrunch.exceptions import (AuthenticationError, InvalidParamError,
-                                InvalidVariableTypeError)
+from scrunch.exceptions import InvalidParamError, InvalidVariableTypeError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.views import DatasetViews
@@ -43,16 +39,13 @@ from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
+from scrunch.connections import LOG, _default_connection, _get_connection
+
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
-    import ConfigParser as configparser
 else:
-    import configparser
     from urllib.parse import urljoin
-
-
-LOG = logging.getLogger('scrunch')
 
 
 _MR_TYPE = 'multiple_response'
@@ -106,95 +99,6 @@ class NoExclusion:
         # Always set the exclusion back, exception or not
         self.dataset.exclude(self.exclusion)
 
-
-def _set_debug_log():
-    # ref: http://docs.python-requests.org/en/master/api/#api-changes
-    #
-    #  These two lines enable debugging at httplib level
-    # (requests->urllib3->http.client)
-    # You will see the REQUEST, including HEADERS and DATA,
-    # and RESPONSE with HEADERS but without DATA.
-    # The only thing missing will be the response.body which is not logged.
-    try:
-        import http.client as http_client
-    except ImportError:
-        # Python 2
-        import httplib as http_client
-    http_client.HTTPConnection.debuglevel = 1
-    LOG.setLevel(logging.DEBUG)
-    requests_log = logging.getLogger("requests.packages.urllib3")
-    requests_log.setLevel(logging.DEBUG)
-    requests_log.propagate = True
-
-
-def _get_connection(file_path='crunch.ini'):
-    """
-    Utilitarian function that reads credentials from
-    file or from ENV variables
-    """
-    if pycrunch.session is not None:
-        return pycrunch.session
-
-    connection_kwargs = {}
-
-    # try to get credentials from environment
-    site = os.environ.get('CRUNCH_URL')
-    if site:
-        connection_kwargs["site_url"] = site
-
-    api_key = os.environ.get('CRUNCH_API_KEY')
-    username = os.environ.get('CRUNCH_USERNAME')
-    password = os.environ.get('CRUNCH_PASSWORD')
-    if api_key:
-        connection_kwargs["api_key"] = api_key
-    elif username and password:
-        connection_kwargs["username"] = username
-        connection_kwargs["pw"] = password
-
-    if connection_kwargs:
-        return connect(**connection_kwargs)
-
-    # try reading from .ini file
-    config = configparser.ConfigParser()
-    config.read(file_path)
-    try:
-        site = config.get('DEFAULT', 'CRUNCH_URL')
-        connection_kwargs["site_url"] = site
-    except Exception:
-        pass
-
-    try:
-        api_key = config.get('DEFAULT', 'CRUNCH_API_KEY')
-        connection_kwargs["api_key"] = api_key
-    except Exception:
-        pass
-
-    if not api_key:
-        try:
-            username = config.get('DEFAULT', 'CRUNCH_USERNAME')
-            password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
-            connection_kwargs["username"] = username
-            connection_kwargs["pw"] = password
-        except Exception:
-            pass
-
-    # now try to login with obtained creds
-    if connection_kwargs:
-        return connect(**connection_kwargs)
-    else:
-        raise AuthenticationError(
-            "Unable to find crunch session, crunch.ini file "
-            "or environment variables.")
-
-
-def _default_connection(connection):
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
-    return connection
 
 
 def _get_dataset(dataset, connection=None, editor=False, project=None):
