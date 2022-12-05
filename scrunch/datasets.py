@@ -447,7 +447,7 @@ class Project:
     def __str__(self):
         return self.name
 
-    def run_script(self, script_body):
+    def execute(self, script_body):
         """
         Will run a system script on this project.
 
@@ -456,8 +456,13 @@ class Project:
         """
         # The project execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
+        if "run" in self.resource.views:
+            exc_res = self.resource.run  # Backwards compat og API
+        else:
+            exc_res = self.resource.execute
+
         try:
-            self.resource.run.post(payload)
+            exc_res.post(payload)
         except pycrunch.ClientError as err:
             resolutions = err.args[2]["resolutions"]
             raise ScriptExecutionError(err, resolutions)

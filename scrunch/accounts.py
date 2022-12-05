@@ -50,7 +50,7 @@ class Account:
         act_res = site_root.account
         return cls(act_res)
 
-    def run_script(self, script_body):
+    def execute(self, script_body):
         """
         Will run a system script on this account.
 
@@ -60,7 +60,7 @@ class Account:
         # The account execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
         try:
-            self.resource.run.post(payload)
+            self.resource.execute.post(payload)
         except pycrunch.ClientError as err:
             resolutions = err.args[2]["resolutions"]
             raise ScriptExecutionError(err, resolutions)

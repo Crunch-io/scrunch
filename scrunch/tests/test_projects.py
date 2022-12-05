@@ -474,7 +474,7 @@ class TestPersonalProject(TestCase):
 
 
 class TestProjectScripts(TestCase):
-    project_execute_url = "http://example.com/project/id/run"
+    project_execute_url = "http://example.com/project/id/execute/"
 
     def test_running_script(self):
         session = MockSession()
@@ -484,23 +484,23 @@ class TestProjectScripts(TestCase):
             'index': {},
             'graph': [],
             "views": {
-                "run": self.project_execute_url
+                "execute": self.project_execute_url
             }
         })
 
-        run_resource = Catalog(session, **{
+        exexute_resource = Catalog(session, **{
             'self': self.project_execute_url,
         })
 
         response = Response()
         response.status_code = 204
         session.add_post_response(response)
-        session.add_fixture(self.project_execute_url, run_resource)
+        session.add_fixture(self.project_execute_url, exexute_resource)
         project = Project(shoji_resource)
 
         # Execute script on this project
         script_body = "NOOP;"
-        project.run_script(script_body)
+        project.execute(script_body)
 
         # Verify the POST request was sent to the correct url with entity payload
         execution_request = session.requests[-1]
@@ -519,11 +519,11 @@ class TestProjectScripts(TestCase):
             'index': {},
             'graph': [],
             "views": {
-                "run": self.project_execute_url
+                "execute": self.project_execute_url
             }
         })
 
-        run_resource = Catalog(session, **{
+        execute_resource = Catalog(session, **{
             'self': self.project_execute_url
         })
 
@@ -535,12 +535,12 @@ class TestProjectScripts(TestCase):
         error_response.request = Mock(url=self.project_execute_url)
         session.add_post_response(error_response)
 
-        session.add_fixture(self.project_execute_url, run_resource)
+        session.add_fixture(self.project_execute_url, execute_resource)
         project = Project(shoji_resource)
 
         # Script will raise exception
         with self.assertRaises(ScriptExecutionError) as err:
-            project.run_script("Bad script")
+            project.execute("Bad script")
         assert err.exception.resolutions == [{"line": 100}]
         assert err.exception.client_error.status_code == 400
 
