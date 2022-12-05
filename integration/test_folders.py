@@ -57,7 +57,7 @@ def setup_folders(ds):
     sf1 = Catalog(sess, body={
         'name': 'Subfolder 1'
     })
-    sf1 = ds.folders.create(sf1)
+    sf1 = ds.folders.public.create(sf1)
     sfa = Catalog(sess, body={
         'name': 'Subfolder A'
     })
@@ -65,7 +65,7 @@ def setup_folders(ds):
     sf2 = Catalog(sess, body={
             'name': 'Subfolder 2'
         })
-    sf2 = ds.folders.create(sf2)
+    sf2 = ds.folders.public.create(sf2)
     variables = ds.variables.by('alias')
     sf1.patch({'index': {
         variables['age'].entity_url: {}
@@ -273,8 +273,8 @@ class TestFolders(TestCase):
         var1_id = var1.resource.body.id
         var2_id = var2.resource.body.id
         self.assertTrue(var2_id in self._ds.folders.hidden.by('id'))
-        self.assertTrue(var2_id not in self._ds.folders.by('id'))
-        self.assertTrue(var1_id in self._ds.folders.by('id'))
+        self.assertTrue(var2_id not in self._ds.folders.public.by('id'))
+        self.assertTrue(var1_id in self._ds.folders.public.by('id'))
         self.assertTrue(var1_id not in self._ds.folders.hidden.by('id'))
 
     def test_rename(self):
