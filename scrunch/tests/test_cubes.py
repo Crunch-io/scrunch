@@ -1,3 +1,5 @@
+import six
+import pytest
 from mock import patch
 from unittest import TestCase
 
@@ -56,3 +58,7 @@ class TestCubes(TestDatasetBase, TestCase):
         mock_fetch_cube.assert_called_once_with(
             ds.resource, urls, count=count(), filter=processed_filter, weight=None
         )
+
+
+if six.PY2:
+    TestCubes = pytest.mark.skip("No Python 2.x support")(TestCubes)
