@@ -26,8 +26,8 @@ class TestAccount:
         act = Account.current_account(site)
         assert act.resource.self == site.account.self
 
-    def test_run_script(self):
-        raise pytest.skip("Wait until account run is implemented in backend")
+    def test_execute(self):
+        raise pytest.skip("Wait until account execute is implemented in backend")
 
     def test_account_projects(self):
         # Create a top level project

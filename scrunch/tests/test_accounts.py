@@ -14,7 +14,7 @@ class TestAccount:
         root_url = "http://host/api/"
         account_url = "http://host/api/account/"
         projects_url = "http://host/api/account/projects/"
-        run_url = "http://host/api/account/run/"
+        execute_url = "http://host/api/account/run/"
 
         session = MockSession(site_url=root_url)
         root_resource = Catalog(session, **{
@@ -35,17 +35,17 @@ class TestAccount:
                 "projects": projects_url
             },
             "views": {
-                "run": run_url
+                "execute": execute_url
             }
         })
-        run_resource = View(session, **{
+        execute_resource = View(session, **{
             "element": "shoji:view",
-            "self": run_url,
+            "self": execute_url,
             "value": {}
         })
         session.add_fixture(account_url, act_resource)
         session.add_fixture(root_url, root_resource)
-        session.add_fixture(run_url, run_resource)
+        session.add_fixture(execute_url, execute_resource)
         return session
 
     def test_get_current(self):
