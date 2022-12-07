@@ -68,24 +68,28 @@ def _get_connection(file_path='crunch.ini'):
     config.read(file_path)
     try:
         site = config.get('DEFAULT', 'CRUNCH_URL')
-        connection_kwargs["site_url"] = site
     except Exception:
-        pass
+        pass  # Config not found in .ini file. Do not change env value
+    else:
+        connection_kwargs["site_url"] = site
+
 
     try:
         api_key = config.get('DEFAULT', 'CRUNCH_API_KEY')
-        connection_kwargs["api_key"] = api_key
     except Exception:
-        pass
+        pass  # Config not found in .ini file. Do not change env value
+    else:
+        connection_kwargs["api_key"] = api_key
 
     if not api_key:
         try:
             username = config.get('DEFAULT', 'CRUNCH_USERNAME')
             password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
+        except Exception:
+            pass  # Config not found in .ini file. Do not change env value
+        else:
             connection_kwargs["username"] = username
             connection_kwargs["pw"] = password
-        except Exception:
-            pass
 
     # now try to login with obtained creds
     if connection_kwargs:

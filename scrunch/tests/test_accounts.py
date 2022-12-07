@@ -55,7 +55,7 @@ class TestAccount:
         assert current_act.id == "00001"
         assert isinstance(current_act, Account)
 
-    def test_run_script(self):
+    def test_execute(self):
         session = self.make_session()
 
         response = Response()
@@ -64,7 +64,7 @@ class TestAccount:
         session.add_post_response(response)
         current_act = Account.current_account(session.root)
 
-        current_act.run_script("NOOP;")
+        current_act.execute("NOOP;")
         post_request = session.requests[-1]
         assert json.loads(post_request.body) == {
             "element": "shoji:view",
