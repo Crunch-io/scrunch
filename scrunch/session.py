@@ -11,6 +11,16 @@ class ScrunchSession(ElementSession):
     }
 
 
+class ScrunchSSLUnsafeSession(ScrunchSession):
+    """
+    A subclass of `ScrunchSession` that skips SSL certificate validation
+    when trying to connect to the API server. Useful for local testing.
+    """
+    def __init__(self, *args, **kwargs):
+        super(ScrunchSSLUnsafeSession, self).__init__(*args, **kwargs)
+        self.verify = False
+
+
 FLAGS_TO_CHECK = {'old_projects_order'}
 
 
