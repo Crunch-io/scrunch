@@ -34,17 +34,18 @@ params = dict(
     python_requires='>=2.7',
     install_requires=[
         'pycrunch>=0.4.11',
-        'requests',
+        'requests==2.18.4',
         'six',
         'cr.cube==2.3.9',
-        'importlib_metadata',
+        'importlib_metadata==0.17',
     ],
     extras_require={
         'testing': [
             # upstream
             'pytest>=4.3',
             'collective.checkdocs',
-            'pytest-flake8',
+            'flake8==3.9.2'
+            # 'pytest-flake8==2.18.4',
 
             # local
             'pytest-cov',
