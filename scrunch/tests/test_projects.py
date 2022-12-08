@@ -1,5 +1,6 @@
 # coding: utf-8
 
+import six
 import json
 from mock import Mock
 from requests import Response
@@ -528,10 +529,14 @@ class TestProjectScripts(TestCase):
         })
 
         resolutions = [{"line": 100}]
+        resolutions_out = json.dumps({"resolutions": resolutions})
+        if six.PY3:
+            # Python3 needs a bytes object, not str
+            resolutions_out = resolutions_out.encode("utf-8")
         error_response = Response()
         error_response.status_code = 400
         error_response.headers = {"Content-Type": "application/json"}
-        error_response._content = json.dumps({"resolutions": resolutions})
+        error_response._content = resolutions_out
         error_response.request = Mock(url=self.project_execute_url)
         session.add_post_response(error_response)
 
