@@ -3,6 +3,7 @@
 # Project skeleton maintained at https://github.com/jaraco/skeleton
 
 import io
+import sys
 
 import setuptools
 
@@ -37,7 +38,6 @@ params = dict(
         'requests==2.18.4',
         'six',
         'cr.cube==2.3.9',
-        'importlib_metadata==0.17',
     ],
     extras_require={
         'testing': [
@@ -75,5 +75,9 @@ params = dict(
     entry_points={
     },
 )
+
+if sys.version_info[0] < 3:
+    params["install_requirements"].append("importlib_metadata==0.17")
+
 if __name__ == '__main__':
     setuptools.setup(**params)
