@@ -44,7 +44,6 @@ params = dict(
             # upstream
             'pytest>=4.3',
             'collective.checkdocs',
-            'flake8==3.9.2'
             # 'pytest-flake8==2.18.4',
 
             # local
