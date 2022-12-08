@@ -35,7 +35,7 @@ params = dict(
     python_requires='>=2.7',
     install_requires=[
         'pycrunch>=0.4.11',
-        'requests==2.18.4',
+        'requests==2.20.0',
         'six',
         'cr.cube==2.3.9',
     ],
