@@ -123,7 +123,7 @@ class TestProjects(TestCase):
         assert sorted(pb.resource.index.keys()) == sorted([_ds1.self, _ds2.self, _ds4.self])
         self.assertEqual(ds2.resource.project.self, pb.url)
 
-    def test_run_script(self):
+    def test_execute_script(self):
         pa = new_project("test_run_script")
         # Successful server execution does not raise. Method returns None on OK
-        assert pa.run_script("NOOP;") is None
+        assert pa.execute("NOOP;") is None

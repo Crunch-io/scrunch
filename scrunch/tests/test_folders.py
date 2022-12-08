@@ -98,6 +98,7 @@ def test_legacy_without_public():
     session = MockSession()
     dataset_url = 'http://host/api/datasets/abc/'
     folders_url = 'http://host/api/datasets/abc/folders/'
+    public_url = 'http://host/api/datasets/abc/folders/public/'
     dataset_resource = Entity(session, **{
         "element": "shoji:entity",
         "self": dataset_url,
@@ -111,19 +112,27 @@ def test_legacy_without_public():
     dataset_resource.variables = MagicMock()
     dataset_resource.settings = MagicMock()
 
-    # In this old format, there is no `public` catalog to follow. Scrunch
-    # should use the folder_root as the .public and .root
     folders_resource = Catalog(session, **{
         "element": "shoji:catalog",
         "self": folders_url,
+        "index": {},
+        "catalogs": {
+            "public": public_url
+        }
+    })
+    public_resource = Catalog(session, **{
+        "element": "shoji:catalog",
+        "self": public_url,
         "index": {},
         "body": {
             "name": "Root"
         },
         "catalogs": {
+            "public": public_url
         }
     })
     session.add_fixture(folders_url, folders_resource)
+    session.add_fixture(public_url, public_resource)
     dataset = MutableDataset(dataset_resource)
 
     assert dataset.folders.root.name == "Root"

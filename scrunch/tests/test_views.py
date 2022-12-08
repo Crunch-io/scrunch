@@ -44,6 +44,7 @@ class TestViews:
         assert isinstance(views_handler, DatasetViews)
 
     folders_url = "http://host/folders/url"
+    public_url = "http://host/folders/public/url"
     project_url = "http://host/project/url/"
     variables_url = "http://host/variables/url/"
     root_url = "http://host/api/"
@@ -52,6 +53,13 @@ class TestViews:
     def _set_folders_fixtures(self, session):
         folders_catalog_res = Catalog(session, **{
             "self": self.folders_url,
+            "index": {},
+            "catalogs": {
+                "public": self.public_url
+            },
+        })
+        public_catalog_res = Catalog(session, **{
+            "self": self.public_url,
             "index": {},
             "body": {
                 "name": "folder name"
@@ -74,6 +82,7 @@ class TestViews:
         })
         session.site_url = self.root_url
         session.add_fixture(self.folders_url, folders_catalog_res)
+        session.add_fixture(self.public_url, public_catalog_res)
         session.add_fixture(self.project_url, project_catalog_res)
         session.add_fixture(self.root_url, root_catalog_res)
         session.add_fixture(self.datasets_url, dataset_catalog_res)

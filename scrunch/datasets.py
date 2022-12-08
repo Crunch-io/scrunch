@@ -2,8 +2,6 @@ import collections
 import copy
 import datetime
 import json
-import logging
-import os
 import re
 import sys
 from warnings import warn
@@ -24,10 +22,8 @@ from pycrunch import importing
 from pycrunch.progress import DefaultProgressTracking
 from pycrunch.exporting import export_dataset
 from pycrunch.shoji import Entity, TaskProgressTimeoutError, TaskError
-from scrunch.session import connect
 from scrunch.categories import CategoryList
-from scrunch.exceptions import (AuthenticationError, InvalidParamError,
-                                InvalidVariableTypeError)
+from scrunch.exceptions import InvalidParamError, InvalidVariableTypeError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.views import DatasetViews
@@ -43,16 +39,13 @@ from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
 
+from scrunch.connections import LOG, _default_connection, _get_connection
+
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
-    import ConfigParser as configparser
 else:
-    import configparser
     from urllib.parse import urljoin
-
-
-LOG = logging.getLogger('scrunch')
 
 
 _MR_TYPE = 'multiple_response'
@@ -106,95 +99,6 @@ class NoExclusion:
         # Always set the exclusion back, exception or not
         self.dataset.exclude(self.exclusion)
 
-
-def _set_debug_log():
-    # ref: http://docs.python-requests.org/en/master/api/#api-changes
-    #
-    #  These two lines enable debugging at httplib level
-    # (requests->urllib3->http.client)
-    # You will see the REQUEST, including HEADERS and DATA,
-    # and RESPONSE with HEADERS but without DATA.
-    # The only thing missing will be the response.body which is not logged.
-    try:
-        import http.client as http_client
-    except ImportError:
-        # Python 2
-        import httplib as http_client
-    http_client.HTTPConnection.debuglevel = 1
-    LOG.setLevel(logging.DEBUG)
-    requests_log = logging.getLogger("requests.packages.urllib3")
-    requests_log.setLevel(logging.DEBUG)
-    requests_log.propagate = True
-
-
-def _get_connection(file_path='crunch.ini'):
-    """
-    Utilitarian function that reads credentials from
-    file or from ENV variables
-    """
-    if pycrunch.session is not None:
-        return pycrunch.session
-
-    connection_kwargs = {}
-
-    # try to get credentials from environment
-    site = os.environ.get('CRUNCH_URL')
-    if site:
-        connection_kwargs["site_url"] = site
-
-    api_key = os.environ.get('CRUNCH_API_KEY')
-    username = os.environ.get('CRUNCH_USERNAME')
-    password = os.environ.get('CRUNCH_PASSWORD')
-    if api_key:
-        connection_kwargs["api_key"] = api_key
-    elif username and password:
-        connection_kwargs["username"] = username
-        connection_kwargs["pw"] = password
-
-    if connection_kwargs:
-        return connect(**connection_kwargs)
-
-    # try reading from .ini file
-    config = configparser.ConfigParser()
-    config.read(file_path)
-    try:
-        site = config.get('DEFAULT', 'CRUNCH_URL')
-        connection_kwargs["site_url"] = site
-    except Exception:
-        pass
-
-    try:
-        api_key = config.get('DEFAULT', 'CRUNCH_API_KEY')
-        connection_kwargs["api_key"] = api_key
-    except Exception:
-        pass
-
-    if not api_key:
-        try:
-            username = config.get('DEFAULT', 'CRUNCH_USERNAME')
-            password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
-            connection_kwargs["username"] = username
-            connection_kwargs["pw"] = password
-        except Exception:
-            pass
-
-    # now try to login with obtained creds
-    if connection_kwargs:
-        return connect(**connection_kwargs)
-    else:
-        raise AuthenticationError(
-            "Unable to find crunch session, crunch.ini file "
-            "or environment variables.")
-
-
-def _default_connection(connection):
-    if connection is None:
-        connection = _get_connection()
-        if not connection:
-            raise AttributeError(
-                "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
-    return connection
 
 
 def _get_dataset(dataset, connection=None, editor=False, project=None):
@@ -543,7 +447,7 @@ class Project:
     def __str__(self):
         return self.name
 
-    def run_script(self, script_body):
+    def execute(self, script_body):
         """
         Will run a system script on this project.
 
@@ -552,8 +456,13 @@ class Project:
         """
         # The project execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
+        if "run" in self.resource.views:
+            exc_res = self.resource.run  # Backwards compat og API
+        else:
+            exc_res = self.resource.execute
+
         try:
-            self.resource.run.post(payload)
+            exc_res.post(payload)
         except pycrunch.ClientError as err:
             resolutions = err.args[2]["resolutions"]
             raise ScriptExecutionError(err, resolutions)
@@ -776,146 +685,6 @@ class Project:
         # single catalog entity.
         projects_root_url = self.url.rsplit('/', 2)[0] + '/'
         return self.resource.session.get(projects_root_url).payload
-
-
-class CrunchBox(object):
-    """
-    A CrunchBox representation of boxdata.
-
-    an instance cannot mutate it's metadata directly since boxdata doesn't
-    support PATCHing. Instead, simply create a new `CrunchBox` instance with
-    the same Filters and Variables. You'll get the same entity from the boxdata
-    index with the updated metadata.
-
-    :param shoji_tuple: pycrunch.shoji.Tuple of boxdata
-    :param     dataset: scrunch.datasets.BaseDataset instance
-
-    NOTE: since the boxdata entity is different regarding the mapping of body
-          and metadata fields, methods etc... it is made `readonly`.
-          Since an `edit` method would need to return a new
-          instance (see above) the `__setattr__` method ist incorporated with
-          CrunchBox specific messages.
-
-          (an edit method returning an instance would most likely brake user
-          expectations)
-
-          In order to have a proper `remove` method we also need the Dataset
-          instance.
-    """
-
-    WIDGET_URL = 'https://s.crunch.io/widget/index.html#/ds/{id}/'
-    DIMENSIONS = dict(height=480, width=600)
-
-    # the attributes on entity.body.metadata
-    _METADATA_ATTRIBUTES = {'title', 'notes', 'header', 'footer'}
-
-    _MUTABLE_ATTRIBUTES = _METADATA_ATTRIBUTES
-
-    _IMMUTABLE_ATTRIBUTES = {
-        'id', 'user_id', 'creation_time', 'filters', 'variables'}
-
-    # removed `dataset` from the set above since it overlaps with the Dataset
-    # instance on self. `boxdata.dataset` simply points to the dataset url
-
-    _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
-
-    def __init__(self, shoji_tuple, dataset):
-        self.resource = shoji_tuple
-        self.url = shoji_tuple.entity_url
-        self.dataset = dataset
-
-    def __setattr__(self, attr, value):
-        """ known attributes should be readonly """
-
-        if attr in self._IMMUTABLE_ATTRIBUTES:
-            raise AttributeError(
-                "Can't edit attibute '%s'" % attr)
-        if attr in self._MUTABLE_ATTRIBUTES:
-            raise AttributeError(
-                "Can't edit '%s' of a CrunchBox. Create a new one with "
-                "the same filters and variables to update its metadata" % attr)
-        object.__setattr__(self, attr, value)
-
-    def __getattr__(self, attr):
-        if attr in self._METADATA_ATTRIBUTES:
-            return self.resource.metadata[attr]
-
-        if attr == 'filters':
-            # return a list of `Filters` instead of the filters expr on `body`
-            _filters = []
-            for obj in self.resource.filters:
-                f_url = obj['filter']
-                _filters.append(
-                    Filter(self.dataset.resource.filters.index[f_url]))
-            return _filters
-
-        if attr == 'variables':
-            # return a list of `Variables` instead of the where expr on `body`
-            _var_urls = []
-            _var_map = self.resource.where.args[0].map
-            for v in _var_map:
-                _var_urls.append(_var_map[v]['variable'])
-
-            return [
-                Variable(entity, self.dataset)
-                for url, entity in self.dataset._vars
-                if url in _var_urls
-            ]
-
-        # all other attributes not catched so far
-        if attr in self._ENTITY_ATTRIBUTES:
-            return self.resource[attr]
-        raise AttributeError('CrunchBox has no attribute %s' % attr)
-
-    def __repr__(self):
-        return "<CrunchBox: title='{}'; id='{}'>".format(
-            self.title, self.id)
-
-    def __str__(self):
-        return self.title
-
-    def remove(self):
-        self.dataset.resource.session.delete(self.url)
-
-    @property
-    def widget_url(self):
-        return self.WIDGET_URL.format(id=self.id)
-
-    @widget_url.setter
-    def widget_url(self, _):
-        """ prevent edits to the widget_url """
-        raise AttributeError("Can't edit 'widget_url' of a CrunchBox")
-
-    def iframe(self, logo=None, dimensions=None):
-        dimensions = dimensions or self.DIMENSIONS
-        widget_url = self.widget_url
-
-        if not isinstance(dimensions, dict):
-            raise TypeError('`dimensions` needs to be a dict')
-
-        def _figure(html):
-            return '<figure style="text-align:left;" class="content-list-'\
-                   'component image">' + '  {}'.format(html) + \
-                   '</figure>'
-
-        _iframe = (
-            '<iframe src="{widget_url}" width="{dimensions[width]}" '
-            'height="{dimensions[height]}" style="border: 1px solid #d3d3d3;">'
-            '</iframe>')
-
-        if logo:
-            _img = '<img src="{logo}" stype="height:auto; width:200px;'\
-                   ' margin-left:-4px"></img>'
-            _iframe = _figure(_img) + _iframe
-
-        elif self.title:
-            _div = '<div style="padding-bottom: 12px">'\
-                   '    <span style="font-size: 18px; color: #444444;'\
-                   ' line-height: 1;">' + self.title + '</span>'\
-                   '  </div>'
-            _iframe = _figure(_div) + _iframe
-
-        return _iframe.format(**locals())
 
 
 class DatasetSettings(dict):
@@ -1225,6 +994,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     @property
     def crunchboxes(self):
+        from scrunch.crunchboxes import CrunchBox
         _crunchboxes = []
         for shoji_tuple in self.resource.boxdata.index.values():
             _crunchboxes.append(CrunchBox(shoji_tuple, self))
@@ -2274,6 +2044,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # NOTE: the entity from the response is a bit different compared to
         # others, i.e. no id, no delete method, different entity_url...
         # For now, return the shoji_tuple from the index
+        from scrunch.crunchboxes import CrunchBox
         for shoji_tuple in self.resource.boxdata.index.values():
             if shoji_tuple.metadata.title == title:
                 return CrunchBox(shoji_tuple, self)
