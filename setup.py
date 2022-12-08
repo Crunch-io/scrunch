@@ -77,7 +77,7 @@ params = dict(
 )
 
 if sys.version_info[0] < 3:
-    params["install_requirements"].append("importlib_metadata==0.17")
+    params["install_requires"].append("importlib_metadata==0.17")
 
 if __name__ == '__main__':
     setuptools.setup(**params)
