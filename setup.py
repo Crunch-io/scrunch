@@ -3,6 +3,7 @@
 # Project skeleton maintained at https://github.com/jaraco/skeleton
 
 import io
+import sys
 
 import setuptools
 
@@ -34,17 +35,16 @@ params = dict(
     python_requires='>=2.7',
     install_requires=[
         'pycrunch>=0.4.11',
-        'requests',
+        'requests==2.18.4',
         'six',
         'cr.cube==2.3.9',
-        'importlib_metadata',
     ],
     extras_require={
         'testing': [
             # upstream
             'pytest>=4.3',
             'collective.checkdocs',
-            'pytest-flake8',
+            # 'pytest-flake8==2.18.4',
 
             # local
             'pytest-cov',
@@ -75,5 +75,9 @@ params = dict(
     entry_points={
     },
 )
+
+if sys.version_info[0] < 3:
+    params["install_requires"].append("importlib_metadata==0.17")
+
 if __name__ == '__main__':
     setuptools.setup(**params)
