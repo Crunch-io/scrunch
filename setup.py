@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Project skeleton maintained at https://github.com/jaraco/skeleton
+# For python 2.x must use "setuptools==44.1.1"
 
 import io
 import sys
@@ -10,6 +11,8 @@ import setuptools
 with io.open('README.rst', encoding='utf-8') as readme:
     long_description = readme.read()
 
+PY2 = sys.version_info[0] < 3
+
 name = 'scrunch'
 description = 'Pythonic scripting library for cleaning data in Crunch'
 nspkg_technique = 'native'
@@ -17,6 +20,11 @@ nspkg_technique = 'native'
 Does this package use "native" namespace packages or
 pkg_resources "managed" namespace packages?
 """
+
+crunch_cube = "cr.cube"
+
+if PY2:
+    crunch_cube = "cr.cube==2.3.9"
 
 params = dict(
     name=name,
@@ -34,21 +42,21 @@ params = dict(
     ),
     python_requires='>=2.7',
     install_requires=[
-        'pycrunch>=0.4.11',
-        'requests==2.18.4',
+        "pycrunch==0.5.5",
+        "requests==2.27.0",
+        crunch_cube,
         'six',
-        'cr.cube==2.3.9',
     ],
     extras_require={
         'testing': [
             # upstream
-            'pytest>=4.3',
+            "pytest==4.6.11"
             'collective.checkdocs',
             # 'pytest-flake8==2.18.4',
 
             # local
-            'pytest-cov',
-            'mock',
+            'pytest-cov==2.12.1',
+            'mock==3.0.5',
             'isodate',
             'backports.unittest_mock',
         ],
@@ -76,8 +84,18 @@ params = dict(
     },
 )
 
-if sys.version_info[0] < 3:
-    params["install_requires"].append("importlib_metadata==0.17")
+if PY2:
+    params["install_requires"].extend([
+        "importlib_metadata==0.17",
+        # Pin dependency versions to work with python2.7.
+        "zipp==1.1.0",
+        "tabulate==0.8.10",
+        "configparser==4.0.2",
+        "scipy==1.2.3",
+        "numpy==1.13.3",
+        "contextlib2==0.6.0",
+        "certifi==2021.10.8"
+    ])
 
 if __name__ == '__main__':
     setuptools.setup(**params)

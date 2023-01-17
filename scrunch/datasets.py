@@ -2338,9 +2338,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
         # return a MutableDataset always
-        fork_ds = MutableDataset(_fork)
-        authenticated_url = self.resource.session.root.urls["user_url"]
-        fork_ds.change_editor(authenticated_url)
+        fork_ds = MutableDataset(_fork)  # Fork has same editor as current user
         return fork_ds
 
     def replace_values(self, variables, filter=None, literal_subvar=False):

@@ -1753,14 +1753,11 @@ class TestForks(TestCase):
     def test_fork(self):
         user_url = "some_user_url"
         sess = MagicMock()
-        sess.root.urls = {
-            "user_url": user_url
-        }
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
             'owner': 'http://test.crunch.io/api/users/123/',
-            'streaming': 'yes'
+            'streaming': 'yes',
         })
         fork_res = MagicMock()
 
@@ -1779,33 +1776,14 @@ class TestForks(TestCase):
             'description': 'ds description',
             'is_published': False,
         }))
-        fork_res.patch.assert_called_with(as_entity({'current_editor': user_url}))
 
-    @mock.patch('scrunch.datasets.get_user')
-    def test_fork_preserve_owner(self, mocked_get_user):
+    def test_fork_preserve_owner(self):
         user_id = 'http://test.crunch.io/api/users/123/'
         sess = MagicMock()
-        response = MagicMock()
-        user = MagicMock()
-        user.resource.self = self.user_url
-        user.url = self.user_url
-        mocked_get_user.return_value = user
-        response.payload = {
-            'index': {
-                self.user_url: {
-                    'email': 'jane.doe@crunch.io'
-                }
-            }
-        }
-
-        def _get(*args, **kwargs):
-            return response
-
-        sess.get.side_effect = _get
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'owner': user_id
+            'owner': user_id,
         })
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
@@ -1817,7 +1795,7 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                'owner': user_id,
+                'owner': user_id,  # Owner preserved
                 'is_published': False,
             }
         })
