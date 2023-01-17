@@ -12,6 +12,7 @@ with io.open('README.rst', encoding='utf-8') as readme:
     long_description = readme.read()
 
 PY2 = sys.version_info[0] < 3
+PY36 = sys.version_info[:2] == (3, 6)
 
 name = 'scrunch'
 description = 'Pythonic scripting library for cleaning data in Crunch'
@@ -95,6 +96,16 @@ if PY2:
         "numpy==1.13.3",
         "contextlib2==0.6.0",
         "certifi==2021.10.8"
+    ])
+elif PY36:
+    params["install_requires"].extend([
+        # Pin for python3.6
+        # "platformdirs==2.4.0",
+        "setuptools==51.0.0",
+        "setuptools_scm==6.4.2",
+        "scipy==1.1.0",
+        "numpy==1.15.1",
+        "dataclasses==0.8"
     ])
 
 if __name__ == '__main__':
