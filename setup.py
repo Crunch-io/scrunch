@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 # Project skeleton maintained at https://github.com/jaraco/skeleton
+
 # For python 2.x must use "setuptools==44.1.1"
+# For python 3.6 must use "setuptools==51.0.0" and "setuptools_scm==6.4.2"
 
 import io
 import sys
