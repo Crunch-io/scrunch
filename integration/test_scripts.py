@@ -65,7 +65,10 @@ class TestScripts(TestCase):
         assert resolutions["message"] == "Invalid command: BAD"
 
         # Script big enough to trigger async validation
-        async_script = ["""BAD-RENAME pk TO varA;"""] * 50000
+        async_script = [
+            """BAD-RENAME pk TO varA; # A comment to make each line longer... """
+            """And longer....................................................."""
+        ] * 10000
         async_script = "\n".join(async_script)
         assert len(async_script) > 2 ** 20  # This is the threshold for async
         with pytest.raises(ScriptExecutionError) as err:
