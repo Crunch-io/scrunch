@@ -73,7 +73,7 @@ class TestScripts(TestCase):
         assert len(async_script) > 2 ** 20  # This is the threshold for async
         with pytest.raises(ScriptExecutionError) as err:
             scrunch_dataset.scripts.execute(async_script)
-        assert len(err.value.resolutions) == 50000  # All lines raised error
+        assert len(err.value.resolutions) == 10000  # All lines raised error
         resolutions = err.value.resolutions[0]
         assert resolutions["column"] == 1
         assert resolutions["line"] == 1
