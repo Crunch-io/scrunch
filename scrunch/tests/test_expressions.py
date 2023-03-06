@@ -5,6 +5,7 @@ from unittest import TestCase
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
+from scrunch.datasets import Dataset
 from scrunch.expressions import prettify
 
 
@@ -2343,7 +2344,11 @@ class TestExpressionProcessing(TestCase):
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
+        ds.__class__ = Dataset
         ds.follow.return_value = table_mock
+        api_var = mock.MagicMock()
+        api_var.payload.body.alias = var_alias
+        ds.resource.session.get.return_value = api_var
 
         expr = "hobbies in [1.0, 2.0]"
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2354,6 +2359,7 @@ class TestExpressionProcessing(TestCase):
                 {'value': [1, 2]}
             ]
         }
+        assert prettify(expr_obj, ds) == "hobbies in [1, 2]"
 
     @pytest.mark.xfail
     @mock.patch('scrunch.expressions.adapt_multiple_response')

@@ -501,8 +501,8 @@ def process_expr(obj, ds):
                 value = []
                 for val in var_value:
                     if isinstance(val, (int, float)):
-                        # val1 is an id already
-                        value.append(val)
+                        # val1 is a cat id already
+                        value.append(int(val))  # We know these are cat IDs
                         continue
                     for var in _variables:
                         if _variables[var]['id'] == _var_id:
@@ -769,7 +769,6 @@ def prettify(expr, ds=None):
 
         if _func is None:
             # This is not a function, but a plain argument
-
             if 'value' in fragment:
                 # This argument is a value, not a variable
                 value = fragment['value']
