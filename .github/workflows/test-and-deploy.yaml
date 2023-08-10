@@ -31,9 +31,18 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
+      if: matrix.python-version != '2.7'
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+        
+    - name: set up Python 2.7 (with APT + get-pip)
+      if: matrix.python-version == '2.7'
+      run: |
+        sudo apt-get install python-is-python2
+        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+        sudo python get-pip.py
+        rm get-pip.py
 
     - name: Cache pip
       uses: actions/cache@v2
@@ -49,18 +58,6 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install tox tox-gh-actions
-
-    - name: Install dependencies for python 3.4
-      if: matrix.python-version == '3.4'
-      run: |
-        pip install --upgrade pip
-        pip install tox
-
-    - name: Test with tox for TOXENV py34
-      if: matrix.python-version == '3.4'
-      env:
-        TOXENV: py34
-      run: tox
 
     - name: Test with tox for other TOXENV
       if: matrix.python-version != '3.4'
