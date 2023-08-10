@@ -63,7 +63,7 @@ jobs:
       if: matrix.python-version == '2.7'
       run: |
         pip install --upgrade pip
-        python -m pip install setuptools
+        python -m pip install "setuptools>=56"
         pip install tox tox-gh-actions
         
     - name: Test with tox for other TOXENV
