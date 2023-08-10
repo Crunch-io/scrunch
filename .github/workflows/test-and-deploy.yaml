@@ -53,14 +53,20 @@ jobs:
           ${{ runner.os }}-pip-
           ${{ runner.os }}-
 
-    - name: Install dependencies python different from 3.4
-      if: matrix.python-version != '3.4'
+    - name: Install dependencies python different from 2.7
+      if: matrix.python-version != '2.7'
       run: |
         pip install --upgrade pip
         pip install tox tox-gh-actions
-
+  
+    - name: Install dependencies python for 2.7
+      if: matrix.python-version == '2.7'
+      run: |
+        pip install --upgrade pip
+        python -m pip install setuptools
+        pip install tox tox-gh-actions
+        
     - name: Test with tox for other TOXENV
-      if: matrix.python-version != '3.4'
       run: tox
 
   deploy:
