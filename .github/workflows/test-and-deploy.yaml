@@ -29,6 +29,8 @@ jobs:
           # This include can be removed when we drop support for Python 3.6.
           - os: "ubuntu-20.04"
             python-version: "3.6"
+          - os: "ubuntu-20.04"
+            python-version: "2.7"
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
