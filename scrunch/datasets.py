@@ -2341,7 +2341,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         fork_ds = MutableDataset(_fork)  # Fork has same editor as current user
         return fork_ds
 
-    def replace_values(self, variables, filter=None, literal_subvar=False):
+    def replace_values(self, variables, filter=None, literal_subvar=False, timeout=60):
         """
         :param variables: dictionary, {var_alias: value, var2_alias: value}.
             Alows subvariable alias as well
@@ -2374,7 +2374,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if resp.status_code == 204:
             LOG.info('Dataset Updated')
             return
-        pycrunch.shoji.wait_progress(resp, self.resource.session)
+        progress_tracker = DefaultProgressTracking(timeout)
+        pycrunch.shoji.wait_progress(resp, self.resource.session, progress_tracker)
         return resp
 
     def backfill_from_csv(self, aliases, pk_alias, csv_fh, rows_filter=None, timeout=None):
