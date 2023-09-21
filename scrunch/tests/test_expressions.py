@@ -1426,6 +1426,21 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
+    def test_parse_subvariable_brackets(self):
+        expr = "array[subvariable_alias] in [1, 2, 3]"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'subvariable_alias'
+                },
+                {
+                    'value': [1, 2, 3]
+                }
+            ]
+        }
+
 
 # 'diposition code 0 (incompletes)':
 # intersection(
@@ -1572,6 +1587,53 @@ class TestExpressionProcessing(TestCase):
                 {
                     'value': 4
                 }
+            ]
+        }
+
+    def test_transform_subvar_alias_w_brackets_to_subvar_id(self):
+        var_id = '0001'
+        var_alias = 'hobbies_array'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = ['0001', '0002']
+        subreferences = {'0001': {'alias': 'hobbies_1'}, '0002': {'alias': 'hobbies_2'}}
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        subvariable_url = '%ssubvariables/%s/' % (var_url, subvariables[0])
+
+        # Expression with subvariable indicated by bracket syntax
+        expr = "hobbies_array[hobbies_1] == 4"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                # Still finds the correct subvariable ID under the array URL
+                {'variable': subvariable_url},
+                {'value': 4}
+            ]
+        }
+
+        # Expression with subvariable indicated by bracket syntax
+        expr = "hobbies_array[hobbies_1].any([1, 2])"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': "any",
+            'args': [
+                # Still finds the correct subvariable ID under the array URL
+                {'variable': subvariable_url},
+                {'value': [1, 2]}
             ]
         }
 

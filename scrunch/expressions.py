@@ -172,7 +172,6 @@ def parse_expr(expr):
         args = []
         op = None
         func_type = None
-
         if isinstance(node, ast.AST):
             # Get the current node fields.
             fields = list(ast.iter_fields(node))
@@ -256,7 +255,7 @@ def parse_expr(expr):
                     and isinstance(parent, ast.Call):
                 # The variable.
                 _id_node = fields[0][1]
-                if not isinstance(_id_node, ast.Name):
+                if not isinstance(_id_node, (ast.Name, ast.Subscript)):
                     msg = (
                         'calling methods of "{}" object not allowed, '
                         'variable name expected.'
@@ -276,7 +275,14 @@ def parse_expr(expr):
                     )
 
                 return _id, CRUNCH_METHOD_MAP[method]
-
+            elif isinstance(node, ast.Subscript):
+                # Handle the case of `array_alias[subvariable_alias]`
+                # We will take the subvariable alias bit from the subscript
+                # and return that alias as the variable
+                name_node = dict(ast.iter_fields(fields[1][1]))["value"]
+                subscript_fields = dict(ast.iter_fields(name_node))
+                subvariable_alias = subscript_fields["id"]
+                return {"variable": subvariable_alias}
             # "Non-terminal" nodes.
             else:
                 for _name, _val in fields:
