@@ -278,11 +278,12 @@ def parse_expr(expr):
             elif isinstance(node, ast.Subscript):
                 # Handle the case of `array_alias[subvariable_alias]`
                 # We will take the subvariable alias bit from the subscript
-                # and return that alias as the variable
+                # and return an object with the array and subvariable alias
+                array_alias = dict(ast.iter_fields(fields[0][1]))["id"]
                 name_node = dict(ast.iter_fields(fields[1][1]))["value"]
                 subscript_fields = dict(ast.iter_fields(name_node))
                 subvariable_alias = subscript_fields["id"]
-                return {"variable": subvariable_alias}
+                return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
             # "Non-terminal" nodes.
             else:
                 for _name, _val in fields:
@@ -550,7 +551,7 @@ def process_expr(obj, ds):
                     return adapt_multiple_response(var_url, subitems[1]['value'])
 
         for item in subitems:
-            if isinstance(item, dict) and 'variable' in item:
+            if isinstance(item, dict) and 'variable' in item and not isinstance(item["variable"], dict):
                 var_id = variable_id(item['variable'])
             elif isinstance(item, dict) and 'value' in item:
                 item['value'] = category_ids(var_id, item['value'])
@@ -578,7 +579,9 @@ def process_expr(obj, ds):
                         raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
 
         for key, val in obj.items():
-            if isinstance(val, dict):
+            if isinstance(val, dict) and "array" not in val:
+                # This is not an array object, then it's a nested ZCL expression
+                # so we need to proceed for nested processing.
                 obj[key] = _process(val, variables)
             elif isinstance(val, list) or isinstance(val, tuple):
                 subitems = []
@@ -600,8 +603,29 @@ def process_expr(obj, ds):
                     subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
             elif key == 'variable':
-                var = variables.get(val)
-                if var:
+                if isinstance(val, dict) and "array" in val:
+                    # This is a subvariable reference with this shape:
+                    # {"variable": {"array": array_alias, "subvariable": subvariable_alias}`
+                    array_alias, subvar_alias = val["array"], val["subvariable"]
+                    try:
+                        array_value = variables[array_alias]
+                    except KeyError:
+                        raise ValueError("Invalid variable alias '%s'" % array_alias)
+                    subreferences = array_value["subreferences"]
+                    subvar_map = {sr["alias"]: sv_id for sv_id, sr in subreferences.items()}
+                    array_id = array_value["id"]
+                    try:
+                        subvar_id = subvar_map[subvar_alias]
+                    except KeyError:
+                        raise ValueError("Invalid subvariable `%s` for array '%s'" % (subvariables, array_alias))
+                    subvar_url = "%svariables/%s/subvariables/%s/" % (base_url, array_id, subvar_id)
+                    obj[key] = subvar_url
+                else:
+                    # Otherwise a regular variable references {"variable": alias}
+                    var = variables.get(val)
+                    if not var:
+                        raise ValueError("Invalid variable alias '%s'" % val)
+
                     # TODO: We shouldn't stitch URLs together, use the API
                     if var.get('is_subvar'):
                         obj[key] = '%svariables/%s/subvariables/%s/' \
@@ -615,8 +639,7 @@ def process_expr(obj, ds):
                             % (base_url, var['id'], subvar_id)
                             for subvar_id in var.get('subvariables', [])
                         ]
-                else:
-                    raise ValueError("Invalid variable alias '%s'" % val)
+
 
             elif key == 'function':
                 op = val

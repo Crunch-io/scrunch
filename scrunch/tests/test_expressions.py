@@ -1427,17 +1427,17 @@ class TestExpressionParsing(TestCase):
         }
 
     def test_parse_subvariable_brackets(self):
-        expr = "array[subvariable_alias] in [1, 2, 3]"
+        expr = "array_alias[subvariable_alias] in [1, 2, 3]"
         expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'in',
             'args': [
-                {
-                    'variable': 'subvariable_alias'
-                },
-                {
-                    'value': [1, 2, 3]
-                }
+                # Note how instead of storing a variable string as identifier
+                # this is a temporary intern format so we can use this later
+                # on to convert to URLs appropriately discovering first the
+                # array and then the subvariable
+                {'variable': {"array": "array_alias", "subvariable": "subvariable_alias"}},
+                {'value': [1, 2, 3]}
             ]
         }
 
