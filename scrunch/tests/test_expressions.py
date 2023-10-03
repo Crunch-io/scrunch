@@ -3118,6 +3118,17 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert cel == 'Q2.any([1, 2, 3])'
 
+        # Works with subvariable aliases
+        expr = {
+            'function': 'any',
+            'args': [
+                {'variable': 'Q2'},
+                {'value': ["subvar1", "subvar2"]}
+            ]
+        }
+        cel = prettify(expr)
+        assert cel == "Q2.any(['subvar1', 'subvar2'])"
+
     def test_parse_all(self):
         expr = {
             'function': 'all',
