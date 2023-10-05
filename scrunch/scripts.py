@@ -25,7 +25,7 @@ class DatasetScripts:
         try:
             self.dataset_resource.scripts.create({
                 'element': 'shoji:entity',
-                'body': {"body": script_body},
+                'body': {"body": script_body, "strict_subvariable_syntax": False},
             })
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):

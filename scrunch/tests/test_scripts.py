@@ -50,7 +50,8 @@ class TestScripts(TestCase):
         self.assertEqual(json.loads(post_request.body), {
             'element': 'shoji:entity',
             'body': {
-                'body': "<script body>"
+                'body': "<script body>",
+                "strict_subvariable_syntax": False
             }
         })
 
