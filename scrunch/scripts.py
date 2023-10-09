@@ -47,15 +47,18 @@ class DatasetScripts:
         flags = self.dataset_resource.session.feature_flags
         return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
 
-    def execute(self, script_body, strict_subvariable_syntax=None):
+    def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
         strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
+        payload = {
+            "body": script_body,
+            "strict_subvariable_syntax": strict_subvariable_syntax
+        }
+        if dry_run:
+            payload["dry_run"] = True
         try:
             self.dataset_resource.scripts.create({
                 'element': 'shoji:entity',
-                'body': {
-                    "body": script_body,
-                    "strict_subvariable_syntax": strict_subvariable_syntax
-                }
+                'body': payload
             })
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):
@@ -67,6 +70,9 @@ class DatasetScripts:
                 resolutions = err.args[2]["resolutions"]
                 raise ScriptExecutionError(err, resolutions)
             raise err  # 404 or something else
+
+    def dry_run(self, script_body, strict_subvariable_syntax=None):
+        self.execute(script_body, strict_subvariable_syntax, dry_run=True)
 
     def collapse(self):
         """
