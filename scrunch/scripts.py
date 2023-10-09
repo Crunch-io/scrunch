@@ -45,7 +45,7 @@ class DatasetScripts:
         if strict_subvariable_syntax is not None:
             return strict_subvariable_syntax
         flags = self.dataset_resource.session.feature_flags
-        return flags.get("strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
+        return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
 
     def execute(self, script_body, strict_subvariable_syntax=None):
         strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
