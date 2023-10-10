@@ -53,13 +53,12 @@ class DatasetScripts:
             "body": script_body,
             "strict_subvariable_syntax": strict_subvariable_syntax
         }
+        method = self.dataset_resource.scripts.create
         if dry_run:
             payload["dry_run"] = True
+            method = self.dataset_resource.scripts.post
         try:
-            self.dataset_resource.scripts.create({
-                'element': 'shoji:entity',
-                'body': payload
-            })
+            method({'element': 'shoji:entity', 'body': payload})
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):
                 # For async script validation error
