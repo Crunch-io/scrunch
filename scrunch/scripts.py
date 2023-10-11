@@ -14,6 +14,9 @@ class ScriptExecutionError(Exception):
         return json.dumps(self.resolutions, indent=2)
 
 
+DEFAULT_SUBVARIABLE_SYNTAX = False
+
+
 class DatasetScripts:
     def __init__(self, dataset_resource):
         """
@@ -21,12 +24,41 @@ class DatasetScripts:
         """
         self.dataset_resource = dataset_resource
 
-    def execute(self, script_body):
+    def get_default_syntax_flag(self, strict_subvariable_syntax):
+        """
+        The Syntax flag tells scripts whether to be strict about
+        evaluating subvariable codes with the array[subvar] square bracket
+        syntax (when True) or to allow referring to subvariables by their
+        global code only  (when False).
+
+        If the user did provide a flag (not None), honor it and send that
+        in the request.
+
+        IFF the user did NOT provide a flag (is None), then see if the
+        session's feature flags know something that's been provided from the
+        server, and if nothing's there use the constant's default (currently
+        False).
+
+        :param strict_subvariable_syntax: User provided flag
+        :return: bool
+        """
+        if strict_subvariable_syntax is not None:
+            return strict_subvariable_syntax
+        flags = self.dataset_resource.session.feature_flags
+        return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
+
+    def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
+        strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
+        payload = {
+            "body": script_body,
+            "strict_subvariable_syntax": strict_subvariable_syntax
+        }
+        method = self.dataset_resource.scripts.create
+        if dry_run:
+            payload["dry_run"] = True
+            method = self.dataset_resource.scripts.post
         try:
-            self.dataset_resource.scripts.create({
-                'element': 'shoji:entity',
-                'body': {"body": script_body},
-            })
+            method({'element': 'shoji:entity', 'body': payload})
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):
                 # For async script validation error
@@ -37,6 +69,9 @@ class DatasetScripts:
                 resolutions = err.args[2]["resolutions"]
                 raise ScriptExecutionError(err, resolutions)
             raise err  # 404 or something else
+
+    def dry_run(self, script_body, strict_subvariable_syntax=None):
+        self.execute(script_body, strict_subvariable_syntax, dry_run=True)
 
     def collapse(self):
         """

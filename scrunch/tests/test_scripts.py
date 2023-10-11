@@ -31,26 +31,46 @@ class TestScripts(TestCase):
             'Location': created_script_url
         }
 
+        dry_run_response = Response()
+        dry_run_response.status_code = 204
+        # Add 2 responses, one for .execute() call and one for .dry_run() call
+        session.add_post_response(response)
+        session.add_post_response(dry_run_response)
+
         session.add_fixture(scripts_url, {
             "element": "shoji:catalog",
             "self": scripts_url,
             "index": {}
         })
-        session.add_post_response(response)
         session.add_fixture(created_script_url, {
             'self': created_script_url,
             'body': {},
         })
         scripts = DatasetScripts(shoji_resource)
-        scripts.execute("<script body>")
 
+        scripts.execute("<script body>")
         post_request = session.requests[-1]
         self.assertEqual(post_request.method, 'POST')
         self.assertEqual(post_request.url, scripts_url)
         self.assertEqual(json.loads(post_request.body), {
             'element': 'shoji:entity',
             'body': {
-                'body': "<script body>"
+                'body': "<script body>",
+                "strict_subvariable_syntax": False
+            }
+        })
+
+        # use `.dry_run()
+        scripts.dry_run("<script body>", strict_subvariable_syntax=True)
+        post_request = session.requests[-1]
+        self.assertEqual(post_request.method, 'POST')
+        self.assertEqual(post_request.url, scripts_url)
+        self.assertEqual(json.loads(post_request.body), {
+            'element': 'shoji:entity',
+            'body': {
+                'body': "<script body>",
+                "dry_run": True,
+                "strict_subvariable_syntax": True
             }
         })
 
