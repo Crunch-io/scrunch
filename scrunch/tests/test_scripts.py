@@ -30,9 +30,12 @@ class TestScripts(TestCase):
         response.headers = {
             'Location': created_script_url
         }
+
+        dry_run_response = Response()
+        dry_run_response.status_code = 204
         # Add 2 responses, one for .execute() call and one for .dry_run() call
         session.add_post_response(response)
-        session.add_post_response(response)
+        session.add_post_response(dry_run_response)
 
         session.add_fixture(scripts_url, {
             "element": "shoji:catalog",
