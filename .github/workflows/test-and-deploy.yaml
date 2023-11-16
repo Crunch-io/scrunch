@@ -13,22 +13,47 @@ on:
       - master
 
 jobs:
-  test:
-    # runs-on: ubuntu-latest
+  testpy2:
     runs-on: ubuntu-20.04
     strategy:
       max-parallel: 4
       matrix:
         python-version:
           - 2.7
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: MatteoH2O1999/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+
+    - name: Install python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install tox tox-gh-actions
+  
+    - name: Test with tox for other TOXENV
+      run: tox
+
+  testpy3:
+    runs-on: ubuntu-20.04
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version:
           - 3.6
           - 3.7
-        include:
-          - os: "ubuntu-latest"
-          # There is no build for Python 3.6 in ubuntu>20.04.
-          # This include can be removed when we drop support for Python 3.6.
-          - os: "ubuntu-20.04"
-            python-version: "3.6"
+
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -45,26 +70,12 @@ jobs:
           ${{ runner.os }}-pip-
           ${{ runner.os }}-
 
-    - name: Install dependencies python different from 3.4
-      if: matrix.python-version != '3.4'
+    - name: Install python dependencies
       run: |
         pip install --upgrade pip
         pip install tox tox-gh-actions
-
-    - name: Install dependencies for python 3.4
-      if: matrix.python-version == '3.4'
-      run: |
-        pip install --upgrade pip
-        pip install tox
-
-    - name: Test with tox for TOXENV py34
-      if: matrix.python-version == '3.4'
-      env:
-        TOXENV: py34
-      run: tox
-
+  
     - name: Test with tox for other TOXENV
-      if: matrix.python-version != '3.4'
       run: tox
 
   deploy:
