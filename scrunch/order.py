@@ -3,6 +3,12 @@ import json
 import re
 
 import six
+import sys
+
+if sys.version_info.major == 3:
+    from collections.abc import Iterable
+else:
+    from collections import Iterable
 
 import pycrunch
 import scrunch.datasets
@@ -181,7 +187,7 @@ class Group(object):
     def _validate_alias_arg(alias):
         if isinstance(alias, six.string_types):
             alias = [alias]
-        if not isinstance(alias, collections.Iterable):
+        if not isinstance(alias, Iterable):
             raise ValueError(
                 'Invalid list of aliases/ids/groups to be inserted'
                 ' into the Group.'

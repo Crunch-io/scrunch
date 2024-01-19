@@ -48,6 +48,9 @@ import six
 import scrunch
 from scrunch.variables import validate_variable_url
 
+import sys
+
+PY311 = sys.version_info[:2] == (3, 11)
 
 if six.PY2:
     from urllib import urlencode
@@ -280,9 +283,13 @@ def parse_expr(expr):
                 # We will take the subvariable alias bit from the subscript
                 # and return an object with the array and subvariable alias
                 array_alias = dict(ast.iter_fields(fields[0][1]))["id"]
-                name_node = dict(ast.iter_fields(fields[1][1]))["value"]
-                subscript_fields = dict(ast.iter_fields(name_node))
-                subvariable_alias = subscript_fields["id"]
+                if PY311:                
+                    name_node = dict(ast.iter_fields(fields[1][1]))
+                    subvariable_alias = name_node["id"]
+                else:
+                    name_node = dict(ast.iter_fields(fields[1][1]))["value"]
+                    subscript_fields = dict(ast.iter_fields(name_node))
+                    subvariable_alias = subscript_fields["id"]
                 return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
             # "Non-terminal" nodes.
             else:
