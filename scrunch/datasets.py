@@ -14,6 +14,12 @@ except ImportError:
     # ... unless you have to worry about pandas
     pd = None
 
+
+if sys.version_info.major == 3:
+    from collections.abc import Mapping
+else:
+    from collections import Mapping
+
 import six
 
 import pycrunch
@@ -702,7 +708,7 @@ class DatasetSettings(dict):
     del __readonly__
 
 
-class DatasetVariablesMixin(collections.Mapping):
+class DatasetVariablesMixin(Mapping):
     """
     Handles dataset variable iteration in a dict-like way
     """
@@ -3410,5 +3416,4 @@ class BackfillFromCSV:
                     folders_by_name[folder_name].entity.delete()
                 # Always delete the tmp dataset no matter what
                 tmp_ds.delete()
-
 
