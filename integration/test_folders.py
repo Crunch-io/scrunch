@@ -18,12 +18,11 @@ from scrunch.datasets import Variable
 from scrunch.exceptions import InvalidPathError
 from scrunch.folders import Folder
 
+HOST = os.environ["SCRUNCH_HOST"]
+api_key = os.environ["SCRUNCH_APIKEY"]
 
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-site = connect(username, password, HOST)
+site = connect(api_key=api_key, site_url=HOST)
+assert site is not None, "Unable to connect to %s" % HOST
 
 
 def setup_folders(ds):

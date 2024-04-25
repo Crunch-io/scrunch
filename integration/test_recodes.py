@@ -17,13 +17,10 @@ from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
 
+HOST = os.environ["SCRUNCH_HOST"]
+api_key = os.environ["SCRUNCH_APIKEY"]
 
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-
-site = connect(username, password, HOST)
+site = connect(api_key=api_key, site_url=HOST)
 assert site is not None, "Unable to connect to %s" % HOST
 
 
