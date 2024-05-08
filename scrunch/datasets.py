@@ -1430,6 +1430,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 {'id': 1, 'alias': var1},
                 {'id': 2, 'alias': var2}
             ]
+        :param: subvariable_codes: When provided, will be used for the alias of
+         the subvariables of the new arrays. Otherwise, dataset-wide unique
+         aliases will be computed for the subvariables.
         """
 
         # creates ids if 'id' not present in subvariables list
@@ -1734,6 +1737,20 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         self._var_create_reload_return(shoji_entity_wrapper(payload))
 
     def copy_variable(self, variable, name, alias, derived=None, subvariable_codes=None):
+        """
+        Makes a copy of a Variable using the `copy_variable` function.
+        Strong suggestion to provide the `subvariable_codes` in order to have
+        a deterministic output for the subvariables of the new array.
+
+        :param variable: a Variable instance to be copied
+        :param name: Name of the new variable
+        :param alias: Alias of the new variable
+        :param derived: If False, the variable will be materialized
+        :param subvariable_codes: For arrays, when provided, the subvariables of
+        the new variable will use those as their aliases. If not, it will
+        calculate on client side unique codes to use by __# algorithm.
+        :return: Variable() instance of new copy
+        """
         _subvar_alias = re.compile(r'.+_(\d+)$')
         variable_resource = variable.resource
 
