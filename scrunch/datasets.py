@@ -39,7 +39,8 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
-                             shoji_view_wrapper)
+                             shoji_view_wrapper, make_unique,
+                             generate_subvariable_codes)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -1394,8 +1395,26 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         })
         return self._var_create_reload_return(payload)
 
+    def variable_aliases(self, include_subvariables=False):
+        existing_aliases = set()
+        # We have to fetch from the `/table/` endpoint because it includes
+        # the subvariables aliases.
+        variables_metadata = self.resource.table['metadata']
+        for var_tuple in variables_metadata.values():
+            var_alias = var_tuple["alias"]
+            existing_aliases.add(var_alias)
+            if include_subvariables and "subreferences" in var_tuple:
+                subreferences = var_tuple["subreferences"]
+                existing_aliases.update({sr["alias"] for sr in subreferences.values()})
+
+        return existing_aliases
+
+    def get_url_by_alias(self, alias):
+        # This helper allows to be mocked for tests rather than __getitem__
+        return self[alias].url
+
     def bind_categorical_array(self, name, alias, subvariables, description='',
-        notes=''):
+        notes='', subvariable_codes=None):
         """
         Creates a new categorical_array where subvariables is a
         subset of categorical variables already existing in the DS.
@@ -1413,26 +1432,40 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             ]
         """
 
-        # creates numeric ids if 'id' not present in subvariables list
-
+        # creates ids if 'id' not present in subvariables list
         for i, elem in enumerate(subvariables, start=1):
             if 'id' not in elem:
-                elem.update({'id': i})
+                elem.update({'id': str(i)})
 
+        if subvariable_codes is None:
+            # The user did not provide the subvariable codes to use in this
+            # new array. Then we do the expensive bit of computing them.
+            subvariable_codes = generate_subvariable_codes(self, subvariables)
+
+        if len(subvariable_codes) != len(subvariables):
+            msg = "Should provide {} codes for {} subvariables".format(
+                len(subvariable_codes), len(subvariables))
+            raise ValueError(msg)
+
+        subreferences = []
+        for sv_code, subvar in zip(subvariable_codes, subvariables):
+            subvar_name = subvar.get("name", subvar.get("alias")) or sv_code
+            subreferences.append({"alias": sv_code, "name": subvar_name})
+
+        array_map = {v['id']: {'variable': self.get_url_by_alias(v['alias'])} for v in subvariables}
+        expression = {
+            'function': 'array',
+            'args': [{'function': 'make_frame', 'args': [{'map': array_map}]}],
+            "references": {
+                "subreferences": subreferences
+            }
+        }
         payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
             'notes': notes,
-            'derivation': {
-                'function': 'array',
-                'args': [{
-                    'function': 'select',
-                    'args': [{
-                        'map': {v['id']: {'variable': self[v['alias']].url} for v in subvariables}
-                    }]
-                }]
-            }
+            'derivation': expression
         })
         return self._var_create_reload_return(payload)
 
@@ -1700,8 +1733,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         self._var_create_reload_return(shoji_entity_wrapper(payload))
 
-    def copy_variable(self, variable, name, alias, derived=None):
+    def copy_variable(self, variable, name, alias, derived=None, subvariable_codes=None):
         _subvar_alias = re.compile(r'.+_(\d+)$')
+        variable_resource = variable.resource
 
         def subrefs(_variable, _alias):
             # In the case of MR variables, we want the copies' subvariables
@@ -1747,16 +1781,38 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                             subvar['references']['alias'] = subref['alias']
                             break
         else:
+            derivation = {
+                'function': 'copy_variable',
+                'args': [{
+                    'variable': variable_resource.self
+                }]
+            }
             payload = shoji_entity_wrapper({
                 'name': name,
                 'alias': alias,
-                'derivation': {
-                    'function': 'copy_variable',
-                    'args': [{
-                        'variable': variable.resource.self
-                    }]
-                }
+                'derivation': derivation
             })
+
+        if "subvariables" in variable_resource.body:
+            api_subreferences = variable_resource.body["subreferences"]
+            api_subvariables = variable_resource.body["subvariables"]
+            subvariables = [api_subreferences[sv_url] for sv_url in api_subvariables]
+            if subvariable_codes is None:
+                subvariable_codes = generate_subvariable_codes(self, subvariables)
+
+            if len(subvariable_codes) != len(subvariables):
+                msg = "Should provide {} codes for {} subvariables".format(
+                    len(subvariable_codes), len(subvariables))
+                raise ValueError(msg)
+
+            subreferences = []
+            for sv_code, subvar in zip(subvariable_codes, subvariables):
+                subvar_name = subvar.get("name", subvar.get("alias")) or sv_code
+                subreferences.append({"alias": sv_code, "name": subvar_name})
+
+            # Update the `derivation` variable with the subreferences for
+            # this array
+            derivation["references"] = {"subreferences": subreferences}
 
         if derived is False or derived:
             payload['body']['derived'] = derived

@@ -268,3 +268,55 @@ def valid_categorical_date(date_str):
             continue
     return False
 
+
+def make_unique(proposed, existing_values):
+    """
+    Given a set of existing values, check if a proposed string exists in them,
+    and if it does, return a suffixed __# version of it to ensure it is unique.
+
+    Note, that after returning this new element, the caller should update
+    the existing_values set if they wish to re-use it to check/generate more
+    elements.
+
+    :param proposed: str proposed string to make unique
+    :param existing_values: A Set() of existing values. Important that it's a set
+    :return: str, An Alias that does not exist in the existing values
+    """
+    new_val = proposed
+    alias_format = "%s__%d"
+    while new_val in existing_values:
+        try:
+            # In case the variable already has the alias__1 format.
+            base_alias, suffix = new_val.rsplit("__", 1)
+        except ValueError:
+            # The variable did not have the __1 format, so we can directly
+            # apply it
+            new_val = alias_format % (new_val, 1)
+        else:
+            try:
+                # Try to cast the suffix to integer.
+                current_counter = int(suffix)
+            except ValueError:
+                # The alias we were looking at did not have the __1 format but
+                # was probably something else like A__B, then we proceed adding
+                # the __1 suffix
+                new_val = alias_format % (new_val, 1)
+            else:
+                # Turns out there was already a suffixed __1 alias, so increase
+                # and apply __2
+                new_val = alias_format % (base_alias, current_counter + 1)
+
+    # Does not exist.
+    return new_val
+
+
+def generate_subvariable_codes(dataset, subvariables):
+    # The user did not provide the subvariable codes to use in this
+    # new array. Then we do the expensive bit of computing them.
+    existing_aliases = dataset.variable_aliases(include_subvariables=True)
+    subvariable_codes = []
+    for subvar in subvariables:
+        unique_code = make_unique(subvar["alias"], existing_aliases)
+        existing_aliases.add(unique_code)
+        subvariable_codes.append(unique_code)
+    return subvariable_codes
