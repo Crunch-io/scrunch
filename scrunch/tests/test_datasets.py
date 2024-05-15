@@ -6562,6 +6562,26 @@ class TestMutableMixin(TestDatasetBase):
         ds_b.append_dataset(ds_a)
         ds_b.resource.batches.create.assert_called_with(expected_payload)
 
+    def test_append_with_variables(self):
+        ds_a_mock = self._dataset_mock(variables=self.variables)
+        ds_a = MutableDataset(ds_a_mock)
+        ds_b_mock = self._dataset_mock(variables=self.variables_b)
+        ds_b = MutableDataset(ds_b_mock)
+        ds_a.url = 'http://test.crunch.io/api/datasets/123/'
+        expected_payload = {
+            "element": "shoji:entity",
+            "autorollback": True,
+            "body": {
+                'dataset': ds_a.url,
+                'where': {
+                    'function': 'frame_subset',
+                    'args': [{'frame': 'primary'}, {'value': ['001', '002']}]
+                }
+            },
+        }
+        ds_b.append_dataset(ds_a, variables=["var_a", "var_b"])
+        ds_b.resource.batches.create.assert_called_with(expected_payload)
+
 
 class TestHeadingSubtotals(TestDatasetBase):
     variables = {

@@ -225,7 +225,7 @@ class MutableDataset(BaseDataset):
         append is rolledback. Dataset variables and subvariables
         are matched on their aliases and categories are matched by name.
 
-        :param: dataset: Daatset instance to append from
+        :param: dataset: Dataset instance to append from
         :param: filter: An expression to filter dataset rows. cannot be a Filter
             according to: http://docs.crunch.io/#get211
         :param: variables: A list of variable names to include from dataset
@@ -245,17 +245,15 @@ class MutableDataset(BaseDataset):
         payload['autorollback'] = autorollback
 
         if variables:
-            id_vars = []
-            for var in variables:
-                id_vars.append(dataset[var].url)
+            # This contains a list of variable IDs, not URLs
+            id_vars = [dataset[var].id for var in variables]
             # build the payload with selected variables
             payload['body']['where'] = {
-                'function': 'make_frame',
-                'args': [{
-                    'map': {
-                        x: {'variable': x} for x in id_vars
-                    }
-                }]
+                'function': 'frame_subset',
+                "args": [
+                    {"frame": "primary"},
+                    {"value": id_vars},
+                ],
             }
 
         if filter:
