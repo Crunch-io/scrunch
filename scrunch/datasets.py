@@ -1347,7 +1347,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': {
                 'function': 'array',
                 'args': [{
-                    'function': 'select',
+                    'function': 'make_frame',
                     'args': [
                         {'map': responses_map},
                         {'value': list(responses_map.keys())}
@@ -1385,7 +1385,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'derivation': {
                 'function': 'array',
                 'args': [{
-                    'function': 'select',
+                    'function': 'make_frame',
                     'args': [
                         {'map': responses_map},
                         {'value': list(responses_map.keys())}
@@ -2082,7 +2082,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             ]
 
             variables = dict(
-                function='select',
+                function='make_frame',
                 args=[
                     {'map': {
                         v.id: {'variable': v.entity_url}
@@ -2276,7 +2276,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
             payload['where'] = {
-                'function': 'select',
+                'function': 'make_frame',
                 'args': [{
                     'map': {
                         x: {'variable': x} for x in id_vars
@@ -2290,7 +2290,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 raise AttributeError(
                     "Only Dataset editors can export hidden variables")
             payload['where'] = {
-                'function': 'select',
+                'function': 'make_frame',
                 'args': [{
                     'map': {
                         x: {'variable': x}

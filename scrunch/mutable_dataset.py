@@ -96,7 +96,7 @@ class MutableDataset(BaseDataset):
             # overwrite body to new format
             payload['body'] = {
                 'frame': adapter,
-                'function': 'select',
+                'function': 'make_frame',
                 'args': [
                     {'map': {}}
                 ]
@@ -250,7 +250,7 @@ class MutableDataset(BaseDataset):
                 id_vars.append(dataset[var].url)
             # build the payload with selected variables
             payload['body']['where'] = {
-                'function': 'select',
+                'function': 'make_frame',
                 'args': [{
                     'map': {
                         x: {'variable': x} for x in id_vars

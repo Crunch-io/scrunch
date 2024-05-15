@@ -2404,7 +2404,7 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '0001': {
@@ -2736,7 +2736,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -2923,7 +2923,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -3304,7 +3304,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -3547,7 +3547,7 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '0001': {
@@ -3672,7 +3672,7 @@ class TestCopyVariable(TestCase):
             'derivation': {
                 'function': 'array',
                 'args': [{
-                    'function': 'select',
+                    'function': 'make_frame',
                     'args': [{
                         'map': {
                             '00001': {
@@ -3697,7 +3697,7 @@ class TestCopyVariable(TestCase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '00001': {
@@ -6477,7 +6477,7 @@ class TestMultitable(TestDatasetBase, TestCase):
                         }
                     }
                 ],
-                'function': 'select'
+                'function': 'make_frame'
             }
         }
         with pytest.raises(AttributeError):
