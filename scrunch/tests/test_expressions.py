@@ -1428,17 +1428,60 @@ class TestExpressionParsing(TestCase):
 
     def test_parse_subvariable_brackets(self):
         expr = "array_alias[subvariable_alias] in [1, 2, 3]"
-        expr_obj = parse_expr(expr)
+        expr_obj = parse_expr(expr, platonic=False)
         assert expr_obj == {
             'function': 'in',
             'args': [
                 # Note how instead of storing a variable string as identifier
-                # this is a temporary intern format so we can use this later
+                # this is a temporary intern format, so we can use this later
                 # on to convert to URLs appropriately discovering first the
                 # array and then the subvariable
                 {'variable': {"array": "array_alias", "subvariable": "subvariable_alias"}},
                 {'value': [1, 2, 3]}
             ]
+        }
+        expr_obj = parse_expr(expr, platonic=True)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                # Note how instead of storing a variable string as identifier
+                # this is a temporary intern format, so we can use this later
+                # on to convert to URLs appropriately discovering first the
+                # array and then the subvariable
+                {'var': "array_alias", "axes": ["subvariable_alias"]},
+                {'value': [1, 2, 3]}
+            ]
+        }
+
+    def test_parse_platonic_expr(self):
+        expr = """not (array[subvar] or num_val) and other[dimension] and not logical"""
+        parsed = parse_expr(expr, platonic=True)
+        assert parsed == {
+            'function': 'and',
+            'args': [
+                {
+                    'function': 'not',
+                    'args': [
+                        {
+                            'function': 'or',
+                            'args': [
+                                {'var': 'array', 'axes': ['subvar']},
+                                {'var': 'num_val'}
+                            ],
+                        }
+                    ],
+                },
+                {
+                    'function': 'and',
+                    'args': [
+                        {'var': 'other', 'axes': ['dimension']},
+                        {
+                            'function': 'not',
+                            'args': [{'var': 'logical'}],
+                        }
+                    ],
+                }
+            ],
         }
 
 
@@ -1615,11 +1658,29 @@ class TestExpressionProcessing(TestCase):
 
         # Expression with subvariable indicated by bracket syntax
         expr = "hobbies_array[hobbies_1] == 4"
+        parsed_platonic = parse_expr(expr, platonic=True)
+        assert parsed_platonic == {
+            'function': '==',
+            'args': [
+                # Keeps the platonic reference to the subvariable
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
+                {'value': 4}
+            ]
+        }
+        parsed = parse_expr(expr)
+        assert parsed == {
+            'function': '==',
+            'args': [
+                # Stores a reference to the pieces of the array/subvariable
+                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {'value': 4}
+            ]
+        }
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
             'function': '==',
             'args': [
-                # Still finds the correct subvariable ID under the array URL
+                # Correctly translates into the subvariable URL
                 {'variable': subvariable_url},
                 {'value': 4}
             ]
@@ -1627,13 +1688,117 @@ class TestExpressionProcessing(TestCase):
 
         # Expression with subvariable indicated by bracket syntax
         expr = "hobbies_array[hobbies_1].any([1, 2])"
-        expr_obj = process_expr(parse_expr(expr), ds)
+        parsed_platonic = parse_expr(expr, platonic=True)
+        assert parsed_platonic == {
+            'function': "any",
+            'args': [
+                # Platonic parsing keeps the var/axes reference
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
+                {'value': [1, 2]}
+            ]
+        }
+        parsed = parse_expr(expr)
+        assert parsed == {
+            'function': "any",
+            'args': [
+                # Stores a reference to the array/subvairable
+                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {'value': [1, 2]}
+            ]
+        }
+        expr_obj = process_expr(parsed, ds)
         assert expr_obj == {
             'function': "any",
             'args': [
                 # Still finds the correct subvariable ID under the array URL
                 {'variable': subvariable_url},
                 {'value': [1, 2]}
+            ]
+        }
+
+        # `IN` functions have a bit of a special treatment.
+        expr = "hobbies_array[hobbies_1] in [1]"
+        parsed_platonic = parse_expr(expr, platonic=True)
+        assert parsed_platonic == {
+            'function': 'in',
+            'args': [
+                # Keeps the platonic reference to the subvariable
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
+                {'value': [1]}
+            ]
+        }
+        parsed = parse_expr(expr)
+        assert parsed == {
+            'function': 'in',
+            'args': [
+                # Stores a reference to the pieces of the array/subvariable
+                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {'value': [1]}
+            ]
+        }
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                # Correctly translates into the subvariable URL
+                {'variable': subvariable_url},
+                {'value': [1]}
+            ]
+        }
+
+    def test_platonic_filter(self):
+        var_id = '0001'
+        var_alias = 'hobbies_array'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = ['0001', '0002']
+        subreferences = {'0001': {'alias': 'hobbies_1'}, '0002': {'alias': 'hobbies_2'}}
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        subvariable_url = '%ssubvariables/%s/' % (var_url, subvariables[0])
+
+        # Expression with subvariable indicated by bracket syntax
+        expr = "hobbies_array[hobbies_1] == 4"
+        parsed = parse_expr(expr, platonic=True)
+        assert parsed == {
+            'function': '==',
+            'args': [
+                # Keeps the platonic reference to the subvariable
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
+                {'value': 4}
+            ]
+        }
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == parsed
+
+        parsed = parse_expr(expr, platonic=False)
+        assert parsed == {
+            'function': '==',
+            'args': [
+                # Keeps the platonic reference to the subvariable
+                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {'value': 4}
+            ]
+        }
+        expr_obj = process_expr(parsed, ds)
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                # Keeps the platonic reference to the subvariable
+                {"variable": subvariable_url},
+                {'value': 4}
             ]
         }
 
