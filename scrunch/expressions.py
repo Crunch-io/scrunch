@@ -57,7 +57,7 @@ if six.PY2:
 else:
     from urllib.parse import urlencode
 
-ARRAY_TYPES = ('categorical_array', 'multiple_response')
+ARRAY_TYPES = ('categorical_array', 'multiple_response', 'numeric_array')
 
 CRUNCH_FUNC_MAP = {
     'valid': 'is_valid',
@@ -168,7 +168,22 @@ def r(lower, upper):
     return list(range(lower, upper + 1))
 
 
-def parse_expr(expr):
+def parse_expr(expr, platonic=False):
+    """
+    Converts a text python-like expression into ZCL tree.
+
+    If `platonic` is True, the aliases will use `{"var": <alias:str>}` terms.
+
+    :param expr: String with a python-like expression
+    :param platonic: Boolean, when True variables will be alias `var` terms
+    :return: Dictionary with a ZCL expression
+    """
+
+    def _var_term(_var_id):
+        if platonic:
+            return {"var": _var_id}
+        else:
+            return {'variable': _var_id}
 
     def _parse(node, parent=None):
         obj = {}
@@ -188,16 +203,12 @@ def parse_expr(expr):
                     return _id
 
                 # A variable identifier.
-                return {
-                    'variable': _id
-                }
+                return _var_term(_id)
             elif isinstance(node, ast.Num) or isinstance(node, ast.Str):
                 if isinstance(parent, ast.Call) \
                         and 'func' in parent._fields:
                     _id = fields[0][1]
-                    return {
-                        'variable': _id
-                    }
+                    return _var_term(_id)
 
                 _val = fields[0][1]
                 return {
@@ -290,7 +301,12 @@ def parse_expr(expr):
                     name_node = dict(ast.iter_fields(fields[1][1]))["value"]
                     subscript_fields = dict(ast.iter_fields(name_node))
                     subvariable_alias = subscript_fields["id"]
-                return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
+                if platonic:
+                    return {"var": array_alias, "axes": [subvariable_alias]}
+                else:
+                    # For non-platonic expressions, keep track of both the array
+                    # and subvariable to make a proper url lookup.
+                    return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
             # "Non-terminal" nodes.
             else:
                 for _name, _val in fields:
@@ -441,6 +457,13 @@ def parse_expr(expr):
 
 
 def get_dataset_variables(ds):
+    """
+    Returns an Alias based dictionary pointing to a variable definition
+    from the /api/datasets/:id/table/ endpoint
+
+    :param ds: Dataset() instance
+    :return: Dictionary keyed by alias
+    """
     table = ds.follow("table", urlencode({
         'limit': 0
     }))
@@ -460,7 +483,10 @@ def get_dataset_variables(ds):
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
                 subvar['categories'] = copy.deepcopy(var['categories'])
+                # TODO: This is a problem when subvariable codes are reused
                 variables[subvar['alias']] = subvar
+                # Poorman's square bracket lookup
+                variables["%s[%s]" % (var["alias"], subvar['alias'])] = subvar
 
     return variables
 
@@ -579,11 +605,19 @@ def process_expr(obj, ds):
             if obj['function'] == 'in':
                 args = obj['args']
                 if 'variable' in args[0]:
-                    try:
-                        if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                            obj['function'] = 'any'
-                    except TypeError:
-                        raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
+                    if isinstance(args[0], dict):
+                        # This is the case of a square bracket subvariable
+                        # array[subvar] in [values]
+                        # In this case, we do not need to do the `in` to `any`
+                        # function conversion, because this subvariable will
+                        # never be of type multiple_response.
+                        pass
+                    else:
+                        try:
+                            if variables.get(args[0]['variable'])['type'] == 'multiple_response':
+                                obj['function'] = 'any'
+                        except TypeError:
+                            raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
 
         for key, val in obj.items():
             if isinstance(val, dict) and "array" not in val:
@@ -646,8 +680,6 @@ def process_expr(obj, ds):
                             % (base_url, var['id'], subvar_id)
                             for subvar_id in var.get('subvariables', [])
                         ]
-
-
             elif key == 'function':
                 op = val
 

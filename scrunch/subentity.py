@@ -109,7 +109,7 @@ class Multitable(SubEntity):
                     id_vars.append(self.ds[var].url)
                 # Now build the payload with selected variables
                 payload['where'] = {
-                    'function': 'select',
+                    'function': 'make_frame',
                     'args': [{
                         'map': {
                             x: {'variable': x} for x in id_vars

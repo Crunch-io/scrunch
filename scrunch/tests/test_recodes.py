@@ -494,7 +494,7 @@ class TestRecode(TestCase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '0001': {

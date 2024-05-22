@@ -2404,7 +2404,7 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '0001': {
@@ -2736,7 +2736,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -2923,7 +2923,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -3304,7 +3304,7 @@ class TestRecode(TestDatasetBase):
                     "function": "array",
                     "args": [
                         {
-                            "function": "select",
+                            "function": "make_frame",
                             "args": [
                                 {
                                     "map": {
@@ -3547,7 +3547,7 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '0001': {
@@ -3672,7 +3672,7 @@ class TestCopyVariable(TestCase):
             'derivation': {
                 'function': 'array',
                 'args': [{
-                    'function': 'select',
+                    'function': 'make_frame',
                     'args': [{
                         'map': {
                             '00001': {
@@ -3697,7 +3697,7 @@ class TestCopyVariable(TestCase):
                 'derivation': {
                     'function': 'array',
                     'args': [{
-                        'function': 'select',
+                        'function': 'make_frame',
                         'args': [{
                             'map': {
                                 '00001': {
@@ -6477,7 +6477,7 @@ class TestMultitable(TestDatasetBase, TestCase):
                         }
                     }
                 ],
-                'function': 'select'
+                'function': 'make_frame'
             }
         }
         with pytest.raises(AttributeError):
@@ -6560,6 +6560,26 @@ class TestMutableMixin(TestDatasetBase):
                 'dataset': ds_a.url
             }}
         ds_b.append_dataset(ds_a)
+        ds_b.resource.batches.create.assert_called_with(expected_payload)
+
+    def test_append_with_variables(self):
+        ds_a_mock = self._dataset_mock(variables=self.variables)
+        ds_a = MutableDataset(ds_a_mock)
+        ds_b_mock = self._dataset_mock(variables=self.variables_b)
+        ds_b = MutableDataset(ds_b_mock)
+        ds_a.url = 'http://test.crunch.io/api/datasets/123/'
+        expected_payload = {
+            "element": "shoji:entity",
+            "autorollback": True,
+            "body": {
+                'dataset': ds_a.url,
+                'where': {
+                    'function': 'frame_subset',
+                    'args': [{'frame': 'primary'}, {'value': ['001', '002']}]
+                }
+            },
+        }
+        ds_b.append_dataset(ds_a, variables=["var_a", "var_b"])
         ds_b.resource.batches.create.assert_called_with(expected_payload)
 
 
@@ -6729,3 +6749,222 @@ class TestHeadingSubtotals(TestDatasetBase):
             "kwargs": {"negative": [2]},
             "name": "M - F"
         }]
+
+
+class TestSubvariableCodes:
+    def prepare_dataset(self):
+        ds_res = MagicMock()
+        dataset = BaseDataset(ds_res)
+        args = []
+
+        def _mock_create(payload):
+            args.append(payload)
+
+        def _mock_getitem(_alias):
+            return "/variables/%s/" % _alias
+
+        def _mock_aliases(include_subvariables=True):
+            return {"var_1", "var_2"}
+
+        setattr(dataset, "_var_create_reload_return", _mock_create)
+        setattr(dataset, "get_url_by_alias", _mock_getitem)
+        setattr(dataset, "variable_aliases", _mock_aliases)
+        return dataset, args
+
+    def test_bind_categorical_array_without_codes(self):
+        dataset, args = self.prepare_dataset()
+        subvariables = [
+            {"alias": "var_1", "name": "Variable 1"},
+            {"alias": "var_2", "name": "Variable 2"},
+            {"alias": "var_3", "name": "Variable 3"},
+        ]
+        dataset.bind_categorical_array("My Array", "my_array", subvariables)
+
+        array_map = {
+            '1': {'variable': '/variables/var_1/'},
+            '2': {'variable': '/variables/var_2/'},
+            '3': {'variable': '/variables/var_3/'}
+        }
+        subreferences = [
+            # See how var_1 and var_2 have been disambiguated because
+            # they exist in the return of dataset.variable_aliases
+            {'alias': 'var_1__1', 'name': 'Variable 1'},
+            {'alias': 'var_2__1', 'name': 'Variable 2'},
+            {'alias': 'var_3', 'name': 'Variable 3'}
+        ]
+        expression = {
+            "function": "array",
+            "args": [{"function": "make_frame", "args": [{"map": array_map}]}],
+            "references": {"subreferences": subreferences}
+        }
+        assert args == [{
+            "element": "shoji:entity",
+            "body": {
+                "name": "My Array",
+                "alias": "my_array",
+                "notes": "",
+                "description": "",
+                "derivation": expression,
+            }
+        }]
+
+    def test_bind_categorical_array_with_codes(self):
+        dataset, args = self.prepare_dataset()
+        subvariables = [
+            {"alias": "var_1", "name": "Variable 1"},
+            {"alias": "var_2", "name": "Variable 2"},
+            {"alias": "var_3", "name": "Variable 3"},
+        ]
+        subvariable_codes = ["code_1", "code_2", "code_3"]
+        dataset.bind_categorical_array("My Array", "my_array", subvariables, subvariable_codes=subvariable_codes)
+
+        array_map = {
+            '1': {'variable': '/variables/var_1/'},
+            '2': {'variable': '/variables/var_2/'},
+            '3': {'variable': '/variables/var_3/'}
+        }
+        subreferences = [
+            {'alias': 'code_1', 'name': 'Variable 1'},
+            {'alias': 'code_2', 'name': 'Variable 2'},
+            {'alias': 'code_3', 'name': 'Variable 3'}
+        ]
+        expression = {
+            "function": "array",
+            "args": [{"function": "make_frame", "args": [{"map": array_map}]}],
+            "references": {"subreferences": subreferences}
+        }
+        assert args == [{
+            "element": "shoji:entity",
+            "body": {
+                "name": "My Array",
+                "alias": "my_array",
+                "notes": "",
+                "description": "",
+                "derivation": expression,
+            }
+        }]
+
+    def test_copy_variable_no_codes(self):
+        dataset, args = self.prepare_dataset()
+        var_url = "/variable/some_id/"
+        subvars_index = {
+            "%s001/" % var_url: {
+                "alias": "var_1",
+                "name": "Subvariable 1",
+            },
+            "%s002/" % var_url: {
+                "alias": "var_2",
+                "name": "Subvariable 2",
+            },
+            "%s003/" % var_url: {
+                "alias": "var_3",
+                "name": "Subvariable 3",
+            },
+        }
+        subvariables_catalog = MagicMock(index=subvars_index)
+        mock_session = MockSession()
+        tuple_members = {
+            "derived": False
+        }
+        var_members = {
+            "self": var_url,
+            "body": {
+                "derived": False,
+                "subvariables": [
+                    "%s001/" % var_url,
+                    "%s002/" % var_url,
+                    "%s003/" % var_url,
+                ],
+                "subreferences": subvars_index,
+            }
+        }
+        var_tuple_res = Tuple(mock_session, var_url, **tuple_members)
+        variable_shoji = Entity(mock_session, **var_members)
+        var_tuple_res.subvariables = subvariables_catalog
+        var_tuple_res._entity = variable_shoji
+
+        variable = Variable(var_tuple_res, dataset)
+
+        _ = dataset.copy_variable(variable, "copied", "copied")
+        subreferences = [
+            {'alias': 'var_1__1', 'name': 'Subvariable 1'},
+            {'alias': 'var_2__1', 'name': 'Subvariable 2'},
+            {'alias': 'var_3', 'name': 'Subvariable 3'}
+        ]
+        expression = {
+            "function": "copy_variable",
+            "args": [{"variable": var_url}],
+            "references": {"subreferences": subreferences}
+        }
+        assert args == [{
+            "element": "shoji:entity",
+            "body": {
+                "name": "copied",
+                "alias": "copied",
+                "derivation": expression,
+            }
+        }]
+
+    def test_copy_variable_with_codes(self):
+        dataset, args = self.prepare_dataset()
+        var_url = "/variable/some_id/"
+        subvars_index = {
+            "%s001/" % var_url: {
+                "alias": "var_1",
+                "name": "Subvariable 1",
+            },
+            "%s002/" % var_url: {
+                "alias": "var_2",
+                "name": "Subvariable 2",
+            },
+            "%s003/" % var_url: {
+                "alias": "var_3",
+                "name": "Subvariable 3",
+            },
+        }
+        subvariables_catalog = MagicMock(index=subvars_index)
+        mock_session = MockSession()
+        tuple_members = {
+            "derived": False
+        }
+        var_members = {
+            "self": var_url,
+            "body": {
+                "derived": False,
+                "subvariables": [
+                    "%s001/" % var_url,
+                    "%s002/" % var_url,
+                    "%s003/" % var_url,
+                ],
+                "subreferences": subvars_index,
+            }
+        }
+        var_tuple_res = Tuple(mock_session, var_url, **tuple_members)
+        variable_shoji = Entity(mock_session, **var_members)
+        var_tuple_res.subvariables = subvariables_catalog
+        var_tuple_res._entity = variable_shoji
+
+        variable = Variable(var_tuple_res, dataset)
+
+        subvariable_codes = ["code_1", "code_2", "code_3"]
+        _ = dataset.copy_variable(variable, "copied", "copied",
+                                  subvariable_codes=subvariable_codes)
+        subreferences = [
+            {'alias': 'code_1', 'name': 'Subvariable 1'},
+            {'alias': 'code_2', 'name': 'Subvariable 2'},
+            {'alias': 'code_3', 'name': 'Subvariable 3'}
+        ]
+        expression = {
+            "function": "copy_variable",
+            "args": [{"variable": var_url}],
+            "references": {"subreferences": subreferences}
+        }
+        assert args == [{
+            "element": "shoji:entity",
+            "body": {
+                "name": "copied",
+                "alias": "copied",
+                "derivation": expression,
+            }
+        }]
+
