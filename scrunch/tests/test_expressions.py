@@ -784,6 +784,17 @@ class TestExpressionParsing(TestCase):
             }
             ]}
 
+    def test_mr_any_subvar(self):
+        expr = "MyMrVar.any([subvar1, subvar2])"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'function': 'any',
+            'args': [
+                {'variable': 'MyMrVar'},
+                {'column': ['subvar1', 'subvar2']}
+            ]
+        }
+
     def test_parse_sample_any(self):
         # 'text': 'CompanyTurnover is NA',
         # 'index_mapper': {'CompanyTurnover': any([99])}},

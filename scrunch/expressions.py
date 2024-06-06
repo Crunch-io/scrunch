@@ -254,7 +254,10 @@ def parse_expr(expr, platonic=False):
                 _list = fields[0][1]
                 # checks for special helper functions like `r`
                 _list = unfold_list(_list)
-                if not (all(isinstance(el, ast.Str) for el in _list) or
+                if all(isinstance(el, ast.Name) for el in _list):
+                    # This is the case of `any([subvar, subvar])]
+                    return {'column': [el.id for el in _list]}
+                elif not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
                     # Only list-of-int or list-of-str are currently supported
                     raise ValueError('Only list-of-int or list-of-str are currently supported')
@@ -377,7 +380,9 @@ def parse_expr(expr, platonic=False):
                             # For method calls, we only allow list-of-int
                             # parameters.
                             if _name == 'args' and func_type == 'method':
-                                if not isinstance(right.get('value'), list):
+                                right_val = right.get('value', right.get('column'))
+                                if not isinstance(right_val, list):
+                                    import pdb;pdb.set_trace()
                                     raise ValueError(
                                         'expected list, got "{}"'.format(
                                             type(right.get('value'))
