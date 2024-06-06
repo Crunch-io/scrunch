@@ -382,7 +382,6 @@ def parse_expr(expr, platonic=False):
                             if _name == 'args' and func_type == 'method':
                                 right_val = right.get('value', right.get('column'))
                                 if not isinstance(right_val, list):
-                                    import pdb;pdb.set_trace()
                                     raise ValueError(
                                         'expected list, got "{}"'.format(
                                             type(right.get('value'))
