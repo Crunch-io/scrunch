@@ -91,12 +91,12 @@ class TestDatasetMethods(TestCase):
         # This is intended to leave only two records. Changing the variable `datetime_var`
         # above also changes the test's results
         filter_value = "2024-03-15T00:00:00.393"
-        resp = scrunch_dataset.append_dataset(
-            scrunch_dataset_to_append,
-            filter=f"my_datetime_var > '{filter_value}'"
-        )
-        if resp is not None:
-            resp['body']['filter'] = {
+        try:
+            resp = scrunch_dataset.append_dataset(
+                scrunch_dataset_to_append,
+                filter=f"my_datetime_var > '{filter_value}'"
+            )
+            assert resp['body']['filter'] == {
                 'args': [
                     {
                         'variable': datetime_var['self']
@@ -106,11 +106,17 @@ class TestDatasetMethods(TestCase):
                 ],
                 'function': '>'
             }
-        else:
-            pass
-
-        ds.delete()
-        ds_to_append.delete()
+            result = ds.follow("table", "limit=10")['data']
+            datetime_variable = result[datetime_var.body.id]
+            non_null_values = [value for value in datetime_variable if isinstance(value, str)]
+            assert non_null_values == [
+                "2024-04-03T20:00:52.999",
+                "2024-06-03T20:00:52.123",
+            ]
+        finally:
+            # cleanup
+            ds.delete()
+            ds_to_append.delete()
 
 
 class TestCategories(TestCase):
