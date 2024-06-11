@@ -14,6 +14,8 @@ with io.open('README.rst', encoding='utf-8') as readme:
     long_description = readme.read()
 
 PY2 = sys.version_info[0] < 3
+print("This is py2")
+
 PY36 = sys.version_info[:2] == (3, 6)
 
 name = 'scrunch'
@@ -61,7 +63,6 @@ params = dict(
             'pytest-cov==2.12.1',
             'mock==3.0.5',
             'isodate',
-            'backports.unittest_mock',
         ],
         'docs': [
             # upstream
