@@ -204,7 +204,7 @@ class TestDatasetMethods(TestCase):
         try:
             resp = scrunch_dataset.append_dataset(
                 scrunch_dataset_to_append,
-                filter=f"my_datetime_var > '{filter_value}'"
+                filter="my_datetime_var > '{}'".format(filter_value)
             )
             assert resp['body']['filter'] == {
                 'args': [
@@ -229,6 +229,51 @@ class TestDatasetMethods(TestCase):
                 "2024-04-03T20:00:52.999",
                 "2024-06-03T20:00:52.123",
             ]
+        finally:
+            # cleanup
+            ds.delete()
+            ds_to_append.delete()
+
+    def test_append_dataset_with_filter_numeric(self):
+        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        numeric_var = ds.variables.create(
+            as_entity(
+                {
+                    "name": "my_var",
+                    "alias": "my_var",
+                    "type": "numeric",
+                    "values": [1, 2, 3, None, 5],
+                }
+            )
+        ).refresh()
+
+        ds_to_append = site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
+        ds_to_append.variables.create(
+            as_entity(
+                {
+                    "name": "my_var",
+                    "alias": "my_var",
+                    "type": "numeric",
+                    "values": [11, 21, 31, 41, 51],
+                }
+            )
+        ).refresh()
+
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        # This is intended to leave only one records.
+        filter_value = 50
+        try:
+            scrunch_dataset.append_dataset(
+                scrunch_dataset_to_append,
+                filter="my_var > {}".format(filter_value)
+            )
+
+            data = ds.follow("table", "limit=20")['data']
+            numeric_values = data[numeric_var.body.id]
+            # We should have 5 (original dataset) + 2 (filtered in append_dataset)
+            assert len(numeric_values) == 6
+            assert numeric_values == [1, 2, 3, {'?': -1}, 5, 51]
         finally:
             # cleanup
             ds.delete()
