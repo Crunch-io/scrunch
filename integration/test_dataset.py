@@ -386,6 +386,102 @@ class TestDatasetMethods(TestCase):
             ds.delete()
             ds_to_append.delete()
 
+    def test_append_dataset_with_variables_list(self):
+        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "my_var",
+                    "alias": "my_var",
+                    "type": "numeric",
+                    "values": [1, 2, 3, None, 5],
+                }
+            )
+        ).refresh()
+        datetime_var = ds.variables.create(
+            as_entity(
+                {
+                    "name": "my_datetime_var",
+                    "alias": "my_datetime_var",
+                    "type": "datetime",
+                    "resolution": "ms",
+                    "values": [
+                        "2023-01-03T20:00:52.333",
+                        "2023-02-03T20:00:52.234",
+                        "2023-03-03T20:00:52.456",
+                        "2023-04-03T20:00:52.999",
+                        "2023-06-03T20:00:52.123",
+                    ],
+                }
+            )
+        ).refresh()
+        ds_to_append = site.datasets.create(
+            as_entity(
+                {
+                    "name": "test_scrunch_dataset_with_exclusion_to_append"
+                }
+            )
+        ).refresh()
+        ds_to_append.variables.create(
+            as_entity(
+                {
+                    "name": "my_var",
+                    "alias": "my_var",
+                    "type": "numeric",
+                    "values": [11, 21, 31, 41, 51],
+                }
+            )
+        ).refresh()
+        ds_to_append.variables.create(
+            as_entity(
+                {
+                    "name": "my_datetime_var",
+                    "alias": "my_datetime_var",
+                    "type": "datetime",
+                    "resolution": "ms",
+                    "values": [
+                        "2024-01-03T20:00:52.333",
+                        "2024-02-03T20:00:52.234",
+                        "2024-03-03T20:00:52.456",
+                        "2024-04-03T20:00:52.999",
+                        "2024-06-03T20:00:52.123",
+                    ],
+                }
+            )
+        ).refresh()
+
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+
+        # The exclusion is applied to the dataset to append and here
+        # the latest/oldest value is affected
+        exclusion = "my_datetime_var >= '2024-06-01T00:00:52.123'"
+        scrunch_dataset_to_append.exclude(exclusion)
+        try:
+            scrunch_dataset.append_dataset(
+                scrunch_dataset_to_append,
+                variables=["my_var", "my_datetime_var"]
+            )
+            data = ds.follow("table", "limit=20")['data']
+            datetime_values = data[datetime_var.body.id]
+            # We should have 5 (original dataset) + 4 (filtered by exclusion in append_dataset)
+            assert len(datetime_values) == 9
+            assert datetime_values == [
+                "2023-01-03T20:00:52.333",
+                "2023-02-03T20:00:52.234",
+                "2023-03-03T20:00:52.456",
+                "2023-04-03T20:00:52.999",
+                "2023-06-03T20:00:52.123",
+                "2024-01-03T20:00:52.333",
+                "2024-02-03T20:00:52.234",
+                "2024-03-03T20:00:52.456",
+                "2024-04-03T20:00:52.999",
+            ]
+        finally:
+            # cleanup
+            ds.delete()
+            ds_to_append.delete()
+
 
 class TestCategories(TestCase):
     def test_edit_category(self):
