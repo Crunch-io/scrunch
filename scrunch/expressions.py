@@ -635,7 +635,7 @@ def process_expr(obj, ds):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
                             arrays.append(subitem.pop('subvariables'))
-                        elif 'value' in subitem:
+                        elif 'value' in subitem or 'column' in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
 
@@ -784,7 +784,23 @@ def prettify(expr, ds=None):
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'
             )
-        return ds.resource.session.get(var).payload.body.alias
+        var_resource = ds.resource.session.get(var).payload
+        var_alias = var_resource.body["alias"]
+
+        # From an arbitrary URL we can detect whether this is a variable or a
+        # subvariable by checking the adjacent resources linked. A subvariable
+        # will point to its parent `/subvariables/` catalog and refer to its
+        # array variable by `.fragments["variable"]`.
+        is_subvariable = 'parent' in var_resource.catalogs and 'variable' in var_resource.fragments
+
+        if is_subvariable:
+            # Fetch the array variable
+            array_url = var_resource.fragments['variable']
+            array_var = ds.resource.session.get(array_url).payload
+            array_alias = array_var.body["alias"]
+            var_alias = "%s[%s]" % (array_alias, var_alias)
+
+        return var_alias
 
     def _resolve_variables(_expr):
         new_expr = dict(

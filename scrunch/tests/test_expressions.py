@@ -786,8 +786,8 @@ class TestExpressionParsing(TestCase):
 
     def test_mr_any_subvar(self):
         expr = "MyMrVar.any([subvar1, subvar2])"
-        expr_obj = parse_expr(expr)
-        assert expr_obj == {
+        parsed_zcl_expr = parse_expr(expr)
+        assert parsed_zcl_expr == {
             'function': 'any',
             'args': [
                 {'variable': 'MyMrVar'},
@@ -2839,7 +2839,7 @@ class TestExpressionPrettify(TestCase):
         ds = mock.MagicMock()
         ds.__class__ = scrunch.mutable_dataset.MutableDataset
         response = mock.MagicMock()
-        response.payload.body.alias = 'age'
+        response.payload.body = {"alias": "age"}
 
         ds.resource.session.get.side_effect = lambda *arg: response
 
@@ -2847,6 +2847,40 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr, ds)
         assert expected == cel
         ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
+
+    def test_square_bracket_subvariables(self):
+        subvariable_url = 'https://host.com/api/datasets/123/variables/001/subvariables/abc/'
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': subvariable_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+        ds = mock.MagicMock()
+        ds.__class__ = scrunch.mutable_dataset.MutableDataset
+
+        # Prepare subvariable
+        subvar_resource = mock.MagicMock()
+        subvar_resource.catalogs = {"parent": "/subvariables/"}
+        subvar_resource.fragments = {"variable": "/array_url/"}
+        subvar_resource.body = {"alias": "subvar_1"}
+
+        response1 = mock.MagicMock()
+        response1.payload = subvar_resource
+
+        # Prepare array
+        response2 = mock.MagicMock()
+        response2.payload.body = {"alias": 'array_variable'}
+        ds.resource.session.get.side_effect = [response1, response2]
+
+        expected = 'array_variable[subvar_1] == 1'
+        assert prettify(expr, ds) == expected
 
     def test_variable_url_no_dataset(self):
         expr = {
