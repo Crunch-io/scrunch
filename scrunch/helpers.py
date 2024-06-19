@@ -322,9 +322,9 @@ def generate_subvariable_codes(dataset, subvariables):
     return subvariable_codes
 
 
-def is_id(value):
+def is_number(value):
     try:
-        int(value)
+        float(value)
         return True
     except (ValueError, TypeError):
         return False

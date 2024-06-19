@@ -46,7 +46,7 @@ import copy
 import six
 
 import scrunch
-from scrunch.helpers import is_id
+from scrunch.helpers import is_number
 from scrunch.variables import validate_variable_url
 
 import sys
@@ -541,7 +541,7 @@ def process_expr(obj, ds):
                 # {'values': [val1, val2, ...]}
                 value = []
                 for val in var_value:
-                    if is_id(val):
+                    if is_number(val):
                         # val1 is an id already
                         value.append(val)
                         continue
@@ -637,11 +637,11 @@ def process_expr(obj, ds):
                     subitems.append(subitem)
 
                 has_value = any(
-                    'value' in item for item in subitems if not is_id(item)
+                    'value' in item for item in subitems if not is_number(item)
                 )
 
                 has_variable = any(
-                    'variable' in item for item in subitems if not is_id(item)
+                    'variable' in item for item in subitems if not is_number(item)
                 )
 
                 if has_value and has_variable:
