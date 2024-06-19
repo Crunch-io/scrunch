@@ -1623,6 +1623,125 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_process_any_all_exprs(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1"},
+                    {"id": 2, "name": "cat2"},
+                    {"id": 3, "name": "cat3"},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([1])"
+        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        assert processed_zcl_expr == {
+            'function': 'or',
+            'args': [{
+                'function': 'in',
+                'args': [
+                    {'variable': "%ssubvariables/001/" % var_url},
+                    {'value': [1]}
+                ],
+            }, {
+                'function': 'or',
+                'args': [{
+                    'function': 'in',
+                    'args': [
+                        {'variable': "%ssubvariables/002/" % var_url},
+                        {'value': [1]}
+                    ],
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {'variable': "%ssubvariables/003/" % var_url},
+                        {'value': [1]}
+                    ],
+                }],
+            }],
+        }
+
+    def test_process_any_subvariables(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1"},
+                    {"id": 2, "name": "cat2"},
+                    {"id": 3, "name": "cat3"},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([subvar1, subvar2])"
+        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        assert processed_zcl_expr == {
+            'function': 'or',
+            'args': [{
+                'function': 'in',
+                'args': [
+                    {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'},
+                    {'column': ['subvar1', 'subvar2']}
+                ],
+            }, {
+                'function': 'or',
+                'args': [{
+                       'function': 'in',
+                       'args': [
+                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'},
+                            {'column': ['subvar1', 'subvar2']}
+                       ],
+                }, {
+                    'function': 'in',
+                    'args': [
+                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/003/'},
+                        {'column': ['subvar1', 'subvar2']}
+                    ],
+                }],
+            }],
+        }
+
     def test_transform_subvar_alias_to_subvar_id(self):
         var_id = '0001'
         var_alias = 'hobbies'

@@ -679,11 +679,15 @@ def process_expr(obj, ds):
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
                     if var['type'] in ARRAY_TYPES:
-                        subvariables = [
-                            '%svariables/%s/subvariables/%s/'
-                            % (base_url, var['id'], subvar_id)
-                            for subvar_id in var.get('subvariables', [])
-                        ]
+                        subvariables = []
+                        for subvar_id in var.get('subvariables', []):
+                            # In case the subvar_id comes as a subvariable URL
+                            # we want to only consider the ID bit of the URL
+                            subvar_id = subvar_id.strip("/").split("/")[-1]
+                            subvariables.append(
+                                '%svariables/%s/subvariables/%s/'
+                                % (base_url, var['id'], subvar_id)
+                            )
             elif key == 'function':
                 op = val
 
