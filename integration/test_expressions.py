@@ -28,27 +28,19 @@ class TestExpressions(TestCase):
 
     def _create_mr_dataset(self, name, rows):
         _dataset_metadata = {
-            "case_id": {
-                "name": "Case ID",
-                "type": "numeric"
-            },
-            "age": {
-                "name": "Age",
-                "type": 'numeric',
-            },
-            "news_source": {
-                "name": "News source",
+            "mr_variable": {
+                "name": "Multiple Response",
                 "type": "multiple_response",
                 "categories": MR_CATS,
                 "subreferences": [{
-                    "name": "Facebook",
-                    "alias": "news_source_1"
+                    "name": "Response 1",
+                    "alias": "response_1"
                 }, {
-                    "name": "Twitter",
-                    "alias": "news_source_2"
+                    "name": "Response 2",
+                    "alias": "response_2"
                 }, {
-                    "name": "Google news",
-                    "alias": "news_source_3"
+                    "name": "Response 3",
+                    "alias": "response_3"
                 }]
             },
         }
@@ -68,16 +60,15 @@ class TestExpressions(TestCase):
 
     def test_multiple_response_any_add_filter(self):
         ds_rows = [
-            ["case_id", "age", "news_source_1", "news_source_2", "news_source_3"],
-            [1, 25, 1, 2, 1],
-            [2, 41, 1, 2, 2],
-            [3, 33, 1, 1, 1]
+            ["response_1", "response_2", "response_3"],
+            [1, 2, 1],
+            [1, 2, 2],
+            [1, 1, 1]
         ]
         ds, scrunch_dataset = self._create_mr_dataset('test_mr_any', ds_rows)
-        _filter = "news_source.any([1])"
+        _filter = "mr_variable.any([1])"
         try:
             resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
-            print(resp)
         finally:
             # cleanup
             ds.delete()
@@ -91,8 +82,8 @@ class TestExpressions(TestCase):
             {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
         ]
         ds.variables.create(as_entity({
-            "name": "my_cat",
-            "alias": "my_cat",
+            "name": "Categorical Var",
+            "alias": "categorical_var",
             "type": "categorical",
             "categories": categories,
             "values": [
@@ -100,7 +91,7 @@ class TestExpressions(TestCase):
             ]
         }))
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        _filter = "my_cat.any(1)"
+        _filter = "categorical_var.any(1)"
         try:
             resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
         finally:
@@ -109,33 +100,37 @@ class TestExpressions(TestCase):
 
     def test_any_filter_multiple_response(self):
         ds_rows = [
-            ["case_id", "age", "news_source_1", "news_source_2", "news_source_3"],
-            [1, 25, 1, 2, 1],
-            [2, 41, 1, 2, 2],
-            [3, 33, 1, 1, 1]
+            ["response_1", "response_2", "response_3"],
+            [1, 2, 1],
+            [1, 2, 2],
+            [1, 1, 1]
         ]
         ds_to_append_rows = [
-            ["case_id", "age", "news_source_1", "news_source_2", "news_source_3"],
-            [4, 10, 1, 1, 2],
-            [5, 11, 2, 1, 1],
-            [6, 12, 1, 1, 2]
+            ["response_1", "response_2", "response_3"],
+            [1, 1, 2],
+            [2, 1, 1],
+            [1, 1, 2]
         ]
         ds, scrunch_dataset = self._create_mr_dataset('test_mr_any_subvar', ds_rows)
-        ds_to_append, scrunch_dataset_to_append = self._create_mr_dataset('test_mr_any_to_append_subvar',
-                                                                          ds_to_append_rows)
+        ds_to_append, scrunch_dataset_to_append = self._create_mr_dataset(
+            'test_mr_any_to_append_subvar',
+            ds_to_append_rows
+        )
         # This filter should get only the rows that have the news_source variable with the value 1
         # at the same time for both news_source_1 and news_source_2
-        _filter = "news_source.any([news_source_1, news_source_2])"
+        _filter = "mr_variable.any([response_1, response_2])"
         try:
             scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
             ds_variables = ds.variables.by("alias")
-            age_variable_id = ds_variables["age"].id
-            case_id_variable_id = ds_variables["case_id"].id
-            news_source_variable_id = ds_variables["news_source"].id
+            mr_variable_id = ds_variables["mr_variable"].id
             data = ds.follow("table", "limit=20")['data']
-            assert data[case_id_variable_id] == [1.0, 2.0, 3.0, 4.0, 6.0]
-            assert data[age_variable_id] == [25.0, 41.0, 33.0, 11.0, 12.0]
-            assert data[news_source_variable_id] == [[1, 2, 1], [1, 2, 2], [1, 1, 1], [1, 1, 2], [1, 1, 2]]
+            assert data[mr_variable_id] == [
+                [1, 2, 1],
+                [1, 2, 2],
+                [1, 1, 1],
+                [1, 1, 2],
+                [1, 1, 2]
+            ]
         finally:
             # cleanup
             ds.delete()
@@ -150,9 +145,9 @@ class TestExpressions(TestCase):
             {"id": 3, "name": "Three", "missing": False, "numeric_value": None},
             {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
         ]
-        my_cat = ds.variables.create(as_entity({
-            "name": "my_cat",
-            "alias": "my_cat",
+        ds.variables.create(as_entity({
+            "name": "Categorical Variable",
+            "alias": "categorical_var",
             "type": "categorical",
             "categories": categories,
             "values": [
@@ -160,8 +155,8 @@ class TestExpressions(TestCase):
             ]
         }))
         ds_to_append.variables.create(as_entity({
-            "name": "my_cat",
-            "alias": "my_cat",
+            "name": "Categorical Variable",
+            "alias": "categorical_var",
             "type": "categorical",
             "categories": categories,
             "values": [
@@ -173,7 +168,7 @@ class TestExpressions(TestCase):
 
         # This filter should get only the rows that have the news_source variable with the value 1
         # at the same time for both news_source_1 and news_source_2
-        _filter = "my_cat.any([1])"
+        _filter = "categorical_var.any([1])"
         try:
             resp = scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
             ds_variables = ds.variables.by("alias")
