@@ -846,6 +846,10 @@ def prettify(expr, ds=None):
                     # Must escape single-quote from string value
                     value = _quote_value(value)
 
+                if isinstance(value, float) and value.is_integer():
+                    # Check if the value is a float and if it can be exactly represented as an integer
+                    value = int(value)
+
                 return value
 
             return list(fragment.values())[0]
