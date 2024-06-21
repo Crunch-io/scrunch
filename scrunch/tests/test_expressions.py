@@ -2643,6 +2643,23 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert expected == cel
 
+    def test_float_conversion_to_integer(self):
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': 'age'
+                },
+                {
+                    'value': 25.0
+                }
+            ]
+        }
+
+        expected = 'age == 25'
+        cel = prettify(expr)
+        assert expected == cel
+
     def test_and(self):
         expr = {
             'function': 'and',
