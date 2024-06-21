@@ -63,12 +63,20 @@ class TestExpressions(TestCase):
             ["response_1", "response_2", "response_3"],
             [1, 2, 1],
             [1, 2, 2],
-            [1, 1, 1]
+            [2, 1, 1]
         ]
         ds, scrunch_dataset = self._create_mr_dataset('test_mr_any', ds_rows)
-        _filter = "mr_variable.any([1])"
+        _filter = "mr_variable.any([response_1])"
         try:
-            resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            data = ds.follow("table", "limit=20")['data']
+            ds_variables = ds.variables.by("alias")
+            mr_variable_id = ds_variables["mr_variable"].id
+            assert data[mr_variable_id] == [
+                [1, 2, 1],
+                [1, 2, 2],
+                [2, 1, 1]
+            ]
         finally:
             # cleanup
             ds.delete()
@@ -91,14 +99,17 @@ class TestExpressions(TestCase):
             ]
         }))
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        _filter = "categorical_var.any(1)"
+        _filter = "categorical_var.any([1])"
         try:
             resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            data = ds.follow("table", "limit=20")['data']
+            ds_variables = ds.variables.by("alias")
+            cat_var_id = ds_variables["categorical_var"].id
         finally:
             # cleanup
             ds.delete()
 
-    def test_any_filter_multiple_response(self):
+    def test_append_dataset_any_filter_multiple_response(self):
         ds_rows = [
             ["response_1", "response_2", "response_3"],
             [1, 2, 1],
