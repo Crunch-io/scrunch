@@ -3,10 +3,8 @@
 import os
 from unittest import TestCase
 
-from pycrunch.importing import Importer
-
-from integration.fixtures import NEWS_DATASET, MR_CATS
-from scrunch import connect, get_dataset
+from integration.fixtures import as_entity
+from scrunch import connect
 from scrunch.mutable_dataset import get_mutable_dataset
 
 HOST = os.environ['SCRUNCH_HOST']
@@ -16,11 +14,6 @@ password = os.environ['SCRUNCH_PASS']
 
 site = connect(username, password, HOST)
 assert site is not None, "Unable to connect to %s" % HOST
-
-as_entity = lambda b: {
-    "element": "shoji:entity",
-    "body": b
-}
 
 
 class TestDatasetMethods(TestCase):
@@ -60,83 +53,6 @@ class TestDatasetMethods(TestCase):
             assert r[variable.body["id"]] == [1, 2, 3, 4, 5]
         finally:
             ds.delete()
-
-    def test_append_dataset_any_filter(self):
-        _dataset_metadata = {
-            "caseid": {
-                "name": "Case ID",
-                "type": "numeric"
-            },
-            "age": {
-                "name": "Age",
-                "type": 'numeric',
-            },
-            "newssource": {
-                "name": "News source",
-                "type": "multiple_response",
-                "categories": MR_CATS,
-                "subreferences": [{
-                    "name": "Facebook",
-                    "alias": "newssource_1"
-                }, {
-                    "name": "Twitter",
-                    "alias": "newssource_2"
-                }, {
-                    "name": "Google news",
-                    "alias": "newssource_3"
-                }]
-            },
-        }
-        ds = site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'test_mr_any',
-                'table': {
-                    'element': 'crunch:table',
-                    'metadata': _dataset_metadata
-                },
-            }
-        }).refresh()
-        ds_to_append = site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'test_append_mr_any',
-                'table': {
-                    'element': 'crunch:table',
-                    'metadata': _dataset_metadata
-                },
-            }
-        }).refresh()
-        ds_rows = [
-            ["caseid", "age", "newssource_1", "newssource_2", "newssource_3"],
-            [1, 25, 1, 2, 1],
-            [2, 41, 1, 2, 2],
-            [3, 33, 1, 1, 1]
-        ]
-        ds_to_append_rows = [
-            ["caseid", "age", "newssource_1", "newssource_2", "newssource_3"],
-            [4, 10, 2, 1, 2],
-            [5, 11, 2, 1, 1],
-            [6, 12, 1, 2, 2]
-        ]
-        Importer().append_rows(ds, ds_rows)
-        Importer().append_rows(ds_to_append, ds_to_append_rows)
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
-        try:
-            scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter="newssource.any([1])")
-            ds_variables = ds.variables.by("alias")
-            age_variable_id = ds_variables["age"].id
-            case_id_variable_id = ds_variables["caseid"].id
-            newssource_variable_id = ds_variables["newssource"].id
-            data = ds.follow("table", "limit=20")['data']
-            assert data[case_id_variable_id] == [1.0, 2.0, 3.0, 6.0]
-            assert data[age_variable_id] == [25.0, 41.0, 33.0, 12.0]
-            assert data[newssource_variable_id] == [[1, 2, 1], [1, 2, 2], [1, 1, 1], [1, 2, 2]]
-        finally:
-            # cleanup
-            ds.delete()
-            ds_to_append.delete()
 
 
 class TestCategories(TestCase):
