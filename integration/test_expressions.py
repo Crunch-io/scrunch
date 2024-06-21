@@ -66,7 +66,23 @@ class TestExpressions(TestCase):
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         return ds, scrunch_dataset
 
-    def test_mr_any_on_value(self):
+    def test_mr_any_add_filter(self):
+        ds_rows = [
+            ["case_id", "age", "news_source_1", "news_source_2", "news_source_3"],
+            [1, 25, 1, 2, 1],
+            [2, 41, 1, 2, 2],
+            [3, 33, 1, 1, 1]
+        ]
+        ds, scrunch_dataset = self._create_mr_dataset('test_mr_any', ds_rows)
+        _filter = "news_source.any([1])"
+        try:
+            resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            print(resp)
+        finally:
+            # cleanup
+            ds.delete()
+
+    def test_mr_any_on_value_(self):
         ds_rows = [
             ["case_id", "age", "news_source_1", "news_source_2", "news_source_3"],
             [1, 25, 1, 2, 1],
