@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import json
 import os
 from unittest import TestCase
 
@@ -80,7 +80,7 @@ class TestExpressions(TestCase):
         finally:
             # cleanup
             ds.delete()
-    
+
     def test_categorical_any_add_filter(self):
         ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
         categories = [
@@ -98,6 +98,7 @@ class TestExpressions(TestCase):
                 1, 2, 3, -1, -1, -1, 1, 2, 1
             ]
         }))
+
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         _filter = "categorical_var.any([1])"
         try:
@@ -105,6 +106,107 @@ class TestExpressions(TestCase):
             data = ds.follow("table", "limit=20")['data']
             ds_variables = ds.variables.by("alias")
             cat_var_id = ds_variables["categorical_var"].id
+        finally:
+            ds.delete()
+
+    def test_categorical_array_any_add_filter(self):
+        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
+        ds.variables.create(as_entity({
+            "name": "Categorical Var",
+            "alias": "categorical_var",
+            "type": "categorical_array",
+            "categories": [
+                {
+                    'id': 1,
+                    'missing': False,
+                    'name': 'Very interested',
+                    'numeric_value': 1
+                },
+                {
+                    'id': 2,
+                    'missing': False,
+                    'name': 'Somewhat interested',
+                    'numeric_value': 2
+                },
+                {
+                    'id': 3,
+                    'missing': False,
+                    'name': 'A little interested',
+                    'numeric_value': 3
+                },
+                {
+                    'id': -1,
+                    'missing': True,
+                    'name': 'No Data',
+                    'numeric_value': None
+                }
+            ],
+            'subvariables': [
+                {
+                    'alias': 'response_1',
+                    'name': 'Response1'
+                },
+                {
+                    'alias': 'response_2',
+                    'name': 'Response2'
+                },
+                {
+                    'alias': 'response_3',
+                    'name': 'Response3'
+                },
+            ],
+            "values": [
+                [1, 3, -1],
+                [2, 1, 1],
+                [2, 3, 2]
+            ]
+        }))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        _filter = "categorical_var.any([1])"
+        try:
+            resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            assert resp.resource.body.entity.body.definition == {
+                "function": "or",
+                "args": [
+                    {
+                        "function": "in",
+                        "args": [
+                            {
+                                "var": "categorical_var",
+                                "axes": ["response_1"]
+                            },
+                            {
+                                "value": [1]
+                            }
+                        ]
+                    },
+                    {
+                        "function": "or",
+                        "args": [
+                            {
+                                "function": "in",
+                                "args": [{
+                                    "var": "categorical_var",
+                                    "axes": ["response_2"]
+                                },
+                                    {"value": [1]
+                                     }
+                                ]
+                            },
+                            {
+                                "function": "in",
+                                "args": [{
+                                    "var": "categorical_var",
+                                    "axes": ["response_3"]
+                                },
+                                    {"value": [1]
+                                     }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
         finally:
             # cleanup
             ds.delete()
@@ -184,6 +286,91 @@ class TestExpressions(TestCase):
             resp = scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
             ds_variables = ds.variables.by("alias")
             data = ds.follow("table", "limit=20")['data']
+        finally:
+            # cleanup
+            ds.delete()
+            ds_to_append.delete()
+
+    def test_categorical_array_any_append(self):
+        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_array_append"})).refresh()
+        ds_to_append = self.site.datasets.create(as_entity({"name": "test_any_categorical_array_to_append"})).refresh()
+        categorical_var = {
+            "name": "Categorical Var",
+            "alias": "categorical_var",
+            "type": "categorical_array",
+            "categories": [
+                {
+                    'id': 1,
+                    'missing': False,
+                    'name': 'Very interested',
+                    'numeric_value': 1
+                },
+                {
+                    'id': 2,
+                    'missing': False,
+                    'name': 'Somewhat interested',
+                    'numeric_value': 2
+                },
+                {
+                    'id': 3,
+                    'missing': False,
+                    'name': 'A little interested',
+                    'numeric_value': 3
+                },
+                {
+                    'id': -1,
+                    'missing': True,
+                    'name': 'No Data',
+                    'numeric_value': None
+                }
+            ],
+            'subvariables': [
+                {
+                    'alias': 'response_1',
+                    'name': 'Response1'
+                },
+                {
+                    'alias': 'response_2',
+                    'name': 'Response2'
+                },
+                {
+                    'alias': 'response_3',
+                    'name': 'Response3'
+                },
+            ],
+            "values": [
+                [1, 3, -1],
+                [2, 1, 1],
+                [2, 3, 2]
+            ]
+        }
+        ds_values = [
+                [1, 3, -1],
+                [2, 1, 1],
+                [2, 3, 2]
+            ]
+        ds_to_append_values = [
+            [2, 1, 1],
+            [2, 3, 2]
+        ]
+        ds_var = {**categorical_var, "values": ds_values}
+        ds_to_append_var = {**categorical_var, "values": ds_to_append_values}
+        ds.variables.create(as_entity(ds_var))
+        ds_to_append.variables.create(as_entity(ds_to_append_var))
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
+        _filter = "categorical_var.any([1])"
+        try:
+            scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
+            data = ds.follow("table", "limit=20")['data']
+            ds_variables = ds.variables.by("alias")
+            cat_var_id = ds_variables["categorical_var"].id
+            assert data[cat_var_id] == [
+                [1, 3, {"?": -1}],
+                [2, 1, 1],
+                [2, 3, 2],
+                [2, 1, 1]
+            ]
         finally:
             # cleanup
             ds.delete()
