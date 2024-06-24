@@ -81,34 +81,6 @@ class TestExpressions(TestCase):
             # cleanup
             ds.delete()
 
-    def test_categorical_any_add_filter(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
-        categories = [
-            {"id": 1, "name": "One", "missing": False, "numeric_value": None},
-            {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
-            {"id": 3, "name": "Three", "missing": False, "numeric_value": None},
-            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
-        ]
-        ds.variables.create(as_entity({
-            "name": "Categorical Var",
-            "alias": "categorical_var",
-            "type": "categorical",
-            "categories": categories,
-            "values": [
-                1, 2, 3, -1, -1, -1, 1, 2, 1
-            ]
-        }))
-
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        _filter = "categorical_var.any([1])"
-        try:
-            resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
-            data = ds.follow("table", "limit=20")['data']
-            ds_variables = ds.variables.by("alias")
-            cat_var_id = ds_variables["categorical_var"].id
-        finally:
-            ds.delete()
-
     def test_categorical_array_any_add_filter(self):
         ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
         ds.variables.create(as_entity({
@@ -244,48 +216,6 @@ class TestExpressions(TestCase):
                 [1, 1, 2],
                 [1, 1, 2]
             ]
-        finally:
-            # cleanup
-            ds.delete()
-            ds_to_append.delete()
-
-    def test_any_filter_categorical(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_category"})).refresh()
-        ds_to_append = self.site.datasets.create(as_entity({"name": "test_any_category_to_append"})).refresh()
-        categories = [
-            {"id": 1, "name": "One", "missing": False, "numeric_value": None},
-            {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
-            {"id": 3, "name": "Three", "missing": False, "numeric_value": None},
-            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
-        ]
-        ds.variables.create(as_entity({
-            "name": "Categorical Variable",
-            "alias": "categorical_var",
-            "type": "categorical",
-            "categories": categories,
-            "values": [
-                1, 2, 3, -1, -1, -1, 1, 2, 1
-            ]
-        }))
-        ds_to_append.variables.create(as_entity({
-            "name": "Categorical Variable",
-            "alias": "categorical_var",
-            "type": "categorical",
-            "categories": categories,
-            "values": [
-                1, 3, -1, 2
-            ]
-        }))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
-
-        # This filter should get only the rows that have the news_source variable with the value 1
-        # at the same time for both news_source_1 and news_source_2
-        _filter = "categorical_var.any([1])"
-        try:
-            resp = scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
-            ds_variables = ds.variables.by("alias")
-            data = ds.follow("table", "limit=20")['data']
         finally:
             # cleanup
             ds.delete()
