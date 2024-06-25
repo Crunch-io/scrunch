@@ -2071,14 +2071,14 @@ class TestFillVariables(TestCase):
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"variable": "http://host/api/projects/abc/variables/001"},
                         {"value": 1}
                     ]
                 },
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/002/"},
+                        {"variable": "http://host/api/projects/abc/variables/002"},
                         {"value": 1}
                     ]
                 }

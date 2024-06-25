@@ -1,11 +1,14 @@
+import pycrunch
 import pytest
 import mock
 from unittest import TestCase
 
+from pycrunch.elements import JSONObject
+
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
-from scrunch.expressions import prettify
+from scrunch.expressions import prettify, adapt_multiple_response
 
 
 class TestExpressionParsing(TestCase):
@@ -783,6 +786,17 @@ class TestExpressionParsing(TestCase):
                 ]
             }
             ]}
+
+    def test_mr_any_values(self):
+        expr = "MyMrVar.any([1, 2])"
+        parsed_zcl_expr = parse_expr(expr)
+        assert parsed_zcl_expr == {
+            'function': 'any',
+            'args': [
+                {'variable': 'MyMrVar'},
+                {'value': [1, 2]}
+            ]
+        }
 
     def test_mr_any_subvar(self):
         expr = "MyMrVar.any([subvar1, subvar2])"
@@ -1623,6 +1637,120 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_adapt_multiple_response_any_values(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1"},
+                    {"id": 2, "name": "cat2"},
+                    {"id": 3, "name": "cat3"},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = JSONObject({
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        })
+
+        ds.follow.return_value = table_mock
+        # expr = "MyMrVar.any([1, 2])"
+        values = [1, 2]
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
+            mock_subvars.return_value = [("001", "subvar1"), ("002", "subvar2"), ("003", "subvar3")]
+            result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
+            assert result == [
+                {'variable': var_url}, {'column': [1, 2]}
+            ]
+            assert need_wrap is True
+    
+    def test_adapt_multiple_response_any_subvar(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1", "selected": True},
+                    {"id": 2, "name": "cat2", "selected": True},
+                    {"id": 3, "name": "cat3", "selected": False},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = JSONObject({
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        })
+
+        ds.follow.return_value = table_mock
+        values = ["subvar1", "subvar2"]
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
+            assert result == [
+                {'variable': "{}subvariables/001/".format(var_url)}, {'column': [1, 2]},
+                {'variable': "{}subvariables/002/".format(var_url)}, {'column': [1, 2]}
+            ]
+            assert need_wrap is True
+
     def test_process_any_all_exprs(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -1653,41 +1781,65 @@ class TestExpressionProcessing(TestCase):
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
+        ds.variables.index = JSONObject({
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                        "{}subvariables/001/".format(var_url),
+                        "{}subvariables/002/".format(var_url),
+                        "{}subvariables/003/".format(var_url),
+                    ],
+            }
+        })
+
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([1])"
-        processed_zcl_expr = process_expr(parse_expr(expr), ds)
-        assert processed_zcl_expr == {
-            'function': 'or',
-            'args': [{
-                'function': 'in',
-                'args': [
-                    {'variable': "%ssubvariables/001/" % var_url},
-                    {'value': [1]}
-                ],
-            }, {
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            parsed_expr = parse_expr(expr)
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+            assert processed_zcl_expr == {
                 'function': 'or',
-                'args': [{
-                    'function': 'in',
-                    'args': [
-                        {'variable': "%ssubvariables/002/" % var_url},
-                        {'value': [1]}
-                    ],
-                },
-                {
-                    'function': 'in',
-                    'args': [
-                        {'variable': "%ssubvariables/003/" % var_url},
-                        {'value': [1]}
-                    ],
-                }],
-            }],
-        }
+                'args': [
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "%ssubvariables/001/" % var_url},
+                            {'column': [1]}
+                        ],
+                    },
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "%ssubvariables/002/" % var_url},
+                            {'column': [1]}
+                        ],
+                    },
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "%ssubvariables/003/" % var_url},
+                            {'column': [1]}
+                        ],
+                    }
+                ],
+            }
 
-    def test_process_any_subvariables(self):
+    def test_multiple_response_any_process_subvariables(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
         var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": False},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1704,42 +1856,77 @@ class TestExpressionProcessing(TestCase):
                     "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
                     "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
                 },
-                "categories": [
-                    {"id": 1, "name": "cat1"},
-                    {"id": 2, "name": "cat2"},
-                    {"id": 3, "name": "cat3"},
-                ]
+                "categories": var_categories
             }
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
+        ds.variables.index = JSONObject({
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {
+                                "id": "001",
+                                "alias": "subvar1"
+                            },
+                            "002": {
+                                "id": "002",
+                                "alias": "subvar2"
+                            },
+                            "003": {
+                                "id": "003",
+                                "alias": "subvar3"
+                            }
+                        }
+                    }
+                }
+            }
+        })
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([subvar1, subvar2])"
-        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        parsed_expr = parse_expr(expr)
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
             'function': 'or',
-            'args': [{
-                'function': 'in',
-                'args': [
-                    {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'},
-                    {'column': ['subvar1', 'subvar2']}
-                ],
-            }, {
-                'function': 'or',
-                'args': [{
-                       'function': 'in',
-                       'args': [
-                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'},
-                            {'column': ['subvar1', 'subvar2']}
-                       ],
-                }, {
+            'args': [
+                {
                     'function': 'in',
                     'args': [
-                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/003/'},
-                        {'column': ['subvar1', 'subvar2']}
+                        {
+                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                        },
+                        {
+                            'column': [1]
+                        }
                     ],
-                }],
-            }],
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'
+                        },
+                        {
+                            'column': [1]
+                        }
+                    ],
+                },
+            ]
         }
 
     def test_transform_subvar_alias_to_subvar_id(self):
@@ -2064,7 +2251,7 @@ class TestExpressionProcessing(TestCase):
         with pytest.raises(ValueError):
             process_expr(parse_expr('hobbies.all([32766, 32767])'), ds)
 
-    def test_array_expansion_multiple_subvariables(self):
+    def test_categorical_array_any_expansion_multiple_subvariables(self):
         var_id = '0001'
         var_alias = 'hobbies'
         var_type = 'categorical_array'
@@ -2114,50 +2301,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'or',
+                    'function': 'in',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': [32766]
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': [32766]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': [32766]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': [32766]
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_all_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         expr = 'hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2176,50 +2385,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'and',
+                    'function': '==',
                     'args': [
                         {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': 32766
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'and',
-                            'args': [
-                                {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': 32766
+                        }
+                    ]
+                },
+                {
+                    'function': '==',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': 32766
+                        }
+                    ]
+                },
+                {
+                    'function': '==',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': 32766
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_any_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Negated.
         expr = 'not hobbies.any([32766])'
@@ -2231,63 +2462,85 @@ class TestExpressionProcessing(TestCase):
                     'function': 'or',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                             'function': 'in',
+                             'args': [
+                             {
+                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                             },
+                             {
+                             'value': [32766]
+                             }
+                             ]
                                 },
-                                {
-                                    'value': [32766]
-                                }
-                            ]
-                        },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
+                             'function': 'in',
+                             'args': [
+                             {
+                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                             },
+                             {
+                             'value': [32766]
+                             }
+                             ]
                                 },
-                                {
-                                    'function': 'or',
-                                    'args': [
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': [32766]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': [32766]
-                                                }
-                                            ]
-                                        }
-                                    ]
+                        {
+                             'function': 'in',
+                             'args': [
+                             {
+                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                             },
+                             {
+                             'value': [32766]
+                             }
+                             ]
+                                },
+                        {
+                             'function': 'in',
+                             'args': [
+                             {
+                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                             },
+                             {
+                             'value': [32766]
+                             }
+                             ]
                                 }
-                            ]
-                        }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_all_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         expr = 'not hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2309,45 +2562,35 @@ class TestExpressionProcessing(TestCase):
                             ]
                         },
                         {
-                            'function': 'and',
+                            'function': '==',
                             'args': [
                                 {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                                 },
                                 {
-                                    'function': 'and',
-                                    'args': [
-                                        {
-                                            'function': '==',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': 32766
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': '==',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': 32766
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    'value': 32766
+                                }
+                            ]
+                        },
+                        {
+                            'function': '==',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                },
+                                {
+                                    'value': 32766
+                                }
+                            ]
+                        },
+                        {
+                            'function': '==',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                },
+                                {
+                                    'value': 32766
                                 }
                             ]
                         }
@@ -2355,6 +2598,38 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_categorical_array_any_multiple_selection_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Multiple values.
         expr = 'hobbies.any([32766, 32767])'
@@ -2374,50 +2649,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'or',
+                    'function': 'in',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': [32766, 32767]
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': [32766, 32767]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': [32766, 32767]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': [32766, 32767]
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_any_multiple_selection_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Multiple values, negated
         expr = 'not hobbies.any([32766, 32767])'
@@ -2440,45 +2737,35 @@ class TestExpressionProcessing(TestCase):
                             ]
                         },
                         {
-                            'function': 'or',
+                            'function': 'in',
                             'args': [
                                 {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                                 },
                                 {
-                                    'function': 'or',
-                                    'args': [
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': [32766, 32767]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': [32766, 32767]
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    'value': [32766, 32767]
+                                }
+                            ]
+                        },
+                        {
+                            'function': 'in',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                },
+                                {
+                                    'value': [32766, 32767]
+                                }
+                            ]
+                        },
+                        {
+                            'function': 'in',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                },
+                                {
+                                    'value': [32766, 32767]
                                 }
                             ]
                         }
