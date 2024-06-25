@@ -529,6 +529,7 @@ def adapt_multiple_response(var_url, values, var_index):
             "variable": variable_url,
             "column": column
         })
+
     return result, True
 
 
@@ -542,7 +543,7 @@ def _update_values_for_multiple_response(values, subitems, var_index):
             values[0]['column'] = column
         elif value is not None:
             values[0]['column'] = value
-            values[0].pop("value")
+        values[0].pop("value", None)
 
 
 def process_expr(obj, ds):
@@ -559,7 +560,7 @@ def process_expr(obj, ds):
     variables = get_dataset_variables(ds)
     var_index = ds.variables.index
 
-    def ensure_category_ids(subitems, variables=variables):
+    def ensure_category_ids(subitems, values, variables=variables):
         var_id = None
         _subitems = []
 
@@ -615,7 +616,10 @@ def process_expr(obj, ds):
             _value_key = next(iter(_value))
             if _value_key in {'column', "value"} and var_url:
                 if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
-                    return adapt_multiple_response(var_url, _value[_value_key], var_index)
+                    result = adapt_multiple_response(var_url, _value[_value_key], var_index)
+                    # handle the multiple response type
+                    _update_values_for_multiple_response(values, subitems, var_index)
+                    return result
 
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item and not isinstance(item["variable"], dict):
@@ -679,9 +683,8 @@ def process_expr(obj, ds):
 
                 has_variable = any('variable' in item for item in subitems if not str(item).isdigit())
                 if has_value and has_variable:
-                    subitems, needs_wrap = ensure_category_ids(subitems)
-                    # handle the multiple response type
-                    _update_values_for_multiple_response(values, subitems, var_index)
+                    subitems, needs_wrap = ensure_category_ids(subitems, values)
+
                 obj[key] = subitems
             elif key == 'variable':
                 if isinstance(val, dict) and "array" in val:
