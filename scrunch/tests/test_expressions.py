@@ -1836,7 +1836,91 @@ class TestExpressionProcessing(TestCase):
                 ],
             }
 
-    def test_multiple_response_any_process_subvariables(self):
+    def test_multiple_response_any_process_single_subvariables(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": False},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "subreferences": {
+                    "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                    "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                    "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {
+                                "id": "001",
+                                "alias": "subvar1"
+                            },
+                            "002": {
+                                "id": "002",
+                                "alias": "subvar2"
+                            },
+                            "003": {
+                                "id": "003",
+                                "alias": "subvar3"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([subvar1])"
+        parsed_expr = parse_expr(expr)
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+        assert processed_zcl_expr == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                },
+                {
+                    'column': [1]
+                }
+            ],
+        }
+
+    def test_multiple_response_any_process_two_subvariables(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'

@@ -776,8 +776,10 @@ def process_expr(obj, ds):
 
                 if len(subvariables) == 1:
                     obj['function'] = real_op
-                    obj['args'][0] = {'variable': subvariables[0]}
-                    obj['args'][1] = value
+                    obj["args"] = [
+                        {'variable': subvariables[0]},
+                        value
+                    ]
                 else:
                     obj = {
                         'function': expansion_op,

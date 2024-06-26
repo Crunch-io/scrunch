@@ -69,13 +69,15 @@ class TestExpressions(TestCase):
         _filter = "mr_variable.any([response_1, response_2])"
         try:
             scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            # Adding the filter as exclusion. In this case, we are expecting the opposite
+            # of the filter since it is an exclusion one
+            scrunch_dataset.exclude(_filter)
             data = ds.follow("table", "limit=20")['data']
             ds_variables = ds.variables.by("alias")
             mr_variable_id = ds_variables["mr_variable"].id
             assert data[mr_variable_id] == [
-                 [1, 2, 1],
-                 [1, 2, 2],
-                 [2, 1, 1]
+                 [2, 2, 1],
+                 [2, 2, 2],
              ]
         finally:
             # cleanup
@@ -92,13 +94,14 @@ class TestExpressions(TestCase):
         _filter = "mr_variable.any([1])"
         try:
             scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            # Adding the filter as exclusion. In this case, we are expecting the opposite
+            # of the filter since it is an exclusion one
+            scrunch_dataset.exclude(_filter)
             data = ds.follow("table", "limit=20")['data']
             ds_variables = ds.variables.by("alias")
             mr_variable_id = ds_variables["mr_variable"].id
             assert data[mr_variable_id] == [
-                [1, 2, 1],
-                [1, 2, 2],
-                [2, 1, 1]
+                [2, 2, 2],
             ]
         finally:
             # cleanup
@@ -215,17 +218,54 @@ class TestExpressions(TestCase):
         ]
         ds_to_append_rows = [
             ["response_1", "response_2", "response_3"],
-            [1, 1, 2],
-            [2, 1, 1],
-            [1, 1, 2]
+            [2, 1, 2],
+            [2, 2, 1],
+            [2, 2, 1]
         ]
         ds, scrunch_dataset = self._create_mr_dataset('test_mr_any_subvar', ds_rows)
         ds_to_append, scrunch_dataset_to_append = self._create_mr_dataset(
             'test_mr_any_to_append_subvar',
             ds_to_append_rows
         )
-        # This filter should get only the rows that have the news_source variable with the value 1
-        # at the same time for both news_source_1 and news_source_2
+        # This filter should get only the rows that have the mr_response variable with the value 1
+        # at the same time for both response_1 and response_2
+        _filter = "mr_variable.any([response_1, response_2])"
+        try:
+            scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
+            ds_variables = ds.variables.by("alias")
+            mr_variable_id = ds_variables["mr_variable"].id
+            data = ds.follow("table", "limit=20")['data']
+            assert data[mr_variable_id] == [
+                [1, 2, 1],
+                [1, 2, 2],
+                [1, 1, 1],
+                [2, 1, 2],
+            ]
+        finally:
+            # cleanup
+            ds.delete()
+            ds_to_append.delete()
+
+    def test_append_dataset_any_filter_multiple_response_single_subvar(self):
+        ds_rows = [
+            ["response_1", "response_2", "response_3"],
+            [1, 2, 1],
+            [1, 2, 2],
+            [1, 1, 1]
+        ]
+        ds_to_append_rows = [
+            ["response_1", "response_2", "response_3"],
+            [1, 1, 2],
+            [2, 2, 1],
+            [1, 1, 1]
+        ]
+        ds, scrunch_dataset = self._create_mr_dataset('test_mr_any_subvar', ds_rows)
+        ds_to_append, scrunch_dataset_to_append = self._create_mr_dataset(
+            'test_mr_any_to_append_subvar',
+            ds_to_append_rows
+        )
+        # This filter should get only the rows that have the mr_response variable with the value 1 (selected)
+        # for response_1 (not the 2nd row in this test)
         _filter = "mr_variable.any([response_1])"
         try:
             scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
@@ -237,7 +277,7 @@ class TestExpressions(TestCase):
                 [1, 2, 2],
                 [1, 1, 1],
                 [1, 1, 2],
-                [1, 1, 2]
+                [1, 1, 1]
             ]
         finally:
             # cleanup
