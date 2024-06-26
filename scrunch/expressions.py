@@ -511,20 +511,23 @@ def adapt_multiple_response(var_url, values, var_index):
     to column.
     :return: the new args for multiple_response
     """
-    if all(isinstance(value, int) for value in values):
-        return [{'variable': var_url}, {'column': values}], True
-
-    # convert value --> column and change ids to aliases
     aliases = get_subvariables_resource(var_url, var_index)
-
-    # Get the list of categories that are `selected` (there may be more than one)
-    column = [
-        cat.get("id") for cat in _get_categories_from_var_index(var_index, var_url) if cat.get("selected")
-    ]
     result = []
-    for value in values:
-        variable_id = aliases.get(value)
-        variable_url = "{}subvariables/{}".format(var_url, variable_id)
+
+    if all(isinstance(value, int) for value in values):
+        # scenario var.any([1])
+        column = values
+        variables = aliases.values()
+    else:
+        # scenario var.any([subvar1, subvar2])
+        # in this scenario, we only want category ids that refers to `selected` categories
+        column = [
+            cat.get("id") for cat in _get_categories_from_var_index(var_index, var_url) if cat.get("selected")
+        ]
+        variables = [var_id for alias, var_id in aliases.items() if alias in values]
+
+    for variable_id in variables:
+        variable_url = "{}subvariables/{}/".format(var_url, variable_id)
         result.append({
             "variable": variable_url,
             "column": column
@@ -533,10 +536,13 @@ def adapt_multiple_response(var_url, values, var_index):
     return result, True
 
 
-def _update_values_for_multiple_response(values, subitems, var_index):
-    """Multiple response does not need the `value` key, but it relies on the `column` key"""
-    var_url = subitems[0].get("variable", "").split("subvariables")[0]
-    column = subitems[1].get("column")
+def _update_values_for_multiple_response(new_values, values, subitem, var_index, arrays):
+    """
+    - Multiple response does not need the `value` key, but it relies on the `column` key
+    - Remove from `arrays` (subvariable list) the ones that should not be considered
+    """
+    var_url = subitem.get("variable", "").split("subvariables")[0]
+    column = new_values[0].get("column")
     value = values[0].get("value")
     if var_url and var_index[var_url]['type'] == 'multiple_response':
         if column:
@@ -544,6 +550,7 @@ def _update_values_for_multiple_response(values, subitems, var_index):
         elif value is not None:
             values[0]['column'] = value
         values[0].pop("value", None)
+        arrays[0] = [new_value["variable"] for new_value in new_values]
 
 
 def process_expr(obj, ds):
@@ -560,7 +567,7 @@ def process_expr(obj, ds):
     variables = get_dataset_variables(ds)
     var_index = ds.variables.index
 
-    def ensure_category_ids(subitems, values, variables=variables):
+    def ensure_category_ids(subitems, values, arrays, variables=variables):
         var_id = None
         _subitems = []
 
@@ -618,7 +625,7 @@ def process_expr(obj, ds):
                 if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
                     result = adapt_multiple_response(var_url, _value[_value_key], var_index)
                     # handle the multiple response type
-                    _update_values_for_multiple_response(values, subitems, var_index)
+                    _update_values_for_multiple_response(result[0], values, subitems[0], var_index, arrays)
                     return result
 
         for item in subitems:
@@ -683,7 +690,7 @@ def process_expr(obj, ds):
 
                 has_variable = any('variable' in item for item in subitems if not str(item).isdigit())
                 if has_value and has_variable:
-                    subitems, needs_wrap = ensure_category_ids(subitems, values)
+                    subitems, needs_wrap = ensure_category_ids(subitems, values, arrays)
 
                 obj[key] = subitems
             elif key == 'variable':

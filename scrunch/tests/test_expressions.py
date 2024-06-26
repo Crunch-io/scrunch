@@ -1,9 +1,6 @@
-import pycrunch
 import pytest
 import mock
 from unittest import TestCase
-
-from pycrunch.elements import JSONObject
 
 import scrunch
 from scrunch.datasets import parse_expr
@@ -1642,6 +1639,11 @@ class TestExpressionProcessing(TestCase):
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
         var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1658,16 +1660,12 @@ class TestExpressionProcessing(TestCase):
                     "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
                     "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
                 },
-                "categories": [
-                    {"id": 1, "name": "cat1"},
-                    {"id": 2, "name": "cat2"},
-                    {"id": 3, "name": "cat3"},
-                ]
+                "categories": var_categories
             }
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.variables.index = JSONObject({
+        ds.variables.index = {
             "{}".format(var_url): {
                 "name": "Multiple Response",
                 "description": "",
@@ -1681,19 +1679,23 @@ class TestExpressionProcessing(TestCase):
                     "{}subvariables/003/".format(var_url),
                 ],
             }
-        })
+        }
 
         ds.follow.return_value = table_mock
         # expr = "MyMrVar.any([1, 2])"
         values = [1, 2]
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
-            mock_subvars.return_value = [("001", "subvar1"), ("002", "subvar2"), ("003", "subvar3")]
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
             result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
             assert result == [
-                {'variable': var_url}, {'column': [1, 2]}
+                {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
+                {'variable': "{}subvariables/002/".format(var_url), 'column': [1, 2]},
+                {'variable': "{}subvariables/003/".format(var_url), 'column': [1, 2]},
             ]
             assert need_wrap is True
-    
+
     def test_adapt_multiple_response_any_subvar(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -1725,7 +1727,7 @@ class TestExpressionProcessing(TestCase):
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.variables.index = JSONObject({
+        ds.variables.index = {
             "{}".format(var_url): {
                 "name": "Multiple Response",
                 "description": "",
@@ -1739,7 +1741,7 @@ class TestExpressionProcessing(TestCase):
                     "{}subvariables/003/".format(var_url),
                 ],
             }
-        })
+        }
 
         ds.follow.return_value = table_mock
         values = ["subvar1", "subvar2"]
@@ -1748,8 +1750,8 @@ class TestExpressionProcessing(TestCase):
             mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
             result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
             assert result == [
-                {'variable': "{}subvariables/001".format(var_url), 'column': [1, 2]},
-                {'variable': "{}subvariables/002".format(var_url), 'column': [1, 2]}
+                {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
+                {'variable': "{}subvariables/002/".format(var_url), 'column': [1, 2]}
             ]
             assert need_wrap is True
 
@@ -1784,7 +1786,7 @@ class TestExpressionProcessing(TestCase):
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.variables.index = JSONObject({
+        ds.variables.index = {
             "{}".format(var_url): {
                 "name": "Multiple Response",
                 "description": "",
@@ -1798,7 +1800,7 @@ class TestExpressionProcessing(TestCase):
                         "{}subvariables/003/".format(var_url),
                     ],
             }
-        })
+        }
 
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([1])"
@@ -1813,21 +1815,21 @@ class TestExpressionProcessing(TestCase):
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "%ssubvariables/001/" % var_url},
+                            {'variable': "{}subvariables/001/".format(var_url)},
                             {'column': [1]}
                         ],
                     },
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "%ssubvariables/002/" % var_url},
+                            {'variable': "{}subvariables/002/".format(var_url)},
                             {'column': [1]}
                         ],
                     },
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "%ssubvariables/003/" % var_url},
+                            {'variable': "{}subvariables/003/".format(var_url)},
                             {'column': [1]}
                         ],
                     }
@@ -1838,7 +1840,7 @@ class TestExpressionProcessing(TestCase):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
         var_categories = [
             {"id": 1, "name": "cat1", "selected": True},
             {"id": 2, "name": "cat2", "selected": False},
@@ -1851,21 +1853,21 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
                 ],
                 "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                    "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                    "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                    "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.variables.index = JSONObject({
+        ds.variables.index = {
             "{}".format(var_url): {
                 "name": "Multiple Response",
                 "description": "",
@@ -1897,7 +1899,7 @@ class TestExpressionProcessing(TestCase):
                     }
                 }
             }
-        })
+        }
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([subvar1, subvar2])"
         parsed_expr = parse_expr(expr)
@@ -2468,47 +2470,47 @@ class TestExpressionProcessing(TestCase):
                         {
                              'function': 'in',
                              'args': [
-                             {
-                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
-                             },
-                             {
-                             'value': [32766]
-                             }
+                                {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                                },
+                                 {
+                                     'value': [32766]
+                                 }
                              ]
                                 },
                         {
                              'function': 'in',
                              'args': [
-                             {
-                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                             },
-                             {
-                             'value': [32766]
-                             }
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
                              ]
-                                },
+                        },
                         {
                              'function': 'in',
                              'args': [
-                             {
-                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                             },
-                             {
-                             'value': [32766]
-                             }
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
                              ]
-                                },
+                        },
                         {
                              'function': 'in',
                              'args': [
-                             {
-                             'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                             },
-                             {
-                             'value': [32766]
-                             }
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
                              ]
-                                }
+                        }
                     ]
                 }
             ]
