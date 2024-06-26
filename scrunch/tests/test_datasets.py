@@ -2061,24 +2061,24 @@ class TestFillVariables(TestCase):
                 {
                     "column": [1, 2],
                     "type": {
-                    "class": "categorical",
-                    "ordinal": False,
-                    "categories": [
-                        {"id": 1, "missing": False, "name": "1", "numeric_value": None},
-                        {"id": 2, "missing": False, "name": "2", "numeric_value": None}
-                    ]}
+                        "class": "categorical",
+                        "ordinal": False,
+                        "categories": [
+                            {"id": 1, "missing": False, "name": "1", "numeric_value": None},
+                            {"id": 2, "missing": False, "name": "2", "numeric_value": None}
+                        ]}
                 },
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/001"},
+                        {"variable": "http://host/api/projects/abc/variables/001/"},
                         {"value": 1}
                     ]
                 },
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/002"},
+                        {"variable": "http://host/api/projects/abc/variables/002/"},
                         {"value": 1}
                     ]
                 }
@@ -2096,7 +2096,8 @@ class TestFillVariables(TestCase):
                 }
             ],
         }
-        self.assertEqual(json.loads(post_request.body), {
+        result = json.loads(post_request.body)
+        expected = {
             "element": "shoji:entity",
             "body": {
                 "alias": "filled",
@@ -2104,7 +2105,8 @@ class TestFillVariables(TestCase):
                 "name": "Filled var",
                 "description": ""
             },
-        })
+        }
+        self.assertEqual(result, expected)
 
     def test_else_code(self):
         ds, session = self.prepare_ds()
