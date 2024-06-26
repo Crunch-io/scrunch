@@ -179,28 +179,23 @@ class TestExpressions(TestCase):
                         ]
                     },
                     {
-                        "function": "or",
-                        "args": [
-                            {
-                                "function": "in",
-                                "args": [{
-                                    "var": "categorical_var",
-                                    "axes": ["response_2"]
-                                },
-                                    {"value": [1]
-                                     }
-                                ]
-                            },
-                            {
-                                "function": "in",
-                                "args": [{
-                                    "var": "categorical_var",
-                                    "axes": ["response_3"]
-                                },
-                                    {"value": [1]
-                                     }
-                                ]
-                            }
+                        "function": "in",
+                        "args": [{
+                            "var": "categorical_var",
+                            "axes": ["response_2"]
+                        },
+                            {"value": [1]
+                             }
+                        ]
+                    },
+                    {
+                        "function": "in",
+                        "args": [{
+                            "var": "categorical_var",
+                            "axes": ["response_3"]
+                        },
+                            {"value": [1]
+                             }
                         ]
                     }
                 ]
