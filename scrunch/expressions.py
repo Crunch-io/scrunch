@@ -740,6 +740,10 @@ def process_expr(obj, ds):
         if subvariables:
             obj['subvariables'] = subvariables
 
+        # support for categorical variables with `any`
+        if not arrays and op == "any":
+            obj["function"] = "in"
+
         if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
 

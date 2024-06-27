@@ -2119,7 +2119,7 @@ class TestExpressionProcessing(TestCase):
         expr = "hobbies_array[hobbies_1].any([1, 2])"
         parsed_platonic = parse_expr(expr, platonic=True)
         assert parsed_platonic == {
-            'function': "any",
+            'function': "in",
             'args': [
                 # Platonic parsing keeps the var/axes reference
                 {'var': 'hobbies_array', 'axes': ['hobbies_1']},
@@ -2128,7 +2128,7 @@ class TestExpressionProcessing(TestCase):
         }
         parsed = parse_expr(expr)
         assert parsed == {
-            'function': "any",
+            'function': "in",
             'args': [
                 # Stores a reference to the array/subvairable
                 {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
@@ -2137,7 +2137,7 @@ class TestExpressionProcessing(TestCase):
         }
         expr_obj = process_expr(parsed, ds)
         assert expr_obj == {
-            'function': "any",
+            'function': "in",
             'args': [
                 # Still finds the correct subvariable ID under the array URL
                 {'variable': subvariable_url},
@@ -2231,7 +2231,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    def test_array_expansion_single_subvariable(self):
+    def test_array_expansion_single_subvariable_any(self):
         var_id = '0001'
         var_alias = 'hobbies'
         var_type = 'categorical_array'
@@ -2272,6 +2272,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         expr_obj = process_expr(parse_expr('hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': '==',
@@ -2284,6 +2311,33 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_array_expansion_single_subvariable_not_any(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Negated.
         expr_obj = process_expr(parse_expr('not hobbies.any([32766])'), ds)
@@ -2305,6 +2359,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_not_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         expr_obj = process_expr(parse_expr('not hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
@@ -2324,6 +2405,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_multiple_any(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         # Multiple values.
         expr_obj = process_expr(parse_expr('hobbies.any([32766, 32767])'), ds)
         assert expr_obj == {
@@ -2337,6 +2445,32 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_array_expansion_single_subvariable_multiple_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         with pytest.raises(ValueError):
             process_expr(parse_expr('hobbies.all([32766, 32767])'), ds)
@@ -3069,6 +3203,49 @@ class TestExpressionProcessing(TestCase):
                 },
                 {
                     'value': [1, 2]
+                }
+            ]
+        }
+
+    def test_any_categorical_var(self):
+        var_id = '0001'
+        var_alias = 'my_categorical'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'id': 1
+            },
+            {
+                'name': 'coding',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = "my_categorical.any([1])"
+        parsed_expr = parse_expr(expr)
+        expr_obj = process_expr(parsed_expr, ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1]
                 }
             ]
         }

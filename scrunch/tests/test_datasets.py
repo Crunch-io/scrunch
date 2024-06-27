@@ -744,7 +744,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         data = self._exclude_payload(ds, 'var1_alias.any([32766])')
         expected_expr_obj = {
             "expression": {
-                "function": "any",
+                "function": "in",
                 "args": [
                     {
                         "variable": var.url
@@ -771,7 +771,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 "function": "not",
                 "args": [
                     {
-                        "function": "any",
+                        "function": "in",
                         "args": [
                             {
                                 "variable": var.url
@@ -797,7 +797,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         data = self._exclude_payload(ds, 'var1_alias.any([32766, 32767])')
         expected_expr_obj = {
             "expression": {
-                "function": "any",
+                "function": "in",
                 "args": [
                     {
                         "variable": var.url
