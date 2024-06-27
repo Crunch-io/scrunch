@@ -3,14 +3,10 @@
 import os
 import uuid
 import pytest
+from pycrunch.shoji import as_entity
+
 from scrunch import connect
 from scrunch.accounts import Account
-
-as_entity = lambda b: {
-    "element": "shoji:entity",
-    "body": b
-}
-
 
 HOST = os.environ["SCRUNCH_HOST"]
 username = os.environ["SCRUNCH_USER"]

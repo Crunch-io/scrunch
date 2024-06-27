@@ -3,7 +3,8 @@
 import os
 from unittest import TestCase
 
-from integration.fixtures import as_entity
+from pycrunch.shoji import as_entity
+
 from scrunch import connect
 from scrunch.mutable_dataset import get_mutable_dataset
 

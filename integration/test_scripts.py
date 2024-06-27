@@ -2,6 +2,7 @@
 import os
 import pytest
 from unittest import TestCase
+from pycrunch.shoji import as_entity
 
 from scrunch import connect
 from scrunch.scripts import ScriptExecutionError
@@ -14,11 +15,6 @@ password = os.environ["SCRUNCH_PASS"]
 
 site = connect(username, password, HOST)
 assert site is not None, "Unable to connect to %s" % HOST
-
-as_entity = lambda b: {
-    "element": "shoji:entity",
-    "body": b
-}
 
 
 class TestScripts(TestCase):

@@ -127,10 +127,3 @@ def mr_in(ds, mr_alias, subvars):
             'column': [subvariables[subvar_alias(mr_alias, sv)].id for sv in subvars]
         }]
     }
-
-
-def as_entity(body):
-    return {
-        "element": "shoji:entity",
-        "body": body
-    }

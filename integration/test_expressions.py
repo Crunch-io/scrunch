@@ -5,7 +5,7 @@ from unittest import TestCase
 
 from pycrunch.importing import Importer
 
-from integration.fixtures import MR_CATS, as_entity
+from integration.fixtures import MR_CATS
 from scrunch import connect
 from scrunch.mutable_dataset import get_mutable_dataset
 
@@ -57,6 +57,32 @@ class TestExpressions(TestCase):
         Importer().append_rows(ds, rows)
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         return ds, scrunch_dataset
+
+    def test_multiple_response_any_add_filter_single_subvar(self):
+        ds_rows = [
+            ["response_1", "response_2", "response_3"],
+            [2, 2, 1],
+            [2, 2, 2],
+            [2, 1, 1]
+        ]
+        ds, scrunch_dataset = self._create_mr_dataset('test_mr_any', ds_rows)
+        _filter = "mr_variable.any([response_1])"
+        try:
+            scrunch_dataset.add_filter(name='filter_1', expr=_filter)
+            # Adding the filter as exclusion. In this case, we are expecting the opposite
+            # of the filter since it is an exclusion one
+            scrunch_dataset.exclude(_filter)
+            data = ds.follow("table", "limit=20")['data']
+            ds_variables = ds.variables.by("alias")
+            mr_variable_id = ds_variables["mr_variable"].id
+            assert data[mr_variable_id] == [
+                [2, 2, 1],
+                [2, 2, 2],
+                [2, 1, 1]
+            ]
+        finally:
+            # cleanup
+            ds.delete()
 
     def test_multiple_response_any_add_filter_subvar(self):
         ds_rows = [
