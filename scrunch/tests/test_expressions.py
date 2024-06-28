@@ -5,6 +5,7 @@ from unittest import TestCase
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
+from scrunch.datasets import Dataset
 from scrunch.expressions import prettify
 
 
@@ -2543,6 +2544,49 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_in_with_float_cat_ids(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'id': 1
+            },
+            {
+                'name': 'coding',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.__class__ = Dataset
+        ds.follow.return_value = table_mock
+        api_var = mock.MagicMock()
+        api_var.payload.body.alias = var_alias
+        ds.resource.session.get.return_value = api_var
+
+        expr = "hobbies in [1.0, 2.0]"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {'variable': var_url},
+                {'value': [1, 2]}
+            ]
+        }
+        assert prettify(expr_obj, ds) == "hobbies in [1, 2]"
 
     @pytest.mark.xfail
     @mock.patch('scrunch.expressions.adapt_multiple_response')

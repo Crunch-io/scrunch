@@ -534,20 +534,20 @@ def process_expr(obj, ds):
         def variable_id(variable_url):
             return variable_url.split('/')[-2]
 
-        def category_ids(var_id, var_value, variables=variables):
+        def category_ids(_var_id, var_value, _variables=variables):
             value = None
             if isinstance(var_value, list) or isinstance(var_value, tuple):
                 # {'values': [val1, val2, ...]}
                 value = []
                 for val in var_value:
-                    if str(val).isdigit():
-                        # val1 is an id already
-                        value.append(val)
+                    if isinstance(val, (int, float)):
+                        # val1 is a cat id already
+                        value.append(int(val))  # We know these are cat IDs
                         continue
-                    for var in variables:
-                        if variables[var]['id'] == var_id:
-                            if 'categories' in variables[var]:
-                                for cat in variables[var]['categories']:
+                    for var in _variables:
+                        if _variables[var]['id'] == _var_id:
+                            if 'categories' in _variables[var]:
+                                for cat in _variables[var]['categories']:
                                     if cat['name'] == val:
                                         value.append(cat['id'])
                             else:
@@ -636,10 +636,10 @@ def process_expr(obj, ds):
                     subitems.append(subitem)
 
                 has_value = any('value' in item for item in subitems
-                    if not str(item).isdigit())
+                    if isinstance(item, dict))
 
                 has_variable = any('variable' in item for item in subitems
-                    if not str(item).isdigit())
+                    if isinstance(item, dict))
                 if has_value and has_variable:
                     subitems, needs_wrap = ensure_category_ids(subitems)
                 obj[key] = subitems
@@ -837,7 +837,6 @@ def prettify(expr, ds=None):
 
         if _func is None:
             # This is not a function, but a plain argument
-
             if 'value' in fragment:
                 # This argument is a value, not a variable
                 value = fragment['value']
