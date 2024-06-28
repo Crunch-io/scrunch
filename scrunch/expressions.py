@@ -774,9 +774,11 @@ def process_expr(obj, ds):
                 value = values[0]
 
                 if op == 'all':
-                    if len(value['value']) != 1:
+                    inner_value = value.get("value", value.get("column", []))
+                    if len(inner_value) != 1:
                         raise ValueError
-                    value['value'] = value['value'][0]
+                    value.pop("column", None)
+                    value['value'] = inner_value[0]
 
                 if len(subvariables) == 1:
                     obj['function'] = real_op

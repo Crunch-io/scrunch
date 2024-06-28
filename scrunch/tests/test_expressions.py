@@ -1755,7 +1755,89 @@ class TestExpressionProcessing(TestCase):
             ]
             assert need_wrap is True
 
-    def test_process_any_all_exprs(self):
+    def test_process_all_exprs(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        }
+
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.all([1])"
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            parsed_expr = parse_expr(expr)
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+            assert processed_zcl_expr == {
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/001/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/002/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/003/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    }
+                ],
+            }
+
+    def test_process_any_exprs(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
@@ -2119,7 +2201,7 @@ class TestExpressionProcessing(TestCase):
         expr = "hobbies_array[hobbies_1].any([1, 2])"
         parsed_platonic = parse_expr(expr, platonic=True)
         assert parsed_platonic == {
-            'function': "in",
+            'function': "any",
             'args': [
                 # Platonic parsing keeps the var/axes reference
                 {'var': 'hobbies_array', 'axes': ['hobbies_1']},
@@ -2128,7 +2210,7 @@ class TestExpressionProcessing(TestCase):
         }
         parsed = parse_expr(expr)
         assert parsed == {
-            'function': "in",
+            'function': "any",
             'args': [
                 # Stores a reference to the array/subvairable
                 {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
