@@ -756,6 +756,14 @@ def process_expr(obj, ds):
         return _process(copy.deepcopy(obj), variables)
 
 
+def clean_integer(value):
+    """It cleans values that are `floats` but can be integers"""
+    if isinstance(value, float) and value.is_integer():
+        # Check if the value is a float and if it can be exactly represented as an integer
+        value = int(value)
+    return value
+
+
 def prettify(expr, ds=None):
     """
     Translate the crunch expression dictionary to the string representation.
@@ -849,6 +857,9 @@ def prettify(expr, ds=None):
                 if isinstance(value, float) and value.is_integer():
                     # Check if the value is a float and if it can be exactly represented as an integer
                     value = int(value)
+
+                if isinstance(value, list):
+                    value = [clean_integer(v) for v in value]
 
                 return value
 
