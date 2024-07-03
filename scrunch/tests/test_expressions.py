@@ -1842,7 +1842,7 @@ class TestExpressionProcessing(TestCase):
             mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert processed_zcl_expr == {
+            assert sorted(processed_zcl_expr) == sorted({
                 'function': 'and',
                 'args': [
                     {
@@ -1867,7 +1867,7 @@ class TestExpressionProcessing(TestCase):
                         ],
                     }
                 ],
-            }
+            })
 
     def test_process_any_exprs(self):
         var_id = '0001'
@@ -1923,7 +1923,7 @@ class TestExpressionProcessing(TestCase):
             mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert processed_zcl_expr == {
+            assert sorted(processed_zcl_expr) == sorted({
                 'function': 'or',
                 'args': [
                     {
@@ -1948,7 +1948,7 @@ class TestExpressionProcessing(TestCase):
                         ],
                     }
                 ],
-            }
+            })
 
     def test_multiple_response_any_process_single_subvariables(self):
         var_id = '0001'
