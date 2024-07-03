@@ -320,3 +320,11 @@ def generate_subvariable_codes(dataset, subvariables):
         existing_aliases.add(unique_code)
         subvariable_codes.append(unique_code)
     return subvariable_codes
+
+
+def is_number(value):
+    try:
+        float(value)
+        return True
+    except (ValueError, TypeError):
+        return False

@@ -552,6 +552,38 @@ class TestExpressionParsing(TestCase):
             ]
         }
 
+    def test_parse_float_value_in_list(self):
+        expr = "country_cat in [1.0]"
+        expected = {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'country_cat'
+                },
+                {
+                    'value': [1.0]
+                }
+            ]
+        }
+        expr_obj = parse_expr(expr)
+        assert expr_obj == expected
+
+    def test_parse_integer_value_in_list(self):
+        expr = "country_cat in [1]"
+        expected = {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'country_cat'
+                },
+                {
+                    'value': [1]
+                }
+            ]
+        }
+        expr_obj = parse_expr(expr)
+        assert expr_obj == expected
+
     def test_r_in(self):
         expr = "q1 in [1, 2, r(4,7), r(10, 12)]"
         expected_expr_obj = {
@@ -3407,6 +3439,91 @@ class TestExpressionProcessing(TestCase):
                 },
                 {
                     'value': 1
+                }
+            ]
+        }
+
+    def test_in_expression_list_integer(self):
+        var_id = '0001'
+        var_alias = 'country_cat'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'argentina',
+                'id': 1
+            },
+            {
+                'name': 'australia',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = "country_cat in [1]"
+        expr_obj = process_expr(parse_expr(expr), ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1]
+                }
+            ]
+        }
+
+    def test_in_expression_list_floats(self):
+        var_id = '0001'
+        var_alias = 'country_cat'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'argentina',
+                'id': 1
+            },
+            {
+                'name': 'australia',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = "country_cat in [1.0]"
+        parsed_expr = parse_expr(expr)
+        expr_obj = process_expr(parsed_expr, ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1.0]
                 }
             ]
         }
