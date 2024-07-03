@@ -1,7 +1,8 @@
 # coding: utf-8
-
+import os
 from unittest import TestCase
 
+import pytest
 from pycrunch.shoji import as_entity
 
 from scrunch.mutable_dataset import get_mutable_dataset
@@ -46,6 +47,7 @@ class TestDatasetMethods(TestCase):
         finally:
             ds.delete()
 
+    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset(self):
         ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
         ds.variables.create(
@@ -128,6 +130,7 @@ class TestDatasetMethods(TestCase):
             ds.delete()
             ds_to_append.delete()
 
+    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter(self):
         ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
         ds.variables.create(
@@ -224,6 +227,7 @@ class TestDatasetMethods(TestCase):
             ds.delete()
             ds_to_append.delete()
 
+    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter_and_exclusion(self):
         ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})).refresh()
         ds.variables.create(
@@ -321,6 +325,7 @@ class TestDatasetMethods(TestCase):
             ds.delete()
             ds_to_append.delete()
 
+    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_and_exclusion(self):
         ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
         ds.variables.create(
@@ -417,6 +422,7 @@ class TestDatasetMethods(TestCase):
             ds.delete()
             ds_to_append.delete()
 
+    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_filters_and_exclusion(self):
         ds = site.datasets.create(as_entity({
             "name": "test_scrunch_append_dataset_with_variable_filters_exclusion"
