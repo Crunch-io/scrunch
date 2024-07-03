@@ -11,12 +11,10 @@ as_entity = lambda b: {
     "body": b
 }
 
-
 HOST = os.environ["SCRUNCH_HOST"]
-username = os.environ["SCRUNCH_USER"]
-password = os.environ["SCRUNCH_PASS"]
+api_key = os.environ["SCRUNCH_APIKEY"]
 
-site = connect(username, password, HOST)
+site = connect(api_key=api_key, site_url=HOST)
 assert site is not None, "Unable to connect to %s" % HOST
 
 

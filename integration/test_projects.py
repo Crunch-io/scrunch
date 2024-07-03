@@ -10,12 +10,11 @@ from scrunch import connect, get_project, get_dataset, get_user
 
 
 HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
+api_key = os.environ["SCRUNCH_APIKEY"]
+api_key2 = os.environ["SCRUNCH_APIKEY2"]
 username2 = os.environ['SCRUNCH_USER2']
-password2 = os.environ['SCRUNCH_PASS2']
 
-site = connect(username, password, HOST)
+site = connect(api_key=api_key, site_url=HOST)
 UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
 FEATURE_FLAG = 'old_projects_order'
 
@@ -76,7 +75,7 @@ class TestProjects(TestCase):
 
     def test_move_dataset(self):
         fo = get_user(username2)
-        fo_site = connect(fo.email, password2, HOST)
+        fo_site = connect(api_key=api_key2, site_url=HOST)
 
         # These two datasets are created by the default logged user
         _ds1 = site.datasets.create(shoji_entity_wrapper({
