@@ -3548,6 +3548,55 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert expected == cel
 
+    def test_float_conversion_to_integer(self):
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': 'age'
+                },
+                {
+                    'value': 25.0
+                }
+            ]
+        }
+
+        expected = 'age == 25'
+        cel = prettify(expr)
+        assert expected == cel
+
+    def test_float_conversion_integer_in_list(self):
+        expr = {
+            "function": "in",
+            "args": [
+                {
+                    "variable": "my_var"
+                },
+                {
+                    "value": [
+                        1.0, 2.0
+                    ]
+                }
+            ]
+        }
+        assert prettify(expr) == "my_var in [1, 2]"
+
+    def test_string_no_need_conversion_in_list(self):
+        expr = {
+            "function": "in",
+            "args": [
+                {
+                    "variable": "my_var"
+                },
+                {
+                    "value": [
+                        "test"
+                    ]
+                }
+            ]
+        }
+        assert prettify(expr) == "my_var in ['test']"
+
     def test_and(self):
         expr = {
             'function': 'and',
