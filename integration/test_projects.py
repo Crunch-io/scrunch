@@ -1,21 +1,13 @@
 # coding: utf-8
 
-import os
 from datetime import datetime
 from unittest import TestCase
 
 from scrunch.datasets import Project
 from scrunch.helpers import shoji_entity_wrapper
 from scrunch import connect, get_project, get_dataset, get_user
+from fixtures import site, password2, username2, HOST
 
-
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-username2 = os.environ['SCRUNCH_USER2']
-password2 = os.environ['SCRUNCH_PASS2']
-
-site = connect(username, password, HOST)
 UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
 FEATURE_FLAG = 'old_projects_order'
 

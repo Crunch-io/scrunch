@@ -1,22 +1,16 @@
 # coding: utf-8
 
-import os
 import uuid
 import pytest
+
+from unittest import TestCase
 from pycrunch.shoji import as_entity
 
-from scrunch import connect
+from fixtures import site
 from scrunch.accounts import Account
 
-HOST = os.environ["SCRUNCH_HOST"]
-username = os.environ["SCRUNCH_USER"]
-password = os.environ["SCRUNCH_PASS"]
 
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
-
-
-class TestAccount:
+class TestAccount(TestCase):
 
     def test_current_account(self):
         act = Account.current_account(site)

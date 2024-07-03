@@ -5,26 +5,11 @@ from unittest import TestCase
 from pycrunch.importing import Importer
 from pycrunch.shoji import as_entity
 
-from integration.fixtures import MR_CATS
-from scrunch import connect
+from fixtures import MR_CATS, site
 from scrunch.mutable_dataset import get_mutable_dataset
-
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
 
 
 class TestExpressions(TestCase):
-
-    SITE = None
-
-    @property
-    def site(self):
-        if self.SITE is None:
-            _site = connect(username, password, HOST)
-            assert _site is not None, "Unable to connect to %s" % HOST
-            self.SITE = _site
-        return self.SITE
 
     def _create_mr_dataset(self, name, rows):
         _dataset_metadata = {
@@ -44,7 +29,7 @@ class TestExpressions(TestCase):
                 }]
             },
         }
-        ds = self.site.datasets.create({
+        ds = site.datasets.create({
             'element': 'shoji:entity',
             'body': {
                 'name': name,
@@ -55,7 +40,7 @@ class TestExpressions(TestCase):
             }
         }).refresh()
         Importer().append_rows(ds, rows)
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
         return ds, scrunch_dataset
 
     def test_multiple_response_all_add_filter_value(self):
@@ -142,7 +127,7 @@ class TestExpressions(TestCase):
             ds.delete()
 
     def test_categorical_array_any_add_filter(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
+        ds = site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
         ds.variables.create(as_entity({
             "name": "Categorical Var",
             "alias": "categorical_var",
@@ -246,7 +231,7 @@ class TestExpressions(TestCase):
             ds.delete()
 
     def test_categorical_array_any_w_bracket_subvar(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_w_bracket_add_filter"})).refresh()
+        ds = site.datasets.create(as_entity({"name": "test_any_categorical_w_bracket_add_filter"})).refresh()
         cat_var = ds.variables.create(as_entity({
             "name": "Categorical Var",
             "alias": "categorical_var",
@@ -397,8 +382,8 @@ class TestExpressions(TestCase):
             ds_to_append.delete()
 
     def test_categorical_array_any_append(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_array_append"})).refresh()
-        ds_to_append = self.site.datasets.create(as_entity({"name": "test_any_categorical_array_to_append"})).refresh()
+        ds = site.datasets.create(as_entity({"name": "test_any_categorical_array_append"})).refresh()
+        ds_to_append = site.datasets.create(as_entity({"name": "test_any_categorical_array_to_append"})).refresh()
         categorical_var = {
             "name": "Categorical Var",
             "alias": "categorical_var",
@@ -462,8 +447,8 @@ class TestExpressions(TestCase):
         ds_to_append_var = {**categorical_var, "values": ds_to_append_values}
         ds.variables.create(as_entity(ds_var))
         ds_to_append.variables.create(as_entity(ds_to_append_var))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
         _filter = "categorical_var.any([1])"
         try:
             scrunch_dataset.append_dataset(scrunch_dataset_to_append, filter=_filter)
@@ -482,7 +467,7 @@ class TestExpressions(TestCase):
             ds_to_append.delete()
 
     def test_categorical_any_add_filter_value(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_filter"})).refresh()
+        ds = site.datasets.create(as_entity({"name": "test_any_categorical_filter"})).refresh()
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
             {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
@@ -514,7 +499,7 @@ class TestExpressions(TestCase):
             ds.delete()
 
     def test_categorical_any_add_filter_multiple_values(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_filter_multiple_values"})).refresh()
+        ds = site.datasets.create(as_entity({"name": "test_any_categorical_filter_multiple_values"})).refresh()
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
             {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
@@ -530,7 +515,7 @@ class TestExpressions(TestCase):
             "values": [1, -1, 2, 3, 3, 1]
         }))
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
         _filter = "my_cat.any([1, 3])"
         try:
             resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)

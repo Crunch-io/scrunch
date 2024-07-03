@@ -1,6 +1,19 @@
 # coding: utf-8
+import os
 
 from scrunch.helpers import subvar_alias
+from scrunch import connect
+
+
+HOST = os.environ["SCRUNCH_HOST"]
+username = os.environ["SCRUNCH_USER"]
+password = os.environ["SCRUNCH_PASS"]
+username2 = os.environ['SCRUNCH_USER2']
+password2 = os.environ['SCRUNCH_PASS2']
+
+site = connect(username, password, HOST)
+assert site is not None, "Unable to connect to %s" % HOST
+
 
 # These are the categories that multiple response use. Selected and Not Selected
 MR_CATS = [

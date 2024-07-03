@@ -1,17 +1,10 @@
 # coding: utf-8
-import os
 from unittest import TestCase
 from pycrunch.shoji import as_entity
 
-from scrunch import connect
 from scrunch.mutable_dataset import get_mutable_dataset
+from fixtures import site
 
-HOST = os.environ["SCRUNCH_HOST"]
-username = os.environ["SCRUNCH_USER"]
-password = os.environ["SCRUNCH_PASS"]
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
 
 class TestViews(TestCase):
     FIXTURE_VARIABLES = [

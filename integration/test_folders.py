@@ -4,26 +4,15 @@
 Tests that the variable Folders API is properly suported
 """
 
-
-
-import os
 from unittest import TestCase
 
 from pycrunch.shoji import Catalog
 
-from fixtures import NEWS_DATASET
-from scrunch import connect
+from fixtures import NEWS_DATASET, site
 from scrunch import get_dataset
 from scrunch.datasets import Variable
 from scrunch.exceptions import InvalidPathError
 from scrunch.folders import Folder
-
-
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-site = connect(username, password, HOST)
 
 
 def setup_folders(ds):

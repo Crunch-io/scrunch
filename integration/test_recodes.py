@@ -6,25 +6,14 @@ to create new variables.
 """
 
 import csv
-import os
 import tempfile
 from six import StringIO
 from unittest import TestCase
 
-from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT
-from scrunch import connect
+from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT, site
 from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
-
-
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
 
 
 class TestRecodes(TestCase):
