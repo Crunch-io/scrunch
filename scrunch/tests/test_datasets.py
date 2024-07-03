@@ -6508,7 +6508,6 @@ class TestMutableMixin(TestDatasetBase):
             'is_subvar': False
         }
     }
-
     variables_b = {
         'var_a': {
             'id': '003',
@@ -6526,8 +6525,32 @@ class TestMutableMixin(TestDatasetBase):
         }
     }
 
+    variables_with_datetime = {
+        'var_a': {
+            'id': '003',
+            'alias': 'var_a',
+            'name': 'Variable A',
+            'type': 'numeric',
+            'is_subvar': False
+        },
+        'var_b': {
+            'id': '004',
+            'alias': 'var_b',
+            'name': 'Variable B',
+            'type': 'categorical',
+            'is_subvar': False
+        },
+        'var_d': {
+            'id': '005',
+            'alias': 'endtime',
+            'name': 'Endtime',
+            'type': 'datetime',
+            'is_subvar': False
+        }
+    }
+
     def test_compare_datasets(self):
-        ds_a_mock = self._dataset_mock(variables=self.variables)
+        ds_a_mock = self._dataset_mock(variables=self.variables_with_datetime)
         ds_a = MutableDataset(ds_a_mock)
         ds_b_mock = self._dataset_mock(variables=self.variables_b)
         ds_b = MutableDataset(ds_b_mock)
@@ -6582,6 +6605,33 @@ class TestMutableMixin(TestDatasetBase):
             },
         }
         ds_b.append_dataset(ds_a, variables=["var_a", "var_b"])
+        ds_b.resource.batches.create.assert_called_with(expected_payload)
+
+    def test_append_with_filter(self):
+        ds_a_mock = self._dataset_mock(variables=self.variables_with_datetime)
+        ds_a = MutableDataset(ds_a_mock)
+        ds_b_mock = self._dataset_mock(variables=self.variables_b)
+        ds_b = MutableDataset(ds_b_mock)
+        ds_a.url = 'http://test.crunch.io/api/datasets/123/'
+        expected_payload = {
+            "element": "shoji:entity",
+            "autorollback": True,
+            "body": {
+                "dataset": ds_a.url,
+                "filter": {
+                   "function": ">",
+                   "args": [
+                        {
+                            'variable': 'https://test.crunch.io/api/datasets/123456/variables/var_d/'
+                        },
+                        {
+                            "value": "2024-06-03T22:53:52.393"
+                        }
+                    ]
+                },
+            },
+        }
+        ds_b.append_dataset(ds_a, filter='endtime > "2024-06-03T22:53:52.393"')
         ds_b.resource.batches.create.assert_called_with(expected_payload)
 
 
