@@ -54,7 +54,7 @@ params = dict(
     extras_require={
         'testing': [
             # upstream
-            "pytest==4.6.11",
+            "pytest",
             'collective.checkdocs',
             # 'pytest-flake8==2.18.4',
 
