@@ -1719,7 +1719,7 @@ class TestExpressionProcessing(TestCase):
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
                 "scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
             assert result == [
                 {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
@@ -1779,7 +1779,7 @@ class TestExpressionProcessing(TestCase):
         values = ["subvar1", "subvar2"]
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
             assert result == [
                 {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
@@ -1839,7 +1839,7 @@ class TestExpressionProcessing(TestCase):
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
                 "scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
             assert sorted(processed_zcl_expr) == sorted({
@@ -1921,10 +1921,10 @@ class TestExpressionProcessing(TestCase):
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
                 "scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert sorted(processed_zcl_expr) == sorted({
+            assert processed_zcl_expr == {
                 'function': 'or',
                 'args': [
                     {
@@ -1949,7 +1949,7 @@ class TestExpressionProcessing(TestCase):
                         ],
                     }
                 ],
-            })
+            }
 
     def test_process_any_multiple_response(self):
         var_id = '0001'
@@ -2002,10 +2002,10 @@ class TestExpressionProcessing(TestCase):
         expr = "MyMrVar.any([1])"
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert sorted(processed_zcl_expr) == sorted({
+            assert processed_zcl_expr == {
                 'function': 'or',
                 'args': [
                     {
@@ -2030,7 +2030,7 @@ class TestExpressionProcessing(TestCase):
                         ],
                     }
                 ],
-            })
+            }
 
     def test_multiple_response_any_process_single_subvariables(self):
         var_id = '0001'
@@ -2102,7 +2102,7 @@ class TestExpressionProcessing(TestCase):
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
                 "scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
             'function': 'in',
@@ -2185,7 +2185,7 @@ class TestExpressionProcessing(TestCase):
         parsed_expr = parse_expr(expr)
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
-            mock_subvars.return_value = {"subvar1": "001", "subvar2": "002", "subvar3": "003"}
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
             'function': 'or',
