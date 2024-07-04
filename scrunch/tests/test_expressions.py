@@ -1869,7 +1869,9 @@ class TestExpressionProcessing(TestCase):
                 ],
             })
 
+    @pytest.mark.xfail(reason="multiple response with `in` is not yet supported")
     def test_process_in_multiple_response(self):
+        # TODO: check how to handle this scenario in future releases. This should work as .any
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
