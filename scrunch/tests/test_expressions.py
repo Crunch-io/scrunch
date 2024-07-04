@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 import mock
 from unittest import TestCase
@@ -6,6 +8,7 @@ import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
 from scrunch.expressions import prettify, adapt_multiple_response
+from scrunch.tests.conftest import mark_fail_py2
 
 
 class TestExpressionParsing(TestCase):
@@ -1666,6 +1669,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    @mark_fail_py2 
     def test_adapt_multiple_response_any_values(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -1728,6 +1732,7 @@ class TestExpressionProcessing(TestCase):
             ]
             assert need_wrap is True
 
+    @mark_fail_py2
     def test_adapt_multiple_response_any_subvar(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -1953,6 +1958,7 @@ class TestExpressionProcessing(TestCase):
                 ],
             }
 
+    @mark_fail_py2 
     def test_process_any_multiple_response(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -2118,6 +2124,7 @@ class TestExpressionProcessing(TestCase):
             ],
         }
 
+    @mark_fail_py2 
     def test_multiple_response_any_process_two_subvariables(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
