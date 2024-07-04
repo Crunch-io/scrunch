@@ -35,6 +35,7 @@ jobs:
         python-version:
           - 3.6
           - 3.7
+          - 3.11
         include:
           - os: "ubuntu-latest"
           # There is no build for Python 3.6 in ubuntu>20.04.
