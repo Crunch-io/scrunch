@@ -2049,14 +2049,14 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
-                    "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
-                    "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
@@ -2072,9 +2072,9 @@ class TestExpressionProcessing(TestCase):
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001".format(var_url),
+                    "002".format(var_url),
+                    "003".format(var_url),
                 ],
                 "entity": {
                     "subvariables": {
@@ -2133,14 +2133,14 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
-                    "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
-                    "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
@@ -2156,9 +2156,9 @@ class TestExpressionProcessing(TestCase):
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002".format(var_url),
+                    "003".format(var_url),
                 ],
                 "entity": {
                     "subvariables": {
@@ -2232,14 +2232,14 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
-                    "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
-                    "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
