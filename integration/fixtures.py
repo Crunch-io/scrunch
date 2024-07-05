@@ -1,23 +1,25 @@
 # coding: utf-8
 import os
+from unittest import TestCase
 
 from scrunch.helpers import subvar_alias
 from scrunch import connect
 
 
-HOST = os.environ["SCRUNCH_HOST"]
-username = os.environ["SCRUNCH_USER"]
-password = os.environ["SCRUNCH_PASS"]
-username2 = os.environ['SCRUNCH_USER2']
-password2 = os.environ['SCRUNCH_PASS2']
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
+class BaseIntegrationTestCase(TestCase):
+    def setUp(self):
+        self.host = os.environ["SCRUNCH_HOST"]
+        username = os.environ["SCRUNCH_USER"]
+        password = os.environ["SCRUNCH_PASS"]
+        self.site = connect(username, password, self.host)
+        assert (self
+                .site is not None), "Unable to connect to %s" % self.host
 
 
 # These are the categories that multiple response use. Selected and Not Selected
 MR_CATS = [
     {"id": 1, "name": "Selected", "missing": False, "numeric_value": None, "selected": True},
+    {"id": 3, "name": "Other Selected", "missing": False, "numeric_value": None, "selected": True},
     {"id": 2, "name": "Not selected", "missing": False, "numeric_value": None, "selected": False}
 ]
 

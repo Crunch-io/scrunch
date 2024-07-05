@@ -1,17 +1,17 @@
 # coding: utf-8
 import os
-from unittest import TestCase
+
 
 import pytest
 from pycrunch.shoji import as_entity
 
 from scrunch.mutable_dataset import get_mutable_dataset
-from fixtures import site
+from fixtures import BaseIntegrationTestCase
 
 
-class TestDatasetMethods(TestCase):
+class TestDatasetMethods(BaseIntegrationTestCase):
     def test_replace_values(self):
-        ds = site.datasets.create(as_entity({"name": "test_replace_values"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_replace_values"})).refresh()
         variable = ds.variables.create(
             as_entity(
                 {
@@ -22,7 +22,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         resp = scrunch_dataset.replace_values({
             "my_var": 4
         }, filter="missing(my_var)")
@@ -30,7 +30,7 @@ class TestDatasetMethods(TestCase):
             # We got a 202 response. Scrunch should have waited for the
             # progress to finish
             progress_url = resp.payload["value"]
-            progress = site.session.get(progress_url)
+            progress = self.site.session.get(progress_url)
             progress_status = progress.payload["value"]
             assert (
                 # Check for new or old complete task message
@@ -49,7 +49,7 @@ class TestDatasetMethods(TestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset(self):
-        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -77,7 +77,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        ds_to_append = site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
+        ds_to_append = self.site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
         ds_to_append.variables.create(
             as_entity(
                 {
@@ -105,8 +105,8 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
         try:
             scrunch_dataset.append_dataset(scrunch_dataset_to_append)
             data = ds.follow("table", "limit=20")['data']
@@ -132,7 +132,7 @@ class TestDatasetMethods(TestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter(self):
-        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -160,7 +160,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        ds_to_append = site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
+        ds_to_append = self.site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
         ds_to_append.variables.create(
             as_entity(
                 {
@@ -189,8 +189,8 @@ class TestDatasetMethods(TestCase):
             )
         ).refresh()
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
         # This is intended to leave only two records. Changing the variable `datetime_var`
         # above also changes the test's results
         filter_value = "2024-03-15T00:00:00.393"
@@ -229,7 +229,7 @@ class TestDatasetMethods(TestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter_and_exclusion(self):
-        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -257,7 +257,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        ds_to_append = site.datasets.create(
+        ds_to_append = self.site.datasets.create(
             as_entity(
                 {
                     "name": "test_scrunch_dataset_with_filter_exclusion_to_append"
@@ -292,8 +292,8 @@ class TestDatasetMethods(TestCase):
             )
         ).refresh()
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
 
         # The exclusion is applied to the dataset to append and here
         # the latest/oldest value is affected
@@ -327,7 +327,7 @@ class TestDatasetMethods(TestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_and_exclusion(self):
-        ds = site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -355,7 +355,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        ds_to_append = site.datasets.create(
+        ds_to_append = self.site.datasets.create(
             as_entity(
                 {
                     "name": "test_scrunch_dataset_with_exclusion_to_append"
@@ -390,8 +390,8 @@ class TestDatasetMethods(TestCase):
             )
         ).refresh()
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
 
         # The exclusion is applied to the dataset to append and here
         # the latest/oldest value is affected
@@ -424,7 +424,7 @@ class TestDatasetMethods(TestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_filters_and_exclusion(self):
-        ds = site.datasets.create(as_entity({
+        ds = self.site.datasets.create(as_entity({
             "name": "test_scrunch_append_dataset_with_variable_filters_exclusion"
         })).refresh()
         ds.variables.create(
@@ -454,7 +454,7 @@ class TestDatasetMethods(TestCase):
                 }
             )
         ).refresh()
-        ds_to_append = site.datasets.create(
+        ds_to_append = self.site.datasets.create(
             as_entity(
                 {
                     "name": "test_scrunch_dataset_with_exclusion_to_append"
@@ -489,8 +489,8 @@ class TestDatasetMethods(TestCase):
             )
         ).refresh()
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
-        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
 
         # The exclusion is applied to the dataset to append and here
         # the latest/oldest value is affected
@@ -523,9 +523,9 @@ class TestDatasetMethods(TestCase):
             ds_to_append.delete()
 
 
-class TestCategories(TestCase):
+class TestCategories(BaseIntegrationTestCase):
     def test_edit_category(self):
-        ds = site.datasets.create(as_entity({"name": "test_edit_category"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_edit_category"})).refresh()
 
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
@@ -540,7 +540,7 @@ class TestCategories(TestCase):
             "categories": categories
         }))
 
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         my_cat = scrunch_dataset[my_cat.body["alias"]]  # Ensure refreshed var
         my_cat.categories[1].edit(numeric_value=1)
 
