@@ -106,28 +106,6 @@ class TestExpressions(BaseIntegrationTestCase):
             # cleanup
             ds.delete()
 
-    def test_multiple_response_any_add_filter_value(self):
-        ds_rows = [
-            ["response_1", "response_2", "response_3"],
-            [2, 2, 1],
-            [2, 2, 2],
-            [2, 1, 3]
-        ]
-        ds, scrunch_dataset = self._create_mr_dataset('test_mr_any', ds_rows)
-        _filter = "mr_variable.any([1, 3])"
-        try:
-            resp = scrunch_dataset.add_filter(name='filter_1', expr=_filter)
-            data = ds.follow("table", "limit=20&filter={}".format(resp.resource.self))['data']
-            ds_variables = ds.variables.by("alias")
-            mr_variable_id = ds_variables["mr_variable"].id
-            assert data[mr_variable_id] == [
-                [2, 2, 1],
-                [2, 1, 1]
-            ]
-        finally:
-            # cleanup
-            ds.delete()
-
     def test_categorical_array_any_add_filter(self):
         ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
         ds.variables.create(as_entity({

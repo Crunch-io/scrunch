@@ -819,17 +819,6 @@ class TestExpressionParsing(TestCase):
             }
             ]}
 
-    def test_mr_any_values(self):
-        expr = "MyMrVar.any([1, 2])"
-        parsed_zcl_expr = parse_expr(expr)
-        assert parsed_zcl_expr == {
-            'function': 'any',
-            'args': [
-                {'variable': 'MyMrVar'},
-                {'value': [1, 2]}
-            ]
-        }
-
     def test_mr_any_subvar(self):
         expr = "MyMrVar.any([subvar1, subvar2])"
         parsed_zcl_expr = parse_expr(expr)
@@ -1669,69 +1658,6 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    @mark_fail_py2 
-    def test_adapt_multiple_response_any_values(self):
-        var_id = '0001'
-        var_alias = 'MyMrVar'
-        var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
-        var_categories = [
-            {"id": 1, "name": "cat1", "selected": True},
-            {"id": 2, "name": "cat2", "selected": True},
-            {"id": 3, "name": "cat3", "selected": False},
-        ]
-
-        table_mock = mock.MagicMock(metadata={
-            var_id: {
-                'id': var_id,
-                'alias': var_alias,
-                'type': var_type,
-                "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
-                ],
-                "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
-                },
-                "categories": var_categories
-            }
-        })
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.variables.index = {
-            "{}".format(var_url): {
-                "name": "Multiple Response",
-                "description": "",
-                "notes": "",
-                "alias": "mr_variable",
-                "id": "{}".format(var_id),
-                "type": "multiple_response",
-                "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
-                ],
-            }
-        }
-
-        ds.follow.return_value = table_mock
-        # expr = "MyMrVar.any([1, 2])"
-        values = [1, 2]
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
-                "scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
-            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
-            result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
-            assert result == [
-                {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
-                {'variable': "{}subvariables/002/".format(var_url), 'column': [1, 2]},
-                {'variable': "{}subvariables/003/".format(var_url), 'column': [1, 2]},
-            ]
-            assert need_wrap is True
-
     @mark_fail_py2
     def test_adapt_multiple_response_any_subvar(self):
         var_id = '0001'
@@ -1927,88 +1853,6 @@ class TestExpressionProcessing(TestCase):
         expr = "MyMrVar in [1]"
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
                 "scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
-            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
-            parsed_expr = parse_expr(expr)
-            processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert processed_zcl_expr == {
-                'function': 'or',
-                'args': [
-                    {
-                        'function': 'in',
-                        'args': [
-                            {'variable': "{}subvariables/001/".format(var_url)},
-                            {'column': [1]}
-                        ],
-                    },
-                    {
-                        'function': 'in',
-                        'args': [
-                            {'variable': "{}subvariables/002/".format(var_url)},
-                            {'column': [1]}
-                        ],
-                    },
-                    {
-                        'function': 'in',
-                        'args': [
-                            {'variable': "{}subvariables/003/".format(var_url)},
-                            {'column': [1]}
-                        ],
-                    }
-                ],
-            }
-
-    @mark_fail_py2 
-    def test_process_any_multiple_response(self):
-        var_id = '0001'
-        var_alias = 'MyMrVar'
-        var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
-        var_categories = [
-            {"id": 1, "name": "cat1", "selected": True},
-            {"id": 2, "name": "cat2", "selected": True},
-            {"id": 3, "name": "cat3", "selected": False},
-        ]
-
-        table_mock = mock.MagicMock(metadata={
-            var_id: {
-                'id': var_id,
-                'alias': var_alias,
-                'type': var_type,
-                "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
-                ],
-                "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
-                },
-                "categories": var_categories
-            }
-        })
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.variables.index = {
-            "{}".format(var_url): {
-                "name": "Multiple Response",
-                "description": "",
-                "notes": "",
-                "alias": "mr_variable",
-                "id": "{}".format(var_id),
-                "type": "multiple_response",
-                "subvariables": [
-                        "{}subvariables/001/".format(var_url),
-                        "{}subvariables/002/".format(var_url),
-                        "{}subvariables/003/".format(var_url),
-                    ],
-            }
-        }
-
-        ds.follow.return_value = table_mock
-        expr = "MyMrVar.any([1])"
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)

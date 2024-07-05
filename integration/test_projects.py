@@ -25,6 +25,7 @@ class TestProjects(BaseIntegrationTestCase):
         These tests need to have the `old_projects_order` turned OFF in order
         to enable the new API in Scrunch.
         """
+        super(TestProjects, self).setUp()
         self.site.session.feature_flags[FEATURE_FLAG] = False
 
     def test_create_subprojects(self):

@@ -7,7 +7,7 @@ Tests that the variable Folders API is properly supported
 
 from pycrunch.shoji import Catalog
 
-from fixtures import NEWS_DATASET
+from fixtures import NEWS_DATASET, BaseIntegrationTestCase
 from scrunch import get_dataset
 from scrunch.datasets import Variable
 from scrunch.exceptions import InvalidPathError
@@ -68,6 +68,7 @@ def setup_folders(ds):
 
 class TestFolders(BaseIntegrationTestCase):
     def setUp(self):
+        super(TestFolders, self).setUp()
         self._ds = self.site.datasets.create({
             'element': 'shoji:entity',
             'body': {
