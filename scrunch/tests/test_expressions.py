@@ -7,7 +7,7 @@ from unittest import TestCase
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
-from scrunch.expressions import prettify, adapt_multiple_response
+from scrunch.expressions import prettify, adapt_multiple_response, get_dataset_variables
 from scrunch.tests.conftest import mark_fail_py2
 
 
@@ -4607,4 +4607,534 @@ class TestDateTimeExpression(TestCase):
                     'value': 5
                 }
             ]
+        }
+
+class TestGetDatasetVariables(TestCase):
+    ds_url = "http://mock.crunch.io/api/datasets/123/"
+
+    def test_get_dataset_variables_categorical_arrays(self):
+        var_id = "0001"
+        var_alias = "hobbies"
+        var_type = "categorical_array"
+        subvariables = ["0001", "0002", "0003", "0004"]
+        subreferences = {
+            "0001": {"alias": "hobbies_1"},
+            "0002": {"alias": "hobbies_2"},
+            "0003": {"alias": "hobbies_3"},
+            "0004": {"alias": "hobbies_4"},
+        }
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "categories": [
+                        {"id": 1, "name": "cat1", "selected": True},
+                        {"id": 2, "name": "cat2", "selected": True},
+                        {"id": 3, "name": "cat3", "selected": False},
+                    ],
+                    "subvariables": subvariables,
+                    "subreferences": subreferences,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "hobbies[hobbies_1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0003",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_4]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_4",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0004",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_4": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_4",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0004",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0002",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies": {
+                "subreferences": {
+                    "0004": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_4",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0004",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0001": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0001",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0002": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0002",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0003": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0003",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                },
+                "alias": "hobbies",
+                "subvariables": ["0001", "0002", "0003", "0004"],
+                "type": "categorical_array",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0003",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0002",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+        }
+
+    def test_get_dataset_variables_multiple_response(self):
+        var_id = "0001"
+        var_alias = "MyMrVar"
+        var_type = "multiple_response"
+        var_url = "{}variables/{}/".format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "subvariables": [
+                        "{}subvariables/001/".format(var_url),
+                        "{}subvariables/002/".format(var_url),
+                        "{}subvariables/003/".format(var_url),
+                    ],
+                    "subreferences": {
+                        "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                        "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                        "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    },
+                    "categories": var_categories,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "MyMrVar[subvar2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar[subvar1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar[subvar3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar": {
+                "subreferences": {
+                    "{}subvariables/003/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/003/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "{}subvariables/001/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/001/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "{}subvariables/002/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/002/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                },
+                "alias": "MyMrVar",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "type": "multiple_response",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+        }
+
+    def test_get_dataset_variables_numeric_arrays(self):
+        var_id = "0001"
+        var_alias = "num_arr_var"
+        var_type = "numeric_array"
+        var_url = "{}variables/{}/".format(self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "subvariables": [
+                        "{}subvariables/001/".format(var_url),
+                        "{}subvariables/002/".format(var_url),
+                        "{}subvariables/003/".format(var_url),
+                    ],
+                    "subreferences": {
+                        "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                        "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                        "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    },
+                    "values": [
+                        [1, 3, 1],
+                        [2, 1, 1],
+                    ],
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "num_arr_var": {
+                "subreferences": {
+                    "{}subvariables/003/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/003/".format(var_url),
+                    },
+                    "{}subvariables/001/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/001/".format(var_url),
+                    },
+                    "{}subvariables/002/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/002/".format(var_url),
+                    },
+                },
+                "alias": "num_arr_var",
+                "values": [[1, 3, 1], [2, 1, 1]],
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "type": "numeric_array",
+                "id": "0001",
+            },
+            "subvar2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+            },
+            "subvar3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+            },
+            "num_arr_var[subvar3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+            },
+            "subvar1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+            },
+            "num_arr_var[subvar1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+            },
+            "num_arr_var[subvar2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+            },
+        }
+
+    def test_get_dataset_variables_categorical_variable(self):
+        var_id = "0001"
+        var_alias = "my_categorical"
+        var_type = "categorical"
+        categories = [
+            {"name": "mocking", "id": 1},
+            {"name": "coding", "id": 2},
+        ]
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "categories": categories,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            var_alias: {
+                "alias": var_alias,
+                "type": var_type,
+                "id": var_id,
+                "categories": categories
+            }
         }

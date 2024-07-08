@@ -487,7 +487,10 @@ def get_dataset_variables(ds):
                 subvar['parent_id'] = _id
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
-                subvar['categories'] = copy.deepcopy(var['categories'])
+                if var.get("categories") is not None:
+                    # Numeric arrays do not have categories
+                    subvar['categories'] = var.get("categories")
+
                 # TODO: This is a problem when subvariable codes are reused
                 variables[subvar['alias']] = subvar
                 # Poorman's square bracket lookup
