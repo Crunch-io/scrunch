@@ -784,6 +784,39 @@ class TestExpressionParsing(TestCase):
             }
             ]}
 
+    def test_mr_any_subvar(self):
+        expr = "MyMrVar.any([subvar1, subvar2])"
+        parsed_zcl_expr = parse_expr(expr)
+        assert parsed_zcl_expr == {
+            'function': 'any',
+            'args': [
+                {'variable': 'MyMrVar'},
+                {'column': ['subvar1', 'subvar2']}
+            ]
+        }
+
+    def test_mr_all_subvar(self):
+        expr = "MyMrVar.all([subvar1, subvar2])"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'function': 'all',
+            'args': [
+                {'variable': 'MyMrVar'},
+                {'column': ['subvar1', 'subvar2']}
+            ]
+        }
+
+    def test_mr_in_subvar(self):
+        expr = "MyMrVar in [subvar1, subvar2]"
+        expr_obj = parse_expr(expr)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {'variable': 'MyMrVar'},
+                {'column': ['subvar1', 'subvar2']}
+            ]
+        }
+
     def test_parse_sample_any(self):
         # 'text': 'CompanyTurnover is NA',
         # 'index_mapper': {'CompanyTurnover': any([99])}},
@@ -1588,6 +1621,125 @@ class TestExpressionProcessing(TestCase):
                     'value': 1
                 }
             ]
+        }
+
+    def test_process_any_all_exprs(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1"},
+                    {"id": 2, "name": "cat2"},
+                    {"id": 3, "name": "cat3"},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([1])"
+        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        assert processed_zcl_expr == {
+            'function': 'or',
+            'args': [{
+                'function': 'in',
+                'args': [
+                    {'variable': "%ssubvariables/001/" % var_url},
+                    {'value': [1]}
+                ],
+            }, {
+                'function': 'or',
+                'args': [{
+                    'function': 'in',
+                    'args': [
+                        {'variable': "%ssubvariables/002/" % var_url},
+                        {'value': [1]}
+                    ],
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {'variable': "%ssubvariables/003/" % var_url},
+                        {'value': [1]}
+                    ],
+                }],
+            }],
+        }
+
+    def test_process_any_subvariables(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": [
+                    {"id": 1, "name": "cat1"},
+                    {"id": 2, "name": "cat2"},
+                    {"id": 3, "name": "cat3"},
+                ]
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([subvar1, subvar2])"
+        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        assert processed_zcl_expr == {
+            'function': 'or',
+            'args': [{
+                'function': 'in',
+                'args': [
+                    {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'},
+                    {'column': ['subvar1', 'subvar2']}
+                ],
+            }, {
+                'function': 'or',
+                'args': [{
+                       'function': 'in',
+                       'args': [
+                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'},
+                            {'column': ['subvar1', 'subvar2']}
+                       ],
+                }, {
+                    'function': 'in',
+                    'args': [
+                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/003/'},
+                        {'column': ['subvar1', 'subvar2']}
+                    ],
+                }],
+            }],
         }
 
     def test_transform_subvar_alias_to_subvar_id(self):
@@ -2806,7 +2958,7 @@ class TestExpressionPrettify(TestCase):
         ds = mock.MagicMock()
         ds.__class__ = scrunch.mutable_dataset.MutableDataset
         response = mock.MagicMock()
-        response.payload.body.alias = 'age'
+        response.payload.body = {"alias": "age"}
 
         ds.resource.session.get.side_effect = lambda *arg: response
 
@@ -2814,6 +2966,40 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr, ds)
         assert expected == cel
         ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
+
+    def test_square_bracket_subvariables(self):
+        subvariable_url = 'https://host.com/api/datasets/123/variables/001/subvariables/abc/'
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': subvariable_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+        ds = mock.MagicMock()
+        ds.__class__ = scrunch.mutable_dataset.MutableDataset
+
+        # Prepare subvariable
+        subvar_resource = mock.MagicMock()
+        subvar_resource.catalogs = {"parent": "/subvariables/"}
+        subvar_resource.fragments = {"variable": "/array_url/"}
+        subvar_resource.body = {"alias": "subvar_1"}
+
+        response1 = mock.MagicMock()
+        response1.payload = subvar_resource
+
+        # Prepare array
+        response2 = mock.MagicMock()
+        response2.payload.body = {"alias": 'array_variable'}
+        ds.resource.session.get.side_effect = [response1, response2]
+
+        expected = 'array_variable[subvar_1] == 1'
+        assert prettify(expr, ds) == expected
 
     def test_variable_url_no_dataset(self):
         expr = {

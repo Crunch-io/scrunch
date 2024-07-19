@@ -254,7 +254,10 @@ def parse_expr(expr, platonic=False):
                 _list = fields[0][1]
                 # checks for special helper functions like `r`
                 _list = unfold_list(_list)
-                if not (all(isinstance(el, ast.Str) for el in _list) or
+                if all(isinstance(el, ast.Name) for el in _list):
+                    # This is the case of `any([subvar, subvar])]
+                    return {'column': [el.id for el in _list]}
+                elif not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
                     # Only list-of-int or list-of-str are currently supported
                     raise ValueError('Only list-of-int or list-of-str are currently supported')
@@ -377,7 +380,8 @@ def parse_expr(expr, platonic=False):
                             # For method calls, we only allow list-of-int
                             # parameters.
                             if _name == 'args' and func_type == 'method':
-                                if not isinstance(right.get('value'), list):
+                                right_val = right.get('value', right.get('column'))
+                                if not isinstance(right_val, list):
                                     raise ValueError(
                                         'expected list, got "{}"'.format(
                                             type(right.get('value'))
@@ -631,7 +635,7 @@ def process_expr(obj, ds):
                         subitem = _process(subitem, variables)
                         if 'subvariables' in subitem:
                             arrays.append(subitem.pop('subvariables'))
-                        elif 'value' in subitem:
+                        elif 'value' in subitem or 'column' in subitem:
                             values.append(subitem)
                     subitems.append(subitem)
 
@@ -675,11 +679,15 @@ def process_expr(obj, ds):
                         obj[key] = '%svariables/%s/' % (base_url, var['id'])
 
                     if var['type'] in ARRAY_TYPES:
-                        subvariables = [
-                            '%svariables/%s/subvariables/%s/'
-                            % (base_url, var['id'], subvar_id)
-                            for subvar_id in var.get('subvariables', [])
-                        ]
+                        subvariables = []
+                        for subvar_id in var.get('subvariables', []):
+                            # In case the subvar_id comes as a subvariable URL
+                            # we want to only consider the ID bit of the URL
+                            subvar_id = subvar_id.strip("/").split("/")[-1]
+                            subvariables.append(
+                                '%svariables/%s/subvariables/%s/'
+                                % (base_url, var['id'], subvar_id)
+                            )
             elif key == 'function':
                 op = val
 
@@ -780,7 +788,23 @@ def prettify(expr, ds=None):
                 'Valid Dataset instance is required to resolve variable urls '
                 'in the expression'
             )
-        return ds.resource.session.get(var).payload.body.alias
+        var_resource = ds.resource.session.get(var).payload
+        var_alias = var_resource.body["alias"]
+
+        # From an arbitrary URL we can detect whether this is a variable or a
+        # subvariable by checking the adjacent resources linked. A subvariable
+        # will point to its parent `/subvariables/` catalog and refer to its
+        # array variable by `.fragments["variable"]`.
+        is_subvariable = 'parent' in var_resource.catalogs and 'variable' in var_resource.fragments
+
+        if is_subvariable:
+            # Fetch the array variable
+            array_url = var_resource.fragments['variable']
+            array_var = ds.resource.session.get(array_url).payload
+            array_alias = array_var.body["alias"]
+            var_alias = "%s[%s]" % (array_alias, var_alias)
+
+        return var_alias
 
     def _resolve_variables(_expr):
         new_expr = dict(
