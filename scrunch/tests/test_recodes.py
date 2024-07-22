@@ -366,13 +366,13 @@ class TestRecode(TestCase):
                             }
                         }
                     }, {
-                        'function': 'any',
+                        'function': 'in',
                         'args': [
                             {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
                             {'value': [1]}
                         ]
                     }, {
-                        'function': 'any',
+                        'function': 'in',
                         'args': [
                             {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
                             {'value': [2, 3, 4, 5]}

@@ -1,32 +1,18 @@
 # coding: utf-8
 
-import os
 import pytest
 import textwrap
 from six import StringIO
-from unittest import TestCase
 
-from scrunch import connect
+from pycrunch.shoji import as_entity
+
 from scrunch.mutable_dataset import get_mutable_dataset
+from fixtures import BaseIntegrationTestCase
 
 
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
-
-as_entity = lambda b: {
-    "element": "shoji:entity",
-    "body": b
-}
-
-
-class TestBackFill(TestCase):
+class TestBackFill(BaseIntegrationTestCase):
     def _prepare_ds(self, values):
-        ds = site.datasets.create(
+        ds = self.site.datasets.create(
             as_entity({"name": "test_backfill_values"})).refresh()
         # We need a numeric PK
         pk = ds.variables.create(
@@ -165,7 +151,7 @@ class TestBackFill(TestCase):
         5,2,33
         6,3,11
         """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=6"
         scrunch_dataset.backfill_from_csv(["cat1", "cat2"], "pk", csv_file, rows_expr)
@@ -200,7 +186,7 @@ class TestBackFill(TestCase):
                 5,2,3
                 6,3,1
                 """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=6"
         scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
@@ -245,7 +231,7 @@ class TestBackFill(TestCase):
                 4,2,3
                 5,2,1
                 """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         # Not including a row_filter, same as passing None
         scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file)
@@ -271,7 +257,7 @@ class TestBackFill(TestCase):
                 4,1,2
                 5,2,3
                 """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=5"
         scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
@@ -295,7 +281,7 @@ class TestBackFill(TestCase):
         csv_file = StringIO(textwrap.dedent("""pk,BOGUS,BAD
             2,1,22
         """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk == 2"
         with pytest.raises(ValueError) as err:
@@ -325,7 +311,7 @@ class TestBackFill(TestCase):
                         4,1,2
                         5,2,3
                         """))
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         excl = "pk == 4"
         scrunch_dataset.exclude(excl)
@@ -351,7 +337,7 @@ class TestBackFill(TestCase):
             "cat2": [11, 11, 11, 11, 11],
             "cat3": [1, 1, 1, 1, 1]
         })
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         size_200MB = 200 * 2 ** 20
         csv_file = StringIO("x" * size_200MB)

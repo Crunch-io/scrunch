@@ -46,6 +46,7 @@ import copy
 import six
 
 import scrunch
+from scrunch.helpers import is_number
 from scrunch.variables import validate_variable_url
 
 import sys
@@ -255,7 +256,7 @@ def parse_expr(expr, platonic=False):
                 # checks for special helper functions like `r`
                 _list = unfold_list(_list)
                 if all(isinstance(el, ast.Name) for el in _list):
-                    # This is the case of `any([subvar, subvar])]
+                    # This is the case of `any([subvar_1, subvar_2])]
                     return {'column': [el.id for el in _list]}
                 elif not (all(isinstance(el, ast.Str) for el in _list) or
                         all(isinstance(el, ast.Num) for el in _list)):
@@ -486,13 +487,74 @@ def get_dataset_variables(ds):
                 subvar['parent_id'] = _id
                 subvar['type'] = 'categorical'
                 subvar['description'] = ''
-                subvar['categories'] = copy.deepcopy(var['categories'])
+                if var.get("categories") is not None:
+                    # Numeric arrays do not have categories
+                    subvar['categories'] = var.get("categories")
+
                 # TODO: This is a problem when subvariable codes are reused
                 variables[subvar['alias']] = subvar
                 # Poorman's square bracket lookup
                 variables["%s[%s]" % (var["alias"], subvar['alias'])] = subvar
 
     return variables
+
+
+def get_subvariables_resource(var_url, var_index):
+    variable = var_index[var_url].entity
+    sub_variables = variable.subvariables['index']
+    return {sv['alias'].strip('#'): sv['id'] for sv in sub_variables.values()}
+
+
+def _get_categories_from_var_index(var_index, var_url):
+    return var_index[var_url].entity.body.categories
+
+
+def adapt_multiple_response(var_url, values, var_index):
+    """
+    Converts multiple response arguments
+    to column.
+    :return: the new args for multiple_response
+    """
+    aliases = get_subvariables_resource(var_url, var_index)
+    result = []
+
+    if all(isinstance(value, int) for value in values):
+        # scenario var.any([1])
+        column = values
+        variables = aliases.values()
+    else:
+        # scenario var.any([subvar1, subvar2])
+        # in this scenario, we only want category ids that refers to `selected` categories
+        column = [
+            cat.get("id") for cat in _get_categories_from_var_index(var_index, var_url) if cat.get("selected")
+        ]
+        variables = [var_id for alias, var_id in aliases.items() if alias in values]
+
+    for variable_id in variables:
+        variable_url = "{}subvariables/{}/".format(var_url, variable_id)
+        result.append({
+            "variable": variable_url,
+            "column": column
+        })
+
+    return result, True
+
+
+def _update_values_for_multiple_response(new_values, values, subitem, var_index, arrays):
+    """
+    - Multiple response does not need the `value` key, but it relies on the `column` key
+    - Remove from `arrays` (subvariable list) the ones that should not be considered
+    """
+    var_url = subitem.get("variable", "").split("subvariables")[0]
+    column = new_values[0].get("column")
+    value = values[0].get("value")
+    if var_url and var_index[var_url]['type'] == 'multiple_response':
+        if column:
+            values[0]['column'] = column
+        elif value is not None:
+            values[0]['column'] = value
+        values[0].pop("value", None)
+        arrays[0] = [new_value["variable"] for new_value in new_values]
 
 
 def process_expr(obj, ds):
@@ -509,29 +571,7 @@ def process_expr(obj, ds):
     variables = get_dataset_variables(ds)
     var_index = ds.variables.index
 
-    def get_subvariables_resource(var_url):
-        variable = var_index[var_url].entity
-        subvariables = variable.subvariables['index']
-        return [(sv['id'], sv['alias']) for sv in subvariables.values()]
-
-    def adapt_multiple_response(var_url, values):
-        """
-        Converts multiple response arguments
-        to column.
-        :return: tuple of the new args for multiple_response and
-        a flag to indicate we don't need recursive nesting of this
-        expression.
-        """
-        # convert value --> column and change ids to aliases
-        aliases = get_subvariables_resource(var_url)
-
-        # Some derived variables will append a # to the subvariables id's
-        # so we need to strip those charactes out
-        cat_to_ids = [
-            tup[0] for tup in aliases if int(tup[1].strip('#').split('_')[-1]) in values]
-        return [{'variable': var_url}, {'column': cat_to_ids}], False
-
-    def ensure_category_ids(subitems, variables=variables):
+    def ensure_category_ids(subitems, values, arrays, variables=variables):
         var_id = None
         _subitems = []
 
@@ -544,7 +584,7 @@ def process_expr(obj, ds):
                 # {'values': [val1, val2, ...]}
                 value = []
                 for val in var_value:
-                    if str(val).isdigit():
+                    if is_number(val):
                         # val1 is an id already
                         value.append(val)
                         continue
@@ -582,10 +622,15 @@ def process_expr(obj, ds):
 
         # special case for multiple_response variables
         if len(subitems) == 2:
-            if 'value' in subitems[1] and 'variable' in subitems[0]:
-                var_url = subitems[0]['variable']
+            _variable, _value = subitems
+            var_url = _variable.get('variable')
+            _value_key = next(iter(_value))
+            if _value_key in {'column', "value"} and var_url:
                 if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
-                    return adapt_multiple_response(var_url, subitems[1]['value'])
+                    result = adapt_multiple_response(var_url, _value[_value_key], var_index)
+                    # handle the multiple response type
+                    _update_values_for_multiple_response(result[0], values, subitems[0], var_index, arrays)
+                    return result
 
         for item in subitems:
             if isinstance(item, dict) and 'variable' in item and not isinstance(item["variable"], dict):
@@ -628,7 +673,7 @@ def process_expr(obj, ds):
                 # This is not an array object, then it's a nested ZCL expression
                 # so we need to proceed for nested processing.
                 obj[key] = _process(val, variables)
-            elif isinstance(val, list) or isinstance(val, tuple):
+            elif isinstance(val, (list, tuple)):
                 subitems = []
                 for subitem in val:
                     if isinstance(subitem, dict):
@@ -639,13 +684,22 @@ def process_expr(obj, ds):
                             values.append(subitem)
                     subitems.append(subitem)
 
-                has_value = any('value' in item for item in subitems
-                    if not str(item).isdigit())
+                has_value = any(
+                    'value' in item for item in subitems if not is_number(item)
+                )
 
-                has_variable = any('variable' in item for item in subitems
-                    if not str(item).isdigit())
+                if not has_value:
+                    # Since values can be see with `value` or `column` keys
+                    # check if `column` is there if not `value`
+                    has_value = any('column' in item for item in subitems if not is_number(item))
+
+                has_variable = any(
+                    'variable' in item for item in subitems if not is_number(item)
+                )
+
                 if has_value and has_variable:
-                    subitems, needs_wrap = ensure_category_ids(subitems)
+                    subitems, needs_wrap = ensure_category_ids(subitems, values, arrays)
+
                 obj[key] = subitems
             elif key == 'variable':
                 if isinstance(val, dict) and "array" in val:
@@ -694,6 +748,10 @@ def process_expr(obj, ds):
         if subvariables:
             obj['subvariables'] = subvariables
 
+        # support for categorical variables with `any`
+        if not arrays and op == "any":
+            obj["function"] = "in"
+
         if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
 
@@ -724,35 +782,33 @@ def process_expr(obj, ds):
                 value = values[0]
 
                 if op == 'all':
-                    if len(value['value']) != 1:
+                    inner_value = value.get("value", value.get("column", []))
+                    if len(inner_value) != 1:
                         raise ValueError
-                    value['value'] = value['value'][0]
+                    value.pop("column", None)
+                    value['value'] = inner_value[0]
 
                 if len(subvariables) == 1:
                     obj['function'] = real_op
-                    obj['args'][0] = {'variable': subvariables[0]}
-                    obj['args'][1] = value
+                    obj["args"] = [
+                        {'variable': subvariables[0]},
+                        value
+                    ]
                 else:
                     obj = {
                         'function': expansion_op,
                         'args': []
                     }
                     args_ref = obj['args']
-                    for i, subvar in enumerate(subvariables):
-                        args_ref.append(
-                            {
-                                'function': real_op,
-                                'args': [
-                                    {'variable': subvar},
-                                    value
-                                ]
-                            }
-                        )
-                        if i < len(subvariables) - 2:
-                            args_ref.append(
-                                {'function': expansion_op, 'args': []}
-                            )
-                            args_ref = args_ref[-1]['args']
+                    args_ref.extend(
+                        [{
+                            'function': real_op,
+                            'args': [
+                                {'variable': subvar},
+                                value
+                            ]
+                        } for subvar in subvariables]
+                    )
 
         return obj
 
@@ -762,6 +818,14 @@ def process_expr(obj, ds):
         ]
     else:
         return _process(copy.deepcopy(obj), variables)
+
+
+def clean_integer(value):
+    """It cleans values that are `floats` but can be integers"""
+    if isinstance(value, float) and value.is_integer():
+        # Check if the value is a float and if it can be exactly represented as an integer
+        value = int(value)
+    return value
 
 
 def prettify(expr, ds=None):
@@ -869,6 +933,13 @@ def prettify(expr, ds=None):
                 if isinstance(value, six.string_types):
                     # Must escape single-quote from string value
                     value = _quote_value(value)
+
+                if isinstance(value, float) and value.is_integer():
+                    # Check if the value is a float and if it can be exactly represented as an integer
+                    value = int(value)
+
+                if isinstance(value, list):
+                    value = [clean_integer(v) for v in value]
 
                 return value
 

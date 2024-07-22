@@ -1,39 +1,32 @@
 # coding: utf-8
-
 import os
 from datetime import datetime
-from unittest import TestCase
+
 
 from scrunch.datasets import Project
 from scrunch.helpers import shoji_entity_wrapper
 from scrunch import connect, get_project, get_dataset, get_user
+from fixtures import BaseIntegrationTestCase
 
-
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-username2 = os.environ['SCRUNCH_USER2']
-password2 = os.environ['SCRUNCH_PASS2']
-
-site = connect(username, password, HOST)
 UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
 FEATURE_FLAG = 'old_projects_order'
 
 
 def new_project(name):
-    res = site.projects.create(shoji_entity_wrapper({
+    res = self.site.projects.create(shoji_entity_wrapper({
         "name": name + UNIQUE_PREFIX
     })).refresh()
     return Project(res)
 
 
-class TestProjects(TestCase):
+class TestProjects(BaseIntegrationTestCase):
     def setUp(self):
         """
         These tests need to have the `old_projects_order` turned OFF in order
         to enable the new API in Scrunch.
         """
-        site.session.feature_flags[FEATURE_FLAG] = False
+        super(TestProjects, self).setUp()
+        self.site.session.feature_flags[FEATURE_FLAG] = False
 
     def test_create_subprojects(self):
         pa = new_project('A')
@@ -75,14 +68,16 @@ class TestProjects(TestCase):
         self.assertEqual(pa.resource.graph, [p2.url, p1.url])
 
     def test_move_dataset(self):
-        fo = get_user(username2)
-        fo_site = connect(fo.email, password2, HOST)
+        username_2 = os.environ['SCRUNCH_USER2']
+        password_2 = os.environ['SCRUNCH_PASS2']
+        fo = get_user(username_2)
+        fo_site = connect(fo.email, password_2, self.HOST)
 
         # These two datasets are created by the default logged user
-        _ds1 = site.datasets.create(shoji_entity_wrapper({
+        _ds1 = self.site.datasets.create(shoji_entity_wrapper({
             'name': 'test_move_dataset1'
         })).refresh()
-        _ds2 = site.datasets.create(shoji_entity_wrapper({
+        _ds2 = self.site.datasets.create(shoji_entity_wrapper({
             'name': 'test_move_dataset2'
         })).refresh()
 

@@ -2353,9 +2353,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return prettify(expr, self) if expr else None
 
     def add_filter(self, name, expr, public=False):
+        expression = process_expr(parse_expr(expr), self.resource)
         payload = shoji_entity_wrapper(dict(
             name=name,
-            expression=process_expr(parse_expr(expr), self.resource),
+            expression=expression,
             is_public=public))
         new_filter = self.resource.filters.create(payload)
         return self.filters[new_filter.body['name']]

@@ -1,29 +1,16 @@
 # coding: utf-8
-import os
 import pytest
-from unittest import TestCase
 
-from scrunch import connect
+from pycrunch.shoji import as_entity
+
 from scrunch.scripts import ScriptExecutionError
 from scrunch.mutable_dataset import get_mutable_dataset
+from fixtures import BaseIntegrationTestCase
 
 
-HOST = os.environ["SCRUNCH_HOST"]
-username = os.environ["SCRUNCH_USER"]
-password = os.environ["SCRUNCH_PASS"]
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
-
-as_entity = lambda b: {
-    "element": "shoji:entity",
-    "body": b
-}
-
-
-class TestScripts(TestCase):
+class TestScripts(BaseIntegrationTestCase):
     def _create_ds(self):
-        ds = site.datasets.create(as_entity({"name": "test_script"})).refresh()
+        ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
         variable = ds.variables.create(
             as_entity(
                 {
@@ -37,7 +24,7 @@ class TestScripts(TestCase):
 
     def test_execute(self):
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site, editor=True)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site, editor=True)
         script = """
         RENAME pk TO varA;
 
@@ -51,7 +38,7 @@ class TestScripts(TestCase):
 
     def test_handle_error(self):
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         script = """BAD-RENAME pk TO varA;"""  # Bad syntax script
         with pytest.raises(ScriptExecutionError) as err:
             scrunch_dataset.scripts.execute(script)
@@ -80,7 +67,7 @@ class TestScripts(TestCase):
 
     def test_revert_script(self):
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         s1 = "RENAME pk TO varA;"
         s2 = 'CHANGE TITLE IN varA WITH "Variable A";'
 
@@ -95,7 +82,7 @@ class TestScripts(TestCase):
     def test_fetch_all_and_collapse(self):
         raise self.skipTest("Collapse is 504ing in the server.")
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, site)
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         s1 = "RENAME pk TO varA;"
         s2 = 'CHANGE TITLE IN varA WITH "Variable A";'
 

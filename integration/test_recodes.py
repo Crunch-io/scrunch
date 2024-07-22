@@ -6,32 +6,21 @@ to create new variables.
 """
 
 import csv
-import os
 import tempfile
 from six import StringIO
-from unittest import TestCase
 
-from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT
-from scrunch import connect
+
+from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT, BaseIntegrationTestCase
 from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
 
 
-HOST = os.environ['SCRUNCH_HOST']
-username = os.environ['SCRUNCH_USER']
-password = os.environ['SCRUNCH_PASS']
-
-
-site = connect(username, password, HOST)
-assert site is not None, "Unable to connect to %s" % HOST
-
-
-class TestRecodes(TestCase):
+class TestRecodes(BaseIntegrationTestCase):
     def test_recodes(self):
         raise self.skipTest("Temporarily disabling for API update")
         # Create a dataset for usage
-        ds = site.datasets.create({
+        ds = self.site.datasets.create({
             'element': 'shoji:entity',
             'body': {
                 'name': 'test_recodes',
@@ -42,7 +31,7 @@ class TestRecodes(TestCase):
                 'streaming': 'streaming'
             }
         }).refresh()
-        dataset = get_streaming_dataset(ds.body.id, site)
+        dataset = get_streaming_dataset(ds.body.id, self.site)
         print("Dataset %s created" % dataset.id)
 
         # Add data rows
@@ -147,7 +136,7 @@ class TestRecodes(TestCase):
         ds.delete()
 
 
-class TestFill(TestCase):
+class TestFill(BaseIntegrationTestCase):
     def prepare_ds(self):
         cats = [
             {"id": 1, "name": "Daily", "missing": False, "numeric_value": None},
@@ -202,8 +191,8 @@ class TestFill(TestCase):
             [2, 2, 2],
             [3, 1, 2],
         ]
-        ds = site.datasets.create(ds_payload).refresh()
-        dataset = get_mutable_dataset(ds.body.id, site)
+        ds = self.site.datasets.create(ds_payload).refresh()
+        dataset = get_mutable_dataset(ds.body.id, self.site)
         Importer().append_rows(ds, rows)
         return dataset, ds
 

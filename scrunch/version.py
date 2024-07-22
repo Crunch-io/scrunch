@@ -1,4 +1,9 @@
-from importlib_metadata import version
+try:
+    # py <= 3.7
+    from importlib_metadata import version
+except ModuleNotFoundError:
+    # py >= 3.8
+    from importlib.metadata import version
 
 
 try:

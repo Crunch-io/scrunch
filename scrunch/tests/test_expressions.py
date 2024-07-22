@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 import mock
 from unittest import TestCase
@@ -5,7 +7,8 @@ from unittest import TestCase
 import scrunch
 from scrunch.datasets import parse_expr
 from scrunch.datasets import process_expr
-from scrunch.expressions import prettify
+from scrunch.expressions import prettify, adapt_multiple_response, get_dataset_variables
+from scrunch.tests.conftest import mark_fail_py2
 
 
 class TestExpressionParsing(TestCase):
@@ -551,6 +554,38 @@ class TestExpressionParsing(TestCase):
                 }
             ]
         }
+
+    def test_parse_float_value_in_list(self):
+        expr = "country_cat in [1.0]"
+        expected = {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'country_cat'
+                },
+                {
+                    'value': [1.0]
+                }
+            ]
+        }
+        expr_obj = parse_expr(expr)
+        assert expr_obj == expected
+
+    def test_parse_integer_value_in_list(self):
+        expr = "country_cat in [1]"
+        expected = {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'country_cat'
+                },
+                {
+                    'value': [1]
+                }
+            ]
+        }
+        expr_obj = parse_expr(expr)
+        assert expr_obj == expected
 
     def test_r_in(self):
         expr = "q1 in [1, 2, r(4,7), r(10, 12)]"
@@ -1623,11 +1658,17 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    def test_process_any_all_exprs(self):
+    @mark_fail_py2
+    def test_adapt_multiple_response_any_subvar(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        var_categories = [
+                    {"id": 1, "name": "cat1", "selected": True},
+                    {"id": 2, "name": "cat2", "selected": True},
+                    {"id": 3, "name": "cat3", "selected": False},
+                ]
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1644,50 +1685,399 @@ class TestExpressionProcessing(TestCase):
                     "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
                     "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
                 },
-                "categories": [
-                    {"id": 1, "name": "cat1"},
-                    {"id": 2, "name": "cat2"},
-                    {"id": 3, "name": "cat3"},
-                ]
+                "categories": var_categories
             }
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        }
+
         ds.follow.return_value = table_mock
-        expr = "MyMrVar.any([1])"
-        processed_zcl_expr = process_expr(parse_expr(expr), ds)
+        values = ["subvar1", "subvar2"]
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
+            result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
+            assert result == [
+                {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
+                {'variable': "{}subvariables/002/".format(var_url), 'column': [1, 2]}
+            ]
+            assert need_wrap is True
+
+    def test_process_all_multiple_response(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        }
+
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.all([1])"
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
+            parsed_expr = parse_expr(expr)
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+            assert sorted(processed_zcl_expr) == sorted({
+                'function': 'and',
+                'args': [
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/001/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/002/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    },
+                    {
+                        'function': '==',
+                        'args': [
+                            {'variable': "{}subvariables/003/".format(var_url)},
+                            {'value': 1}
+                        ],
+                    }
+                ],
+            })
+
+    @pytest.mark.xfail(reason="multiple response with `in` is not yet supported")
+    def test_process_in_multiple_response(self):
+        # TODO: check how to handle this scenario in future releases. This should work as .any
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "%ssubvariables/001/" % var_url,
+                    "%ssubvariables/002/" % var_url,
+                    "%ssubvariables/003/" % var_url,
+                ],
+                "subreferences": {
+                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
+                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
+                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+            }
+        }
+
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar in [1]"
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
+            parsed_expr = parse_expr(expr)
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+            assert processed_zcl_expr == {
+                'function': 'or',
+                'args': [
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "{}subvariables/001/".format(var_url)},
+                            {'column': [1]}
+                        ],
+                    },
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "{}subvariables/002/".format(var_url)},
+                            {'column': [1]}
+                        ],
+                    },
+                    {
+                        'function': 'in',
+                        'args': [
+                            {'variable': "{}subvariables/003/".format(var_url)},
+                            {'column': [1]}
+                        ],
+                    }
+                ],
+            }
+
+    def test_multiple_response_any_process_single_subvariables(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": False},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "001",
+                    "002",
+                    "003",
+                ],
+                "subreferences": {
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "001".format(var_url),
+                    "002".format(var_url),
+                    "003".format(var_url),
+                ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {
+                                "id": "001",
+                                "alias": "subvar1"
+                            },
+                            "002": {
+                                "id": "002",
+                                "alias": "subvar2"
+                            },
+                            "003": {
+                                "id": "003",
+                                "alias": "subvar3"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([subvar1])"
+        parsed_expr = parse_expr(expr)
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
+                "scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
+            processed_zcl_expr = process_expr(parsed_expr, ds)
+        assert processed_zcl_expr == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                },
+                {
+                    'column': [1]
+                }
+            ],
+        }
+
+    @mark_fail_py2 
+    def test_multiple_response_any_process_two_subvariables(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": False},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": [
+                    "001",
+                    "002",
+                    "003",
+                ],
+                "subreferences": {
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "001",
+                    "002".format(var_url),
+                    "003".format(var_url),
+                ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {
+                                "id": "001",
+                                "alias": "subvar1"
+                            },
+                            "002": {
+                                "id": "002",
+                                "alias": "subvar2"
+                            },
+                            "003": {
+                                "id": "003",
+                                "alias": "subvar3"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ds.follow.return_value = table_mock
+        expr = "MyMrVar.any([subvar1, subvar2])"
+        parsed_expr = parse_expr(expr)
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
+            categories.return_value = var_categories
+            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
+            processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
             'function': 'or',
-            'args': [{
-                'function': 'in',
-                'args': [
-                    {'variable': "%ssubvariables/001/" % var_url},
-                    {'value': [1]}
-                ],
-            }, {
-                'function': 'or',
-                'args': [{
+            'args': [
+                {
                     'function': 'in',
                     'args': [
-                        {'variable': "%ssubvariables/002/" % var_url},
-                        {'value': [1]}
+                        {
+                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                        },
+                        {
+                            'column': [1]
+                        }
                     ],
                 },
                 {
                     'function': 'in',
                     'args': [
-                        {'variable': "%ssubvariables/003/" % var_url},
-                        {'value': [1]}
+                        {
+                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'
+                        },
+                        {
+                            'column': [1]
+                        }
                     ],
-                }],
-            }],
+                },
+            ]
         }
 
-    def test_process_any_subvariables(self):
+    def test_multiple_response_subvar_equality(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": False},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1695,51 +2085,68 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
-                "categories": [
-                    {"id": 1, "name": "cat1"},
-                    {"id": 2, "name": "cat2"},
-                    {"id": 3, "name": "cat3"},
-                ]
+                "categories": var_categories
             }
         })
         ds = mock.MagicMock()
         ds.self = self.ds_url
-        ds.follow.return_value = table_mock
-        expr = "MyMrVar.any([subvar1, subvar2])"
-        processed_zcl_expr = process_expr(parse_expr(expr), ds)
-        assert processed_zcl_expr == {
-            'function': 'or',
-            'args': [{
-                'function': 'in',
-                'args': [
-                    {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'},
-                    {'column': ['subvar1', 'subvar2']}
+        ds.variables.index = {
+            "{}".format(var_url): {
+                "name": "Multiple Response",
+                "description": "",
+                "notes": "",
+                "alias": "mr_variable",
+                "id": "{}".format(var_id),
+                "type": "multiple_response",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
                 ],
-            }, {
-                'function': 'or',
-                'args': [{
-                       'function': 'in',
-                       'args': [
-                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'},
-                            {'column': ['subvar1', 'subvar2']}
-                       ],
-                }, {
-                    'function': 'in',
-                    'args': [
-                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/003/'},
-                        {'column': ['subvar1', 'subvar2']}
-                    ],
-                }],
-            }],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {
+                                "id": "001",
+                                "alias": "subvar1"
+                            },
+                            "002": {
+                                "id": "002",
+                                "alias": "subvar2"
+                            },
+                            "003": {
+                                "id": "003",
+                                "alias": "subvar3"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ds.follow.return_value = table_mock
+        expr = 'subvar1 == 1'
+        parsed_expr = parse_expr(expr)
+        expr_obj = process_expr(parsed_expr, ds)
+
+        assert expr_obj == {
+            'function': '==',
+            'args': [
+                {
+                    'variable': "{}subvariables/001/".format(var_url),
+                },
+                {
+                    'value': 1
+                }
+            ]
         }
 
     def test_transform_subvar_alias_to_subvar_id(self):
@@ -1860,7 +2267,7 @@ class TestExpressionProcessing(TestCase):
         }
         expr_obj = process_expr(parsed, ds)
         assert expr_obj == {
-            'function': "any",
+            'function': "in",
             'args': [
                 # Still finds the correct subvariable ID under the array URL
                 {'variable': subvariable_url},
@@ -1954,7 +2361,7 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    def test_array_expansion_single_subvariable(self):
+    def test_array_expansion_single_subvariable_any(self):
         var_id = '0001'
         var_alias = 'hobbies'
         var_type = 'categorical_array'
@@ -1995,6 +2402,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         expr_obj = process_expr(parse_expr('hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': '==',
@@ -2007,6 +2441,33 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_array_expansion_single_subvariable_not_any(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Negated.
         expr_obj = process_expr(parse_expr('not hobbies.any([32766])'), ds)
@@ -2028,6 +2489,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_not_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         expr_obj = process_expr(parse_expr('not hobbies.all([32766])'), ds)
         assert expr_obj == {
             'function': 'not',
@@ -2047,6 +2535,33 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_multiple_any(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         # Multiple values.
         expr_obj = process_expr(parse_expr('hobbies.any([32766, 32767])'), ds)
         assert expr_obj == {
@@ -2061,10 +2576,36 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
+    def test_array_expansion_single_subvariable_multiple_all(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        subvariables = [
+            '0001'
+        ]
+
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
         with pytest.raises(ValueError):
             process_expr(parse_expr('hobbies.all([32766, 32767])'), ds)
 
-    def test_array_expansion_multiple_subvariables(self):
+    def test_categorical_array_any_expansion_multiple_subvariables(self):
         var_id = '0001'
         var_alias = 'hobbies'
         var_type = 'categorical_array'
@@ -2114,50 +2655,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'or',
+                    'function': 'in',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': [32766]
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': [32766]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': [32766]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': [32766]
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_all_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         expr = 'hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2176,50 +2739,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'and',
+                    'function': '==',
                     'args': [
                         {
-                            'function': '==',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': 32766
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'and',
-                            'args': [
-                                {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': 32766
+                        }
+                    ]
+                },
+                {
+                    'function': '==',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': 32766
+                        }
+                    ]
+                },
+                {
+                    'function': '==',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': 32766
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_any_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Negated.
         expr = 'not hobbies.any([32766])'
@@ -2231,63 +2816,85 @@ class TestExpressionProcessing(TestCase):
                     'function': 'or',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
+                             'function': 'in',
+                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
                                 },
-                                {
-                                    'value': [32766]
-                                }
-                            ]
+                                 {
+                                     'value': [32766]
+                                 }
+                             ]
+                                },
+                        {
+                             'function': 'in',
+                             'args': [
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
+                             ]
                         },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': [32766]
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': 'or',
-                                    'args': [
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': [32766]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': [32766]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
+                             'function': 'in',
+                             'args': [
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
+                             ]
+                        },
+                        {
+                             'function': 'in',
+                             'args': [
+                                 {
+                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                 },
+                                 {
+                                     'value': [32766]
+                                 }
+                             ]
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_all_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         expr = 'not hobbies.all([32766])'
         expr_obj = process_expr(parse_expr(expr), ds)
@@ -2309,45 +2916,35 @@ class TestExpressionProcessing(TestCase):
                             ]
                         },
                         {
-                            'function': 'and',
+                            'function': '==',
                             'args': [
                                 {
-                                    'function': '==',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': 32766
-                                        }
-                                    ]
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                                 },
                                 {
-                                    'function': 'and',
-                                    'args': [
-                                        {
-                                            'function': '==',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': 32766
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': '==',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': 32766
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    'value': 32766
+                                }
+                            ]
+                        },
+                        {
+                            'function': '==',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                },
+                                {
+                                    'value': 32766
+                                }
+                            ]
+                        },
+                        {
+                            'function': '==',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                },
+                                {
+                                    'value': 32766
                                 }
                             ]
                         }
@@ -2355,6 +2952,38 @@ class TestExpressionProcessing(TestCase):
                 }
             ]
         }
+
+    def test_categorical_array_any_multiple_selection_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Multiple values.
         expr = 'hobbies.any([32766, 32767])'
@@ -2374,50 +3003,72 @@ class TestExpressionProcessing(TestCase):
                     ]
                 },
                 {
-                    'function': 'or',
+                    'function': 'in',
                     'args': [
                         {
-                            'function': 'in',
-                            'args': [
-                                {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                },
-                                {
-                                    'value': [32766, 32767]
-                                }
-                            ]
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                         },
                         {
-                            'function': 'or',
-                            'args': [
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
-                                },
-                                {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
-                                }
-                            ]
+                            'value': [32766, 32767]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                        },
+                        {
+                            'value': [32766, 32767]
+                        }
+                    ]
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {
+                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                        },
+                        {
+                            'value': [32766, 32767]
                         }
                     ]
                 }
             ]
         }
+
+    def test_categorical_array_not_any_multiple_selection_process_expression(self):
+        var_id = '0001'
+        var_alias = 'hobbies'
+        var_type = 'categorical_array'
+        var_url = '%svariables/%s/' % (self.ds_url, var_id)
+        subvariables = [
+            '0001',
+            '0002',
+            '0003',
+            '0004'
+        ]
+        subreferences = {
+            '0001': {'alias': 'hobbies_1'},
+            '0002': {'alias': 'hobbies_2'},
+            '0003': {'alias': 'hobbies_3'},
+            '0004': {'alias': 'hobbies_4'}
+        }
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': [],
+                'subvariables': subvariables,
+                'subreferences': subreferences
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
 
         # Multiple values, negated
         expr = 'not hobbies.any([32766, 32767])'
@@ -2440,45 +3091,35 @@ class TestExpressionProcessing(TestCase):
                             ]
                         },
                         {
-                            'function': 'or',
+                            'function': 'in',
                             'args': [
                                 {
-                                    'function': 'in',
-                                    'args': [
-                                        {
-                                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
-                                        },
-                                        {
-                                            'value': [32766, 32767]
-                                        }
-                                    ]
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
                                 },
                                 {
-                                    'function': 'or',
-                                    'args': [
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
-                                                },
-                                                {
-                                                    'value': [32766, 32767]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            'function': 'in',
-                                            'args': [
-                                                {
-                                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
-                                                },
-                                                {
-                                                    'value': [32766, 32767]
-                                                }
-                                            ]
-                                        }
-                                    ]
+                                    'value': [32766, 32767]
+                                }
+                            ]
+                        },
+                        {
+                            'function': 'in',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                },
+                                {
+                                    'value': [32766, 32767]
+                                }
+                            ]
+                        },
+                        {
+                            'function': 'in',
+                            'args': [
+                                {
+                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                },
+                                {
+                                    'value': [32766, 32767]
                                 }
                             ]
                         }
@@ -2696,81 +3337,130 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    @pytest.mark.xfail
-    @mock.patch('scrunch.expressions.adapt_multiple_response')
-    # NOTE: now that adapt_multiple_response is moved inside
-    # process_expr, need a new way to patch
-    def test_multiple_response_any(self, adapter):
-        var_id = '239109dsad0912d'
-        var_alias = 'hobbies'
-        var_type = 'multiple_response'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
-        adapter.return_value = (
-            [{'variable': var_url}, {'column': ['0001', '0002']}], False)
-        subreferences = {
-            '0001': {'alias': 'hobbies_1'},
-            '0002': {'alias': 'hobbies_2'},
-        }
-        subvariables = [
-            '0001',
-            '0002',
+    def test_any_categorical_var(self):
+        var_id = '0001'
+        var_alias = 'my_categorical'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'mocking',
+                'id': 1
+            },
+            {
+                'name': 'coding',
+                'id': 2
+            },
         ]
-        body = {
-            'id': var_id,
-            'alias': var_alias,
-            'type': var_type,
-            'categories': [],
-            'subvariables': subvariables,
-            'subreferences': subreferences,
-        }
-        table_mock = mock.MagicMock(metadata={var_id: body})
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
         ds = mock.MagicMock()
         ds.self = self.ds_url
         ds.follow.return_value = table_mock
-        ds.variables.index = {var_url: body}
 
-        expr = 'hobbies in [1, 2]'
-        expr_obj = process_expr(parse_expr(expr), ds)
+        expr = "my_categorical.any([1])"
+        parsed_expr = parse_expr(expr)
+        expr_obj = process_expr(parsed_expr, ds)
         assert expr_obj == {
-            'function': 'any',
+            'function': 'in',
             'args': [
                 {
                     'variable': var_url
                 },
                 {
-                    'column': ['0001', '0002']
+                    'value': [1]
                 }
             ]
         }
-        expr = 'hobbies not in [1, 2]'
+
+    def test_in_expression_list_integer(self):
+        var_id = '0001'
+        var_alias = 'country_cat'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'argentina',
+                'id': 1
+            },
+            {
+                'name': 'australia',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = "country_cat in [1]"
         expr_obj = process_expr(parse_expr(expr), ds)
         assert expr_obj == {
-            'function': 'not',
+            'function': 'in',
             'args': [
                 {
-                    'function': 'any',
-                    'args': [
-                        {
-                            'variable': var_url
-                        },
-                        {
-                            'column': ['0001', '0002']
-                        }
-                    ]
-                }
-            ]
-        }
-        # test subvariable references
-        expr = 'hobbies_1 == 1'
-        expr_obj = process_expr(parse_expr(expr), ds)
-        assert expr_obj == {
-            'function': '==',
-            'args': [
-                {
-                    'variable': var_url + 'subvariables/0001/'
+                    'variable': var_url
                 },
                 {
-                    'value': 1
+                    'value': [1]
+                }
+            ]
+        }
+
+    def test_in_expression_list_floats(self):
+        var_id = '0001'
+        var_alias = 'country_cat'
+        var_type = 'categorical'
+        var_url = '{}variables/{}/'.format(self.ds_url, var_id)
+        categories = [
+            {
+                'name': 'argentina',
+                'id': 1
+            },
+            {
+                'name': 'australia',
+                'id': 2
+            },
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                'categories': categories,
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+
+        expr = "country_cat in [1.0]"
+        parsed_expr = parse_expr(expr)
+        expr_obj = process_expr(parsed_expr, ds)
+        assert expr_obj == {
+            'function': 'in',
+            'args': [
+                {
+                    'variable': var_url
+                },
+                {
+                    'value': [1.0]
                 }
             ]
         }
@@ -2794,6 +3484,55 @@ class TestExpressionPrettify(TestCase):
         expected = 'age == 1'
         cel = prettify(expr)
         assert expected == cel
+
+    def test_float_conversion_to_integer(self):
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': 'age'
+                },
+                {
+                    'value': 25.0
+                }
+            ]
+        }
+
+        expected = 'age == 25'
+        cel = prettify(expr)
+        assert expected == cel
+
+    def test_float_conversion_integer_in_list(self):
+        expr = {
+            "function": "in",
+            "args": [
+                {
+                    "variable": "my_var"
+                },
+                {
+                    "value": [
+                        1.0, 2.0
+                    ]
+                }
+            ]
+        }
+        assert prettify(expr) == "my_var in [1, 2]"
+
+    def test_string_no_need_conversion_in_list(self):
+        expr = {
+            "function": "in",
+            "args": [
+                {
+                    "variable": "my_var"
+                },
+                {
+                    "value": [
+                        "test"
+                    ]
+                }
+            ]
+        }
+        assert prettify(expr) == "my_var in ['test']"
 
     def test_and(self):
         expr = {
@@ -3868,4 +4607,534 @@ class TestDateTimeExpression(TestCase):
                     'value': 5
                 }
             ]
+        }
+
+class TestGetDatasetVariables(TestCase):
+    ds_url = "http://mock.crunch.io/api/datasets/123/"
+
+    def test_get_dataset_variables_categorical_arrays(self):
+        var_id = "0001"
+        var_alias = "hobbies"
+        var_type = "categorical_array"
+        subvariables = ["0001", "0002", "0003", "0004"]
+        subreferences = {
+            "0001": {"alias": "hobbies_1"},
+            "0002": {"alias": "hobbies_2"},
+            "0003": {"alias": "hobbies_3"},
+            "0004": {"alias": "hobbies_4"},
+        }
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "categories": [
+                        {"id": 1, "name": "cat1", "selected": True},
+                        {"id": 2, "name": "cat2", "selected": True},
+                        {"id": 3, "name": "cat3", "selected": False},
+                    ],
+                    "subvariables": subvariables,
+                    "subreferences": subreferences,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "hobbies[hobbies_1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0003",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_4]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_4",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0004",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_4": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_4",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0004",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies_2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0002",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies": {
+                "subreferences": {
+                    "0004": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_4",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0004",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0001": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0001",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0002": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0002",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "0003": {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "hobbies_3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "0003",
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                },
+                "alias": "hobbies",
+                "subvariables": ["0001", "0002", "0003", "0004"],
+                "type": "categorical_array",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0003",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "hobbies[hobbies_2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "hobbies_2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "0002",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+        }
+
+    def test_get_dataset_variables_multiple_response(self):
+        var_id = "0001"
+        var_alias = "MyMrVar"
+        var_type = "multiple_response"
+        var_url = "{}variables/{}/".format(self.ds_url, var_id)
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "subvariables": [
+                        "{}subvariables/001/".format(var_url),
+                        "{}subvariables/002/".format(var_url),
+                        "{}subvariables/003/".format(var_url),
+                    ],
+                    "subreferences": {
+                        "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                        "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                        "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    },
+                    "categories": var_categories,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "MyMrVar[subvar2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar[subvar1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "subvar3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar[subvar3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+            "MyMrVar": {
+                "subreferences": {
+                    "{}subvariables/003/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/003/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "{}subvariables/001/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/001/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                    "{}subvariables/002/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/002/".format(var_url),
+                        "categories": [
+                            {"selected": True, "id": 1, "name": "cat1"},
+                            {"selected": True, "id": 2, "name": "cat2"},
+                            {"selected": False, "id": 3, "name": "cat3"},
+                        ],
+                    },
+                },
+                "alias": "MyMrVar",
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "type": "multiple_response",
+                "id": "0001",
+                "categories": [
+                    {"selected": True, "id": 1, "name": "cat1"},
+                    {"selected": True, "id": 2, "name": "cat2"},
+                    {"selected": False, "id": 3, "name": "cat3"},
+                ],
+            },
+        }
+
+    def test_get_dataset_variables_numeric_arrays(self):
+        var_id = "0001"
+        var_alias = "num_arr_var"
+        var_type = "numeric_array"
+        var_url = "{}variables/{}/".format(self.ds_url, var_id)
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "subvariables": [
+                        "{}subvariables/001/".format(var_url),
+                        "{}subvariables/002/".format(var_url),
+                        "{}subvariables/003/".format(var_url),
+                    ],
+                    "subreferences": {
+                        "{}subvariables/001/".format(var_url): {"alias": "subvar1"},
+                        "{}subvariables/002/".format(var_url): {"alias": "subvar2"},
+                        "{}subvariables/003/".format(var_url): {"alias": "subvar3"},
+                    },
+                    "values": [
+                        [1, 3, 1],
+                        [2, 1, 1],
+                    ],
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            "num_arr_var": {
+                "subreferences": {
+                    "{}subvariables/003/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar3",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/003/".format(var_url),
+                    },
+                    "{}subvariables/001/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar1",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/001/".format(var_url),
+                    },
+                    "{}subvariables/002/".format(var_url): {
+                        "description": "",
+                        "parent_id": "0001",
+                        "alias": "subvar2",
+                        "is_subvar": True,
+                        "type": "categorical",
+                        "id": "{}subvariables/002/".format(var_url),
+                    },
+                },
+                "alias": "num_arr_var",
+                "values": [[1, 3, 1], [2, 1, 1]],
+                "subvariables": [
+                    "{}subvariables/001/".format(var_url),
+                    "{}subvariables/002/".format(var_url),
+                    "{}subvariables/003/".format(var_url),
+                ],
+                "type": "numeric_array",
+                "id": "0001",
+            },
+            "subvar2": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+            },
+            "subvar3": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+            },
+            "num_arr_var[subvar3]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar3",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/003/".format(var_url),
+            },
+            "subvar1": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+            },
+            "num_arr_var[subvar1]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar1",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/001/".format(var_url),
+            },
+            "num_arr_var[subvar2]": {
+                "description": "",
+                "parent_id": "0001",
+                "alias": "subvar2",
+                "is_subvar": True,
+                "type": "categorical",
+                "id": "{}subvariables/002/".format(var_url),
+            },
+        }
+
+    def test_get_dataset_variables_categorical_variable(self):
+        var_id = "0001"
+        var_alias = "my_categorical"
+        var_type = "categorical"
+        categories = [
+            {"name": "mocking", "id": 1},
+            {"name": "coding", "id": 2},
+        ]
+
+        table_mock = mock.MagicMock(
+            metadata={
+                var_id: {
+                    "id": var_id,
+                    "alias": var_alias,
+                    "type": var_type,
+                    "categories": categories,
+                }
+            }
+        )
+        ds = mock.MagicMock()
+        ds.follow.return_value = table_mock
+        result = get_dataset_variables(ds)
+        assert result == {
+            var_alias: {
+                "alias": var_alias,
+                "type": var_type,
+                "id": var_id,
+                "categories": categories
+            }
         }
