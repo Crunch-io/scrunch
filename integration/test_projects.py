@@ -12,13 +12,6 @@ UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
 FEATURE_FLAG = 'old_projects_order'
 
 
-def new_project(name):
-    res = self.site.projects.create(shoji_entity_wrapper({
-        "name": name + UNIQUE_PREFIX
-    })).refresh()
-    return Project(res)
-
-
 class TestProjects(BaseIntegrationTestCase):
     def setUp(self):
         """
@@ -28,8 +21,14 @@ class TestProjects(BaseIntegrationTestCase):
         super(TestProjects, self).setUp()
         self.site.session.feature_flags[FEATURE_FLAG] = False
 
+    def new_project(self, name):
+        res = self.site.projects.create(shoji_entity_wrapper({
+            "name": name + UNIQUE_PREFIX
+        })).refresh()
+        return Project(res)
+
     def test_create_subprojects(self):
-        pa = new_project('A')
+        pa = self.new_project('A')
         pb = pa.create_project("B")
         pa.resource.refresh()
         self.assertTrue(pb.url in pa.resource.index)
@@ -38,9 +37,9 @@ class TestProjects(BaseIntegrationTestCase):
 
     def test_move_project(self):
         # Both top level projects
-        pa = new_project("test_move_project_A")
-        pb = new_project("test_move_project_B")
-        pc = new_project("test_move_project_C")
+        pa = self.new_project("test_move_project_A")
+        pb = self.new_project("test_move_project_B")
+        pc = self.new_project("test_move_project_C")
         pa.resource.refresh()
         self.assertFalse(pb.url in pa.resource.index)
         pa.place(pb, "|")
@@ -51,14 +50,14 @@ class TestProjects(BaseIntegrationTestCase):
         self.assertTrue(pc.url in pb.resource.index)
 
     def test_rename(self):
-        project = new_project("test_rename")
+        project = self.new_project("test_rename")
         new_name = "renamed" + UNIQUE_PREFIX
         project.rename(new_name)
         _project = get_project(new_name)
         self.assertEqual(_project.url, project.url)
 
     def test_reorder(self):
-        pa = new_project('test_reorder')
+        pa = self.new_project('test_reorder')
         p1 = pa.create_project("1")
         p2 = pa.create_project("2")
         pa.resource.refresh()
@@ -71,7 +70,7 @@ class TestProjects(BaseIntegrationTestCase):
         username_2 = os.environ['SCRUNCH_USER2']
         password_2 = os.environ['SCRUNCH_PASS2']
         fo = get_user(username_2)
-        fo_site = connect(fo.email, password_2, self.HOST)
+        fo_site = connect(fo.email, password_2, self.host)
 
         # These two datasets are created by the default logged user
         _ds1 = self.site.datasets.create(shoji_entity_wrapper({
@@ -94,7 +93,7 @@ class TestProjects(BaseIntegrationTestCase):
         ds2.add_user(fo, edit=True)
 
         # Create a hierarchy A -> B
-        pa = new_project("test_move_dataset_A")
+        pa = self.new_project("test_move_dataset_A")
         pa.move_here([ds1])  # Put ds1 in A
 
         pb = pa.create_project("test_move_dataset_B")
@@ -119,6 +118,6 @@ class TestProjects(BaseIntegrationTestCase):
         self.assertEqual(ds2.resource.project.self, pb.url)
 
     def test_execute_script(self):
-        pa = new_project("test_run_script")
+        pa = self.new_project("test_run_script")
         # Successful server execution does not raise. Method returns None on OK
         assert pa.execute("NOOP;") is None

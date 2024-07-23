@@ -80,7 +80,9 @@ class TestExpressions(BaseIntegrationTestCase):
             data = ds.follow("table", "limit=20&filter={}".format(resp.resource.self))['data']
             ds_variables = ds.variables.by("alias")
             mr_variable_id = ds_variables["mr_variable"].id
-            assert data[mr_variable_id] == []
+            assert data[mr_variable_id] == [
+                [1, 2, 2]
+            ]
         finally:
             # cleanup
             ds.delete()
@@ -269,7 +271,9 @@ class TestExpressions(BaseIntegrationTestCase):
             data = ds.follow("table", "limit=20&filter={}".format(resp.resource.self))['data']
             ds_variables = ds.variables.by("alias")
             cat_var_variable_id = ds_variables["categorical_var"].id
-            assert data[cat_var_variable_id] == [1, 3, {"?": -1}]
+            assert data[cat_var_variable_id] == [
+                [1, 3, {"?": -1}]
+            ]
             assert resp.resource.body.entity.body.definition == {
                 "function": "in",
                 "args": [
