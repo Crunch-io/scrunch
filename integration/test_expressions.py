@@ -10,7 +10,7 @@ from fixtures import BaseIntegrationTestCase, MR_CATS
 from scrunch.mutable_dataset import get_mutable_dataset
 
 
-@pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is not None, reason="Do not run this test during CI/CD")
+@pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
 class TestExpressions(BaseIntegrationTestCase):
 
     def _create_mr_dataset(self, name, rows):
