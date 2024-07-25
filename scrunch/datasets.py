@@ -2412,8 +2412,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         owner = kwargs.get("owner")
         if preserve_owner:
             body['owner'] = self.resource.body.owner
-            if owner:
-                LOG.warning("'owner' parameter is ignored when preserve_owner=True")
         elif owner:
             body["owner"] = (
                 owner if owner.startswith("http") else get_project(owner).url
