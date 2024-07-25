@@ -2384,7 +2384,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
             dataset otherwise the owner will be the current user in the
-            session and the Dataset will be set under `Persona Project`
+            session and the Dataset will be set under `Personal Project`.
+        :kwargs owner: str (optional)
+            When preserve_owner=False, the owner of fork will be the set
+            according to the passed Project URL or Folder path.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
