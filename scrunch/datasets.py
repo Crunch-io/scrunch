@@ -15,11 +15,6 @@ except ImportError:
     pd = None
 
 
-if sys.version_info.major == 3:
-    from collections.abc import Mapping
-else:
-    from collections import Mapping
-
 import six
 
 import pycrunch
@@ -51,8 +46,10 @@ from scrunch.connections import LOG, _default_connection, _get_connection
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
+    from collections import Mapping
 else:
     from urllib.parse import urljoin
+    from collections.abc import Mapping
 
 
 _MR_TYPE = 'multiple_response'
@@ -2392,18 +2389,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        nforks = len(self.resource.forks.index)
+
         if name is None:
+            nforks = len(self.resource.forks.index)
+            dsname = self.resource.body.name
             if six.PY2:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name.encode("ascii", "ignore"))
-            else:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name)
-        if description is None:
-            description = self.resource.body.description
+                dsname = dsname.encode("ascii", "ignore")
+            name = "FORK #{} of {}".format(nforks + 1, dsname)
+
+        description = description or self.resource.body.description
 
         body = dict(
             name=name,
@@ -2412,8 +2406,16 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             **kwargs
         )
 
+        owner = kwargs.get("owner")
         if preserve_owner:
             body['owner'] = self.resource.body.owner
+            if owner:
+                LOG.warning("'owner' parameter is ignored when preserve_owner=True")
+        elif owner:
+            body["owner"] = (
+                owner if owner.startswith("http") else get_project(owner).url
+            )
+
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         _fork = self.resource.forks.create(payload).refresh()
