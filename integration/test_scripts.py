@@ -1,14 +1,136 @@
 # coding: utf-8
+import os
+from datetime import datetime
+
 import pytest
 
-from pycrunch.shoji import as_entity
+from pycrunch.shoji import as_entity, wait_progress, TaskError
 
+from scrunch.datasets import Project
+from scrunch.helpers import shoji_entity_wrapper
 from scrunch.scripts import ScriptExecutionError
 from scrunch.mutable_dataset import get_mutable_dataset
 from fixtures import BaseIntegrationTestCase
 
 
-class TestScripts(BaseIntegrationTestCase):
+@pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+class TestSystemScripts(BaseIntegrationTestCase):
+    def new_project(self, name):
+        res = self.site.projects.create(shoji_entity_wrapper({
+            "name": name + datetime.now().strftime("%Y%m%d%H%M%S")
+        })).refresh()
+        return Project(res)
+
+    def test_define_view_strict_subvariable_syntax(self):
+        project = self.new_project("test_view_strict_subvariable")
+        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script"})).refresh()
+        categories = [
+            {"id": 2, "name": "Home"},
+            {"id": 3, "name": "Work"},
+            {"id": -1, "name": "No Data", "missing": True},
+        ]
+        subvariables = [
+            {"alias": "cat", "name": "Cat"},
+            {"alias": "dog", "name": "Dog"},
+            {"alias": "bird", "name": "Bird"},
+        ]
+
+        ds.variables.create(
+            as_entity(
+                dict(
+                    alias="pets",
+                    name="Pets",
+                    type="categorical_array",
+                    categories=categories,
+                    subvariables=subvariables,
+                    values=[[2, 3, 3], [3, 3, 2], [2, -1, 3], [3, 2, -1]],
+                )
+            )
+        )
+        ds.variables.create(
+            as_entity(
+                dict(
+                    alias="pets_2",
+                    name="Pets 2",
+                    type="categorical_array",
+                    categories=categories,
+                    subvariables=subvariables,
+                    values=[[2, 3, 3], [3, 3, 2], [2, -1, 3], [3, 2, -1]],
+                )
+            )
+        )
+        script_body = """
+                        DEFINE VIEW FROM DATASET_ID(`{}`)
+                        VARIABLES pets, pets_2
+                        NAME "My view";
+                        """.format(ds.body.id)
+
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        project.move_here([scrunch_dataset])
+        project.execute(script_body, strict_subvariable_syntax=True)
+        view = scrunch_dataset.views.get_by_name("My view")
+        assert view.project.name == project.name
+
+    def test_define_view_strict_subvariable_syntax_error(self):
+        project = self.new_project("test_view_strict_subvariable_false")
+        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script_false"})).refresh()
+        categories = [
+            {"id": 2, "name": "Home"},
+            {"id": 3, "name": "Work"},
+            {"id": -1, "name": "No Data", "missing": True},
+        ]
+        subvariables = [
+            {"alias": "cat", "name": "Cat"},
+            {"alias": "dog", "name": "Dog"},
+            {"alias": "bird", "name": "Bird"},
+        ]
+
+        ds.variables.create(
+            as_entity(
+                dict(
+                    alias="pets",
+                    name="Pets",
+                    type="categorical_array",
+                    categories=categories,
+                    subvariables=subvariables,
+                    values=[[2, 3, 3], [3, 3, 2], [2, -1, 3], [3, 2, -1]],
+                )
+            )
+        )
+        ds.variables.create(
+            as_entity(
+                dict(
+                    alias="pets_2",
+                    name="Pets 2",
+                    type="categorical_array",
+                    categories=categories,
+                    subvariables=subvariables,
+                    values=[[2, 3, 3], [3, 3, 2], [2, -1, 3], [3, 2, -1]],
+                )
+            )
+        )
+        script_body = """
+                                DEFINE VIEW FROM DATASET_ID(`{}`)
+                                VARIABLES pets, pets_2
+                                NAME "My view";
+                                """.format(ds.body.id)
+
+        try:
+            scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+            project.move_here([scrunch_dataset])
+            resp = project.execute(script_body)
+            with pytest.raises(TaskError) as err: 
+                wait_progress(resp, self.site.session)
+            err_value = err.value[0]
+            err_value["type"] == "script:validation"
+            err_value["description"] == "Errors processing the script"
+            err_value["resolutions"][0]["message"] == "The following subvariables: bird, cat, dog exist in multiple arrays: pets, pets_2"
+        finally:
+            ds.delete()
+            project.delete()
+
+
+class TestDatasetScripts(BaseIntegrationTestCase):
     def _create_ds(self):
         ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
         variable = ds.variables.create(
@@ -24,17 +146,19 @@ class TestScripts(BaseIntegrationTestCase):
 
     def test_execute(self):
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site, editor=True)
-        script = """
-        RENAME pk TO varA;
+        try:
+            scrunch_dataset = get_mutable_dataset(ds.body.id, self.site, editor=True)
+            script = """
+            RENAME pk TO varA;
 
-        CHANGE TITLE IN varA WITH "Variable A";
-        """
-        scrunch_dataset.scripts.execute(script)
-        variable.refresh()
-        assert variable.body["alias"] == "varA"
-        assert variable.body["name"] == "Variable A"
-        ds.delete()
+            CHANGE TITLE IN varA WITH "Variable A";
+            """
+            scrunch_dataset.scripts.execute(script)
+            variable.refresh()
+            assert variable.body["alias"] == "varA"
+            assert variable.body["name"] == "Variable A"
+        finally:
+            ds.delete()
 
     def test_handle_error(self):
         ds, variable = self._create_ds()
@@ -79,23 +203,25 @@ class TestScripts(BaseIntegrationTestCase):
         assert variable.body["name"] == "pk"
         ds.delete()
 
+    @pytest.mark.skip(reason="Collapse is 504ing in the server.")
     def test_fetch_all_and_collapse(self):
-        raise self.skipTest("Collapse is 504ing in the server.")
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        s1 = "RENAME pk TO varA;"
-        s2 = 'CHANGE TITLE IN varA WITH "Variable A";'
+        try:
+            scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+            s1 = "RENAME pk TO varA;"
+            s2 = 'CHANGE TITLE IN varA WITH "Variable A";'
 
-        scrunch_dataset.scripts.execute(s1)
-        scrunch_dataset.scripts.execute(s2)
+            scrunch_dataset.scripts.execute(s1)
+            scrunch_dataset.scripts.execute(s2)
 
-        r = scrunch_dataset.scripts.all()
-        assert len(r) == 2
-        assert r[0].body["body"] == s1
-        assert r[1].body["body"] == s2
+            r = scrunch_dataset.scripts.all()
+            assert len(r) == 2
+            assert r[0].body["body"] == s1
+            assert r[1].body["body"] == s2
 
-        scrunch_dataset.scripts.collapse()
+            scrunch_dataset.scripts.collapse()
 
-        r = scrunch_dataset.scripts.all()
-        assert len(r) == 1
-        ds.delete()
+            r = scrunch_dataset.scripts.all()
+            assert len(r) == 1
+        finally: 
+            ds.delete()

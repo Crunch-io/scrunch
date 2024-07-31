@@ -58,7 +58,7 @@ class SystemScript(BaseScript):
     def format_request_url(self, execute, strict_subvariable_syntax=None):
         strict_subvariable_syntax_flag = self.get_default_syntax_flag(strict_subvariable_syntax)
         if strict_subvariable_syntax_flag:
-            execute.self = "{}?strict_subvariable_syntax=true".format(self.resource.self)
+            execute.self += "?strict_subvariable_syntax=true"
 
     def execute(self, script_body, strict_subvariable_syntax=None):
         """
@@ -72,7 +72,7 @@ class SystemScript(BaseScript):
         try:
             execute = self.resource.execute
             self.format_request_url(execute, strict_subvariable_syntax)
-            execute.post(payload)
+            return execute.post(payload)
         except pycrunch.ClientError as err:
             resolutions = err.args[2]["resolutions"]
             raise ScriptExecutionError(err, resolutions)
