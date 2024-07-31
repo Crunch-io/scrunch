@@ -17,12 +17,12 @@ class ScriptExecutionError(Exception):
 DEFAULT_SUBVARIABLE_SYNTAX = False
 
 
-class DatasetScripts:
-    def __init__(self, dataset_resource):
+class Scripts:
+    def __init__(self, resource):
         """
-        :param dataset_resource: Pycrunch Entity for the dataset.
+        :param resource: Pycrunch Entity.
         """
-        self.dataset_resource = dataset_resource
+        self.resource = resource
 
     def get_default_syntax_flag(self, strict_subvariable_syntax):
         """
@@ -44,8 +44,11 @@ class DatasetScripts:
         """
         if strict_subvariable_syntax is not None:
             return strict_subvariable_syntax
-        flags = self.dataset_resource.session.feature_flags
+        flags = self.resource.session.feature_flags
         return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
+
+
+class DatasetScripts(Scripts):
 
     def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
         strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
@@ -53,10 +56,10 @@ class DatasetScripts:
             "body": script_body,
             "strict_subvariable_syntax": strict_subvariable_syntax
         }
-        method = self.dataset_resource.scripts.create
+        method = self.resource.scripts.create
         if dry_run:
             payload["dry_run"] = True
-            method = self.dataset_resource.scripts.post
+            method = self.resource.scripts.post
         try:
             method({'element': 'shoji:entity', 'body': payload})
         except pycrunch.ClientError as err:
@@ -79,10 +82,10 @@ class DatasetScripts:
         all the previously executed scripts into one the first. It will delete
         all savepoints associated with the collapsed scripts.
         """
-        self.dataset_resource.scripts.collapse.post({})
+        self.resource.scripts.collapse.post({})
 
     def all(self):
-        scripts_index = self.dataset_resource.scripts.index
+        scripts_index = self.resource.scripts.index
         scripts = []
         for s_url, s in scripts_index.items():
             scripts.append(s.entity)
@@ -101,4 +104,4 @@ class DatasetScripts:
             raise ValueError("Must indicate either ID or script number")
 
         resp = script.revert.post({})  # Asynchronous request
-        pycrunch.shoji.wait_progress(resp, self.dataset_resource.session)
+        pycrunch.shoji.wait_progress(resp, self.resource.session)

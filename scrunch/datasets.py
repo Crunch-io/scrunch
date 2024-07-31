@@ -33,14 +33,13 @@ from scrunch.exceptions import InvalidParamError, InvalidVariableTypeError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.views import DatasetViews
-from scrunch.scripts import DatasetScripts, ScriptExecutionError
+from scrunch.scripts import ScriptExecutionError
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
-                             shoji_view_wrapper, make_unique,
-                             generate_subvariable_codes)
+                             shoji_view_wrapper, generate_subvariable_codes)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -836,7 +835,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # of the multiple inheritance, we just initiate self._vars here
         self._reload_variables()
         self.folders = DatasetFolders(self)
-        self.scripts = DatasetScripts(self.resource)
 
     def __getattr__(self, item):
         if item in self._ENTITY_ATTRIBUTES:
@@ -2224,7 +2222,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     % (format, ','.join(k))
                 )
         if 'var_label_field' in options \
-                and not options['var_label_field'] in ('name', 'description'):
+                and options['var_label_field'] not in ('name', 'description'):
             raise ValueError(
                 'The "var_label_field" export option must be either "name" '
                 'or "description".'
