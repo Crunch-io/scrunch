@@ -2420,13 +2420,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
         try:
-            _fork = dataset.resource.forks.create(payload).refresh()
+            _fork = self.resource.forks.create(payload).refresh()
         except TaskProgressTimeoutError as exc:
             _fork = exc.entity.wait_progress(exc.response).refresh()
-            
-        # return a MutableDataset always
-        fork_ds = MutableDataset(_fork)  # Fork has same editor as current user
-        return fork_ds
+
+        return MutableDataset(_fork)
 
     def replace_values(self, variables, filter=None, literal_subvar=False, timeout=60):
         """
