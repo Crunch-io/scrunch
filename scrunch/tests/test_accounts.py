@@ -71,6 +71,23 @@ class TestAccount:
             "value": "NOOP;"
         }
 
+    def test_execute_script_with_syntax_subvariable_flag(self):
+        session = self.make_session()
+
+        response = Response()
+        response.status_code = 204
+
+        session.add_post_response(response)
+        current_act = Account.current_account(session.root)
+
+        current_act.execute("NOOP;", strict_subvariable_syntax=True)
+        post_request = session.requests[-1]
+        assert json.loads(post_request.body) == {
+            "element": "shoji:view",
+            "value": "NOOP;"
+        }
+        assert "?strict_subvariable_syntax=true" in post_request.url
+
     def test_projects(self):
         session = self.make_session()
         projects_url = "http://host/api/account/projects/"

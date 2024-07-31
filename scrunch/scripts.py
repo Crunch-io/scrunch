@@ -4,6 +4,8 @@ import json
 import pycrunch
 from pycrunch.shoji import TaskError
 
+from scrunch.helpers import shoji_view_wrapper
+
 
 class ScriptExecutionError(Exception):
     def __init__(self, client_error, resolutions):
@@ -17,7 +19,7 @@ class ScriptExecutionError(Exception):
 DEFAULT_SUBVARIABLE_SYNTAX = False
 
 
-class Scripts:
+class BaseScript:
     def __init__(self, resource):
         """
         :param resource: Pycrunch Entity.
@@ -47,8 +49,36 @@ class Scripts:
         flags = self.resource.session.feature_flags
         return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
 
+    def execute(self, script_body, strict_subvariable_syntax=None):
+        pass
 
-class DatasetScripts(Scripts):
+
+class SystemScript(BaseScript):
+
+    def format_request_url(self, execute, strict_subvariable_syntax=None):
+        strict_subvariable_syntax_flag = self.get_default_syntax_flag(strict_subvariable_syntax)
+        if strict_subvariable_syntax_flag:
+            execute.self = "{}?strict_subvariable_syntax=true".format(self.resource.self)
+
+    def execute(self, script_body, strict_subvariable_syntax=None):
+        """
+        Will run a system script on this.
+
+        System scripts do not have a return value. If they execute correctly
+        they'll finish silently. Otherwise, an error will raise.
+        """
+        # The project execution endpoint is a shoji:view
+        payload = shoji_view_wrapper(script_body)
+        try:
+            execute = self.resource.execute
+            self.format_request_url(execute, strict_subvariable_syntax)
+            execute.post(payload)
+        except pycrunch.ClientError as err:
+            resolutions = err.args[2]["resolutions"]
+            raise ScriptExecutionError(err, resolutions)
+
+
+class DatasetScripts(BaseScript):
 
     def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
         strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
