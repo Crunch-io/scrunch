@@ -54,7 +54,7 @@ class Account:
         """Will run a system script on this account."""
         # The account execution endpoint is a shoji:view
         system_script = SystemScript(self.resource)
-        system_script.execute(script_body, strict_subvariable_syntax)
+        return system_script.execute(script_body, strict_subvariable_syntax)
 
     @property
     def projects(self):

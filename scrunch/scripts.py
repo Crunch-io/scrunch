@@ -4,7 +4,7 @@ import json
 import pycrunch
 from pycrunch.shoji import TaskError
 
-from scrunch.helpers import shoji_view_wrapper
+from scrunch.helpers import shoji_view_wrapper, shoji_entity_wrapper
 
 
 class ScriptExecutionError(Exception):
@@ -67,7 +67,7 @@ class SystemScript(BaseScript):
         System scripts do not have a return value. If they execute correctly
         they'll finish silently. Otherwise, an error will raise.
         """
-        # The project execution endpoint is a shoji:view
+        # The script execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
         try:
             execute = self.resource.execute
@@ -86,12 +86,18 @@ class DatasetScripts(BaseScript):
             "body": script_body,
             "strict_subvariable_syntax": strict_subvariable_syntax
         }
-        method = self.resource.scripts.create
+
         if dry_run:
             payload["dry_run"] = True
             method = self.resource.scripts.post
+        else:
+            method = self.resource.scripts.create
+
+        # The dataset script execution endpoint is a shoji:entity
+        body = shoji_entity_wrapper(payload)
+
         try:
-            method({'element': 'shoji:entity', 'body': payload})
+            method(body)
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):
                 # For async script validation error
