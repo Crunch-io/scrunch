@@ -67,7 +67,8 @@ class TestSystemScripts(BaseIntegrationTestCase):
 
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         project.move_here([scrunch_dataset])
-        project.execute(script_body, strict_subvariable_syntax=True)
+        resp = project.execute(script_body, strict_subvariable_syntax=True)
+        wait_progress(resp, self.site.session)
         view = scrunch_dataset.views.get_by_name("My view")
         assert view.project.name == project.name
 
