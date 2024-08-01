@@ -4,6 +4,8 @@ import json
 import pycrunch
 from pycrunch.shoji import TaskError
 
+from scrunch.helpers import shoji_view_wrapper, shoji_entity_wrapper
+
 
 class ScriptExecutionError(Exception):
     def __init__(self, client_error, resolutions):
@@ -17,12 +19,12 @@ class ScriptExecutionError(Exception):
 DEFAULT_SUBVARIABLE_SYNTAX = False
 
 
-class DatasetScripts:
-    def __init__(self, dataset_resource):
+class BaseScript:
+    def __init__(self, resource):
         """
-        :param dataset_resource: Pycrunch Entity for the dataset.
+        :param resource: Pycrunch Entity.
         """
-        self.dataset_resource = dataset_resource
+        self.resource = resource
 
     def get_default_syntax_flag(self, strict_subvariable_syntax):
         """
@@ -44,8 +46,39 @@ class DatasetScripts:
         """
         if strict_subvariable_syntax is not None:
             return strict_subvariable_syntax
-        flags = self.dataset_resource.session.feature_flags
+        flags = self.resource.session.feature_flags
         return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
+
+    def execute(self, script_body, strict_subvariable_syntax=None):
+        pass
+
+
+class SystemScript(BaseScript):
+
+    def format_request_url(self, request_url, strict_subvariable_syntax=None):
+        strict_subvariable_syntax_flag = self.get_default_syntax_flag(strict_subvariable_syntax)
+        if strict_subvariable_syntax_flag:
+            request_url += "?strict_subvariable_syntax=true"
+        return request_url
+
+    def execute(self, script_body, strict_subvariable_syntax=None):
+        """
+        Will run a system script on this.
+
+        System scripts do not have a return value. If they execute correctly
+        they'll finish silently. Otherwise, an error will raise.
+        """
+        # The script execution endpoint is a shoji:view
+        payload = shoji_view_wrapper(script_body)
+        try:
+            execute_url = self.format_request_url(self.resource.views['execute'], strict_subvariable_syntax)
+            return self.resource.session.post(execute_url, json=payload)
+        except pycrunch.ClientError as err:
+            resolutions = err.args[2]["resolutions"]
+            raise ScriptExecutionError(err, resolutions)
+
+
+class DatasetScripts(BaseScript):
 
     def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
         strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
@@ -53,12 +86,18 @@ class DatasetScripts:
             "body": script_body,
             "strict_subvariable_syntax": strict_subvariable_syntax
         }
-        method = self.dataset_resource.scripts.create
+
         if dry_run:
             payload["dry_run"] = True
-            method = self.dataset_resource.scripts.post
+            method = self.resource.scripts.post
+        else:
+            method = self.resource.scripts.create
+
+        # The dataset script execution endpoint is a shoji:entity
+        body = shoji_entity_wrapper(payload)
+
         try:
-            method({'element': 'shoji:entity', 'body': payload})
+            method(body)
         except pycrunch.ClientError as err:
             if isinstance(err, TaskError):
                 # For async script validation error
@@ -79,10 +118,10 @@ class DatasetScripts:
         all the previously executed scripts into one the first. It will delete
         all savepoints associated with the collapsed scripts.
         """
-        self.dataset_resource.scripts.collapse.post({})
+        self.resource.scripts.collapse.post({})
 
     def all(self):
-        scripts_index = self.dataset_resource.scripts.index
+        scripts_index = self.resource.scripts.index
         scripts = []
         for s_url, s in scripts_index.items():
             scripts.append(s.entity)
@@ -101,4 +140,4 @@ class DatasetScripts:
             raise ValueError("Must indicate either ID or script number")
 
         resp = script.revert.post({})  # Asynchronous request
-        pycrunch.shoji.wait_progress(resp, self.dataset_resource.session)
+        pycrunch.shoji.wait_progress(resp, self.resource.session)

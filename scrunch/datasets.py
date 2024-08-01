@@ -33,13 +33,12 @@ from scrunch.exceptions import InvalidParamError, InvalidVariableTypeError
 from scrunch.expressions import parse_expr, prettify, process_expr
 from scrunch.folders import DatasetFolders
 from scrunch.views import DatasetViews
-from scrunch.scripts import DatasetScripts, ScriptExecutionError
+from scrunch.scripts import DatasetScripts, SystemScript
 from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              case_expr, download_file, shoji_entity_wrapper,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
-                             shoji_view_wrapper, make_unique,
                              generate_subvariable_codes)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
@@ -454,25 +453,11 @@ class Project:
     def __str__(self):
         return self.name
 
-    def execute(self, script_body):
-        """
-        Will run a system script on this project.
-
-        System scripts do not have a return value. If they execute correctly
-        they'll finish silently. Otherwise an error will raise.
-        """
+    def execute(self, script_body, strict_subvariable_syntax=None):
+        """Will run a system script on this project."""
         # The project execution endpoint is a shoji:view
-        payload = shoji_view_wrapper(script_body)
-        if "run" in self.resource.views:
-            exc_res = self.resource.run  # Backwards compat og API
-        else:
-            exc_res = self.resource.execute
-
-        try:
-            exc_res.post(payload)
-        except pycrunch.ClientError as err:
-            resolutions = err.args[2]["resolutions"]
-            raise ScriptExecutionError(err, resolutions)
+        system_script = SystemScript(self.resource)
+        return system_script.execute(script_body, strict_subvariable_syntax)
 
     @property
     def members(self):
@@ -2224,7 +2209,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     % (format, ','.join(k))
                 )
         if 'var_label_field' in options \
-                and not options['var_label_field'] in ('name', 'description'):
+                and options['var_label_field'] not in ('name', 'description'):
             raise ValueError(
                 'The "var_label_field" export option must be either "name" '
                 'or "description".'
