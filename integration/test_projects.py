@@ -119,5 +119,6 @@ class TestProjects(BaseIntegrationTestCase):
 
     def test_execute_script(self):
         pa = self.new_project("test_run_script")
-        # Successful server execution does not raise. Method returns None on OK
-        assert pa.execute("NOOP;") is None
+        # Successful server execution return a response
+        response = pa.execute("NOOP;")
+        assert response.ok is True
