@@ -15,11 +15,6 @@ except ImportError:
     pd = None
 
 
-if sys.version_info.major == 3:
-    from collections.abc import Mapping
-else:
-    from collections import Mapping
-
 import six
 
 import pycrunch
@@ -50,8 +45,10 @@ from scrunch.connections import LOG, _default_connection, _get_connection
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
+    from collections import Mapping
 else:
     from urllib.parse import urljoin
+    from collections.abc import Mapping
 
 
 _MR_TYPE = 'multiple_response'
@@ -2372,23 +2369,23 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
             dataset otherwise the owner will be the current user in the
-            session and the Dataset will be set under `Persona Project`
+            session and the Dataset will be set under `Personal Project`.
+        :kwargs owner: str (optional)
+            When preserve_owner=False, the owner of fork will be the set
+            according to the passed Project URL or Folder path.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        nforks = len(self.resource.forks.index)
+
         if name is None:
+            nforks = len(self.resource.forks.index)
+            dsname = self.resource.body.name
             if six.PY2:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name.encode("ascii", "ignore"))
-            else:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name)
-        if description is None:
-            description = self.resource.body.description
+                dsname = dsname.encode("ascii", "ignore")
+            name = "FORK #{} of {}".format(nforks + 1, dsname)
+
+        description = description or self.resource.body.description
 
         body = dict(
             name=name,
@@ -2397,14 +2394,22 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             **kwargs
         )
 
+        owner = kwargs.get("owner")
         if preserve_owner:
             body['owner'] = self.resource.body.owner
+        elif owner:
+            body["owner"] = (
+                owner if owner.startswith("http") else get_project(owner).url
+            )
+
         # not returning a dataset
         payload = shoji_entity_wrapper(body)
-        _fork = self.resource.forks.create(payload).refresh()
-        # return a MutableDataset always
-        fork_ds = MutableDataset(_fork)  # Fork has same editor as current user
-        return fork_ds
+        try:
+            _fork = self.resource.forks.create(payload).refresh()
+        except TaskProgressTimeoutError as exc:
+            _fork = exc.entity.wait_progress(exc.response).refresh()
+
+        return MutableDataset(_fork)
 
     def replace_values(self, variables, filter=None, literal_subvar=False, timeout=60):
         """
