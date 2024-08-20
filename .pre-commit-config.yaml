@@ -19,6 +19,7 @@ repos:
   - repo: local
     hooks:
       - id: pytest-check
+        stages: [ push ]
         name: pytest-check
         entry: pytest scrunch/tests
         language: python
