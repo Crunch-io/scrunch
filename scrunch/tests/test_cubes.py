@@ -56,4 +56,3 @@ class TestCubes(TestDatasetBase, TestCase):
         mock_fetch_cube.assert_called_once_with(
             ds.resource, urls, count=count(), filter=processed_filter, weight=None
         )
-

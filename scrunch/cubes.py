@@ -45,7 +45,7 @@ def crtabs(dataset, variables, weight=None, filter_=None, transforms=None, **mea
             count=count(),
             weight=weight,
             filter=filter_,
-            **measures
+            **measures,
         ),
         transforms=transforms,
     )

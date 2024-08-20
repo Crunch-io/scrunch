@@ -10,7 +10,6 @@ from scrunch.accounts import Account
 
 
 class TestAccount(BaseIntegrationTestCase):
-
     def test_current_account(self):
         act = Account.current_account(self.site)
         assert act.resource.self == self.site.account.self

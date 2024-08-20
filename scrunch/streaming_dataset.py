@@ -10,9 +10,12 @@ def get_streaming_dataset(dataset, connection=None, editor=False, project=None):
     """
     shoji_ds, root = _get_dataset(dataset, connection, editor, project)
     # make sure the Dataset is of type streaming != "streaming"
-    if shoji_ds['body'].get('streaming') != 'streaming':
-        raise InvalidDatasetTypeError("Dataset %s is of type 'mutable',\
-            use get_mutable_dataset method instead" % dataset)
+    if shoji_ds["body"].get("streaming") != "streaming":
+        raise InvalidDatasetTypeError(
+            "Dataset %s is of type 'mutable',\
+            use get_mutable_dataset method instead"
+            % dataset
+        )
     ds = StreamingDataset(shoji_ds)
     if editor is True:
         authenticated_url = root.urls["user_url"]
@@ -37,8 +40,7 @@ class StreamingDataset(BaseDataset):
         importer = Importer()
         count = len(list(columns.values())[0])
         for x in range(count):
-            importer.stream_rows(self.resource,
-                                 {a: columns[a][x] for a in columns})
+            importer.stream_rows(self.resource, {a: columns[a][x] for a in columns})
         return count
 
     def push_rows(self, count=None):
@@ -49,7 +51,5 @@ class StreamingDataset(BaseDataset):
         """
         if bool(self.resource.stream.body.pending_messages):
             self.resource.batches.create(
-                shoji_entity_wrapper({
-                    'stream': count,
-                    'type': 'ldjson'}
-                ))
+                shoji_entity_wrapper({"stream": count, "type": "ldjson"})
+            )

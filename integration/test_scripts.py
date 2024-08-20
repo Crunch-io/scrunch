@@ -13,17 +13,24 @@ from scrunch.mutable_dataset import get_mutable_dataset
 from fixtures import BaseIntegrationTestCase
 
 
-@pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+@pytest.mark.skipif(
+    os.environ.get("LOCAL_INTEGRATION") is None,
+    reason="Do not run this test during CI/CD",
+)
 class TestSystemScripts(BaseIntegrationTestCase):
     def new_project(self, name):
-        res = self.site.projects.create(shoji_entity_wrapper({
-            "name": name + datetime.now().strftime("%Y%m%d%H%M%S")
-        })).refresh()
+        res = self.site.projects.create(
+            shoji_entity_wrapper(
+                {"name": name + datetime.now().strftime("%Y%m%d%H%M%S")}
+            )
+        ).refresh()
         return Project(res)
 
     def test_define_view_strict_subvariable_syntax(self):
         project = self.new_project("test_view_strict_subvariable")
-        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_dataset_script"})
+        ).refresh()
         categories = [
             {"id": 2, "name": "Home"},
             {"id": 3, "name": "Work"},
@@ -74,7 +81,9 @@ class TestSystemScripts(BaseIntegrationTestCase):
 
     def test_define_view_strict_subvariable_syntax_error(self):
         project = self.new_project("test_view_strict_subvariable_false")
-        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script_false"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_dataset_script_false"})
+        ).refresh()
         categories = [
             {"id": 2, "name": "Home"},
             {"id": 3, "name": "Work"},
@@ -120,12 +129,14 @@ class TestSystemScripts(BaseIntegrationTestCase):
             scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
             project.move_here([scrunch_dataset])
             resp = project.execute(script_body)
-            with pytest.raises(TaskError) as err: 
+            with pytest.raises(TaskError) as err:
                 wait_progress(resp, self.site.session)
             err_value = err.value[0]
             err_value["type"] == "script:validation"
             err_value["description"] == "Errors processing the script"
-            err_value["resolutions"][0]["message"] == "The following subvariables: bird, cat, dog exist in multiple arrays: pets, pets_2"
+            err_value["resolutions"][0][
+                "message"
+            ] == "The following subvariables: bird, cat, dog exist in multiple arrays: pets, pets_2"
         finally:
             ds.delete()
             project.delete()
@@ -135,13 +146,7 @@ class TestDatasetScripts(BaseIntegrationTestCase):
     def _create_ds(self):
         ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
         variable = ds.variables.create(
-            as_entity(
-                {
-                    "name": "pk",
-                    "alias": "pk",
-                    "type": "numeric",
-                }
-            )
+            as_entity({"name": "pk", "alias": "pk", "type": "numeric"})
         )
         return ds, variable
 
@@ -179,7 +184,7 @@ class TestDatasetScripts(BaseIntegrationTestCase):
         # Script big enough to trigger async validation
         async_script = ["""BAD-RENAME pk TO varA;"""] * 50000
         async_script = "\n".join(async_script)
-        assert len(async_script) > 2 ** 20  # This is the threshold for async
+        assert len(async_script) > 2**20  # This is the threshold for async
         with pytest.raises(ScriptExecutionError) as err:
             scrunch_dataset.scripts.execute(async_script)
         assert len(err.value.resolutions) == 50000  # All lines raised error
@@ -224,5 +229,5 @@ class TestDatasetScripts(BaseIntegrationTestCase):
 
             r = scrunch_dataset.scripts.all()
             assert len(r) == 1
-        finally: 
+        finally:
             ds.delete()

@@ -11,7 +11,9 @@ from fixtures import BaseIntegrationTestCase
 
 class TestDatasetMethods(BaseIntegrationTestCase):
     def test_replace_values(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_replace_values"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_replace_values"})
+        ).refresh()
         variable = ds.variables.create(
             as_entity(
                 {
@@ -23,9 +25,7 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             )
         ).refresh()
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
-        resp = scrunch_dataset.replace_values({
-            "my_var": 4
-        }, filter="missing(my_var)")
+        resp = scrunch_dataset.replace_values({"my_var": 4}, filter="missing(my_var)")
         if resp is not None:
             # We got a 202 response. Scrunch should have waited for the
             # progress to finish
@@ -34,8 +34,8 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             progress_status = progress.payload["value"]
             assert (
                 # Check for new or old complete task message
-                progress_status == {'progress': 100, 'message': 'complete'}
-                or progress_status == {'progress': 100, 'message': 'completed'}
+                progress_status == {"progress": 100, "message": "complete"}
+                or progress_status == {"progress": 100, "message": "completed"}
             )
         else:
             # This means the API handled this synchronously. 204 response
@@ -47,9 +47,14 @@ class TestDatasetMethods(BaseIntegrationTestCase):
         finally:
             ds.delete()
 
-    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+    @pytest.mark.skipif(
+        os.environ.get("LOCAL_INTEGRATION") is None,
+        reason="Do not run this test during CI/CD",
+    )
     def test_append_dataset(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_append_dataset"})
+        ).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -77,7 +82,9 @@ class TestDatasetMethods(BaseIntegrationTestCase):
                 }
             )
         ).refresh()
-        ds_to_append = self.site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
+        ds_to_append = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_dataset_to_append"})
+        ).refresh()
         ds_to_append.variables.create(
             as_entity(
                 {
@@ -109,7 +116,7 @@ class TestDatasetMethods(BaseIntegrationTestCase):
         scrunch_dataset_to_append = get_mutable_dataset(ds_to_append.body.id, self.site)
         try:
             scrunch_dataset.append_dataset(scrunch_dataset_to_append)
-            data = ds.follow("table", "limit=20")['data']
+            data = ds.follow("table", "limit=20")["data"]
             datetime_values = data[datetime_var.body.id]
             # We should have 5 (original dataset) + 5 (from the append_dataset)
             assert len(datetime_values) == 10
@@ -130,9 +137,14 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             ds.delete()
             ds_to_append.delete()
 
-    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+    @pytest.mark.skipif(
+        os.environ.get("LOCAL_INTEGRATION") is None,
+        reason="Do not run this test during CI/CD",
+    )
     def test_append_dataset_with_filter(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_append_dataset"})
+        ).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -160,7 +172,9 @@ class TestDatasetMethods(BaseIntegrationTestCase):
                 }
             )
         ).refresh()
-        ds_to_append = self.site.datasets.create(as_entity({"name": "test_scrunch_dataset_to_append"})).refresh()
+        ds_to_append = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_dataset_to_append"})
+        ).refresh()
         ds_to_append.variables.create(
             as_entity(
                 {
@@ -197,19 +211,16 @@ class TestDatasetMethods(BaseIntegrationTestCase):
         try:
             resp = scrunch_dataset.append_dataset(
                 scrunch_dataset_to_append,
-                filter="my_datetime_var > '{}'".format(filter_value)
+                filter="my_datetime_var > '{}'".format(filter_value),
             )
-            assert resp['body']['filter'] == {
-                'args': [
-                    {
-                        'variable': datetime_append_var['self']
-                    }, {
-                        'value': filter_value
-                    }
+            assert resp["body"]["filter"] == {
+                "args": [
+                    {"variable": datetime_append_var["self"]},
+                    {"value": filter_value},
                 ],
-                'function': '>'
+                "function": ">",
             }
-            data = ds.follow("table", "limit=20")['data']
+            data = ds.follow("table", "limit=20")["data"]
             datetime_values = data[datetime_var.body.id]
             # We should have 5 (original dataset) + 2 (filtered in append_dataset)
             assert len(datetime_values) == 7
@@ -227,9 +238,14 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             ds.delete()
             ds_to_append.delete()
 
-    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+    @pytest.mark.skipif(
+        os.environ.get("LOCAL_INTEGRATION") is None,
+        reason="Do not run this test during CI/CD",
+    )
     def test_append_dataset_with_filter_and_exclusion(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})
+        ).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -258,11 +274,7 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             )
         ).refresh()
         ds_to_append = self.site.datasets.create(
-            as_entity(
-                {
-                    "name": "test_scrunch_dataset_with_filter_exclusion_to_append"
-                }
-            )
+            as_entity({"name": "test_scrunch_dataset_with_filter_exclusion_to_append"})
         ).refresh()
         ds_to_append.variables.create(
             as_entity(
@@ -306,9 +318,9 @@ class TestDatasetMethods(BaseIntegrationTestCase):
         try:
             scrunch_dataset.append_dataset(
                 scrunch_dataset_to_append,
-                filter="my_datetime_var > '{}'".format(filter_value)
+                filter="my_datetime_var > '{}'".format(filter_value),
             )
-            data = ds.follow("table", "limit=20")['data']
+            data = ds.follow("table", "limit=20")["data"]
             datetime_values = data[datetime_var.body.id]
             # We should have 5 (original dataset) + 1 (filtered in append_dataset)
             assert len(datetime_values) == 6
@@ -325,9 +337,14 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             ds.delete()
             ds_to_append.delete()
 
-    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+    @pytest.mark.skipif(
+        os.environ.get("LOCAL_INTEGRATION") is None,
+        reason="Do not run this test during CI/CD",
+    )
     def test_append_dataset_with_variables_list_and_exclusion(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})
+        ).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -356,11 +373,7 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             )
         ).refresh()
         ds_to_append = self.site.datasets.create(
-            as_entity(
-                {
-                    "name": "test_scrunch_dataset_with_exclusion_to_append"
-                }
-            )
+            as_entity({"name": "test_scrunch_dataset_with_exclusion_to_append"})
         ).refresh()
         ds_to_append.variables.create(
             as_entity(
@@ -399,10 +412,9 @@ class TestDatasetMethods(BaseIntegrationTestCase):
         scrunch_dataset_to_append.exclude(exclusion)
         try:
             scrunch_dataset.append_dataset(
-                scrunch_dataset_to_append,
-                variables=["my_var", "my_datetime_var"]
+                scrunch_dataset_to_append, variables=["my_var", "my_datetime_var"]
             )
-            data = ds.follow("table", "limit=20")['data']
+            data = ds.follow("table", "limit=20")["data"]
             datetime_values = data[datetime_var.body.id]
             # We should have 5 (original dataset) + 4 (filtered by exclusion in append_dataset)
             assert len(datetime_values) == 9
@@ -422,11 +434,16 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             ds.delete()
             ds_to_append.delete()
 
-    @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
+    @pytest.mark.skipif(
+        os.environ.get("LOCAL_INTEGRATION") is None,
+        reason="Do not run this test during CI/CD",
+    )
     def test_append_dataset_with_variables_list_filters_and_exclusion(self):
-        ds = self.site.datasets.create(as_entity({
-            "name": "test_scrunch_append_dataset_with_variable_filters_exclusion"
-        })).refresh()
+        ds = self.site.datasets.create(
+            as_entity(
+                {"name": "test_scrunch_append_dataset_with_variable_filters_exclusion"}
+            )
+        ).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -455,11 +472,7 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             )
         ).refresh()
         ds_to_append = self.site.datasets.create(
-            as_entity(
-                {
-                    "name": "test_scrunch_dataset_with_exclusion_to_append"
-                }
-            )
+            as_entity({"name": "test_scrunch_dataset_with_exclusion_to_append"})
         ).refresh()
         ds_to_append.variables.create(
             as_entity(
@@ -503,9 +516,9 @@ class TestDatasetMethods(BaseIntegrationTestCase):
             scrunch_dataset.append_dataset(
                 scrunch_dataset_to_append,
                 variables=["my_var", "my_datetime_var"],
-                filter="my_datetime_var > '{}'".format(filter_value)
+                filter="my_datetime_var > '{}'".format(filter_value),
             )
-            data = ds.follow("table", "limit=20")['data']
+            data = ds.follow("table", "limit=20")["data"]
             datetime_values = data[datetime_var.body.id]
             # We should have 5 (original dataset) + 1 (filtered by exclusion and filter in append_dataset)
             assert len(datetime_values) == 6
@@ -525,20 +538,26 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
 class TestCategories(BaseIntegrationTestCase):
     def test_edit_category(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_edit_category"})).refresh()
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_edit_category"})
+        ).refresh()
 
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
             {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
-            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None}
+            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None},
         ]
 
-        my_cat = ds.variables.create(as_entity({
-            "name": "my_cat",
-            "alias": "my_cat",
-            "type": "categorical",
-            "categories": categories
-        }))
+        my_cat = ds.variables.create(
+            as_entity(
+                {
+                    "name": "my_cat",
+                    "alias": "my_cat",
+                    "type": "categorical",
+                    "categories": categories,
+                }
+            )
+        )
 
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         my_cat = scrunch_dataset[my_cat.body["alias"]]  # Ensure refreshed var
@@ -546,7 +565,11 @@ class TestCategories(BaseIntegrationTestCase):
 
         my_cat_reloaded = scrunch_dataset[my_cat.alias]
         try:
-            assert my_cat_reloaded.categories[1].as_dict() == dict(categories[0], numeric_value=1, selected=False)
-            assert my_cat_reloaded.categories[2].as_dict() == dict(categories[1], selected=False)
+            assert my_cat_reloaded.categories[1].as_dict() == dict(
+                categories[0], numeric_value=1, selected=False
+            )
+            assert my_cat_reloaded.categories[2].as_dict() == dict(
+                categories[1], selected=False
+            )
         finally:
             ds.delete()

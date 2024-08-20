@@ -1,8 +1,8 @@
-
 class AuthenticationError(Exception):
-    """ An exception to signal there was a problem trying to authenticate
+    """An exception to signal there was a problem trying to authenticate
     a user.
     """
+
     pass
 
 

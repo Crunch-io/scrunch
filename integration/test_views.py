@@ -7,21 +7,13 @@ from fixtures import BaseIntegrationTestCase
 
 
 class TestViews(BaseIntegrationTestCase):
-    FIXTURE_VARIABLES = [
-        ("var1", "numeric"),
-        ("var2", "text"),
-        ("var3", "numeric"),
-    ]
+    FIXTURE_VARIABLES = [("var1", "numeric"), ("var2", "text"), ("var3", "numeric")]
 
     def _create_ds(self):
         ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
 
         for alias, v_type in self.FIXTURE_VARIABLES:
-            var_body = as_entity({
-                "name": alias,
-                "alias": alias,
-                "type": v_type,
-            })
+            var_body = as_entity({"name": alias, "alias": alias, "type": v_type})
             ds.variables.create(var_body)
 
         return ds
@@ -75,4 +67,3 @@ class TestViews(BaseIntegrationTestCase):
 
         fetched_view = scrunch_dataset.views.get_by_name("view 2")
         assert fetched_view.id == view2.id
-

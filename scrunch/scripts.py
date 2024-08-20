@@ -47,16 +47,19 @@ class BaseScript:
         if strict_subvariable_syntax is not None:
             return strict_subvariable_syntax
         flags = self.resource.session.feature_flags
-        return flags.get("clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX)
+        return flags.get(
+            "clients_strict_subvariable_syntax", DEFAULT_SUBVARIABLE_SYNTAX
+        )
 
     def execute(self, script_body, strict_subvariable_syntax=None):
         pass
 
 
 class SystemScript(BaseScript):
-
     def format_request_url(self, request_url, strict_subvariable_syntax=None):
-        strict_subvariable_syntax_flag = self.get_default_syntax_flag(strict_subvariable_syntax)
+        strict_subvariable_syntax_flag = self.get_default_syntax_flag(
+            strict_subvariable_syntax
+        )
         if strict_subvariable_syntax_flag:
             request_url += "?strict_subvariable_syntax=true"
         return request_url
@@ -71,7 +74,9 @@ class SystemScript(BaseScript):
         # The script execution endpoint is a shoji:view
         payload = shoji_view_wrapper(script_body)
         try:
-            execute_url = self.format_request_url(self.resource.views['execute'], strict_subvariable_syntax)
+            execute_url = self.format_request_url(
+                self.resource.views["execute"], strict_subvariable_syntax
+            )
             return self.resource.session.post(execute_url, json=payload)
         except pycrunch.ClientError as err:
             resolutions = err.args[2]["resolutions"]
@@ -79,12 +84,13 @@ class SystemScript(BaseScript):
 
 
 class DatasetScripts(BaseScript):
-
     def execute(self, script_body, strict_subvariable_syntax=None, dry_run=False):
-        strict_subvariable_syntax = self.get_default_syntax_flag(strict_subvariable_syntax)
+        strict_subvariable_syntax = self.get_default_syntax_flag(
+            strict_subvariable_syntax
+        )
         payload = {
             "body": script_body,
-            "strict_subvariable_syntax": strict_subvariable_syntax
+            "strict_subvariable_syntax": strict_subvariable_syntax,
         }
 
         if dry_run:

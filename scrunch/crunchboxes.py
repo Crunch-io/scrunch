@@ -29,16 +29,15 @@ class CrunchBox(object):
           instance.
     """
 
-    WIDGET_URL = 'https://s.crunch.io/widget/index.html#/ds/{id}/'
+    WIDGET_URL = "https://s.crunch.io/widget/index.html#/ds/{id}/"
     DIMENSIONS = dict(height=480, width=600)
 
     # the attributes on entity.body.metadata
-    _METADATA_ATTRIBUTES = {'title', 'notes', 'header', 'footer'}
+    _METADATA_ATTRIBUTES = {"title", "notes", "header", "footer"}
 
     _MUTABLE_ATTRIBUTES = _METADATA_ATTRIBUTES
 
-    _IMMUTABLE_ATTRIBUTES = {
-        'id', 'user_id', 'creation_time', 'filters', 'variables'}
+    _IMMUTABLE_ATTRIBUTES = {"id", "user_id", "creation_time", "filters", "variables"}
 
     # removed `dataset` from the set above since it overlaps with the Dataset
     # instance on self. `boxdata.dataset` simply points to the dataset url
@@ -51,36 +50,35 @@ class CrunchBox(object):
         self.dataset = dataset
 
     def __setattr__(self, attr, value):
-        """ known attributes should be readonly """
+        """known attributes should be readonly"""
 
         if attr in self._IMMUTABLE_ATTRIBUTES:
-            raise AttributeError(
-                "Can't edit attibute '%s'" % attr)
+            raise AttributeError("Can't edit attibute '%s'" % attr)
         if attr in self._MUTABLE_ATTRIBUTES:
             raise AttributeError(
                 "Can't edit '%s' of a CrunchBox. Create a new one with "
-                "the same filters and variables to update its metadata" % attr)
+                "the same filters and variables to update its metadata" % attr
+            )
         object.__setattr__(self, attr, value)
 
     def __getattr__(self, attr):
         if attr in self._METADATA_ATTRIBUTES:
             return self.resource.metadata[attr]
 
-        if attr == 'filters':
+        if attr == "filters":
             # return a list of `Filters` instead of the filters expr on `body`
             _filters = []
             for obj in self.resource.filters:
-                f_url = obj['filter']
-                _filters.append(
-                    Filter(self.dataset.resource.filters.index[f_url]))
+                f_url = obj["filter"]
+                _filters.append(Filter(self.dataset.resource.filters.index[f_url]))
             return _filters
 
-        if attr == 'variables':
+        if attr == "variables":
             # return a list of `Variables` instead of the where expr on `body`
             _var_urls = []
             _var_map = self.resource.where.args[0].map
             for v in _var_map:
-                _var_urls.append(_var_map[v]['variable'])
+                _var_urls.append(_var_map[v]["variable"])
 
             return [
                 Variable(entity, self.dataset)
@@ -91,11 +89,10 @@ class CrunchBox(object):
         # all other attributes not catched so far
         if attr in self._ENTITY_ATTRIBUTES:
             return self.resource[attr]
-        raise AttributeError('CrunchBox has no attribute %s' % attr)
+        raise AttributeError("CrunchBox has no attribute %s" % attr)
 
     def __repr__(self):
-        return "<CrunchBox: title='{}'; id='{}'>".format(
-            self.title, self.id)
+        return "<CrunchBox: title='{}'; id='{}'>".format(self.title, self.id)
 
     def __str__(self):
         return self.title
@@ -109,7 +106,7 @@ class CrunchBox(object):
 
     @widget_url.setter
     def widget_url(self, _):
-        """ prevent edits to the widget_url """
+        """prevent edits to the widget_url"""
         raise AttributeError("Can't edit 'widget_url' of a CrunchBox")
 
     def iframe(self, logo=None, dimensions=None):
@@ -117,28 +114,34 @@ class CrunchBox(object):
         widget_url = self.widget_url
 
         if not isinstance(dimensions, dict):
-            raise TypeError('`dimensions` needs to be a dict')
+            raise TypeError("`dimensions` needs to be a dict")
 
         def _figure(html):
-            return '<figure style="text-align:left;" class="content-list-'\
-                   'component image">' + '  {}'.format(html) + \
-                   '</figure>'
+            return (
+                '<figure style="text-align:left;" class="content-list-'
+                'component image">' + "  {}".format(html) + "</figure>"
+            )
 
         _iframe = (
             '<iframe src="{widget_url}" width="{dimensions[width]}" '
             'height="{dimensions[height]}" style="border: 1px solid #d3d3d3;">'
-            '</iframe>')
+            "</iframe>"
+        )
 
         if logo:
-            _img = '<img src="{logo}" stype="height:auto; width:200px;'\
-                   ' margin-left:-4px"></img>'
+            _img = (
+                '<img src="{logo}" stype="height:auto; width:200px;'
+                ' margin-left:-4px"></img>'
+            )
             _iframe = _figure(_img) + _iframe
 
         elif self.title:
-            _div = '<div style="padding-bottom: 12px">'\
-                   '    <span style="font-size: 18px; color: #444444;'\
-                   ' line-height: 1;">' + self.title + '</span>'\
-                   '  </div>'
+            _div = (
+                '<div style="padding-bottom: 12px">'
+                '    <span style="font-size: 18px; color: #444444;'
+                ' line-height: 1;">' + self.title + "</span>"
+                "  </div>"
+            )
             _iframe = _figure(_div) + _iframe
 
         return _iframe.format(**locals())
