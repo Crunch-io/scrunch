@@ -1,0 +1,28 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: debug-statements
+        stages: [ commit ]
+      - id: end-of-file-fixer
+        stages: [ commit ]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.6.1
+    hooks:
+      # Run the linter.
+      - id: ruff
+
+      # Run the formatter.
+      - id: ruff-format
+        args: ["--check"]
+
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest-check
+        entry: pytest scrunch/tests
+        language: python
+        pass_filenames: false
+        always_run: true
+        types: [python]
