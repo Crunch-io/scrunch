@@ -162,7 +162,7 @@ class Multitable(SubEntity):
         filter=None,
         where=None,
         options=None,
-        **kwargs,
+        **kwargs
     ):
         """
         A tabbook export: http://docs.crunch.io/#tab-books

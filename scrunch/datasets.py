@@ -480,36 +480,44 @@ class Project:
         """
         TODO: deprecate in favor of members.list property
         """
-        LOG.warning("""This method is legacy and will be deprecated
+        LOG.warning(
+            """This method is legacy and will be deprecated
             in future releases. Please make use of project.members.list()
-            instead""")  # noqa: E501
+            instead"""
+        )  # noqa: E501
         return self.members.list()
 
     def remove_user(self, user):
         """
         TODO: deprecate in favor of members.remove property
         """
-        LOG.warning("""This method is legacy and will be deprecated
+        LOG.warning(
+            """This method is legacy and will be deprecated
             in future releases. Please make use of project.members.remove()
-            instead""")  # noqa: E501
+            instead"""
+        )  # noqa: E501
         self.members.remove(user)
 
     def add_user(self, user, edit=False):
         """
         TODO: deprecate in favor of members.add property
         """
-        LOG.warning("""This method is legacy and will be deprecated
+        LOG.warning(
+            """This method is legacy and will be deprecated
             in future releases. Please make use of project.members.add()
-            instead""")  # noqa: E501
+            instead"""
+        )  # noqa: E501
         self.members.add(user, edit)
 
     def edit_user(self, user, edit):
         """
         TODO: deprecate in favor of members.edit property
         """
-        LOG.warning("""This method is legacy and will be deprecated
+        LOG.warning(
+            """This method is legacy and will be deprecated
             in future releases. Please make use of project.members.edit()
-            instead""")  # noqa: E501
+            instead"""
+        )  # noqa: E501
         self.members.edit(user, {"permissions": {"edit": edit}})
 
     def get_dataset(self, dataset):
@@ -2071,9 +2079,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if len(self.resource.savepoints.index) > 0:
             if description in self.savepoint_attributes("description"):
                 raise KeyError(
-                    "A checkpoint with the description '{}' already" " exists.".format(
-                        description
-                    )
+                    "A checkpoint with the description '{}' already"
+                    " exists.".format(description)
                 )
 
         sp = shoji_entity_wrapper({"description": description})
@@ -2184,9 +2191,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             # to use Variable instances instead of their Tuple representation.
             # This would cause additional GET's
             variables = [
-                var.shoji_tuple
-                if isinstance(var, Variable)
-                else self.resource.variables.by("alias")[var]
+                (
+                    var.shoji_tuple
+                    if isinstance(var, Variable)
+                    else self.resource.variables.by("alias")[var]
+                )
                 for var in variables
             ]
 
@@ -2489,7 +2498,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         name=None,
         is_published=False,
         preserve_owner=True,
-        **kwargs,
+        **kwargs
     ):
         """
         Create a fork of ds and add virgin savepoint.
@@ -2908,10 +2917,12 @@ class Dataset(BaseDataset):
     _BASE_MUTABLE_ATTRIBUTES = {"streaming"}
 
     def __init__(self, resource):
-        LOG.warning("""Dataset is deprecated, instead use now
+        LOG.warning(
+            """Dataset is deprecated, instead use now
             mutable_datasets.MutableDataset or streaming_dataset.StreamingDataset
             with it's corresponding get_mutable_dataset and get_streaming_dataset
-            methods""")  # noqa: E501
+            methods"""
+        )  # noqa: E501
         super(Dataset, self).__init__(resource)
         self._MUTABLE_ATTRIBUTES = (
             self._BASE_MUTABLE_ATTRIBUTES | self._BASE_MUTABLE_ATTRIBUTES

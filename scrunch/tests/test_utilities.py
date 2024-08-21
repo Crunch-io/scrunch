@@ -165,14 +165,10 @@ class TestUtilities(object):
         by_name_catalog = shoji.Catalog(
             session,
             index=shoji.Index(
-                    session,
-                    catalog_url,
-                    **{
-                        dataset_url: shoji.Tuple(
-                            session, dataset_url, name="dataset_name"
-                        )
-                    }
-                )
+                session,
+                catalog_url,
+                **{dataset_url: shoji.Tuple(session, dataset_url, name="dataset_name")}
+            ),
         )
         root.follow.return_value = by_name_catalog
         ds = get_mutable_dataset("dataset_name")

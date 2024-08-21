@@ -35,9 +35,6 @@ def crtabs(dataset, variables, weight=None, filter_=None, transforms=None, **mea
     if filter_ is not None:
         filter_ = process_expr(parse_expr(filter_), dataset.resource)
 
-    # if six.PY2:
-    #     raise DeprecationWarning("Crunch Cube isn't supported in Python 2.x")
-
     return Cube(
         fetch_cube(
             dataset.resource,
@@ -45,7 +42,7 @@ def crtabs(dataset, variables, weight=None, filter_=None, transforms=None, **mea
             count=count(),
             weight=weight,
             filter=filter_,
-            **measures,
+            **measures
         ),
         transforms=transforms,
     )
