@@ -1363,11 +1363,9 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         project = Project(
             Entity(
                 session,
-                **{
-                    "self": project_url,
-                    "element": "shoji:entity",
-                    "body": {"name": "Targer project"},
-                },
+                self=project_url,
+                element="shoji:entity",
+                body={"name": "Targer project"},
             )
         )
         project.move_here = MagicMock()
@@ -1379,12 +1377,10 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         dataset_url = "http://host/api/projects/abc/"
         dataset_resource = Entity(
             session,
-            **{
-                "element": "shoji:entity",
-                "self": dataset_url,
-                "body": {"name": "test_dataset_project"},
-                "catalogs": {"project": project_url},
-            },
+            element="shoji:entity",
+            self=dataset_url,
+            body={"name": "test_dataset_project"},
+            catalogs={"project": project_url},
         )
         self._load_dataset(dataset_resource)
         project = self._project(session, project_url)
@@ -1399,12 +1395,10 @@ class TestCurrentOwner(TestDatasetBase, TestCase):
         dataset_url = "http://host/api/projects/abc/"
         dataset_resource = Entity(
             session,
-            **{
-                "element": "shoji:entity",
-                "self": dataset_url,
-                "body": {"name": "test_dataset_project"},
-                "catalogs": {"project": project_url},
-            },
+            element="shoji:entity",
+            self=dataset_url,
+            body={"name": "test_dataset_project"},
+            catalogs={"project": project_url},
         )
         self._load_dataset(dataset_resource)
         project = self._project(session, project_url)
@@ -1730,12 +1724,10 @@ class TestFillVariables(TestCase):
         table_url = "http://host/api/projects/abc/table/?limit=0"
         dataset_resource = Entity(
             session,
-            **{
-                "element": "shoji:entity",
-                "self": dataset_url,
-                "body": {"name": "test_dataset_project"},
-                "catalogs": {"variables": variables_url, "table": table_url},
-            },
+            element="shoji:entity",
+            self=dataset_url,
+            body={"name": "test_dataset_project"},
+            catalogs={"variables": variables_url, "table": table_url},
         )
 
         variables_payload = {
@@ -6644,12 +6636,10 @@ class TestHeadingSubtotals(TestDatasetBase):
         var_url = "https://example.com/datasets/id/variable/id/"
 
         var_tup = Tuple(
-            session,
-            var_url,
-            **{"alias": "my_var", "name": "my_var", "type": "categorical", "view": {}},
+            session, var_url, alias="my_var", name="my_var", type="categorical", view={}
         )
 
-        vars_cat = Catalog(session, **{"self": vars_url, "index": {var_url: var_tup}})
+        vars_cat = Catalog(session, self=vars_url, index={var_url: var_tup})
         vars_cat.hier = MagicMock()
 
         existing_subtotal = {
@@ -6677,7 +6667,7 @@ class TestHeadingSubtotals(TestDatasetBase):
         var_res = Entity(session, **variable_body)
         var_tup._entity = var_res
 
-        ds_res = Entity(session, **{"self": ds_url, "body": {}, "catalogs": {}})
+        ds_res = Entity(session, self=ds_url, body={}, catalogs={})
         ds_res.variables = vars_cat
         ds_res.settings = MagicMock()
         ds_res.folders = MagicMock()

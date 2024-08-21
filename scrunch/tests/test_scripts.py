@@ -18,11 +18,9 @@ class TestScripts(TestCase):
 
         shoji_resource = Entity(
             session,
-            **{
-                "self": "https://example.com/dataset/url/",
-                "body": {},
-                "catalogs": {"scripts": scripts_url},
-            },
+            self="https://example.com/dataset/url/",
+            body={},
+            catalogs={"scripts": scripts_url},
         )
 
         created_script_url = "https://example.com/script/2/"
@@ -79,11 +77,9 @@ class TestScripts(TestCase):
         collapse_url = "https://example.com/dataset/url/scripts/collapse/"
         shoji_resource = Entity(
             session,
-            **{
-                "self": "https://example.com/dataset/url/",
-                "body": {},
-                "catalogs": {"scripts": scripts_url},
-            },
+            self="https://example.com/dataset/url/",
+            body={},
+            catalogs={"scripts": scripts_url},
         )
 
         response = Response()

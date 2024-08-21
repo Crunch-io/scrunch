@@ -16,11 +16,10 @@ class TestViews:
     def test_disabled_on_views(self):
         session = Mock()
         dataset_shoji_resource = Entity(
-            session, **{"self": "/datasets/id/", "body": {"view_of": None}}
+            session, self="/datasets/id/", body={"view_of": None}
         )
         view_shoji_resource = Entity(
-            session,
-            self="/datasets/id/", body={"view_of": "some dataset URL"}
+            session, self="/datasets/id/", body={"view_of": "some dataset URL"}
         )
         for res in (dataset_shoji_resource, view_shoji_resource):
             res.variables = MagicMock()
@@ -48,31 +47,25 @@ class TestViews:
     def _set_folders_fixtures(self, session):
         folders_catalog_res = Catalog(
             session,
-                self=self.folders_url,
-                index={},
-                catalogs={"public": self.public_url},
+            self=self.folders_url,
+            index={},
+            catalogs={"public": self.public_url},
         )
         public_catalog_res = Catalog(
             session,
-                self=self.public_url,
-                index={},
-                body={"name": "folder name"},
-                catalogs={},
+            self=self.public_url,
+            index={},
+            body={"name": "folder name"},
+            catalogs={},
         )
-        project_catalog_res = Catalog(
-            session, self=self.project_url, index={}, body={}
-        )
+        project_catalog_res = Catalog(session, self=self.project_url, index={}, body={})
         root_catalog_res = Catalog(
             session,
-            **{
-                "self": self.root_url,
-                "index": {},
-                "catalogs": {"datasets": self.datasets_url},
-            },
+            self=self.root_url,
+            index={},
+            catalogs={"datasets": self.datasets_url},
         )
-        dataset_catalog_res = Catalog(
-            session, **{"self": self.datasets_url, "index": {}}
-        )
+        dataset_catalog_res = Catalog(session, self=self.datasets_url, index={})
         session.site_url = self.root_url
         session.add_fixture(self.folders_url, folders_catalog_res)
         session.add_fixture(self.public_url, public_catalog_res)
@@ -89,28 +82,22 @@ class TestViews:
         project_url = "http://host/project/id"
         ds_res = Entity(
             session,
-            **{
-                "self": dataset_url,
-                "body": {"view_of": None, "owner": project_url},
-                "catalogs": {
-                    "views": views_url,
-                    "variables": variables_url,
-                    "parent": self.project_url,
-                },
+            self=dataset_url,
+            body={"view_of": None, "owner": project_url},
+            catalogs={
+                "views": views_url,
+                "variables": variables_url,
+                "parent": self.project_url,
             },
         )
-        variables_catalog_res = Catalog(
-            session, **{"self": self.variables_url, "index": {}}
-        )
+        variables_catalog_res = Catalog(session, self=self.variables_url, index={})
         new_view_res = Entity(
             session,
-            **{
-                "self": new_view_url,
-                "body": {"view_of": dataset_url},
-                "catalogs": {
-                    "variables": variables_url,  # Same as dataset, unimportant
-                    "folders": self.folders_url,
-                },
+            self=new_view_url,
+            body={"view_of": dataset_url},
+            catalogs={
+                "variables": variables_url,  # Same as dataset, unimportant
+                "folders": self.folders_url,
             },
         )
         self._set_folders_fixtures(session)
@@ -141,32 +128,26 @@ class TestViews:
         project_url = "http://host/project/id"
         ds_res = Entity(
             session,
-            **{
-                "self": dataset_url,
-                "body": {"view_of": None, "owner": project_url},
-                "catalogs": {
-                    "views": views_url,
-                    "variables": self.variables_url,
-                    "parent": self.project_url,
-                },
+            self=dataset_url,
+            body={"view_of": None, "owner": project_url},
+            catalogs={
+                "views": views_url,
+                "variables": self.variables_url,
+                "parent": self.project_url,
             },
         )
         variables_catalog_res = Catalog(
             session,
-            **{
-                "self": self.variables_url,
-                "index": {"idA": {"alias": "A"}, "idB": {"alias": "B"}},
-            },
+            self=self.variables_url,
+            index={"idA": {"alias": "A"}, "idB": {"alias": "B"}},
         )
         new_view_res = Entity(
             session,
-            **{
-                "self": new_view_url,
-                "body": {"view_of": dataset_url},
-                "catalogs": {
-                    "variables": self.variables_url,  # Same as dataset, unimportant
-                    "folders": self.folders_url,
-                },
+            self=new_view_url,
+            body={"view_of": dataset_url},
+            catalogs={
+                "variables": self.variables_url,  # Same as dataset, unimportant
+                "folders": self.folders_url,
             },
         )
         self._set_folders_fixtures(session)
@@ -197,22 +178,18 @@ class TestViews:
         dataset_url = "http://host/datasets/id/"
         ds_res = Entity(
             session,
-            **{
-                "self": dataset_url,
-                "body": {"view_of": None},
-                "catalogs": {
-                    "views": views_url,
-                    "variables": self.variables_url,
-                    "parent": self.project_url,
-                },
+            self=dataset_url,
+            body={"view_of": None},
+            catalogs={
+                "views": views_url,
+                "variables": self.variables_url,
+                "parent": self.project_url,
             },
         )
         views_catalog = Catalog(
             session,
-            **{
-                "self": views_url,
-                "index": {"v1_url": {"name": "view 1"}, "v2_url": {"name": "view 2"}},
-            },
+            self=views_url,
+            index={"v1_url": {"name": "view 1"}, "v2_url": {"name": "view 2"}},
         )
         session.add_fixture(views_url, views_catalog)
         views = DatasetViews(ds_res)
@@ -227,33 +204,27 @@ class TestViews:
         view_1_url = "http://host/view/1/"
         ds_res = Entity(
             session,
-            **{
-                "self": dataset_url,
-                "body": {"view_of": None},
-                "catalogs": {
-                    "views": views_url,
-                    "variables": variables_url,
-                    "parent": self.project_url,
-                },
+            self=dataset_url,
+            body={"view_of": None},
+            catalogs={
+                "views": views_url,
+                "variables": variables_url,
+                "parent": self.project_url,
             },
         )
         views_catalog = Catalog(
             session,
-            **{
-                "self": views_url,
-                "index": {view_1_url: {"name": "view 1"}, "v2_url": {"name": "view 2"}},
-            },
+            self=views_url,
+            index={view_1_url: {"name": "view 1"}, "v2_url": {"name": "view 2"}},
         )
 
         view_1_res = Entity(
             session,
-            **{
-                "self": view_1_url,
-                "body": {"view_of": dataset_url},
-                "catalogs": {
-                    "variables": variables_url,  # Same as dataset, unimportant
-                    "folders": self.folders_url,
-                },
+            self=view_1_url,
+            body={"view_of": dataset_url},
+            catalogs={
+                "variables": variables_url,  # Same as dataset, unimportant
+                "folders": self.folders_url,
             },
         )
         self._set_folders_fixtures(session)

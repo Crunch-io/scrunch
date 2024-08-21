@@ -36,55 +36,41 @@ def test_unique_folders():
     secure_url = "http://host/api/datasets/abc/folders/secure/"
     dataset_resource = Entity(
         session,
-        **{
-            "element": "shoji:entity",
-            "self": dataset_url,
-            "body": {"name": "test_dataset_project"},
-            "catalogs": {"folders": folders_url},
-        },
+        element="shoji:entity",
+        self=dataset_url,
+        body={"name": "test_dataset_project"},
+        catalogs={"folders": folders_url},
     )
     dataset_resource.variables = MagicMock()
     dataset_resource.settings = MagicMock()
     folders_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": folders_url,
-            "index": {},
-            "body": {"name": "Root"},
-            "catalogs": {
-                "public": public_url,
-                "hidden": hidden_url,
-                "secure": secure_url,
-            },
-        },
+        element="shoji:catalog",
+        self=folders_url,
+        index={},
+        body={"name": "Root"},
+        catalogs={"public": public_url, "hidden": hidden_url, "secure": secure_url},
     )
     public_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": public_url,
-            "index": {},
-            "body": {"name": "Public"},
-        },
+        element="shoji:catalog",
+        self=public_url,
+        index={},
+        body={"name": "Public"},
     )
     hidden_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": hidden_url,
-            "index": {},
-            "body": {"name": "Hidden"},
-        },
+        element="shoji:catalog",
+        self=hidden_url,
+        index={},
+        body={"name": "Hidden"},
     )
     secure_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": secure_url,
-            "index": {},
-            "body": {"name": "Secure"},
-        },
+        element="shoji:catalog",
+        self=secure_url,
+        index={},
+        body={"name": "Secure"},
     )
     session.add_fixture(folders_url, folders_resource)
     session.add_fixture(public_url, public_resource)
@@ -104,34 +90,28 @@ def test_legacy_without_public():
     public_url = "http://host/api/datasets/abc/folders/public/"
     dataset_resource = Entity(
         session,
-        **{
-            "element": "shoji:entity",
-            "self": dataset_url,
-            "body": {"name": "test_dataset_project"},
-            "catalogs": {"folders": folders_url},
-        },
+        element="shoji:entity",
+        self=dataset_url,
+        body={"name": "test_dataset_project"},
+        catalogs={"folders": folders_url},
     )
     dataset_resource.variables = MagicMock()
     dataset_resource.settings = MagicMock()
 
     folders_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": folders_url,
-            "index": {},
-            "catalogs": {"public": public_url},
-        },
+        element="shoji:catalog",
+        self=folders_url,
+        index={},
+        catalogs={"public": public_url},
     )
     public_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": public_url,
-            "index": {},
-            "body": {"name": "Root"},
-            "catalogs": {"public": public_url},
-        },
+        element="shoji:catalog",
+        self=public_url,
+        index={},
+        body={"name": "Root"},
+        catalogs={"public": public_url},
     )
     session.add_fixture(folders_url, folders_resource)
     session.add_fixture(public_url, public_resource)
@@ -150,47 +130,39 @@ def test_unique_folders_no_secure():
     hidden_url = "http://host/api/datasets/abc/folders/hidden/"
     dataset_resource = Entity(
         session,
-        **{
-            "element": "shoji:entity",
-            "self": dataset_url,
-            "body": {"name": "test_dataset_project"},
-            "catalogs": {"folders": folders_url},
-        },
+        element="shoji:entity",
+        self=dataset_url,
+        body={"name": "test_dataset_project"},
+        catalogs={"folders": folders_url},
     )
     dataset_resource.variables = MagicMock()
     dataset_resource.settings = MagicMock()
     folders_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": folders_url,
-            "index": {},
-            "body": {"name": "Root"},
-            "catalogs": {
-                "public": public_url,
-                "hidden": hidden_url,
-                # Viewer users don't have the secure folder available
-                # "secure": secure_url,
-            },
+        element="shoji:catalog",
+        self=folders_url,
+        index={},
+        body={"name": "Root"},
+        catalogs={
+            "public": public_url,
+            "hidden": hidden_url,
+            # Viewer users don't have the secure folder available
+            # "secure": secure_url,
         },
     )
     public_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": hidden_url,
-            "index": {},
-            "body": {"name": "Public"},
-        },
+        element="shoji:catalog",
+        self=hidden_url,
+        index={},
+        body={"name": "Public"},
     )
     hidden_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": hidden_url,
-            "index": {},
-            "body": {"name": "Hidden"},
-        },
+        element="shoji:catalog",
+        self=hidden_url,
+        index={},
+        body={"name": "Hidden"},
     )
     session.add_fixture(folders_url, folders_resource)
     session.add_fixture(public_url, public_resource)
@@ -209,42 +181,36 @@ def test_unique_folders_no_hidden():
     public_url = "http://host/api/datasets/abc/folders/public/"
     dataset_resource = Entity(
         session,
-        **{
-            "element": "shoji:entity",
-            "self": dataset_url,
-            "body": {"name": "test_dataset_project"},
-            "catalogs": {"folders": folders_url},
-        },
+        element="shoji:entity",
+        self=dataset_url,
+        body={"name": "test_dataset_project"},
+        catalogs={"folders": folders_url},
     )
     dataset_resource.variables = MagicMock()
     dataset_resource.settings = MagicMock()
     folders_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": folders_url,
-            "index": {},
-            "body": {"name": "Root"},
-            "catalogs": {
-                # Standard exposed catalogs
-                "public": public_url,
-                "personal": "./personal/",
-                "parents": "./parents/",
-                # Viewer users don't have the secure folder available
-                # "secure": secure_url,
-                # Viewers also don't get the hidden folder exposed
-                # "hidden": hidden_url,
-            },
+        element="shoji:catalog",
+        self=folders_url,
+        index={},
+        body={"name": "Root"},
+        catalogs={
+            # Standard exposed catalogs
+            "public": public_url,
+            "personal": "./personal/",
+            "parents": "./parents/",
+            # Viewer users don't have the secure folder available
+            # "secure": secure_url,
+            # Viewers also don't get the hidden folder exposed
+            # "hidden": hidden_url,
         },
     )
     public_resource = Catalog(
         session,
-        **{
-            "element": "shoji:catalog",
-            "self": public_url,
-            "index": {},
-            "body": {"name": "Public"},
-        },
+        element="shoji:catalog",
+        self=public_url,
+        index={},
+        body={"name": "Public"},
     )
     session.add_fixture(folders_url, folders_resource)
     session.add_fixture(public_url, public_resource)

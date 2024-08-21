@@ -2489,7 +2489,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         name=None,
         is_published=False,
         preserve_owner=True,
-        **kwargs
+        **kwargs,
     ):
         """
         Create a fork of ds and add virgin savepoint.

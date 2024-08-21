@@ -408,37 +408,37 @@ class TestRecode(TestCase):
         ]
         Entity(
             mock.MagicMock(),
-            **{
-                "element": "shoji:entity",
-                "self": "http://test.crunch.io/api/datasets/%s/variables/0001/"
-                % dataset_id,
-                # needed in order to simulate a Tuple, now Variable is inited with Tuple
-                "entity_url": "http://test.crunch.io/api/datasets/%s/variables/0001/"
-                % dataset_id,
-                "body": {
-                    "name": "Q1",
-                    "subreferences": [
-                        {"alias": "Q1_1", "is_subvar": True, "name": "One"},
-                        {"alias": "Q1_2", "is_subvar": True, "name": "Two"},
-                        {"alias": "Q1_3", "is_subvar": True, "name": "Three"},
-                    ],
-                    "missing_reasons": {"skipped": 8, "not asked": 9},
-                    "alias": "Q1",
-                    "subvariables": [
-                        "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000a/"
-                        % dataset_id,
-                        "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000b/"
-                        % dataset_id,
-                        "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000c/"
-                        % dataset_id,
-                    ],
-                    "dataset_id": dataset_id,
-                    "type": "multiple_response",
-                    "id": "0001",
-                    "categories": categories,
-                    "description": "Multiple Response Example",
-                    "notes": "",
-                },
+            element="shoji:entity",
+            self="http://test.crunch.io/api/datasets/{}/variables/0001/".format(
+                dataset_id
+            ),
+            # needed in order to simulate a Tuple, now Variable is inited with Tuple
+            entity_url="http://test.crunch.io/api/datasets/{}/variables/0001/".format(
+                dataset_id
+            ),
+            body={
+                "name": "Q1",
+                "subreferences": [
+                    {"alias": "Q1_1", "is_subvar": True, "name": "One"},
+                    {"alias": "Q1_2", "is_subvar": True, "name": "Two"},
+                    {"alias": "Q1_3", "is_subvar": True, "name": "Three"},
+                ],
+                "missing_reasons": {"skipped": 8, "not asked": 9},
+                "alias": "Q1",
+                "subvariables": [
+                    "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000a/"
+                    % dataset_id,
+                    "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000b/"
+                    % dataset_id,
+                    "http://test.crunch.io/api/datasets/%s/variables/0001/subvariables/000c/"
+                    % dataset_id,
+                ],
+                "dataset_id": dataset_id,
+                "type": "multiple_response",
+                "id": "0001",
+                "categories": categories,
+                "description": "Multiple Response Example",
+                "notes": "",
             },
         )
         table_mock = mock.MagicMock(

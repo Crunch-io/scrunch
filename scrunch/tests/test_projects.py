@@ -452,7 +452,7 @@ class TestProjectScripts(TestCase):
             views={"execute": self.project_execute_url},
         )
 
-        exexute_resource = Catalog(session, **{"self": self.project_execute_url})
+        exexute_resource = Catalog(session, self=self.project_execute_url)
 
         response = Response()
         response.status_code = 204
@@ -484,7 +484,7 @@ class TestProjectScripts(TestCase):
             views={"execute": self.project_execute_url},
         )
 
-        execute_resource = Catalog(session, **{"self": self.project_execute_url})
+        execute_resource = Catalog(session, self=self.project_execute_url)
 
         resolutions = [{"line": 100}]
         resolutions_out = json.dumps({"resolutions": resolutions})
