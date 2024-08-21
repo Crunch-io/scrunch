@@ -12,9 +12,11 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
-      # Run the formatter.
-      - id: ruff-format
-        args: ["--check"]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.8.0
+    hooks:
+      - id: black
 
   - repo: local
     hooks:
