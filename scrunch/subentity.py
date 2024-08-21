@@ -15,6 +15,7 @@ class SubEntity:
     A pycrunch.shoji.Entity directly related to a Dataset.
     For example; filters, decks
     """
+
     _MUTABLE_ATTRIBUTES = set()
     _IMMUTABLE_ATTRIBUTES = set()
     _ENTITY_ATTRIBUTES = set()
@@ -26,15 +27,15 @@ class SubEntity:
         if item in self._ENTITY_ATTRIBUTES:
             return self.resource.body[item]
         raise AttributeError(
-            '{} has no attribute {}'.format(self.__class__.__name__, item))
+            "{} has no attribute {}".format(self.__class__.__name__, item)
+        )
 
     def __repr__(self):
         if PY2:
             name = self.name.encode("ascii", "replace")
         else:
             name = self.name
-        return u"<{}: name='{}'; id='{}'>".format(
-            self.__class__.__name__, name, self.id)
+        return "<{}: name='{}'; id='{}'>".format(self.__class__.__name__, name, self.id)
 
     def __str__(self):
         return self.__repr__()
@@ -43,7 +44,8 @@ class SubEntity:
         for key in kwargs:
             if key not in self._MUTABLE_ATTRIBUTES:
                 raise AttributeError(
-                    "Can't edit attribute {} of {}".format(key, self.name))
+                    "Can't edit attribute {} of {}".format(key, self.name)
+                )
         return self.resource.edit(**kwargs)
 
     def remove(self):
@@ -60,8 +62,9 @@ class Filter(SubEntity):
     """
     A pycrunch.shoji.Entity for Dataset filters
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'template', 'is_public', 'owner_id'}
-    _IMMUTABLE_ATTRIBUTES = {'id', }
+
+    _MUTABLE_ATTRIBUTES = {"name", "template", "is_public", "owner_id"}
+    _IMMUTABLE_ATTRIBUTES = {"id"}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
 
@@ -69,8 +72,9 @@ class Multitable(SubEntity):
     """
     A pycrunch.shoji.Entity for Multitables
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'template', 'is_public'}
-    _IMMUTABLE_ATTRIBUTES = {'id', }
+
+    _MUTABLE_ATTRIBUTES = {"name", "template", "is_public"}
+    _IMMUTABLE_ATTRIBUTES = {"id"}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __init__(self, shoji_tuple, ds):
@@ -84,8 +88,15 @@ class Multitable(SubEntity):
         """
         raise NotImplementedError
 
-    def export_tabbook(self, format, progress_tracker=None, filter=None,
-                       where=None, options=None, weight=False):
+    def export_tabbook(
+        self,
+        format,
+        progress_tracker=None,
+        filter=None,
+        where=None,
+        options=None,
+        weight=False,
+    ):
         """
         An adaption of https://github.com/Crunch-io/pycrunch/blob/master/pycrunch/exporting.py
         to Multitables exports (tabbboks)
@@ -95,12 +106,12 @@ class Multitable(SubEntity):
         # add filter to multitable
         if filter:
             if isinstance(filter, Filter):
-                payload['filter'] = [{'filter': filter.resource.self}]
+                payload["filter"] = [{"filter": filter.resource.self}]
             else:
-                raise ValueError('filter param must be a Filter instance')
+                raise ValueError("filter param must be a Filter instance")
 
         if options and isinstance(options, dict):
-            payload['options'] = options
+            payload["options"] = options
 
         if where:
             if isinstance(where, list):
@@ -108,37 +119,32 @@ class Multitable(SubEntity):
                 for var in where:
                     id_vars.append(self.ds[var].url)
                 # Now build the payload with selected variables
-                payload['where'] = {
-                    'function': 'make_frame',
-                    'args': [{
-                        'map': {
-                            x: {'variable': x} for x in id_vars
-                        }
-                    }]
+                payload["where"] = {
+                    "function": "make_frame",
+                    "args": [{"map": {x: {"variable": x} for x in id_vars}}],
                 }
             else:
-                raise ValueError('where param must be a list of variable names')
+                raise ValueError("where param must be a list of variable names")
 
         if weight:
-            payload['weight'] = self.ds[weight].url
+            payload["weight"] = self.ds[weight].url
         if weight is None:
-            payload['weight'] = None
+            payload["weight"] = None
 
         session = self.resource.session
-        endpoint = self.resource.views['tabbook']
+        endpoint = self.resource.views["tabbook"]
 
         # in case of json format, we need to return the json response
-        if format == 'json':
+        if format == "json":
             r = session.post(
-                endpoint,
-                json.dumps(payload),
-                headers={'Accept': 'application/json'})
+                endpoint, json.dumps(payload), headers={"Accept": "application/json"}
+            )
         else:
             r = session.post(endpoint, json.dumps(payload))
-        dest_file = URL(r.headers['Location'], '')
+        dest_file = URL(r.headers["Location"], "")
         if r.status_code == 202:
             try:
-                r.payload['value']
+                r.payload["value"]
             except Exception:
                 # Not a progress API just return the incomplete entity.
                 # User will refresh it.
@@ -148,8 +154,16 @@ class Multitable(SubEntity):
                 wait_progress(r, session, progress_tracker)
         return dest_file
 
-    def export(self, path, format='xlsx', timeout=None, filter=None,
-               where=None, options=None, **kwargs):
+    def export(
+        self,
+        path,
+        format="xlsx",
+        timeout=None,
+        filter=None,
+        where=None,
+        options=None,
+        **kwargs
+    ):
         """
         A tabbook export: http://docs.crunch.io/#tab-books
         Exports data as csv to the given path or as a JSON response
@@ -160,7 +174,7 @@ class Multitable(SubEntity):
         :options: Display options as python dictionary
         :weight: Name of the weight_variable
         """
-        if format not in ['xlsx', 'json']:
+        if format not in ["xlsx", "json"]:
             raise ValueError("Format can only be 'json' or 'xlxs'")
         progress_tracker = DefaultProgressTracking(timeout)
         tabbook_args = dict(
@@ -170,10 +184,10 @@ class Multitable(SubEntity):
             where=where,
             options=options,
         )
-        if 'weight' in kwargs:
-            tabbook_args['weight'] = kwargs['weight']
+        if "weight" in kwargs:
+            tabbook_args["weight"] = kwargs["weight"]
         else:
-            tabbook_args['weight'] = False
+            tabbook_args["weight"] = False
         url = self.export_tabbook(**tabbook_args)
         download_file(url, path)
 
@@ -182,14 +196,15 @@ class Deck(SubEntity):
     """
     A pycrunch.shoji.Entity for Dataset decks
     """
-    _MUTABLE_ATTRIBUTES = {'name', 'description', 'is_public',
-                           'owner_id', 'owner_name'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'creation_time', 'slides'}
+
+    _MUTABLE_ATTRIBUTES = {"name", "description", "is_public", "owner_id", "owner_name"}
+    _IMMUTABLE_ATTRIBUTES = {"id", "creation_time", "slides"}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __repr__(self):
         return "<{}: id='{}'; name='{}'>".format(
-            self.__class__.__name__, self.id, self.name)
+            self.__class__.__name__, self.id, self.name
+        )
 
     @property
     def slides(self):
@@ -202,7 +217,7 @@ class Deck(SubEntity):
     @slides.setter
     def slides(self, _):
         # Protect `slides` property from direct modifications.
-        raise TypeError('Use add_decks method to add a new deck')
+        raise TypeError("Use add_decks method to add a new deck")
 
     def xlsx_export(self):
         raise NotImplementedError
@@ -212,27 +227,34 @@ class Slide(SubEntity):
     """
     A pycrunch.shoji.Entity for a Slide
     """
-    _MUTABLE_ATTRIBUTES = {'display_settings', 'analysis_url', 'title',
-                           'subtitle', 'deck_id'}
-    _IMMUTABLE_ATTRIBUTES = {'id', 'dataset_id', 'version', 'analyses'}
+
+    _MUTABLE_ATTRIBUTES = {
+        "display_settings",
+        "analysis_url",
+        "title",
+        "subtitle",
+        "deck_id",
+    }
+    _IMMUTABLE_ATTRIBUTES = {"id", "dataset_id", "version", "analyses"}
     _ENTITY_ATTRIBUTES = _MUTABLE_ATTRIBUTES | _IMMUTABLE_ATTRIBUTES
 
     def __repr__(self):
         return "<{}: id='{}'; title='{}'>".format(
-            self.__class__.__name__, self.id, self.title)
+            self.__class__.__name__, self.id, self.title
+        )
 
     @property
     def analyses(self):
         _analyses = {}
         for url, a in self.resource.analyses.index.items():
-            id = url.split('/')[-2]
+            id = url.split("/")[-2]
             _analyses[id] = Analysis(a, id)
         return _analyses
 
     @analyses.setter
     def analyses(self, _):
         # Protect `analyses` property from direct modifications.
-        raise TypeError('Use add_decks method to add a new deck')
+        raise TypeError("Use add_decks method to add a new deck")
 
 
 class Analysis:
@@ -249,8 +271,8 @@ class Analysis:
             return self.resource.body[item]
         except AttributeError:
             raise AttributeError(
-                '{} has no attribute {}'.format(
-                    self.__class__.__name__, item))
+                "{} has no attribute {}".format(self.__class__.__name__, item)
+            )
 
     def __repr__(self):
         return "<{}: id='{}'>".format(self.__class__.__name__, self.id)
@@ -261,12 +283,11 @@ class Analysis:
         out of the current instance GET a cube query
         :return: a shoji:view json instance
         """
-        json_string = self['query'].json
+        json_string = self["query"].json
         # this process removes newlines
         dict_obj = json.loads(json_string)
         resp = ds.resource.follow(
-            'cube',
-            urllib.parse.urlencode({'query': json.dumps(dict_obj)})
+            "cube", urllib.parse.urlencode({"query": json.dumps(dict_obj)})
         )
         return resp.json
 

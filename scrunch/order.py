@@ -12,33 +12,32 @@ else:
 
 import pycrunch
 import scrunch.datasets
-from scrunch.exceptions import (InvalidPathError, InvalidReferenceError,
-                                OrderUpdateError)
+from scrunch.exceptions import InvalidPathError, InvalidReferenceError, OrderUpdateError
 
-NAME_REGEX = re.compile(r'^\|$|^\|?([\w\s,&\(\)\-\/\\]+\|?)+$', re.UNICODE)
+NAME_REGEX = re.compile(r"^\|$|^\|?([\w\s,&\(\)\-\/\\]+\|?)+$", re.UNICODE)
 
 
 class Path(object):
     def __init__(self, path):
         if not isinstance(path, six.string_types):
-            raise TypeError('The path must be a string object')
+            raise TypeError("The path must be a string object")
 
         self.path = path
 
     @property
     def is_root(self):
-        return self.path == '|'
+        return self.path == "|"
 
     @property
     def is_absolute(self):
-        return self.path.startswith('|')
+        return self.path.startswith("|")
 
     @property
     def is_relative(self):
         return not self.is_absolute
 
     def get_parts(self):
-        return [part.strip() for part in self.path.split('|') if part]
+        return [part.strip() for part in self.path.split("|") if part]
 
     def __str__(self):
         return self.path
@@ -48,7 +47,6 @@ class Path(object):
 
 
 class Group(object):
-
     INDENT_SIZE = 4
 
     def __init__(self, obj, order, parent=None):
@@ -60,25 +58,25 @@ class Group(object):
         # Load all the elements.
         for element in obj[self.name]:
             if isinstance(element, six.string_types):
-                _id = element.split('/')[-2]
+                _id = element.split("/")[-2]
                 # NOTE: instantiating Variable/Dataset here seems overkill to
                 # me. While its as simple as `Dataset(dataset.entity)` for the
                 # `dataset` tuple below, for the Variable we would first need
                 # to instantiate it's `Dataset`, going through all this order
                 # machinery again...
-                if 'datasets' not in element or 'variables' in element:
+                if "datasets" not in element or "variables" in element:
                     # 1. relative variable URL: ../<id>/
                     # 2. compl variable URL: /api/datasets/<id>/variables/<id>/
                     var = self.order.vars.get(_id)
                     if var:
                         self.elements[var.alias] = var
-                elif 'datasets' in element and 'variables' not in element:
+                elif "datasets" in element and "variables" not in element:
                     # 3. it's a dataset URL
                     dataset = self.order.datasets.get(_id)
                     if dataset:
                         self.elements[dataset.id] = dataset
                     else:
-                        refresh_ds = self.order.catalog.refresh()['index']
+                        refresh_ds = self.order.catalog.refresh()["index"]
                         for key, obj in refresh_ds.items():
                             if _id in key:
                                 self.elements[obj.id] = obj
@@ -92,7 +90,7 @@ class Group(object):
             elif isinstance(element, scrunch.datasets.BaseDataset):
                 self.elements[element.id] = element
             else:
-                raise TypeError('Invalid OrderObject %s' % element)
+                raise TypeError("Invalid OrderObject %s" % element)
 
     def __str__(self):
         def _get_elements(group):
@@ -101,8 +99,9 @@ class Group(object):
                 if isinstance(obj, Group):
                     elements.append({key: _get_elements(obj)})
                 # TODO unreached code
-                elif isinstance(obj, (scrunch.datasets.Variable,
-                                      scrunch.datasets.BaseDataset)):
+                elif isinstance(
+                    obj, (scrunch.datasets.Variable, scrunch.datasets.BaseDataset)
+                ):
                     elements.append(obj.name)
                 else:
                     elements.append(obj.name)
@@ -136,7 +135,7 @@ class Group(object):
 
     def __getitem__(self, path):
         if not isinstance(path, six.string_types):
-            raise TypeError('arg 1 must be a string')
+            raise TypeError("arg 1 must be a string")
 
         path = Path(path)
 
@@ -144,9 +143,7 @@ class Group(object):
             return self
 
         if path.is_absolute and not self.is_root:
-            raise InvalidPathError(
-                'Absolute paths can only be used on the root Group.'
-            )
+            raise InvalidPathError("Absolute paths can only be used on the root Group.")
 
         group = self
         for part in path.get_parts():
@@ -154,15 +151,15 @@ class Group(object):
                 group = group.elements[part]
             except KeyError:
                 raise InvalidPathError(
-                    'Invalid path %s: element %s does not exist.' % (path, part)
+                    "Invalid path %s: element %s does not exist." % (path, part)
                 )
             except AttributeError:
                 raise InvalidPathError(
-                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                    "Invalid path %s: element %s is not a Group." % (path, part)
                 )
             if not isinstance(group, Group):
                 raise InvalidPathError(
-                    'Invalid path %s: element %s is not a Group.' % (path, part)
+                    "Invalid path %s: element %s is not a Group." % (path, part)
                 )
 
         return group
@@ -181,7 +178,7 @@ class Group(object):
 
     @property
     def is_root(self):
-        return self.parent is None and self.name == '__root__'
+        return self.parent is None and self.name == "__root__"
 
     @staticmethod
     def _validate_alias_arg(alias):
@@ -189,32 +186,24 @@ class Group(object):
             alias = [alias]
         if not isinstance(alias, Iterable):
             raise ValueError(
-                'Invalid list of aliases/ids/groups to be inserted'
-                ' into the Group.'
+                "Invalid list of aliases/ids/groups to be inserted" " into the Group."
             )
         if not all(isinstance(a, six.string_types) for a in alias):
             raise ValueError(
-                'Only string references to aliases/ids/group names'
-                ' are allowed.'
+                "Only string references to aliases/ids/group names" " are allowed."
             )
         return alias
 
     def _validate_name_arg(self, name):
         if not isinstance(name, six.string_types):
-            raise ValueError(
-                'The name argument must be a string object.'
-            )
-        if '|' in name:
-            raise ValueError(
-                'The pipe (|) character is not allowed.'
-            )
+            raise ValueError("The name argument must be a string object.")
+        if "|" in name:
+            raise ValueError("The pipe (|) character is not allowed.")
         if name in self.elements:
-            raise ValueError(
-                'A variable/sub-group named \'%s\' already exists.' % name
-            )
+            raise ValueError("A variable/sub-group named '%s' already exists." % name)
 
         if six.PY2:
-            regex_match = re.match(NAME_REGEX, name.decode('utf-8'))
+            regex_match = re.match(NAME_REGEX, name.decode("utf-8"))
         else:
             regex_match = re.match(NAME_REGEX, name)
 
@@ -225,16 +214,14 @@ class Group(object):
 
     def _validate_reference_arg(self, reference):
         if not isinstance(reference, six.string_types):
-            raise TypeError('Invalid reference. It must be a string.')
+            raise TypeError("Invalid reference. It must be a string.")
         if reference not in self.elements:
             raise InvalidReferenceError(
-                'Invalid reference %s: it is not part of the current Group.'
-                % reference
+                "Invalid reference %s: it is not part of the current Group." % reference
             )
         return reference
 
     def find(self, name):
-
         def _find(group):
             for _name, obj in group.elements.items():
                 if isinstance(obj, Group):
@@ -247,7 +234,6 @@ class Group(object):
         return _find(self)
 
     def find_group(self, name):
-
         def _find(group):
             if group.name == name:
                 return group
@@ -263,9 +249,9 @@ class Group(object):
         elements = self._validate_alias_arg(alias)
 
         if not isinstance(position, int):
-            raise ValueError('Invalid position. It must be an integer.')
+            raise ValueError("Invalid position. It must be an integer.")
         if position < -1 or position > len(self.elements):
-            raise IndexError('Invalid position %d' % position)
+            raise IndexError("Invalid position %d" % position)
         if position == 0 and (before or after):
             reference = self._validate_reference_arg(before or after)
             i = 0
@@ -285,23 +271,29 @@ class Group(object):
         elements_to_move = collections.OrderedDict()
         for element_name in elements:
             if element_name in self.elements:
-                elements_to_move[element_name] = \
-                    (self.elements[element_name], '__move__')
+                elements_to_move[element_name] = (
+                    self.elements[element_name],
+                    "__move__",
+                )
             else:
                 current_group = self.order.group.find(element_name)
                 if current_group:
                     # A variable.
-                    elements_to_move[element_name] = \
-                        (current_group, '__migrate_element__')
+                    elements_to_move[element_name] = (
+                        current_group,
+                        "__migrate_element__",
+                    )
                 else:
                     # Not a variable. A group, maybe?
                     group_to_move = self.order.group.find_group(element_name)
                     if group_to_move:
-                        elements_to_move[element_name] = \
-                            (group_to_move, '__migrate_group__')
+                        elements_to_move[element_name] = (
+                            group_to_move,
+                            "__migrate_group__",
+                        )
                     else:
                         raise ValueError(
-                            'Invalid alias/id/group name \'%s\'' % element_name
+                            "Invalid alias/id/group name '%s'" % element_name
                         )
 
         # Make all necessary changes to the order structure.
@@ -321,14 +313,14 @@ class Group(object):
                 for element_name in elements_to_move.keys():
                     obj, operation = elements_to_move[element_name]
 
-                    if operation == '__move__':
+                    if operation == "__move__":
                         _elements[element_name] = obj
-                    elif operation == '__migrate_element__':
+                    elif operation == "__migrate_element__":
                         current_group = obj
                         element = current_group.elements[element_name]
                         del current_group.elements[element_name]
                         _elements[element_name] = element
-                    elif operation == '__migrate_group__':
+                    elif operation == "__migrate_group__":
                         group_to_move = obj
                         orig_parent = group_to_move.parent
                         group_to_move.parent = self
@@ -350,9 +342,10 @@ class Group(object):
 
     def reorder(self, items):
         existing_items = [name for name in self.elements.keys()]
-        if len(items) != len(existing_items) or \
-                not all(i in existing_items for i in items):
-            raise ValueError('Invalid list of items for the reorder operation.')
+        if len(items) != len(existing_items) or not all(
+            i in existing_items for i in items
+        ):
+            raise ValueError("Invalid list of items for the reorder operation.")
 
         if items == existing_items:
             # Nothing to do.
@@ -365,13 +358,11 @@ class Group(object):
 
         self.order.update()
 
-    def create_group(self, name, alias=None, position=-1, before=None,
-                     after=None):
+    def create_group(self, name, alias=None, position=-1, before=None, after=None):
         name = self._validate_name_arg(name)
         # when we want to create an empty group
         if not alias:
-            self.elements[name] = Group(
-                {name: []}, order=self.order, parent=self)
+            self.elements[name] = Group({name: []}, order=self.order, parent=self)
             self.order.update()
             return
         elements = self._validate_alias_arg(alias)
@@ -383,20 +374,17 @@ class Group(object):
 
         # add the new Group to self.elements so that `insert` detects it
         self.elements[name] = new_group
-        self.insert(new_group.name, position=position,
-                    before=before, after=after)
+        self.insert(new_group.name, position=position, before=before, after=after)
 
     def rename(self, name):
         name = self._validate_name_arg(name)
 
         if self.is_root:
-            raise ValueError(
-                'Renaming the root Group is not allowed.'
-            )
+            raise ValueError("Renaming the root Group is not allowed.")
 
         if name in self.parent.elements:
             raise ValueError(
-                'Parent Group \'%s\' already contains an element named \'%s\'.'
+                "Parent Group '%s' already contains an element named '%s'."
                 % (self.parent.name, name)
             )
 
@@ -422,17 +410,15 @@ class Group(object):
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
-                'Invalid path %s: only absolute paths are allowed.' % path
+                "Invalid path %s: only absolute paths are allowed." % path
             )
         target_group = self.order[str(path)]
 
         if target_group == self:
             raise InvalidPathError(
-                'Invalid path %s: cannot move Group into itself.' % path
+                "Invalid path %s: cannot move Group into itself." % path
             )
-        target_group.insert(
-            self.name, position=position, before=before, after=after
-        )
+        target_group.insert(self.name, position=position, before=before, after=after)
 
 
 class Order(object):
@@ -460,7 +446,7 @@ class Order(object):
         if refresh:
             self.catalog.refresh()
             self.order.refresh()
-        self.group = Group({'__root__': self.order.graph}, order=self)
+        self.group = Group({"__root__": self.order.graph}, order=self)
 
     def place(self, entity, path, position=-1, before=None, after=None):
         """
@@ -470,7 +456,7 @@ class Order(object):
         path = Path(path)
         if not path.is_absolute:
             raise InvalidPathError(
-                'Invalid path %s: only absolute paths are allowed.' % path
+                "Invalid path %s: only absolute paths are allowed." % path
             )
         target_group = self.group[str(path)]
         if isinstance(entity, scrunch.datasets.Variable):
@@ -478,11 +464,9 @@ class Order(object):
         elif isinstance(entity, scrunch.datasets.BaseDataset):
             element = entity.id
         else:
-            raise TypeError('entity must be a `Variable` or `Dataset`')
+            raise TypeError("entity must be a `Variable` or `Dataset`")
 
-        target_group.insert(
-            element, position=position,
-            before=before, after=after)
+        target_group.insert(element, position=position, before=before, after=after)
 
     def _prepare_shoji_graph(self):
         """
@@ -493,9 +477,7 @@ class Order(object):
             _elements = []
             for obj in group.elements.values():
                 if isinstance(obj, Group):
-                    _elements.append({
-                        obj.name: _get(obj)
-                    })
+                    _elements.append({obj.name: _get(obj)})
                 else:
                     url = obj.entity.self
                     _elements.append(url)
@@ -504,10 +486,7 @@ class Order(object):
         return _get(self.group)
 
     def update(self):
-        updated_order = {
-            'element': 'shoji:order',
-            'graph': self._prepare_shoji_graph()
-        }
+        updated_order = {"element": "shoji:order", "graph": self._prepare_shoji_graph()}
         try:
             # NOTE: Order has no Attribute edit
             self.order.put(updated_order)
@@ -547,14 +526,12 @@ class Order(object):
 
 
 class DatasetVariablesOrder(Order):
-
     def _load(self, refresh=True):
-        self.vars = self.catalog.by('id')
+        self.vars = self.catalog.by("id")
         super(DatasetVariablesOrder, self)._load(refresh=refresh)
 
 
 class ProjectDatasetsOrder(Order):
-
     def _load(self, refresh=False):
-        self.datasets = self.catalog.by('id')
+        self.datasets = self.catalog.by("id")
         super(ProjectDatasetsOrder, self)._load(refresh=refresh)

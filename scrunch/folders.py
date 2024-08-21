@@ -15,7 +15,7 @@ class Folder(object):
         self.url = folder_ent.self
 
     def __repr__(self):
-        return '<Folder: %s>' % self.name
+        return "<Folder: %s>" % self.name
 
     def get(self, path):
         self.folder_ent.refresh()  # Always up to date
@@ -26,7 +26,7 @@ class Folder(object):
             try:
                 node = node.get_child(p_name)
             except KeyError:
-                raise InvalidPathError('Subfolder not found %s' % p)
+                raise InvalidPathError("Subfolder not found {}".format(p_name))
         return node
 
     def __getitem__(self, path):
@@ -57,8 +57,8 @@ class Folder(object):
         return list(self.iteritems())
 
     def get_child(self, name):
-        by_name = self.folder_ent.by('name')
-        by_alias = self.folder_ent.by('alias')
+        by_name = self.folder_ent.by("name")
+        by_alias = self.folder_ent.by("alias")
 
         # If found by alias, then it's a variable, return the variable
         if name in by_alias:
@@ -66,13 +66,13 @@ class Folder(object):
         elif name in by_name:
             # Found by name, if it's not a folder, return the variable
             tup = by_name[name]
-            if tup.type != 'folder':
+            if tup.type != "folder":
                 return self.root.dataset[name]
             return Folder(tup.entity, self.root, self)
 
         # Not a folder nor a variable
         path = self.path_pieces() + [name]
-        raise InvalidPathError('Invalid path: | %s' % ' | '.join(path))
+        raise InvalidPathError("Invalid path: | %s" % " | ".join(path))
 
     def path_pieces(self):
         if self.parent:
@@ -81,12 +81,14 @@ class Folder(object):
 
     @property
     def path(self):
-        return '| ' + ' | '.join(self.path_pieces())
+        return "| " + " | ".join(self.path_pieces())
 
-    def create_folder(self, folder_name, position=None, after=None, before=None, alias=None):
-        new_ent = self.folder_ent.create(Catalog(self.folder_ent.session, body={
-            'name': folder_name
-        }))
+    def create_folder(
+        self, folder_name, position=None, after=None, before=None, alias=None
+    ):
+        new_ent = self.folder_ent.create(
+            Catalog(self.folder_ent.session, body={"name": folder_name})
+        )
         new_ent.refresh()
         subfolder = Folder(new_ent, self.root, self)
         if position is not None or after is not None or before is not None:
@@ -131,12 +133,12 @@ class Folder(object):
             if item_url not in index:
                 continue
             item_tup = index[item_url]
-            if item_tup['type'] == 'folder':
+            if item_tup["type"] == "folder":
                 subfolder = Folder(item_tup.entity, self.root, self)
                 _children.append(subfolder)
             else:
                 # Add the variable
-                _children.append(ds[item_tup['alias']])
+                _children.append(ds[item_tup["alias"]])
         return _children
 
     def move_here(self, *children, **kwargs):
@@ -144,20 +146,20 @@ class Folder(object):
             return
         children = children[0] if isinstance(children[0], list) else children
         children = [
-            self.root.dataset[c] if isinstance(c, string_types) else c
-            for c in children
+            self.root.dataset[c] if isinstance(c, string_types) else c for c in children
         ]
         index = {c.url: {} for c in children}
-        position, before, after = [kwargs.get('position'),
-                                   kwargs.get('before'), kwargs.get('after')]
+        position, before, after = [
+            kwargs.get("position"),
+            kwargs.get("before"),
+            kwargs.get("after"),
+        ]
         if position is not None or after is not None or before is not None:
             children = self._position_items(children, position, before, after)
         graph = self.folder_ent.graph + [c.url for c in children]
-        self.folder_ent.patch({
-            'element': 'shoji:catalog',
-            'index': index,
-            'graph': graph
-        })
+        self.folder_ent.patch(
+            {"element": "shoji:catalog", "index": index, "graph": graph}
+        )
         self.folder_ent.refresh()
 
     def append(self, *children):
@@ -166,7 +168,7 @@ class Folder(object):
 
     def insert(self, *children, **kwargs):
         """Alias of move_here with a specific position"""
-        self.move_here(*children, position=kwargs.get('position', 0))
+        self.move_here(*children, position=kwargs.get("position", 0))
 
     def move(self, path, position=None, after=None, before=None):
         """
@@ -178,10 +180,7 @@ class Folder(object):
         target.move_here(self, position=position, after=after, before=before)
 
     def rename(self, new_name):
-        self.folder_ent.patch({
-            'element': 'shoji:catalog',
-            'body': {'name': new_name}
-        })
+        self.folder_ent.patch({"element": "shoji:catalog", "body": {"name": new_name}})
         self.name = new_name
 
     def delete(self):
@@ -189,15 +188,12 @@ class Folder(object):
 
     def reorder(self, *items):
         items = items[0] if isinstance(items[0], list) else items
-        name2tup = self.folder_ent.by('name')
+        name2tup = self.folder_ent.by("name")
         graph = [
             name2tup[c].entity_url if isinstance(c, string_types) else c.url
             for c in items
         ]
-        self.folder_ent.patch({
-            'element': 'shoji:catalog',
-            'graph': graph
-        })
+        self.folder_ent.patch({"element": "shoji:catalog", "graph": graph})
         self.folder_ent.refresh()
 
 

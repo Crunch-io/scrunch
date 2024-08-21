@@ -10,7 +10,13 @@ import tempfile
 from six import StringIO
 
 
-from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT, BaseIntegrationTestCase
+from fixtures import (
+    NEWS_DATASET,
+    NEWS_DATASET_ROWS,
+    mr_in,
+    RECODES_CSV_OUTPUT,
+    BaseIntegrationTestCase,
+)
 from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
@@ -20,17 +26,16 @@ class TestRecodes(BaseIntegrationTestCase):
     def test_recodes(self):
         raise self.skipTest("Temporarily disabling for API update")
         # Create a dataset for usage
-        ds = self.site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'test_recodes',
-                'table': {
-                    'element': 'crunch:table',
-                    'metadata': NEWS_DATASET
+        ds = self.site.datasets.create(
+            {
+                "element": "shoji:entity",
+                "body": {
+                    "name": "test_recodes",
+                    "table": {"element": "crunch:table", "metadata": NEWS_DATASET},
+                    "streaming": "streaming",
                 },
-                'streaming': 'streaming'
             }
-        }).refresh()
+        ).refresh()
         dataset = get_streaming_dataset(ds.body.id, self.site)
         print("Dataset %s created" % dataset.id)
 
@@ -39,73 +44,83 @@ class TestRecodes(BaseIntegrationTestCase):
         dataset.push_rows(total)
 
         # Recode a new single response variable
-        agerange = dataset.create_categorical([
-            {'id': 1, 'name': 'Underage', 'case': 'age < 18'},
-            {'id': 2, 'name': 'Millennials', 'case': 'age > 18 and age < 25'},
-            {'id': 3, 'name': 'Gen X', 'case': 'age < 35 and age >= 25'},
-            {'id': 4, 'name': 'Grown ups', 'case': 'age < 60 and age >= 35'},
-            {'id': 5, 'name': '60+', 'case': 'age >= 60'}
-        ], alias='agerange', name='Age range', multiple=False)
+        agerange = dataset.create_categorical(
+            [
+                {"id": 1, "name": "Underage", "case": "age < 18"},
+                {"id": 2, "name": "Millennials", "case": "age > 18 and age < 25"},
+                {"id": 3, "name": "Gen X", "case": "age < 35 and age >= 25"},
+                {"id": 4, "name": "Grown ups", "case": "age < 60 and age >= 35"},
+                {"id": 5, "name": "60+", "case": "age >= 60"},
+            ],
+            alias="agerange",
+            name="Age range",
+            multiple=False,
+        )
 
         print("Variable %s created" % agerange.alias)
 
         # Recode a new multiple response variable from an existing multiple
         # response variable
-        origintype = dataset.create_categorical([
-            {'id': 1, 'name': "Online",
-             # Mixed support for using "category"(subvariables really) IDs
-             'case': mr_in(dataset, 'newssource', [1, 2, 3, 4])},  # Only in the helper
-            {'id': 2, 'name': "Print", 'case': mr_in(dataset, 'newssource', [5, 6])},
-            {'id': 3, 'name': "Tv", 'case': mr_in(dataset, 'newssource', [7, 9])},
-            {'id': 4, 'name': "Radio", 'case': mr_in(dataset, 'newssource', [8, 10])},
-        ], alias='origintype', name="News source by type", multiple=True)
+        origintype = dataset.create_categorical(
+            [
+                {
+                    "id": 1,
+                    "name": "Online",
+                    # Mixed support for using "category"(subvariables really) IDs
+                    "case": mr_in(dataset, "newssource", [1, 2, 3, 4]),
+                },  # Only in the helper
+                {
+                    "id": 2,
+                    "name": "Print",
+                    "case": mr_in(dataset, "newssource", [5, 6]),
+                },
+                {"id": 3, "name": "Tv", "case": mr_in(dataset, "newssource", [7, 9])},
+                {
+                    "id": 4,
+                    "name": "Radio",
+                    "case": mr_in(dataset, "newssource", [8, 10]),
+                },
+            ],
+            alias="origintype",
+            name="News source by type",
+            multiple=True,
+        )
 
         print("Variable %s created" % origintype.alias)
 
         # Add an exclusion filter
-        dataset.exclude('agerange == 1')  # Remove underage
+        dataset.exclude("agerange == 1")  # Remove underage
 
         # MAYBE: Create a new numeric expression based on arbitrary rules
 
         # Copy a variable
         origintype_copy = dataset.copy_variable(
-            origintype,
-            name='Copy of origintype',
-            alias='origintype_copy')
+            origintype, name="Copy of origintype", alias="origintype_copy"
+        )
         print("Variable %s created" % origintype_copy.alias)
 
         onlinenewssource = dataset.combine_categories(
             origintype_copy,
-            map={
-                1: 1,
-                2: [2, 3, 4]
-            },
-            categories={
-                1: "online",
-                2: "notonline",
-            },
+            map={1: 1, 2: [2, 3, 4]},
+            categories={1: "online", 2: "notonline"},
             alias="onlinenewssource",
-            name='Online or not')
-        print('Created combination: %s' % onlinenewssource.alias)
+            name="Online or not",
+        )
+        print("Created combination: %s" % onlinenewssource.alias)
 
         # Combine a single categorical - Combine with subvar 3 on the wrong place
         over35 = dataset.combine_categories(
             agerange,
-            map={
-                1: [1, 2, 3],
-                2: [4, 5]
-            },
-            categories={
-                1: 'under35',
-                2: 'over35'
-            },
-            name='over 35?',
-            alias='over35')
-        print('Created combination: %s' % over35.alias)
+            map={1: [1, 2, 3], 2: [4, 5]},
+            categories={1: "under35", 2: "over35"},
+            name="over 35?",
+            alias="over35",
+        )
+        print("Created combination: %s" % over35.alias)
 
         self.maxDiff = None
         # Export some rows
-        output = tempfile.NamedTemporaryFile('rw', delete=True)
+        output = tempfile.NamedTemporaryFile("rw", delete=True)
         dataset.export(output.name)
 
         reader = csv.DictReader(output)
@@ -127,8 +142,8 @@ class TestRecodes(BaseIntegrationTestCase):
             writer.writerow([actual[h][i] for h in headers])
         actualf.seek(0)
 
-        result = [l.strip() for l in actualf.read().strip().split('\n')]
-        expected = RECODES_CSV_OUTPUT.split('\n')
+        result = [l.strip() for l in actualf.read().strip().split("\n")]
+        expected = RECODES_CSV_OUTPUT.split("\n")
         # Rows are unordered under streaming conditions
         self.assertEqual(sorted(result), sorted(expected))
 
@@ -140,46 +155,42 @@ class TestFill(BaseIntegrationTestCase):
     def prepare_ds(self):
         cats = [
             {"id": 1, "name": "Daily", "missing": False, "numeric_value": None},
-            {"id": 2, "name": "Weekly", "missing": False,
-             "numeric_value": None},
-            {"id": 3, "name": "Monthly", "missing": False,
-             "numeric_value": None},
-            {"id": -1, "name": "No Data", "missing": True,
-             "numeric_value": None},
+            {"id": 2, "name": "Weekly", "missing": False, "numeric_value": None},
+            {"id": 3, "name": "Monthly", "missing": False, "numeric_value": None},
+            {"id": -1, "name": "No Data", "missing": True, "numeric_value": None},
         ]
         metadata = {
             "coke_freq": {
                 "name": "frequency coke",
                 "type": "categorical",
-                "categories": cats
+                "categories": cats,
             },
             "pepsi_freq": {
                 "name": "frequency pepsi",
                 "type": "categorical",
-                "categories": cats
+                "categories": cats,
             },
             "pop_pref": {
                 "name": "Soda preference",
                 "type": "categorical",
                 "categories": [
-                    {"id": 1, "name": "Coke", "missing": False,
-                     "numeric_value": None},
-                    {"id": 2, "name": "Pepsi", "missing": False,
-                     "numeric_value": None},
-                    {"id": -1, "name": "No Data", "missing": True,
-                     "numeric_value": None},
-                ]
-            }
+                    {"id": 1, "name": "Coke", "missing": False, "numeric_value": None},
+                    {"id": 2, "name": "Pepsi", "missing": False, "numeric_value": None},
+                    {
+                        "id": -1,
+                        "name": "No Data",
+                        "missing": True,
+                        "numeric_value": None,
+                    },
+                ],
+            },
         }
         ds_payload = {
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'test_fill',
-                'table': {
-                    'element': 'crunch:table',
-                    'metadata': metadata
-                },
-            }
+            "element": "shoji:entity",
+            "body": {
+                "name": "test_fill",
+                "table": {"element": "crunch:table", "metadata": metadata},
+            },
         }
 
         rows = [
@@ -198,10 +209,14 @@ class TestFill(BaseIntegrationTestCase):
 
     def test_fill(self):
         dataset, api_ds = self.prepare_ds()
-        dataset.create_fill_values([
-            {"case": "pop_pref == 1", "variable": "coke_freq"},
-            {"case": "pop_pref == 2", "variable": "pepsi_freq"},
-        ], alias="pop_freq", name="Pop frequency")
+        dataset.create_fill_values(
+            [
+                {"case": "pop_pref == 1", "variable": "coke_freq"},
+                {"case": "pop_pref == 2", "variable": "pepsi_freq"},
+            ],
+            alias="pop_freq",
+            name="Pop frequency",
+        )
 
         variables = api_ds.variables.by("alias")
         new_id = variables["pop_freq"]["id"]
@@ -211,24 +226,31 @@ class TestFill(BaseIntegrationTestCase):
 
         data = api_ds.follow("table", "limit=6")
         cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
-        self.assertEqual(data["data"][new_id], [
-            # Coke chunk
-            cats["Daily"],
-            cats["Weekly"],
-            cats["Monthly"],
-            # Pepsi chunk
-            cats["Monthly"],
-            cats["Weekly"],
-            cats["Daily"],
-        ])
+        self.assertEqual(
+            data["data"][new_id],
+            [
+                # Coke chunk
+                cats["Daily"],
+                cats["Weekly"],
+                cats["Monthly"],
+                # Pepsi chunk
+                cats["Monthly"],
+                cats["Weekly"],
+                cats["Daily"],
+            ],
+        )
         api_ds.delete()
 
     def test_fill_w_else(self):
         dataset, ds = self.prepare_ds()
-        dataset.create_fill_values([
-            {"case": "pop_pref == 1", "variable": "coke_freq"},
-            {"case": "else", "variable": "pepsi_freq"},
-        ], alias="pop_freq", name="Pop frequency")
+        dataset.create_fill_values(
+            [
+                {"case": "pop_pref == 1", "variable": "coke_freq"},
+                {"case": "else", "variable": "pepsi_freq"},
+            ],
+            alias="pop_freq",
+            name="Pop frequency",
+        )
 
         variables = ds.variables.by("alias")
         new_id = variables["pop_freq"]["id"]
@@ -238,24 +260,31 @@ class TestFill(BaseIntegrationTestCase):
 
         data = ds.follow("table", "limit=6")
         cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
-        self.assertEqual(data["data"][new_id], [
-            # Coke chunk
-            cats["Daily"],
-            cats["Weekly"],
-            cats["Monthly"],
-            # Pepsi chunk - Default case
-            cats["Monthly"],
-            cats["Weekly"],
-            cats["Daily"],
-        ])
+        self.assertEqual(
+            data["data"][new_id],
+            [
+                # Coke chunk
+                cats["Daily"],
+                cats["Weekly"],
+                cats["Monthly"],
+                # Pepsi chunk - Default case
+                cats["Monthly"],
+                cats["Weekly"],
+                cats["Daily"],
+            ],
+        )
         ds.delete()
 
     def test_fill_w_else_code(self):
         dataset, ds = self.prepare_ds()
-        dataset.create_fill_values([
-            {"case": "pop_pref == 1", "variable": "coke_freq"},
-            {"case": "else", "name": "Not Asked", "id": 99, "missing": False},
-        ], alias="pop_freq", name="Pop frequency")
+        dataset.create_fill_values(
+            [
+                {"case": "pop_pref == 1", "variable": "coke_freq"},
+                {"case": "else", "name": "Not Asked", "id": 99, "missing": False},
+            ],
+            alias="pop_freq",
+            name="Pop frequency",
+        )
 
         variables = ds.variables.by("alias")
         new_id = variables["pop_freq"]["id"]
@@ -265,23 +294,28 @@ class TestFill(BaseIntegrationTestCase):
 
         data = ds.follow("table", "limit=6")
         cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
-        self.assertEqual(data["data"][new_id], [
-            # Coke chunk
-            cats["Daily"],
-            cats["Weekly"],
-            cats["Monthly"],
-            # Default value
-            cats["Not Asked"],
-            cats["Not Asked"],
-            cats["Not Asked"],
-        ])
+        self.assertEqual(
+            data["data"][new_id],
+            [
+                # Coke chunk
+                cats["Daily"],
+                cats["Weekly"],
+                cats["Monthly"],
+                # Default value
+                cats["Not Asked"],
+                cats["Not Asked"],
+                cats["Not Asked"],
+            ],
+        )
         ds.delete()
 
     def test_fill_w_else_default(self):
         dataset, ds = self.prepare_ds()
-        dataset.create_fill_values([
-            {"case": "pop_pref == 1", "variable": "coke_freq"},
-        ], alias="pop_freq", name="Pop frequency")
+        dataset.create_fill_values(
+            [{"case": "pop_pref == 1", "variable": "coke_freq"}],
+            alias="pop_freq",
+            name="Pop frequency",
+        )
 
         variables = ds.variables.by("alias")
         new_id = variables["pop_freq"]["id"]
@@ -291,14 +325,17 @@ class TestFill(BaseIntegrationTestCase):
 
         data = ds.follow("table", "limit=6")
         cats = {c["name"]: c["id"] for c in data["metadata"][new_id]["categories"]}
-        self.assertEqual(data["data"][new_id], [
-            # Coke chunk
-            cats["Daily"],
-            cats["Weekly"],
-            cats["Monthly"],
-            # Default value
-            {"?": -1},
-            {"?": -1},
-            {"?": -1},
-        ])
+        self.assertEqual(
+            data["data"][new_id],
+            [
+                # Coke chunk
+                cats["Daily"],
+                cats["Weekly"],
+                cats["Monthly"],
+                # Default value
+                {"?": -1},
+                {"?": -1},
+                {"?": -1},
+            ],
+        )
         ds.delete()

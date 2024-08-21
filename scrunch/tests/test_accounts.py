@@ -17,32 +17,25 @@ class TestAccount:
         execute_url = "http://host/api/account/run/"
 
         session = MockSession(site_url=root_url)
-        root_resource = Catalog(session, **{
-            "element": "shoji:catalog",
-            "self": root_url,
-            "index": {},
-            "catalogs": {},
-            "views": {"account": account_url}
-        })
-        act_resource = Entity(session, **{
-            "element": "shoji:entity",
-            "self": account_url,
-            "body": {
-                "name": "test account",
-                "id": "00001",
-            },
-            "catalogs": {
-                "projects": projects_url
-            },
-            "views": {
-                "execute": execute_url
-            }
-        })
-        execute_resource = View(session, **{
-            "element": "shoji:view",
-            "self": execute_url,
-            "value": {}
-        })
+        root_resource = Catalog(
+            session,
+            element="shoji:catalog",
+            self=root_url,
+            index={},
+            catalogs={},
+            views={"account": account_url},
+        )
+        act_resource = Entity(
+            session,
+            element="shoji:entity",
+            self=account_url,
+            body={"name": "test account", "id": "00001"},
+            catalogs={"projects": projects_url},
+            views={"execute": execute_url},
+        )
+        execute_resource = View(
+            session, element="shoji:view", self=execute_url, value={}
+        )
         session.add_fixture(account_url, act_resource)
         session.add_fixture(root_url, root_resource)
         session.add_fixture(execute_url, execute_resource)
@@ -68,7 +61,7 @@ class TestAccount:
         post_request = session.requests[-1]
         assert json.loads(post_request.body) == {
             "element": "shoji:view",
-            "value": "NOOP;"
+            "value": "NOOP;",
         }
 
     def test_execute_script_with_syntax_subvariable_flag(self):
@@ -84,7 +77,7 @@ class TestAccount:
         post_request = session.requests[-1]
         assert json.loads(post_request.body) == {
             "element": "shoji:view",
-            "value": "NOOP;"
+            "value": "NOOP;",
         }
         assert "?strict_subvariable_syntax=true" in post_request.url
 
@@ -93,25 +86,24 @@ class TestAccount:
         projects_url = "http://host/api/account/projects/"
         project_url = "http://host/api/projects/abc/"
 
-        project_resource = Entity(session, **{
-            "element": "shoji:entity",
-            "self": project_url,
-            "body": {
-                "name": "my project",
-                "id": "abc"
-            }
-        })
+        project_resource = Entity(
+            session,
+            element="shoji:entity",
+            self=project_url,
+            body={"name": "my project", "id": "abc"},
+        )
 
-        act_projects_res = Catalog(session, **{
-            "element": "shoji:catalog",
-            "self": projects_url,
-            "index": {
+        act_projects_res = Catalog(
+            session,
+            element="shoji:catalog",
+            self=projects_url,
+            index={
                 project_url: {
                     "name": project_resource["body"]["name"],
                     "id": project_resource["body"]["id"],
                 }
-            }
-        })
+            },
+        )
         session.add_fixture(projects_url, act_projects_res)
         session.add_fixture(project_url, project_resource)
         current_act = Account.current_account(session.root)

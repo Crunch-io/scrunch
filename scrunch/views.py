@@ -18,7 +18,7 @@ class DatasetViews:
         view_args = {
             "name": name,
             "view_of": self.dataset_resource.self,
-            "owner": self.dataset_resource.body["owner"]
+            "owner": self.dataset_resource.body["owner"],
         }
         if columns is not None:
             # Columns is a list of aliases, convert to URLs
@@ -31,6 +31,7 @@ class DatasetViews:
         view_res.refresh()
 
         from scrunch.mutable_dataset import MutableDataset
+
         return MutableDataset(view_res)
 
     def get_by_name(self, view_name):
@@ -38,6 +39,7 @@ class DatasetViews:
         Returns a view by name as a MutableDataset
         """
         from scrunch.mutable_dataset import MutableDataset
+
         views_by_name = self.dataset_resource.follow("views").by("name")
         view_res = views_by_name[view_name].entity
         return MutableDataset(view_res)

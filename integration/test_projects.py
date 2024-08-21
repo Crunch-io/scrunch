@@ -8,8 +8,8 @@ from scrunch.helpers import shoji_entity_wrapper
 from scrunch import connect, get_project, get_dataset, get_user
 from fixtures import BaseIntegrationTestCase
 
-UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
-FEATURE_FLAG = 'old_projects_order'
+UNIQUE_PREFIX = str(datetime.now()).replace(":", "").replace(".", "")
+FEATURE_FLAG = "old_projects_order"
 
 
 class TestProjects(BaseIntegrationTestCase):
@@ -22,13 +22,13 @@ class TestProjects(BaseIntegrationTestCase):
         self.site.session.feature_flags[FEATURE_FLAG] = False
 
     def new_project(self, name):
-        res = self.site.projects.create(shoji_entity_wrapper({
-            "name": name + UNIQUE_PREFIX
-        })).refresh()
+        res = self.site.projects.create(
+            shoji_entity_wrapper({"name": name + UNIQUE_PREFIX})
+        ).refresh()
         return Project(res)
 
     def test_create_subprojects(self):
-        pa = self.new_project('A')
+        pa = self.new_project("A")
         pb = pa.create_project("B")
         pa.resource.refresh()
         self.assertTrue(pb.url in pa.resource.index)
@@ -57,7 +57,7 @@ class TestProjects(BaseIntegrationTestCase):
         self.assertEqual(_project.url, project.url)
 
     def test_reorder(self):
-        pa = self.new_project('test_reorder')
+        pa = self.new_project("test_reorder")
         p1 = pa.create_project("1")
         p2 = pa.create_project("2")
         pa.resource.refresh()
@@ -67,24 +67,23 @@ class TestProjects(BaseIntegrationTestCase):
         self.assertEqual(pa.resource.graph, [p2.url, p1.url])
 
     def test_move_dataset(self):
-        username_2 = os.environ['SCRUNCH_USER2']
-        password_2 = os.environ['SCRUNCH_PASS2']
+        username_2 = os.environ["SCRUNCH_USER2"]
+        password_2 = os.environ["SCRUNCH_PASS2"]
         fo = get_user(username_2)
         fo_site = connect(fo.email, password_2, self.host)
 
         # These two datasets are created by the default logged user
-        _ds1 = self.site.datasets.create(shoji_entity_wrapper({
-            'name': 'test_move_dataset1'
-        })).refresh()
-        _ds2 = self.site.datasets.create(shoji_entity_wrapper({
-            'name': 'test_move_dataset2'
-        })).refresh()
+        _ds1 = self.site.datasets.create(
+            shoji_entity_wrapper({"name": "test_move_dataset1"})
+        ).refresh()
+        _ds2 = self.site.datasets.create(
+            shoji_entity_wrapper({"name": "test_move_dataset2"})
+        ).refresh()
 
         # This dataset is created and owned by the other user
-        _ds4 = fo_site.datasets.create(shoji_entity_wrapper({
-            'name': 'test_move_dataset4',
-            'owner': fo.url
-        })).refresh()
+        _ds4 = fo_site.datasets.create(
+            shoji_entity_wrapper({"name": "test_move_dataset4", "owner": fo.url})
+        ).refresh()
 
         ds1 = get_dataset(_ds1.body.id)
         ds2 = get_dataset(_ds2.body.id)
@@ -114,7 +113,9 @@ class TestProjects(BaseIntegrationTestCase):
         pa.place(ds2, path="| %s" % pb.name)
 
         pb.resource.refresh()
-        assert sorted(pb.resource.index.keys()) == sorted([_ds1.self, _ds2.self, _ds4.self])
+        assert sorted(pb.resource.index.keys()) == sorted(
+            [_ds1.self, _ds2.self, _ds4.self]
+        )
         self.assertEqual(ds2.resource.project.self, pb.url)
 
     def test_execute_script(self):

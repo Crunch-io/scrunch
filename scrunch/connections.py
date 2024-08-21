@@ -13,7 +13,7 @@ else:
     import configparser
 
 
-LOG = logging.getLogger('scrunch')
+LOG = logging.getLogger("scrunch")
 
 
 def _set_debug_log():
@@ -36,7 +36,7 @@ def _set_debug_log():
     requests_log.propagate = True
 
 
-def _get_connection(file_path='crunch.ini'):
+def _get_connection(file_path="crunch.ini"):
     """
     Utilitarian function that reads credentials from
     file or from ENV variables
@@ -47,13 +47,13 @@ def _get_connection(file_path='crunch.ini'):
     connection_kwargs = {}
 
     # try to get credentials from environment
-    site = os.environ.get('CRUNCH_URL')
+    site = os.environ.get("CRUNCH_URL")
     if site:
         connection_kwargs["site_url"] = site
 
-    api_key = os.environ.get('CRUNCH_API_KEY')
-    username = os.environ.get('CRUNCH_USERNAME')
-    password = os.environ.get('CRUNCH_PASSWORD')
+    api_key = os.environ.get("CRUNCH_API_KEY")
+    username = os.environ.get("CRUNCH_USERNAME")
+    password = os.environ.get("CRUNCH_PASSWORD")
     if api_key:
         connection_kwargs["api_key"] = api_key
     elif username and password:
@@ -67,15 +67,14 @@ def _get_connection(file_path='crunch.ini'):
     config = configparser.ConfigParser()
     config.read(file_path)
     try:
-        site = config.get('DEFAULT', 'CRUNCH_URL')
+        site = config.get("DEFAULT", "CRUNCH_URL")
     except Exception:
         pass  # Config not found in .ini file. Do not change env value
     else:
         connection_kwargs["site_url"] = site
 
-
     try:
-        api_key = config.get('DEFAULT', 'CRUNCH_API_KEY')
+        api_key = config.get("DEFAULT", "CRUNCH_API_KEY")
     except Exception:
         pass  # Config not found in .ini file. Do not change env value
     else:
@@ -83,8 +82,8 @@ def _get_connection(file_path='crunch.ini'):
 
     if not api_key:
         try:
-            username = config.get('DEFAULT', 'CRUNCH_USERNAME')
-            password = config.get('DEFAULT', 'CRUNCH_PASSWORD')
+            username = config.get("DEFAULT", "CRUNCH_USERNAME")
+            password = config.get("DEFAULT", "CRUNCH_PASSWORD")
         except Exception:
             pass  # Config not found in .ini file. Do not change env value
         else:
@@ -97,7 +96,8 @@ def _get_connection(file_path='crunch.ini'):
     else:
         raise AuthenticationError(
             "Unable to find crunch session, crunch.ini file "
-            "or environment variables.")
+            "or environment variables."
+        )
 
 
 def _default_connection(connection):
@@ -106,5 +106,6 @@ def _default_connection(connection):
         if not connection:
             raise AttributeError(
                 "Authenticate first with scrunch.connect() or by providing "
-                "config/environment variables")
+                "config/environment variables"
+            )
     return connection

@@ -1,8 +1,6 @@
 # coding: utf-8
 
-import pycrunch
-from scrunch.helpers import shoji_view_wrapper
-from scrunch.scripts import ScriptExecutionError, SystemScript
+from scrunch.scripts import SystemScript
 from scrunch.connections import _default_connection
 from scrunch.datasets import Project
 
@@ -60,4 +58,3 @@ class Account:
     def projects(self):
         act_projects = self.resource.projects
         return AccountProjects(act_projects)
-

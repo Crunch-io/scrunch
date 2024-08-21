@@ -1,1 +1,1 @@
-collect_ignore = ['integration']
+collect_ignore = ["integration"]
