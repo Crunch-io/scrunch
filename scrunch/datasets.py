@@ -2367,7 +2367,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-        preserve_owner=True, **kwargs):
+        preserve_owner=True, project=None, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2385,13 +2385,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             If True, the owner of the fork will be the same as the parent
             dataset otherwise the owner will be the current user in the
             session and the Dataset will be set under `Personal Project`.
-        :kwargs owner: str (optional)
-            When preserve_owner=False, the owner of fork will be the set
-            according to the passed Project URL or Folder path.
+        :param project: str, default=None
+           The project ID or URL for the project in which the fork 
+           dataset should be created.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
+        
+        description = description or self.resource.body.description
 
         if name is None:
             nforks = len(self.resource.forks.index)
@@ -2400,7 +2402,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 dsname = dsname.encode("ascii", "ignore")
             name = "FORK #{} of {}".format(nforks + 1, dsname)
 
-        description = description or self.resource.body.description
 
         body = dict(
             name=name,
@@ -2408,23 +2409,36 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             is_published=is_published,
             **kwargs
         )
-
+        
+        # Handling project vs owner conflict
         owner = kwargs.get("owner")
-        if preserve_owner:
-            body['owner'] = self.resource.body.owner
+
+        if project and owner:
+            raise ValueError(
+                "Cannot pass both 'project' & 'owner' parameters together. "
+                "Please try again by passing only 'project' parameter."
+                )
         elif owner:
+            project = owner
+        
+        # Setting project value based on presere_owner
+        if preserve_owner and project:
+            raise ValueError("Cannot pass 'project' or 'owner' when preserve_owner=True")
+        elif preserve_owner:
+            body["owner"] = self.resource.body.owner
+        elif project:
             body["owner"] = (
-                owner if owner.startswith("http") else get_project(owner).url
+                project if project.startswith("http") else get_project(project).url
             )
 
-        # not returning a dataset
         payload = shoji_entity_wrapper(body)
+
         try:
             _fork = self.resource.forks.create(payload).refresh()
         except TaskProgressTimeoutError as exc:
             _fork = exc.entity.wait_progress(exc.response).refresh()
-
         return MutableDataset(_fork)
+
 
     def replace_values(self, variables, filter=None, literal_subvar=False, timeout=60):
         """

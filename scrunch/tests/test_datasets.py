@@ -1777,15 +1777,64 @@ class TestForks(TestCase):
             'is_published': False,
         }))
 
-    def test_fork_preserve_owner(self):
-        user_id = 'http://test.crunch.io/api/users/123/'
+
+    def test_fork_project(self):
+        project_id = 'https://test.crunch.io/api/projects/1234/'
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'owner': user_id,
+            'owner': project_id,
         })
         ds_res = MagicMock(session=sess, body=body)
+        ds_res.forks = MagicMock()
+        ds_res.forks.index = {}
+        ds = BaseDataset(ds_res)
+
+        expected_payload = {
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'FORK #1 of ds name',
+                'description': 'ds description',
+                'owner': project_id,  # Project added
+                'is_published': False,
+            }
+        }
+        # Using project parameter
+        ds.fork(preserve_owner=False, project=project_id)
+        ds_res.forks.create.assert_called_with(expected_payload)
+
+        # Using owner parameter
+        ds.fork(preserve_owner=False, owner=project_id)
+        ds_res.forks.create.assert_called_with(expected_payload)
+
+        # Validations
+        err_msg1 = (
+            "Cannot pass both 'project' & 'owner' parameters together. "
+            "Please try again by passing only 'project' parameter."
+        )
+        with pytest.raises(ValueError, match=err_msg1):
+            ds.fork(owner="ABCD", project="1234")
+        
+        err_msg2 = ("Cannot pass 'project' or 'owner' when preserve_owner=True")
+        with pytest.raises(ValueError, match=err_msg2):
+            ds.fork(preserve_owner=True, project="1234")
+            ds.fork(preserve_owner=True, owner="1234")
+        
+
+
+    def test_fork_preserve_owner(self):
+        user_id = 'http://test.crunch.io/api/users/123/'
+        project_id = 'http://test.crunch.io/api/projects/123/'
+        sess = MagicMock()
+        body = JSONObject({
+            'name': 'ds name',
+            'description': 'ds description',
+            'owner': project_id,
+            # 'owner': user_id,
+        })
+        ds_res = MagicMock(session=sess, body=body)
+        ds_res.project.self = project_id
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
@@ -1795,7 +1844,8 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                'owner': user_id,  # Owner preserved
+                # 'owner': user_id,  # Owner preserved
+                'owner': project_id,
                 'is_published': False,
             }
         })
