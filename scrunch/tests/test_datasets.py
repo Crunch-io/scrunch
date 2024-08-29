@@ -1819,6 +1819,8 @@ class TestForks(TestCase):
         err_msg2 = ("Cannot pass 'project' or 'owner' when preserve_owner=True")
         with pytest.raises(ValueError, match=err_msg2):
             ds.fork(preserve_owner=True, project="1234")
+            
+         with pytest.raises(ValueError, match=err_msg2):
             ds.fork(preserve_owner=True, owner="1234")
         
 
