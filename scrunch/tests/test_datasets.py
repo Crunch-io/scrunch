@@ -1820,7 +1820,7 @@ class TestForks(TestCase):
         with pytest.raises(ValueError, match=err_msg2):
             ds.fork(preserve_owner=True, project="1234")
             
-         with pytest.raises(ValueError, match=err_msg2):
+        with pytest.raises(ValueError, match=err_msg2):
             ds.fork(preserve_owner=True, owner="1234")
         
 
