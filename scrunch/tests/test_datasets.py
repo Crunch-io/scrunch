@@ -1779,12 +1779,12 @@ class TestForks(TestCase):
 
 
     def test_fork_project(self):
-        project_id = 'https://test.crunch.io/api/projects/1234/'
+        project = 'https://test.crunch.io/api/projects/1234/'
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'owner': project_id,
+            'owner': project,
         })
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
@@ -1796,16 +1796,16 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                'owner': project_id,  # Project added
+                'owner': project,  # Project added
                 'is_published': False,
             }
         }
         # Using project parameter
-        ds.fork(preserve_owner=False, project=project_id)
+        ds.fork(preserve_owner=False, project=project)
         ds_res.forks.create.assert_called_with(expected_payload)
 
         # Using owner parameter
-        ds.fork(preserve_owner=False, owner=project_id)
+        ds.fork(preserve_owner=False, owner=project)
         ds_res.forks.create.assert_called_with(expected_payload)
 
         # Validations
@@ -1826,17 +1826,15 @@ class TestForks(TestCase):
 
 
     def test_fork_preserve_owner(self):
-        user_id = 'http://test.crunch.io/api/users/123/'
-        project_id = 'http://test.crunch.io/api/projects/123/'
+        project = 'http://test.crunch.io/api/projects/123/'
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'owner': project_id,
-            # 'owner': user_id,
+            'owner': project,
         })
         ds_res = MagicMock(session=sess, body=body)
-        ds_res.project.self = project_id
+        ds_res.project.self = project
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
@@ -1846,8 +1844,7 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                # 'owner': user_id,  # Owner preserved
-                'owner': project_id,
+                'owner': project,  # Project preserved
                 'is_published': False,
             }
         })

@@ -2402,7 +2402,6 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 dsname = dsname.encode("ascii", "ignore")
             name = "FORK #{} of {}".format(nforks + 1, dsname)
 
-
         body = dict(
             name=name,
             description=description,
@@ -2421,7 +2420,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         elif owner:
             project = owner
         
-        # Setting project value based on presere_owner
+        # Setting project value based on preserve_owner.
         if preserve_owner and project:
             raise ValueError("Cannot pass 'project' or 'owner' when preserve_owner=True")
         elif preserve_owner:
@@ -2436,7 +2435,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         try:
             _fork = self.resource.forks.create(payload).refresh()
         except TaskProgressTimeoutError as exc:
-            _fork = exc.entity.wait_progress(exc.response).refresh()
+            # To avoid getting another timeout,
+            # setting timeout=None & increasing the interval.
+            _fork = exc.entity.wait_progress(
+                exc.response,
+                progress_tracker=DefaultProgressTracking(timeout=None, interval=10)
+            ).refresh()
         return MutableDataset(_fork)
 
 
