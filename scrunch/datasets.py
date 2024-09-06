@@ -2392,7 +2392,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        
+
         description = description or self.resource.body.description
 
         if name is None:
@@ -2408,7 +2408,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             is_published=is_published,
             **kwargs
         )
-        
+       
         # Handling project vs owner conflict
         owner = kwargs.get("owner")
 
@@ -2432,15 +2432,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         payload = shoji_entity_wrapper(body)
 
-        try:
-            _fork = self.resource.forks.create(payload).refresh()
-        except TaskProgressTimeoutError as exc:
-            # To avoid getting another timeout,
-            # setting timeout=None & increasing the interval.
-            _fork = exc.entity.wait_progress(
-                exc.response,
-                progress_tracker=DefaultProgressTracking(timeout=None, interval=10)
-            ).refresh()
+        _fork = self.resource.forks.create(payload).refresh()
         return MutableDataset(_fork)
 
 
