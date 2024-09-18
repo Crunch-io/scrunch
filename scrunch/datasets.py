@@ -15,11 +15,6 @@ except ImportError:
     pd = None
 
 
-if sys.version_info.major == 3:
-    from collections.abc import Mapping
-else:
-    from collections import Mapping
-
 import six
 
 import pycrunch
@@ -50,8 +45,10 @@ from scrunch.connections import LOG, _default_connection, _get_connection
 
 if six.PY2:  # pragma: no cover
     from urlparse import urljoin
+    from collections import Mapping
 else:
     from urllib.parse import urljoin
+    from collections.abc import Mapping
 
 
 _MR_TYPE = 'multiple_response'
@@ -2355,7 +2352,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         return self.decks[new_deck.self.split('/')[-2]]
 
     def fork(self, description=None, name=None, is_published=False,
-        preserve_owner=True, **kwargs):
+        preserve_owner=True, project=None, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
@@ -2372,23 +2369,23 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param preserve_owner: bool, default=True
             If True, the owner of the fork will be the same as the parent
             dataset otherwise the owner will be the current user in the
-            session and the Dataset will be set under `Persona Project`
+            session and the Dataset will be set under `Personal Project`.
+        :param project: str, default=None
+           The project ID or URL for the project in which the fork 
+           dataset should be created.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        nforks = len(self.resource.forks.index)
+
+        description = description or self.resource.body.description
+
         if name is None:
+            nforks = len(self.resource.forks.index)
+            dsname = self.resource.body.name
             if six.PY2:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name.encode("ascii", "ignore"))
-            else:
-                name = "FORK #{} of {}".format(
-                    nforks + 1,
-                    self.resource.body.name)
-        if description is None:
-            description = self.resource.body.description
+                dsname = dsname.encode("ascii", "ignore")
+            name = "FORK #{} of {}".format(nforks + 1, dsname)
 
         body = dict(
             name=name,
@@ -2396,15 +2393,33 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             is_published=is_published,
             **kwargs
         )
+       
+        # Handling project vs owner conflict
+        owner = kwargs.get("owner")
 
-        if preserve_owner:
-            body['owner'] = self.resource.body.owner
-        # not returning a dataset
+        if project and owner:
+            raise ValueError(
+                "Cannot pass both 'project' & 'owner' parameters together. "
+                "Please try again by passing only 'project' parameter."
+                )
+        elif owner:
+            project = owner
+        
+        # Setting project value based on preserve_owner.
+        if preserve_owner and project:
+            raise ValueError("Cannot pass 'project' or 'owner' when preserve_owner=True")
+        elif preserve_owner:
+            body["owner"] = self.resource.body.owner
+        elif project:
+            body["owner"] = (
+                project if project.startswith("http") else get_project(project).url
+            )
+
         payload = shoji_entity_wrapper(body)
+
         _fork = self.resource.forks.create(payload).refresh()
-        # return a MutableDataset always
-        fork_ds = MutableDataset(_fork)  # Fork has same editor as current user
-        return fork_ds
+        return MutableDataset(_fork)
+
 
     def replace_values(self, variables, filter=None, literal_subvar=False, timeout=60):
         """
