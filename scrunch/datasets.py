@@ -1858,19 +1858,71 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             variable = self[variable]
 
         # TODO: Implement `default` parameter in Crunch API
-        combinations = combinations_from_map(
-            map, categories or {}, missing or [])
-        payload = shoji_entity_wrapper({
-            'name': name,
-            'alias': alias,
-            'description': description,
-            'derivation': combine_categories_expr(
-                variable.resource.self, combinations)
-        })
+        combinations = combinations_from_map(map, categories or {}, missing or [])
+        payload = shoji_entity_wrapper(
+            {
+                "name": name,
+                "alias": alias,
+                "description": description,
+                "derivation": combine_categories_expr(
+                    variable.resource.self, combinations
+                ),
+            }
+        )
         return self._var_create_reload_return(payload)
 
-    def combine_multiple_response(self, variable, map, categories=None, default=None,
-        name='', alias='', description=''):
+    def combine_logical_responses(self, array, mapping_list, new_alias, new_name):
+        """Combine logical responses from an input array into a derived variable.
+
+        The subvariables of the input array are combined into output variables using
+        an `any_selected` operation. Each combination of subvariables produces a single
+        subvariable in the output array. The `mapping_list` provides mappings for each
+        output variable, where each entry contains `input_codes` (the subvariables to
+        combine) and an `output_code` (the resulting subvariable). If an input
+        subvariable is passed without combination, simply include it as a single
+        subvariable in `input_codes`.
+
+        The `new_alias` and `new_name` define the alias and label for the new derived
+        array, respectively.
+
+        Example:
+            >>> mapping_list = [
+            ...     {"input_codes": ["bool1"], "output_code": "rsp1"},
+            ...     {"input_codes": ["bool2", "bool3"], "output_code": "rsp2"},
+            ... ]
+
+        Args:
+            array (Variable or str): The input array or its alias.
+            mapping_list (list of dict): Mappings for combining logical responses.
+            new_alias (str): Alias for the new derived logical array.
+            new_name (str): Name for the new derived logical array.
+
+        Returns:
+            Variable: A pycrunch.shoji.Entity wrapper with variable-specific methods.
+        """
+        payload = shoji_entity_wrapper(
+            {
+                "alias": new_alias,
+                "command": {
+                    "command": "create_combined_logical_responses",
+                    "array": array if isinstance(array, str) else array.alias,
+                    "mapping_list": mapping_list,
+                },
+                "metadata": {"label": new_name},
+            }
+        )
+        return self._var_create_reload_return(payload)
+
+    def combine_multiple_response(
+        self,
+        variable,
+        map,
+        categories=None,
+        default=None,
+        name="",
+        alias="",
+        description="",
+    ):
         """
         Creates a new variable in the given dataset that combines existing
         responses into new categorized ones
