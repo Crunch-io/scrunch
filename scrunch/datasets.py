@@ -696,6 +696,17 @@ class DatasetVariablesMixin(Mapping):
     Handles dataset variable iteration in a dict-like way
     """
 
+    create_material_variables = True
+    """New variables created by methods of this class are usually defined by
+    an expression which is evaluated on the server. If create_material_variables
+    is True (the default), such an expression is evaluated eagerly, and its
+    output at that moment is stored as a "material" variable: part of the schema.
+    Changes to any of the input variables will not update the material variable.
+    If False, the expression itself is stored instead and re-evaluated on each
+    read; the resulting "derived" variable is an artifact rather than part of
+    the schema, and will change if any of its inputs change.
+    """
+
     def __getitem__(self, item):
         """
         Returns a Variable() instance, `item` can be either a variable alias,
@@ -749,7 +760,9 @@ class DatasetVariablesMixin(Mapping):
         helper function for POSTing to variables, reload
         the catalog of variables and return newly created var
         """
-        new_var = self.resource.variables.create(payload)
+        new_var = self.resource.variables.create(
+            dict(payload, derived=not self.create_material_variables)
+        )
         # needed to update the variables collection
         self._reload_variables()
         # return an instance of Variable
@@ -1226,7 +1239,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = shoji_entity_wrapper(dict(
             alias=alias,
             name=name,
-            expr=expr,
+            derivation=expr,
             description=description,
             notes=notes))
         return self._var_create_reload_return(payload)
@@ -1261,7 +1274,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         payload = shoji_entity_wrapper(dict(
             alias=alias,
             name=name,
-            expr=expr,
+            derivation=expr,
             description=description,
             notes=notes))
 
@@ -3041,7 +3054,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
-        payload = shoji_entity_wrapper(dict(expr=expr))
+        payload = shoji_entity_wrapper(dict(derivation=expr))
         # patch the variable with the new payload
         resp = self.resource.patch(payload)
         self._reload_variables()
