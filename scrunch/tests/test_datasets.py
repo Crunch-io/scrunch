@@ -6913,14 +6913,11 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "My Array",
-                "alias": "my_array",
-                "notes": "",
-                "description": "",
-                "derivation": expression,
-            }
+            "name": "My Array",
+            "alias": "my_array",
+            "notes": "",
+            "description": "",
+            "derivation": expression,
         }]
 
     def test_bind_categorical_array_with_codes(self):
@@ -6949,14 +6946,11 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "My Array",
-                "alias": "my_array",
-                "notes": "",
-                "description": "",
-                "derivation": expression,
-            }
+            "name": "My Array",
+            "alias": "my_array",
+            "notes": "",
+            "description": "",
+            "derivation": expression,
         }]
 
     def test_copy_variable_no_codes(self):
@@ -7012,12 +7006,9 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "copied",
-                "alias": "copied",
-                "derivation": expression,
-            }
+            "name": "copied",
+            "alias": "copied",
+            "derivation": expression,
         }]
 
     def test_copy_variable_with_codes(self):
@@ -7075,11 +7066,7 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "copied",
-                "alias": "copied",
-                "derivation": expression,
-            }
+            "name": "copied",
+            "alias": "copied",
+            "derivation": expression,
         }]
-
