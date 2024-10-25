@@ -26,9 +26,11 @@ pkg_resources "managed" namespace packages?
 """
 
 crunch_cube = "cr.cube"
+requests = "requests"
 
 if PY2:
     crunch_cube = "cr.cube==2.3.9"
+    requests = "requests==2.27.0"
 
 params = dict(
     name=name,
@@ -47,7 +49,7 @@ params = dict(
     python_requires='>=2.7',
     install_requires=[
         "pycrunch==0.5.5",
-        "requests",
+        requests,
         crunch_cube,
         'six',
     ],
