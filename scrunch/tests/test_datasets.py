@@ -1752,6 +1752,7 @@ class TestForks(TestCase):
 
     def test_fork(self):
         user_url = "some_user_url"
+
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
@@ -1769,7 +1770,8 @@ class TestForks(TestCase):
         ds_res.forks = MagicMock()
         ds_res.forks.create.side_effect = _create
         ds = StreamingDataset(ds_res)
-        forked_ds = ds.fork(preserve_owner=False)
+        forked_ds = ds.fork(preserve_owner=True)
+
         assert isinstance(forked_ds, MutableDataset)
         ds_res.forks.create.assert_called_with(as_entity({
             'name': 'FORK #1 of ds name',
@@ -1816,38 +1818,49 @@ class TestForks(TestCase):
         with pytest.raises(ValueError, match=err_msg1):
             ds.fork(owner="ABCD", project="1234")
         
-        err_msg2 = ("Cannot pass 'project' or 'owner' when preserve_owner=True")
+        err_msg2 = ("Cannot pass 'project' or 'owner' when preserve_owner=True.")
         with pytest.raises(ValueError, match=err_msg2):
             ds.fork(preserve_owner=True, project="1234")
             
         with pytest.raises(ValueError, match=err_msg2):
-            ds.fork(preserve_owner=True, owner="1234")
-        
+            ds.fork(preserve_owner=True, owner="1234")       
 
 
     def test_fork_preserve_owner(self):
-        project = 'http://test.crunch.io/api/projects/123/'
+        project = "http://test.crunch.io/api/projects/123/"
         sess = MagicMock()
-        body = JSONObject({
-            'name': 'ds name',
-            'description': 'ds description',
-            'owner': project,
-        })
+        body = JSONObject(
+            {
+                "name": "ds name",
+                "description": "ds description",
+                "owner": project,
+            }
+        )
         ds_res = MagicMock(session=sess, body=body)
         ds_res.project.self = project
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
-        ds.fork(preserve_owner=True)
-        ds_res.forks.create.assert_called_with({
-            'element': 'shoji:entity',
-            'body': {
-                'name': 'FORK #1 of ds name',
-                'description': 'ds description',
-                'owner': project,  # Project preserved
-                'is_published': False,
+
+        # Test validations
+        with pytest.raises(
+            ValueError,
+            match="Project parameter should be provided when preserve_owner=False.",
+        ):
+            ds.fork(preserve_owner=False, project=None)
+
+        ds.fork(preserve_owner=False, owner=project)
+        ds_res.forks.create.assert_called_with(
+            {
+                "element": "shoji:entity",
+                "body": {
+                    "name": "FORK #1 of ds name",
+                    "description": "ds description",
+                    "owner": project,  # Project preserved
+                    "is_published": False,
+                },
             }
-        })
+        )
 
     def test_delete_forks(self):
         f1 = MagicMock()
