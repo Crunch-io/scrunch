@@ -1777,6 +1777,8 @@ class TestForks(TestCase):
             'name': 'FORK #1 of ds name',
             'description': 'ds description',
             'is_published': False,
+            'owner': 'http://test.crunch.io/api/users/123/',
+
         }))
 
 

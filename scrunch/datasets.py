@@ -2420,6 +2420,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 raise ValueError(
                     "Cannot pass 'project' or 'owner' when preserve_owner=True."
                 )
+            else:
+                body["owner"] = self.resource.body.owner
         else:
             if project:
                 body["owner"] = (
