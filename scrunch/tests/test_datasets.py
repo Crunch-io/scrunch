@@ -1752,7 +1752,6 @@ class TestForks(TestCase):
 
     def test_fork(self):
         user_url = "some_user_url"
-
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',

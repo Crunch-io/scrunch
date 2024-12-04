@@ -2351,15 +2351,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         new_deck = self.resource.decks.create(payload)
         return self.decks[new_deck.self.split('/')[-2]]
 
-    def fork(
-        self,
-        description=None,
-        name=None,
-        is_published=False,
-        preserve_owner=True,
-        project=None,
-        **kwargs
-    ):
+    def fork(self, description=None, name=None, is_published=False,
+        preserve_owner=True, project=None, **kwargs):
         """
         Create a fork of ds and add virgin savepoint.
 
