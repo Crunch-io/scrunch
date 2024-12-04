@@ -2402,7 +2402,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 dsname = dsname.encode("ascii", "ignore")
             name = "FORK #{} of {}".format(nforks + 1, dsname)
 
-        body = dict(name=name, description=description, is_published=is_published, **kwargs)
+        body = dict(
+            name=name,
+            description=description,
+            is_published=is_published,
+            **kwargs
+        )
+
         # Handling project vs owner conflict
         owner = kwargs.get("owner")
 
@@ -2410,7 +2416,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             raise ValueError(
                 "Cannot pass both 'project' & 'owner' parameters together. "
                 "Please try again by passing only 'project' parameter."
-            )
+        )
         elif owner:
             project = owner
 
@@ -2435,6 +2441,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
 
         payload = shoji_entity_wrapper(body)
+
         _fork = self.resource.forks.create(payload).refresh()
         return MutableDataset(_fork)
 

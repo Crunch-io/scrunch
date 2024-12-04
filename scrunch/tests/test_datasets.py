@@ -1771,7 +1771,6 @@ class TestForks(TestCase):
         ds_res.forks.create.side_effect = _create
         ds = StreamingDataset(ds_res)
         forked_ds = ds.fork(preserve_owner=True)
-
         assert isinstance(forked_ds, MutableDataset)
         ds_res.forks.create.assert_called_with(as_entity({
             'name': 'FORK #1 of ds name',
