@@ -2421,9 +2421,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     "Cannot pass 'project' or 'owner' when preserve_owner=True."
                 )
             else:
+                # Create fork in source dataset path.
                 body["owner"] = self.resource.body.owner
         else:
             if project:
+                # Create fork in given Project path.
                 body["owner"] = (
                     project if project.startswith("http") else get_project(project).url
                 )
