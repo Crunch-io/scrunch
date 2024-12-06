@@ -1,19 +1,25 @@
 # coding: utf-8
 
-import pytest
+import os
 import textwrap
+
+import pytest
+from fixtures import BaseIntegrationTestCase
+from pycrunch.shoji import as_entity
 from six import StringIO
 
-from pycrunch.shoji import as_entity
-
 from scrunch.mutable_dataset import get_mutable_dataset
-from fixtures import BaseIntegrationTestCase
+
+PROJECT_ID = os.environ.get("SCRUNCH_PROJECT_ID")
 
 
 class TestBackFill(BaseIntegrationTestCase):
     def _prepare_ds(self, values):
-        ds = self.site.datasets.create(
-            as_entity({"name": "test_backfill_values"})).refresh()
+        ds_data = {"name": "test_backfill_values"}
+        if PROJECT_ID:
+            ds_data["project"] = f"/projects/{PROJECT_ID}/"
+        # 5c0d0727f0ee424bab69cfb9f0a47507
+        ds = self.site.datasets.create(as_entity(ds_data)).refresh()
         # We need a numeric PK
         pk = ds.variables.create(
             as_entity(
@@ -140,17 +146,23 @@ class TestBackFill(BaseIntegrationTestCase):
         return ds
 
     def test_backfill_values(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            "cat1": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
-            "cat2": [11, 22, 33, -1, -1, -1, 11, 22, 33, 11],
-            "cat3": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
-        })
-        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat2
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "cat1": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
+                "cat2": [11, 22, 33, -1, -1, -1, 11, 22, 33, 11],
+                "cat3": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
+            }
+        )
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,cat1,cat2
         4,1,22
         5,2,33
         6,3,11
-        """))
+        """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=6"
@@ -167,30 +179,39 @@ class TestBackFill(BaseIntegrationTestCase):
         ds.delete()
 
     def test_backfill_on_subvars(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            "cat1": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
-            "cat2": [11, 22, 33, -1, -1, -1, 11, 22, 33, 11],
-            "cat3": [2, 3, 1, -1, -1, -1, 2, 3, 1, 2]
-        })
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "cat1": [1, 2, 3, -1, -1, -1, 1, 2, 3, 1],
+                "cat2": [11, 22, 33, -1, -1, -1, 11, 22, 33, 11],
+                "cat3": [2, 3, 1, -1, -1, -1, 2, 3, 1, 2],
+            }
+        )
         vars = ds.variables.by("alias")
-        array = ds.variables.create(as_entity({
-            "name": "array",
-            "alias": "array",
-            "type": "categorical_array",
-            "subvariables": [vars["cat1"].entity_url, vars["cat3"].entity_url],
-        })).refresh()
+        array = ds.variables.create(
+            as_entity(
+                {
+                    "name": "array",
+                    "alias": "array",
+                    "type": "categorical_array",
+                    "subvariables": [vars["cat1"].entity_url, vars["cat3"].entity_url],
+                }
+            )
+        ).refresh()
 
-        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,cat1,cat3
                 4,1,2
                 5,2,3
                 6,3,1
-                """))
+                """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=6"
-        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
-            rows_expr)
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file, rows_expr)
 
         data = ds.follow("table", "limit=10")["data"]
         assert data[array.body["id"]] == [
@@ -203,34 +224,48 @@ class TestBackFill(BaseIntegrationTestCase):
             [1, 2],
             [2, 3],
             [3, 1],
-            [1, 2]
+            [1, 2],
         ]
 
         ds.delete()
 
     def test_backfill_on_subvars_full_row(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5],
-            "cat1": [1, 2, 3, -1, -1],
-            "cat2": [11, 22, 33, -1, -1],
-            "cat3": [2, 3, 1, -1, -1]
-        })
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5],
+                "cat1": [1, 2, 3, -1, -1],
+                "cat2": [11, 22, 33, -1, -1],
+                "cat3": [2, 3, 1, -1, -1],
+            }
+        )
         vars = ds.variables.by("alias")
-        subvars = [vars["cat1"].entity_url, vars["cat2"].entity_url,  vars["cat3"].entity_url]
-        array = ds.variables.create(as_entity({
-            "name": "array",
-            "alias": "array",
-            "type": "categorical_array",
-            "subvariables": subvars,
-        })).refresh()
+        subvars = [
+            vars["cat1"].entity_url,
+            vars["cat2"].entity_url,
+            vars["cat3"].entity_url,
+        ]
+        array = ds.variables.create(
+            as_entity(
+                {
+                    "name": "array",
+                    "alias": "array",
+                    "type": "categorical_array",
+                    "subvariables": subvars,
+                }
+            )
+        ).refresh()
 
-        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,cat1,cat3
                 1,1,2
                 2,2,3
                 3,3,1
                 4,2,3
                 5,2,1
-                """))
+                """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         # Not including a row_filter, same as passing None
@@ -241,27 +276,32 @@ class TestBackFill(BaseIntegrationTestCase):
             [2, 2, 3],
             [3, 3, 1],
             [2, {"?": -1}, 3],
-            [2, {"?": -1}, 1]
+            [2, {"?": -1}, 1],
         ]
 
         ds.delete()
 
     def test_backfill_on_non_missing(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5],
-            "cat1": [1, 2, 3, 3, 3],
-            "cat2": [11, 22, 33, 11, 22],
-            "cat3": [1, 1, 1, 1, 1]
-        })
-        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5],
+                "cat1": [1, 2, 3, 3, 3],
+                "cat2": [11, 22, 33, 11, 22],
+                "cat3": [1, 1, 1, 1, 1],
+            }
+        )
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,cat1,cat3
                 4,1,2
                 5,2,3
-                """))
+                """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk >= 4 and pk <=5"
-        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
-            rows_expr)
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file, rows_expr)
 
         vars = ds.variables.by("alias")
         data = ds.follow("table", "limit=10")["data"]
@@ -278,15 +318,20 @@ class TestBackFill(BaseIntegrationTestCase):
             "cat3": [1, -1, 3, -1],
         }
         ds = self._prepare_ds(original_data)
-        csv_file = StringIO(textwrap.dedent("""pk,BOGUS,BAD
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,BOGUS,BAD
             2,1,22
-        """))
+        """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         rows_expr = "pk == 2"
         with pytest.raises(ValueError) as err:
-            scrunch_dataset.backfill_from_csv(["cat1", "cat2"], "pk", csv_file,
-                rows_expr)
+            scrunch_dataset.backfill_from_csv(
+                ["cat1", "cat2"], "pk", csv_file, rows_expr
+            )
         assert err.value.args[0].startswith("Invalid data provided: Expected column ")
 
         # Verify that the backfill didn't proceed
@@ -301,23 +346,28 @@ class TestBackFill(BaseIntegrationTestCase):
         ds.delete()
 
     def test_with_exclusion_filter(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5],
-            "cat1": [1, 2, 3, 3, 3],
-            "cat2": [11, 11, 11, 11, 11],
-            "cat3": [1, 1, 1, 1, 1]
-        })
-        csv_file = StringIO(textwrap.dedent("""pk,cat1,cat3
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5],
+                "cat1": [1, 2, 3, 3, 3],
+                "cat2": [11, 11, 11, 11, 11],
+                "cat3": [1, 1, 1, 1, 1],
+            }
+        )
+        csv_file = StringIO(
+            textwrap.dedent(
+                """pk,cat1,cat3
                         4,1,2
                         5,2,3
-                        """))
+                        """
+            )
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
         excl = "pk == 4"
         scrunch_dataset.exclude(excl)
         rows_expr = "pk in [4, 5]"
-        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file,
-            rows_expr)
+        scrunch_dataset.backfill_from_csv(["cat1", "cat3"], "pk", csv_file, rows_expr)
 
         # Exclusion gets set after backfilling
         assert scrunch_dataset.get_exclusion() == excl
@@ -331,15 +381,17 @@ class TestBackFill(BaseIntegrationTestCase):
         ds.delete()
 
     def test_too_big_file(self):
-        ds = self._prepare_ds({
-            "pk": [1, 2, 3, 4, 5],
-            "cat1": [1, 2, 3, 3, 3],
-            "cat2": [11, 11, 11, 11, 11],
-            "cat3": [1, 1, 1, 1, 1]
-        })
+        ds = self._prepare_ds(
+            {
+                "pk": [1, 2, 3, 4, 5],
+                "cat1": [1, 2, 3, 3, 3],
+                "cat2": [11, 11, 11, 11, 11],
+                "cat3": [1, 1, 1, 1, 1],
+            }
+        )
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
-        size_200MB = 200 * 2 ** 20
+        size_200MB = 200 * 2**20
         csv_file = StringIO("x" * size_200MB)
         with pytest.raises(ValueError) as err:
             scrunch_dataset.backfill_from_csv(["cat1"], "pk", csv_file, None)
