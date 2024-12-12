@@ -2373,6 +2373,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param project: str, default=None
             The project ID or URL for the project in which the fork
             dataset should be created.
+            If project=None, the fork dataset will be created in the same
+            location as the source dataset.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
