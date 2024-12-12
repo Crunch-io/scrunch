@@ -1775,7 +1775,7 @@ class TestForks(TestCase):
             'name': 'FORK #1 of ds name',
             'description': 'ds description',
             'is_published': False,
-            'owner': 'http://test.crunch.io/api/users/123/',
+            'project': 'http://test.crunch.io/api/users/123/',
 
         }))
 
@@ -1798,7 +1798,7 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                'owner': project,  # Project added
+                'project': project,  # Project added
                 'is_published': False,
             }
         }
@@ -1856,7 +1856,7 @@ class TestForks(TestCase):
                 "body": {
                     "name": "FORK #1 of ds name",
                     "description": "ds description",
-                    "owner": project,  # Project preserved
+                    "project": project,  # Project preserved
                     "is_published": False,
                 },
             }
