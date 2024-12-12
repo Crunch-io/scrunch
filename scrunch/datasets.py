@@ -2424,11 +2424,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
             else:
                 # Create fork in source dataset path.
-                body["owner"] = self.resource.body.owner
+                body["project"] = self.resource.body.owner
         else:
             if project:
                 # Create fork in given Project path.
-                body["owner"] = (
+                body["project"] = (
                     project if project.startswith("http") else get_project(project).url
                 )
             else:
