@@ -2367,12 +2367,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
         :param preserve_owner: bool, default=True
-            If True, the owner of the fork will be the same as the parent
-            dataset otherwise the owner will be the current user in the
-            session and the Dataset will be set under `Personal Project`.
+            If preserve_owner=True and project=None, the fork dataset will
+            be created in the same location as source dataset.
+            If preserve_owner=False and project is passed, the fork dataset
+            will be created in the given project location.
         :param project: str, default=None
-            The project ID or URL for the project in which the fork
-            dataset should be created.
+            The project ID or URL for the project in which the fork dataset
+            should be created.
             If project=None, the fork dataset will be created in the same
             location as the source dataset.
 
