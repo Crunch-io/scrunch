@@ -1756,7 +1756,7 @@ class TestForks(TestCase):
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'project': 'http://test.crunch.io/api/users/123/',
+            'owner': 'http://test.crunch.io/api/users/123/',
             'streaming': 'yes',
         })
         fork_res = MagicMock()
@@ -1786,7 +1786,7 @@ class TestForks(TestCase):
         body = JSONObject({
             'name': 'ds name',
             'description': 'ds description',
-            'project': project,
+            'owner': project,
         })
         ds_res = MagicMock(session=sess, body=body)
         ds_res.forks = MagicMock()
@@ -1833,7 +1833,7 @@ class TestForks(TestCase):
             {
                 "name": "ds name",
                 "description": "ds description",
-                "project": project,
+                "owner": project,
             }
         )
         ds_res = MagicMock(session=sess, body=body)
