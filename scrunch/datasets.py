@@ -2379,10 +2379,19 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
-
         from scrunch.mutable_dataset import MutableDataset
+        
+        # Handling project vs owner conflict
+        owner = kwargs.get("owner")
 
-        description = description or self.resource.body.description
+        if project and owner:
+            raise ValueError(
+                "Cannot pass both 'project' & 'owner' parameters together. "
+                "Please try again by passing only 'project' parameter."
+        )
+        elif owner:
+            project = owner
+            del kwargs["owner"]
 
         LOG.warning(
             "The preserve_owner parameter will be removed soon"
@@ -2400,22 +2409,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         body = dict(
             name=name,
-            description=description,
+            description=description or self.resource.body.description,
             is_published=is_published,
             **kwargs
         )
-
-        # Handling project vs owner conflict
-        owner = kwargs.get("owner")
-
-        if project and owner:
-            raise ValueError(
-                "Cannot pass both 'project' & 'owner' parameters together. "
-                "Please try again by passing only 'project' parameter."
-        )
-        elif owner:
-            project = owner
-
         # Setting project value based on preserve_owner.
         if preserve_owner:
             if project:
@@ -2424,7 +2421,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
             else:
                 # Create fork in source dataset path.
-                body["project"] = self.resource.body.owner
+                body["project"] = self.resource.body.owner 
         else:
             if project:
                 # Create fork in given Project path.
@@ -3510,5 +3507,5 @@ class BackfillFromCSV:
                 if folder_name in folders_by_name:
                     folders_by_name[folder_name].entity.delete()
                 # Always delete the tmp dataset no matter what
-                tmp_ds.delete()
+                tmp_ds.delete)
 
