@@ -3507,5 +3507,5 @@ class BackfillFromCSV:
                 if folder_name in folders_by_name:
                     folders_by_name[folder_name].entity.delete()
                 # Always delete the tmp dataset no matter what
-                tmp_ds.delete)
+                tmp_ds.delete()
 
