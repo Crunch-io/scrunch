@@ -2367,18 +2367,38 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             If True, the fork will be visible to viewers of ds. If False it
             will only be viewable to editors of ds.
         :param preserve_owner: bool, default=True
-            If True, the owner of the fork will be the same as the parent
-            dataset otherwise the owner will be the current user in the
-            session and the Dataset will be set under `Personal Project`.
+            If preserve_owner=True and project=None, the fork dataset will
+            be created in the same location as source dataset.
+            If preserve_owner=False and project is passed, the fork dataset
+            will be created in the given project location.
         :param project: str, default=None
-           The project ID or URL for the project in which the fork 
-           dataset should be created.
+            The project ID or URL for the project in which the fork dataset
+            should be created.
+            If project=None, the fork dataset will be created in the same
+            location as the source dataset.
 
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
+        
+        # Handling project vs owner conflict
+        owner = kwargs.get("owner")
 
-        description = description or self.resource.body.description
+        if project and owner:
+            raise ValueError(
+                "Cannot pass both 'project' & 'owner' parameters together. "
+                "Please try again by passing only 'project' parameter."
+        )
+        elif owner:
+            project = owner
+            del kwargs["owner"]
+
+        LOG.warning(
+            "The preserve_owner parameter will be removed soon"
+            " in favour of providing a project or not "
+            "(in which case the behavior will be as it is currently"
+            " if preserve_owner=True and project=None).",
+        )
 
         if name is None:
             nforks = len(self.resource.forks.index)
@@ -2389,31 +2409,29 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         body = dict(
             name=name,
-            description=description,
+            description=description or self.resource.body.description,
             is_published=is_published,
             **kwargs
         )
-       
-        # Handling project vs owner conflict
-        owner = kwargs.get("owner")
-
-        if project and owner:
-            raise ValueError(
-                "Cannot pass both 'project' & 'owner' parameters together. "
-                "Please try again by passing only 'project' parameter."
-                )
-        elif owner:
-            project = owner
-        
         # Setting project value based on preserve_owner.
-        if preserve_owner and project:
-            raise ValueError("Cannot pass 'project' or 'owner' when preserve_owner=True")
-        elif preserve_owner:
-            body["owner"] = self.resource.body.owner
-        elif project:
-            body["owner"] = (
-                project if project.startswith("http") else get_project(project).url
-            )
+        if preserve_owner:
+            if project:
+                raise ValueError(
+                    "Cannot pass 'project' or 'owner' when preserve_owner=True."
+                )
+            else:
+                # Create fork in source dataset path.
+                body["project"] = self.resource.body.owner 
+        else:
+            if project:
+                # Create fork in given Project path.
+                body["project"] = (
+                    project if project.startswith("http") else get_project(project).url
+                )
+            else:
+                raise ValueError(
+                    "Project parameter should be provided when preserve_owner=False."
+                )
 
         payload = shoji_entity_wrapper(body)
 
