@@ -22,8 +22,10 @@ class TestSystemScripts(BaseIntegrationTestCase):
         return Project(res)
 
     def test_define_view_strict_subvariable_syntax(self):
-        project = self.new_project("test_view_strict_subvariable")
-        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script"})).refresh()
+        proj = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_dataset_script", "project": proj.self}
+        )).refresh()
         categories = [
             {"id": 2, "name": "Home"},
             {"id": 3, "name": "Work"},
@@ -66,6 +68,7 @@ class TestSystemScripts(BaseIntegrationTestCase):
                         """.format(ds.body.id)
 
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        project = self.new_project("test_view_strict_subvariable")
         project.move_here([scrunch_dataset])
         resp = project.execute(script_body, strict_subvariable_syntax=True)
         wait_progress(resp, self.site.session)
@@ -73,8 +76,10 @@ class TestSystemScripts(BaseIntegrationTestCase):
         assert view.project.name == project.name
 
     def test_define_view_strict_subvariable_syntax_error(self):
-        project = self.new_project("test_view_strict_subvariable_false")
-        ds = self.site.datasets.create(as_entity({"name": "test_dataset_script_false"})).refresh()
+        proj = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_dataset_script_false", "project": proj.self}
+        )).refresh()
         categories = [
             {"id": 2, "name": "Home"},
             {"id": 3, "name": "Work"},
@@ -118,6 +123,7 @@ class TestSystemScripts(BaseIntegrationTestCase):
 
         try:
             scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+            project = self.new_project("test_view_strict_subvariable_false")
             project.move_here([scrunch_dataset])
             resp = project.execute(script_body)
             with pytest.raises(TaskError) as err: 
@@ -133,7 +139,8 @@ class TestSystemScripts(BaseIntegrationTestCase):
 
 class TestDatasetScripts(BaseIntegrationTestCase):
     def _create_ds(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_script", "project": project.self})).refresh()
         variable = ds.variables.create(
             as_entity(
                 {

@@ -31,16 +31,19 @@ class TestExpressions(BaseIntegrationTestCase):
                 }]
             },
         }
-        ds = self.site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
+        project = self.site.projects.create(
+            as_entity({"name": "foo"})
+        )
+        ds = self.site.datasets.create(
+            as_entity({
                 'name': name,
                 'table': {
                     'element': 'crunch:table',
                     'metadata': _dataset_metadata
                 },
-            }
-        }).refresh()
+                'project': project.self,
+            })
+        ).refresh()
         Importer().append_rows(ds, rows)
         scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
         return ds, scrunch_dataset
@@ -109,7 +112,10 @@ class TestExpressions(BaseIntegrationTestCase):
             ds.delete()
 
     def test_categorical_array_any_add_filter(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_add_filter"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_any_categorical_add_filter", "project": project.self}
+        )).refresh()
         ds.variables.create(as_entity({
             "name": "Categorical Var",
             "alias": "categorical_var",
@@ -213,7 +219,10 @@ class TestExpressions(BaseIntegrationTestCase):
             ds.delete()
 
     def test_categorical_array_any_w_bracket_subvar(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_w_bracket_add_filter"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_any_categorical_w_bracket_add_filter", "project": project.self}
+        )).refresh()
         cat_var = ds.variables.create(as_entity({
             "name": "Categorical Var",
             "alias": "categorical_var",
@@ -366,7 +375,10 @@ class TestExpressions(BaseIntegrationTestCase):
             ds_to_append.delete()
 
     def test_categorical_any_add_filter_value(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_filter"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_any_categorical_filter", "project": project.self}
+        )).refresh()
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
             {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
@@ -398,7 +410,10 @@ class TestExpressions(BaseIntegrationTestCase):
             ds.delete()
 
     def test_categorical_any_add_filter_multiple_values(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_any_categorical_filter_multiple_values"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(as_entity(
+            {"name": "test_any_categorical_filter_multiple_values", "project": project.self}
+        )).refresh()
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},
             {"id": 2, "name": "Two", "missing": False, "numeric_value": None},
