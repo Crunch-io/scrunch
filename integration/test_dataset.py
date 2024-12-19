@@ -525,7 +525,12 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
 class TestCategories(BaseIntegrationTestCase):
     def test_edit_category(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_edit_category"})).refresh()
+        project = self.site.projects.create(
+            as_entity({"name": "foo"})
+        )
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_edit_category", "project": project.self})
+        ).refresh()
 
         categories = [
             {"id": 1, "name": "One", "missing": False, "numeric_value": None},

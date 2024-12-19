@@ -5,7 +5,7 @@ Tests that the variable Folders API is properly supported
 
 """
 
-from pycrunch.shoji import Catalog
+from pycrunch.shoji import Catalog, as_entity
 
 from fixtures import NEWS_DATASET, BaseIntegrationTestCase
 from scrunch import get_dataset
@@ -69,6 +69,7 @@ def setup_folders(ds):
 class TestFolders(BaseIntegrationTestCase):
     def setUp(self):
         super(TestFolders, self).setUp()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
         self._ds = self.site.datasets.create({
             'element': 'shoji:entity',
             'body': {
@@ -77,6 +78,7 @@ class TestFolders(BaseIntegrationTestCase):
                     'element': 'crunch:table',
                     'metadata': NEWS_DATASET
                 },
+                'project': project.self,
             }
         }).refresh()
         ds = self._ds

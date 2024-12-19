@@ -14,23 +14,25 @@ from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT,
 from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
+from pycrunch.shoji import as_entity
 
 
 class TestRecodes(BaseIntegrationTestCase):
     def test_recodes(self):
         raise self.skipTest("Temporarily disabling for API update")
         # Create a dataset for usage
-        ds = self.site.datasets.create({
-            'element': 'shoji:entity',
-            'body': {
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(
+            as_entity({
                 'name': 'test_recodes',
                 'table': {
                     'element': 'crunch:table',
                     'metadata': NEWS_DATASET
                 },
-                'streaming': 'streaming'
-            }
-        }).refresh()
+                'streaming': 'streaming',
+                'project': project.self,
+            })
+        ).refresh()
         dataset = get_streaming_dataset(ds.body.id, self.site)
         print("Dataset %s created" % dataset.id)
 
@@ -171,6 +173,7 @@ class TestFill(BaseIntegrationTestCase):
                 ]
             }
         }
+        project = self.site.projects.create(as_entity({"name": "foo"}))
         ds_payload = {
             'element': 'shoji:entity',
             'body': {
@@ -179,6 +182,7 @@ class TestFill(BaseIntegrationTestCase):
                     'element': 'crunch:table',
                     'metadata': metadata
                 },
+                'project': project.self,
             }
         }
 

@@ -12,8 +12,9 @@ from fixtures import BaseIntegrationTestCase
 
 class TestBackFill(BaseIntegrationTestCase):
     def _prepare_ds(self, values):
+        project = self.site.projects.create(as_entity({"name": "foo"}))
         ds = self.site.datasets.create(
-            as_entity({"name": "test_backfill_values"})).refresh()
+            as_entity({"name": "test_backfill_values", "project": project.self})).refresh()
         # We need a numeric PK
         pk = ds.variables.create(
             as_entity(

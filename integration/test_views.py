@@ -14,7 +14,10 @@ class TestViews(BaseIntegrationTestCase):
     ]
 
     def _create_ds(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_script"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "foo"}))
+        ds = self.site.datasets.create(
+            as_entity({"name": "test_script", "project": project.self})
+        ).refresh()
 
         for alias, v_type in self.FIXTURE_VARIABLES:
             var_body = as_entity({
