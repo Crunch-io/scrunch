@@ -3391,14 +3391,7 @@ class BackfillFromCSV:
                 schema[a] = svdef
         return schema
 
-    def make_tmp_name(self):
-        return "Scrunch-backfill-{}-{}-{}".format(
-            self.dataset.name, self.dataset.id, self.timestamp)
-
-    def create_tmp_project(self, name):
-        return self.root.projects.create(shoji_entity_wrapper({"name": name}))
-
-    def create_tmp_ds(self, name, project, csv_file):
+    def create_tmp_ds(self, csv_file):
         """
         Creates a new pycrunch dataset:
 
@@ -3406,16 +3399,19 @@ class BackfillFromCSV:
          * Uploads the CSV file
          * Renames the variables to disambiguate on the join
         """
+        tmp_name = "Scrunch-backfill-{}-{}-{}".format(
+            self.dataset.name, self.dataset.id, self.timestamp)
+
         # Create the new tmp dataset with the schema for the variables
         # from the target dataset. To ensure they are all the same type
         metadata = self.obtain_schema()
         tmp_ds = self.root.datasets.create(shoji_entity_wrapper({
-            "name": name,
+            "name": tmp_name,
             "table": {
                 "element": "crunch:table",
                 "metadata": metadata
             },
-            "project": project.self,
+            "project": self.dataset.project.url,
         })).refresh()
         try:
             importing.importer.append_csv_string(tmp_ds, csv_file)
@@ -3499,9 +3495,7 @@ class BackfillFromCSV:
     def execute(self, csv_file):
         # Create a new dataset with the CSV file, We want this TMP dataset
         # to have the same types as the variables we want to replace.
-        tmp_name = self.make_tmp_name()
-        tmp_project = self.create_tmp_project(tmp_name)
-        tmp_ds = self.create_tmp_ds(tmp_name, tmp_project, csv_file)
+        tmp_ds = self.create_tmp_ds(csv_file)
         sp_msg = "Savepoint before backfill: {}".format(self.timestamp)
         with SavepointRestore(self.dataset, sp_msg):
             try:
