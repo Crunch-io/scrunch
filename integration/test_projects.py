@@ -72,25 +72,30 @@ class TestProjects(BaseIntegrationTestCase):
         fo = get_user(username_2)
         fo_site = connect(fo.email, password_2, self.host)
 
+        project = self.new_project("foo")
+        fo_project = fo_site.projects.create(shoji_entity_wrapper({"name": "foo"}))
+
         # These two datasets are created by the default logged user
         _ds1 = self.site.datasets.create(shoji_entity_wrapper({
-            'name': 'test_move_dataset1'
+            'name': 'test_move_dataset1',
+            'project': project.url,
         })).refresh()
         _ds2 = self.site.datasets.create(shoji_entity_wrapper({
-            'name': 'test_move_dataset2'
+            'name': 'test_move_dataset2',
+            'project': project.url,
         })).refresh()
 
         # This dataset is created and owned by the other user
         _ds4 = fo_site.datasets.create(shoji_entity_wrapper({
             'name': 'test_move_dataset4',
-            'owner': fo.url
+            'project': fo_project.self,
         })).refresh()
 
         ds1 = get_dataset(_ds1.body.id)
         ds2 = get_dataset(_ds2.body.id)
         ds4 = get_dataset(_ds4.body.id, connection=fo_site)
 
-        ds2.add_user(fo, edit=True)
+        project.add_user(fo, edit=True)
 
         # Create a hierarchy A -> B
         pa = self.new_project("test_move_dataset_A")

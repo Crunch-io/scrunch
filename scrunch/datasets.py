@@ -3410,7 +3410,8 @@ class BackfillFromCSV:
             "table": {
                 "element": "crunch:table",
                 "metadata": metadata
-            }
+            },
+            "project": self.dataset.project.url,
         })).refresh()
         try:
             importing.importer.append_csv_string(tmp_ds, csv_file)
@@ -3508,4 +3509,3 @@ class BackfillFromCSV:
                     folders_by_name[folder_name].entity.delete()
                 # Always delete the tmp dataset no matter what
                 tmp_ds.delete()
-
