@@ -20,7 +20,6 @@ except ImportError:
     from io import StringIO
 
 from unittest import TestCase
-from unittest.mock import patch
 from requests import Response
 
 import pytest
@@ -1804,7 +1803,7 @@ class TestForks(TestCase):
             }
         }
 
-        with patch('scrunch.datasets.get_project') as mock_get_project:
+        with mock.patch('scrunch.datasets.get_project') as mock_get_project:
             mock_get_project.return_value.url = project
             ds.fork(preserve_owner=False, project=project)
         
@@ -1849,7 +1848,7 @@ class TestForks(TestCase):
         ):
             ds.fork(preserve_owner=False, project=None)
 
-        with patch('scrunch.datasets.get_project') as mock_get_project:
+        with mock.patch('scrunch.datasets.get_project') as mock_get_project:
             mock_get_project.return_value.url = project_url
             ds.fork(preserve_owner=False, project="123")
 
