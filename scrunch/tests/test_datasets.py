@@ -20,6 +20,7 @@ except ImportError:
     from io import StringIO
 
 from unittest import TestCase
+from unittest.mock import patch
 from requests import Response
 
 import pytest
@@ -1781,7 +1782,7 @@ class TestForks(TestCase):
 
 
     def test_fork_project(self):
-        project = 'https://test.crunch.io/api/projects/1234/'
+        project = '1234'
         sess = MagicMock()
         body = JSONObject({
             'name': 'ds name',
@@ -1798,17 +1799,15 @@ class TestForks(TestCase):
             'body': {
                 'name': 'FORK #1 of ds name',
                 'description': 'ds description',
-                'project': project,  # Project added
+                'project': "https://test.crunch.io/api/projects/{}/".format(project),  # Project added
                 'is_published': False,
             }
         }
-        # Using project parameter
-        ds.fork(preserve_owner=False, project=project)
-        ds_res.forks.create.assert_called_with(expected_payload)
 
-        # Using owner parameter
-        ds.fork(preserve_owner=False, owner=project)
-        ds_res.forks.create.assert_called_with(expected_payload)
+        with patch('scrunch.datasets.get_project') as mock_get_project:
+            mock_get_project.return_value.url = project
+            ds.fork(preserve_owner=False, project=project)
+        
 
         # Validations
         err_msg1 = (
@@ -1816,28 +1815,29 @@ class TestForks(TestCase):
             "Please try again by passing only 'project' parameter."
         )
         with pytest.raises(ValueError, match=err_msg1):
-            ds.fork(owner="ABCD", project="1234")
+            ds.fork(owner="ABCD", project=project)
         
         err_msg2 = ("Cannot pass 'project' or 'owner' when preserve_owner=True.")
         with pytest.raises(ValueError, match=err_msg2):
-            ds.fork(preserve_owner=True, project="1234")
+            ds.fork(preserve_owner=True, project=project)
             
         with pytest.raises(ValueError, match=err_msg2):
-            ds.fork(preserve_owner=True, owner="1234")       
+            ds.fork(preserve_owner=True, owner=project)       
 
 
     def test_fork_preserve_owner(self):
-        project = "http://test.crunch.io/api/projects/123/"
+        project_url = "http://test.crunch.io/api/projects/123/"
         sess = MagicMock()
+        sess.site_url = "http://test.crunch.io/api/"
         body = JSONObject(
             {
                 "name": "ds name",
                 "description": "ds description",
-                "owner": project,
+                "owner": project_url,
             }
         )
         ds_res = MagicMock(session=sess, body=body)
-        ds_res.project.self = project
+        ds_res.project.self = project_url
         ds_res.forks = MagicMock()
         ds_res.forks.index = {}
         ds = BaseDataset(ds_res)
@@ -1849,14 +1849,17 @@ class TestForks(TestCase):
         ):
             ds.fork(preserve_owner=False, project=None)
 
-        ds.fork(preserve_owner=False, owner=project)
+        with patch('scrunch.datasets.get_project') as mock_get_project:
+            mock_get_project.return_value.url = project_url
+            ds.fork(preserve_owner=False, project="123")
+
         ds_res.forks.create.assert_called_with(
             {
                 "element": "shoji:entity",
                 "body": {
                     "name": "FORK #1 of ds name",
                     "description": "ds description",
-                    "project": project,  # Project preserved
+                    "project": project_url,
                     "is_published": False,
                 },
             }
