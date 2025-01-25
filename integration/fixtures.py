@@ -11,10 +11,8 @@ class BaseIntegrationTestCase(TestCase):
         self.host = os.environ["SCRUNCH_HOST"]
         if self.host[-1] != "/":
             self.host += "/"
-        username = os.environ["SCRUNCH_USER"]
-        password = os.environ["SCRUNCH_PASS"]
         api_key = os.environ.get("CRUNCH_API_KEY") or ""
-        self.site = connect(username, password, self.host, api_key=api_key)
+        self.site = connect("", "", self.host, api_key=api_key)
         assert self.site is not None, "Unable to connect to %s" % self.host
 
 
