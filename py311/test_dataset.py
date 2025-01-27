@@ -2,13 +2,13 @@
 import codecs
 import csv
 import os
+import sys
 import tempfile
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
 
 import numpy
-import pyspssio
+import pytest
 from numpy.testing import assert_equal as numpy_assert_equal
 from pycrunch.shoji import Entity, as_entity, wait_progress
 
@@ -17,6 +17,9 @@ from scrunch.cubes import crtabs
 from scrunch.datasets import Project
 from scrunch.streaming_dataset import StreamingDataset
 
+IS_PYTHON_2 = bool(sys.version_info.major == 2)
+if not IS_PYTHON_2:
+    import pyspssio
 PROJECT_ID = os.environ.get("SCRUNCH_PROJECT_ID")
 PROJECT_311_ID = os.environ.get("SCRUNCH_PROJECT_311_ID")
 TEST_DATASET_ID = os.environ.get("SCRUNCH_TEST_DATASET_ID")
@@ -60,9 +63,7 @@ for mimetype, val in source_filetypes.items():
 source_mimetypes["txt"] = ["text/csv"]  # Backward compatibility
 
 
-def ensure_binary(
-    s: Union[str, bytes], encoding: str = "utf-8", errors: str = "strict"
-) -> bytes:
+def ensure_binary(s, encoding="utf-8", errors="strict"):
     """Coerce **s** to bytes.
     - `str` -> encoded to `bytes`
     - `bytes` -> `bytes`
@@ -75,7 +76,7 @@ def ensure_binary(
         return s
     if isinstance(s, str):
         return s.encode(encoding, errors)
-    raise TypeError(f"not expecting type '{type(s)}'")
+    raise TypeError("not expecting type '%s'" % type(s))
 
 
 BOUNDARY = "________ThIs_Is_tHe_bouNdaRY_$"
@@ -90,21 +91,23 @@ def encode_multipart_formdata(files):
     for key, filename, value in files:
         lines.append("--" + BOUNDARY)
         if filename is None:
-            lines.append(f'Content-Disposition: form-data; name="{key}"\r\n\r\n{value}')
+            lines.append(
+                'Content-Disposition: form-data; name="%s"\r\n\r\n%s' % (key, value)
+            )
             continue
         lines.append(
-            f'Content-Disposition: form-data; name="{key}"; filename="{filename}"'
+            'Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename)
         )
         ct = source_mimetypes.get(
             filename.rsplit(".", 1)[-1], ["application/octet-stream"]
         )[0]
-        lines.append(f"Content-Type: {ct}")
+        lines.append("Content-Type: %s" % ct)
         lines.append("")
         lines.append(value)
     lines.append("--" + BOUNDARY + "--")
     lines.append("")
     body = "\r\n".join(lines)
-    content_type = f"multipart/form-data; charset=UTF-8; boundary={BOUNDARY}"
+    content_type = "multipart/form-data; charset=UTF-8; boundary=%s" % BOUNDARY
     return content_type, body
 
 
@@ -155,11 +158,11 @@ class BaseTestCase(BaseIntegrationTestCase):
         )
         body += "--%s--\r\n" % BOUNDARY
 
-        content_type = f"multipart/form-data; charset=UTF-8; boundary={BOUNDARY}"
+        content_type = "multipart/form-data; charset=UTF-8; boundary=%s" % BOUNDARY
 
         return content_type, body
 
-    def _parse_on_311(self, on_311: Union[None, bool]) -> bool:
+    def _parse_on_311(self, on_311):
         """
         Based on the value of the parameters, returns True or False, based on whether we are
         meant to run this on a Python 3.11 factory or not.
@@ -174,10 +177,10 @@ class BaseTestCase(BaseIntegrationTestCase):
 
     def _import_dataset(
         self,
-        metadata: Dict[str, Any],
-        input_file: str,
-        on_311: Optional[bool] = None,
-        format_: str = "csv",
+        metadata,
+        input_file,
+        on_311=None,
+        format_="csv",
     ):
         """
         :param metadata: The metadata fields associated to the dataset we are creating.
@@ -194,12 +197,14 @@ class BaseTestCase(BaseIntegrationTestCase):
             "Weighed imported test dataset" if self.weight else "Imported test dataset"
         )
         ds_data = {k: v for k, v in metadata.items()}
-        ds_data["name"] = (
-            f"{name} {uuid.uuid4().hex[:16]} [{datetime.now().isoformat()}]"
+        ds_data["name"] = "%s %s [%s]" % (
+            name,
+            uuid.uuid4().hex[:16],
+            datetime.now().isoformat(),
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = f"/projects/{project_id}/"
+            ds_data["project"] = "/projects/%s" % project_id
         # server/tests/controllers/test_sources.py
         # streaming dataset
         # steps
@@ -240,7 +245,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         wait_progress(resp, self.site.session)
         return ds.refresh()
 
-    def _export_dataset(self, ds, format_: str = "csv") -> Dict[str, Any]:
+    def _export_dataset(self, ds, format_="csv"):
         """
         Runs a dataset export.
 
@@ -251,7 +256,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         ds.export(output.name, format=format_)
         return self._parse_dataset_export(output, format_)
 
-    def _run_script(self, ds, payload: dict):
+    def _run_script(self, ds, payload):
         """
         Runs an automation script against a dataset.
         """
@@ -260,7 +265,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         wait_progress(resp, self.site.session)
         return ds.refresh()
 
-    def _parse_dataset_export(self, output: str, format_: str = "csv"):
+    def _parse_dataset_export(self, output, format_="csv"):
         """
         Given an output file, parses it and returns the values for it.
         """
@@ -289,23 +294,21 @@ class BaseTestCase(BaseIntegrationTestCase):
 
         super().tearDown()
 
-    def _project(self, id: str) -> Project:
+    def _project(self, id):
         """
         Returns the scrunch project instance for a specific project ID.
         """
         project = Project(
             Entity(
                 self.site.session,
-                **{
-                    "self": f"{self.site.self}projects/{id}/",
-                    "element": "shoji:entity",
-                    "body": {"name": "Target project"},
-                },
+                self="%sprojects/%s" % (self.site.self, id),
+                element="shoji:entity",
+                body={"name": "Target project"},
             )
         )
         return project
 
-    def _log(self, msg: str):
+    def _log(self, msg):
         print(msg)
 
     def _change_dataset_version(self, ds):
@@ -335,12 +338,14 @@ class BaseTestCase(BaseIntegrationTestCase):
         ds_data["view_of"] = ds.self
         if not name:
             name = "Weighed test view dataset" if self.weight else "Test view dataset"
-        ds_data["name"] = (
-            f"{name} {uuid.uuid4().hex[:16]} [{datetime.now().isoformat()}]"
+        ds_data["name"] = "%s %s [%s]" % (
+            name,
+            uuid.uuid4().hex[:16],
+            datetime.now().isoformat(),
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = f"/projects/{project_id}/"
+            ds_data["project"] = "/projects/%s" % project_id
         view = self.site.datasets.create(as_entity(ds_data)).refresh()
         self._created_datasets[ds.self][1][view.self] = view
         if self.weight:
@@ -348,7 +353,7 @@ class BaseTestCase(BaseIntegrationTestCase):
                 {"weight": view.variables.by("alias")[self.weight].entity.self}
             )
         streaming_view = StreamingDataset(view)
-        self._log(f"[{streaming_view.id}] {name} [project={project_id}]")
+        self._log("[%s] %s [project=%s]" % (streaming_view.id, name, project_id))
         return streaming_view, view
 
     def _create_dataset(self, on_311=None, pk=None, **values):
@@ -361,12 +366,14 @@ class BaseTestCase(BaseIntegrationTestCase):
         ds_data = {k: v for k, v in values.items()}
         if not name:
             name = "Weighed test dataset" if self.weight else "Test dataset"
-        ds_data["name"] = (
-            f"{name} {uuid.uuid4().hex[:16]} [{datetime.now().isoformat()}]"
+        ds_data["name"] = "%s %s [%s]" % (
+            name,
+            uuid.uuid4().hex[:16],
+            datetime.now().isoformat(),
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = f"/projects/{project_id}/"
+            ds_data["project"] = "/projects/%s" % project_id
         ds = self.site.datasets.create(as_entity(ds_data)).refresh()
         if pk:
             ds.variables.create(
@@ -528,10 +535,10 @@ class BaseTestCase(BaseIntegrationTestCase):
                 {"weight": ds.variables.by("alias")[self.weight].entity.self}
             )
         streaming_ds = StreamingDataset(ds)
-        self._log(f"[{streaming_ds.id}] {name} [project={project_id}]")
+        self._log("[%s] %s [project=%s]" % (streaming_ds.id, name, project_id))
         return streaming_ds, ds
 
-    def _get_var_values(self, var) -> Dict[str, Any]:
+    def _get_var_values(self, var):
         """
         Given a variable, runs a /dataset/DID/variable/VID/values/ call to get the data values
         associated to it and parses them to return them.
@@ -542,7 +549,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         for fn_name in cls.TEST_FUNCTIONS:
             if hasattr(cls, fn_name):
                 continue
-            orig_fn = getattr(cls, f"_{fn_name}", None)
+            orig_fn = getattr(cls, "_" + fn_name, None)
             if not orig_fn:
                 continue
             setattr(cls, fn_name, orig_fn)
@@ -1117,6 +1124,7 @@ class BaseTestDatasets(BaseTestCase):
         }
         self._test_export_dataset("csv", EXPECTED)
 
+    @pytest.mark.skipif(IS_PYTHON_2, reason="Requires Python 3")
     def _test_export_dataset_as_spss(self):
         nan = float("nan")
         EXPECTED = {
