@@ -10,16 +10,16 @@ import sys
 
 import setuptools
 
-with io.open('README.rst', encoding='utf-8') as readme:
+with io.open("README.rst", encoding="utf-8") as readme:
     long_description = readme.read()
 
 PY2 = sys.version_info[0] < 3
 
 PY36 = sys.version_info[:2] == (3, 6)
 
-name = 'scrunch'
-description = 'Pythonic scripting library for cleaning data in Crunch'
-nspkg_technique = 'native'
+name = "scrunch"
+description = "Pythonic scripting library for cleaning data in Crunch"
+nspkg_technique = "native"
 """
 Does this package use "native" namespace packages or
 pkg_resources "managed" namespace packages?
@@ -42,41 +42,37 @@ params = dict(
     url="https://github.com/Crunch-io/" + name,
     packages=setuptools.find_packages(),
     include_package_data=True,
-    namespace_packages=(
-        name.split('.')[:-1] if nspkg_technique == 'managed'
-        else []
-    ),
-    python_requires='>=2.7',
+    namespace_packages=(name.split(".")[:-1] if nspkg_technique == "managed" else []),
+    python_requires=">=2.7",
     install_requires=[
         "pycrunch==0.5.5",
         requests,
         crunch_cube,
-        'six',
+        "six",
     ],
     extras_require={
-        'testing': [
+        "testing": [
             # upstream
             "pytest",
-            'collective.checkdocs',
+            "collective.checkdocs",
             # 'pytest-flake8==2.18.4',
-
             # local
-            'pytest-cov==2.12.1',
-            'mock==3.0.5',
-            'isodate',
-        ],
-        'docs': [
+            "pytest-cov==2.12.1",
+            "mock==3.0.5",
+            "isodate",
+        ]
+        + ([] if PY2 else ["pyspssio"]),
+        "docs": [
             # upstream
-            'sphinx',
-            'jaraco.packaging>=3.2',
-            'rst.linker>=1.9',
-
+            "sphinx",
+            "jaraco.packaging>=3.2",
+            "rst.linker>=1.9",
             # local
         ],
-        'pandas': ['pandas'],
+        "pandas": ["pandas"],
     },
     setup_requires=[
-        'setuptools_scm>=1.15.0',
+        "setuptools_scm>=1.15.0",
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -85,32 +81,35 @@ params = dict(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
     ],
-    entry_points={
-    },
+    entry_points={},
 )
 
 if PY2:
-    params["install_requires"].extend([
-        "importlib_metadata==0.17",
-        # Pin dependency versions to work with python2.7.
-        "zipp==1.1.0",
-        "tabulate==0.8.10",
-        "configparser==4.0.2",
-        "scipy==1.2.3",
-        "numpy==1.13.3",
-        "contextlib2==0.6.0",
-        "certifi==2021.10.8"
-    ])
+    params["install_requires"].extend(
+        [
+            "importlib_metadata==0.17",
+            # Pin dependency versions to work with python2.7.
+            "zipp==1.1.0",
+            "tabulate==0.8.10",
+            "configparser==4.0.2",
+            "scipy==1.2.3",
+            "numpy==1.13.3",
+            "contextlib2==0.6.0",
+            "certifi==2021.10.8",
+        ]
+    )
 elif PY36:
-    params["install_requires"].extend([
-        # Pin for python3.6
-        # "platformdirs==2.4.0",
-        "setuptools==51.0.0",
-        "setuptools_scm==6.4.2",
-        "scipy==1.1.0",
-        "numpy==1.15.1",
-        "dataclasses==0.8"
-    ])
+    params["install_requires"].extend(
+        [
+            # Pin for python3.6
+            # "platformdirs==2.4.0",
+            "setuptools==51.0.0",
+            "setuptools_scm==6.4.2",
+            "scipy==1.1.0",
+            "numpy==1.15.1",
+            "dataclasses==0.8",
+        ]
+    )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     setuptools.setup(**params)
