@@ -204,7 +204,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = "/projects/%s" % project_id
+            ds_data["project"] = "%sprojects/%s/" % (self.site.self, project_id)
         # server/tests/controllers/test_sources.py
         # streaming dataset
         # steps
@@ -301,7 +301,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         project = Project(
             Entity(
                 self.site.session,
-                self="%sprojects/%s" % (self.site.self, id),
+                self="%sprojects/%s/" % (self.site.self, id),
                 element="shoji:entity",
                 body={"name": "Target project"},
             )
@@ -345,7 +345,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = "/projects/%s" % project_id
+            ds_data["project"] = "%sprojects/%s/" % (self.site.self, project_id)
         view = self.site.datasets.create(as_entity(ds_data)).refresh()
         self._created_datasets[ds.self][1][view.self] = view
         if self.weight:
@@ -373,7 +373,7 @@ class BaseTestCase(BaseIntegrationTestCase):
         )
         project_id = PROJECT_311_ID if on_311 else PROJECT_ID
         if project_id:
-            ds_data["project"] = "/projects/%s" % project_id
+            ds_data["project"] = "%sprojects/%s/" % (self.site.self, project_id)
         ds = self.site.datasets.create(as_entity(ds_data)).refresh()
         if pk:
             ds.variables.create(
@@ -703,6 +703,18 @@ class BaseTestDatasets(BaseTestCase):
         ds, ds_instance = self._create_dataset(name="test_dataset")
         view, view_instance = self._create_view(ds_instance)
         return self._assert_cube_query(view)
+
+    def _test_run_script_rename_variable(self):
+        ds, ds_instance = self._create_dataset(name="test_dataset")
+        body = """RENAME A TO A1;"""
+        orig_var_id = ds_instance.variables.by("alias")["A"].id
+        ds_instance = self._run_script(
+            ds_instance, as_entity({"body": body, "async": False})
+        )
+        assert ds_instance.variables.by("alias")["A1"].id == orig_var_id
+        ds = self._change_dataset_version(ds)
+        ds_instance = ds_instance.refresh()
+        assert ds_instance.variables.by("alias")["A1"].id == orig_var_id
 
     def _test_run_script_change_var_name(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -1195,8 +1207,32 @@ class BaseTestDatasets(BaseTestCase):
         self._test_export_dataset("spss", EXPECTED)
 
     def _test_import_spss_dataset(self):
-        # Still being implemented
-        pass
+        imported_ds = self._import_dataset(
+            {"description": "Imported csv dataset"},
+            "all_pets.sav",
+            format_="spss",
+        )
+        assert imported_ds.body.description == "Imported spss dataset"
+        assert set(imported_ds.variables.by("alias").keys()) == {
+            "Q7",
+            "Q99",
+            "Q6",
+            "Q2_5",
+            "Q2_4",
+            "Q4_9",
+            "Q2_9",
+            "Q4_3",
+            "Q2_1",
+            "Q4_1",
+            "Q3",
+            "Q4_5",
+            "Q5",
+            "Q4_2",
+            "Q2_3",
+            "Q2_2",
+            "Q4_4",
+            "Q1",
+        }
 
     def _test_import_csv_dataset(self):
         imported_ds = self._import_dataset(
@@ -1255,6 +1291,7 @@ ALL_TEST_FUNCTIONS = [
     "test_run_script_create_numeric_array",
     "test_run_script_create_categorical_case",
     "test_run_script_create_categorical_recode",
+    "test_run_script_rename_variable",
 ]
 
 
