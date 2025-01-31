@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 import numpy
+import pycrunch
 import pytest
 from numpy.testing import assert_equal as numpy_assert_equal
 from pycrunch.shoji import Entity, as_entity, wait_progress
@@ -225,24 +226,25 @@ class BaseTestCase(BaseIntegrationTestCase):
             contents=self._test_file_bytes(input_fullpath),
         )
 
-        poster = self.site.sources.post
-        content = body
-        resp = poster(
-            content,
-            headers={"Content-Type": content_type, "Content-Length": str(len(body))},
-        )
         ds = self.site.datasets.create(as_entity(ds_data)).refresh()
+        importer = pycrunch.importing.Importer()
+        fixture_filepath = os.path.join(
+            os.path.dirname(__file__), "fixture_files", input_file
+        )
+        with open(fixture_filepath, "rb" if format_ == "spss" else "rt") as fp:
+            resp = importer.add_source(ds, input_file, fp, source_mimetypes[format_][0])
         resp = ds.batches.post(
             {
                 "element": "shoji:entity",
                 "body": {
-                    "source": resp.headers["Location"],
+                    "source": resp,
                     "workflow": [],
                 },
                 "savepoint": False,
             }
         )  # .json()["value"]
         wait_progress(resp, self.site.session)
+
         return ds.refresh()
 
     def _export_dataset(self, ds, format_="csv"):
@@ -419,6 +421,161 @@ class BaseTestCase(BaseIntegrationTestCase):
         ds.variables.create(
             as_entity(
                 {
+                    "name": "C1",
+                    "alias": "C1",
+                    "type": "text",
+                    "values": ["13", "23", None, "5", None, "5", "10", "11", "4", "2"],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "C2",
+                    "alias": "C2",
+                    "type": "text",
+                    "values": ["20", "13", "4", None, "5", None, "9", "12", None, "1"],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "MR1",
+                    "alias": "MR1",
+                    "type": "categorical",
+                    "categories": [
+                        {
+                            "id": 1,
+                            "name": "CAT1",
+                            "missing": False,
+                            "numeric_value": 1,
+                        },
+                        {
+                            "id": 2,
+                            "name": "CAT2",
+                            "missing": False,
+                            "numeric_value": 2,
+                        },
+                        {
+                            "id": 3,
+                            "name": "CAT3",
+                            "missing": False,
+                            "numeric_value": 3,
+                        },
+                        {
+                            "id": -1,
+                            "name": "No Data",
+                            "missing": True,
+                            "numeric_value": None,
+                        },
+                    ],
+                    "values": [-1, 1, 3, 2, 1, 2, -1, -1, 3, 3],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "MR2",
+                    "alias": "MR2",
+                    "type": "categorical",
+                    "categories": [
+                        {
+                            "id": 1,
+                            "name": "CAT1",
+                            "missing": False,
+                            "numeric_value": 1,
+                        },
+                        {
+                            "id": 2,
+                            "name": "CAT2",
+                            "missing": False,
+                            "numeric_value": 2,
+                        },
+                        {
+                            "id": 3,
+                            "name": "CAT3",
+                            "missing": False,
+                            "numeric_value": 3,
+                        },
+                        {
+                            "id": 4,
+                            "name": "CAT4",
+                            "missing": False,
+                            "numeric_value": 4,
+                        },
+                        {
+                            "id": -1,
+                            "name": "No Data",
+                            "missing": True,
+                            "numeric_value": None,
+                        },
+                    ],
+                    "values": [1, -1, 3, 4, 2, 1, 3, 4, -1, 3],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "N1",
+                    "alias": "N1",
+                    "type": "numeric",
+                    "values": [16, 26, 5, None, None, 5, 20, 11, 7, 2],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "N2",
+                    "alias": "N2",
+                    "type": "numeric",
+                    "values": [10, 29, 4, None, 5, None, None, 22, 2, 9],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "M",
+                    "type": "categorical_array",
+                    "subvariables": [
+                        ds.variables.by("alias")["C1"].entity_url,
+                        ds.variables.by("alias")["C2"].entity_url,
+                    ],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "NA",
+                    "type": "numeric_array",
+                    "subvariables": [
+                        ds.variables.by("alias")["N1"].entity_url,
+                        ds.variables.by("alias")["N2"].entity_url,
+                    ],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
+                    "name": "MR",
+                    "type": "multiple_response",
+                    "subvariables": [
+                        ds.variables.by("alias")["MR1"].entity_url,
+                        ds.variables.by("alias")["MR2"].entity_url,
+                    ],
+                    "selected_categories": ["CAT1", "CAT2"],
+                }
+            )
+        ).refresh()
+        ds.variables.create(
+            as_entity(
+                {
                     "name": "DT",
                     "alias": "DT",
                     "type": "text",
@@ -538,6 +695,31 @@ class BaseTestCase(BaseIntegrationTestCase):
         self._log("[%s] %s [project=%s]" % (streaming_ds.id, name, project_id))
         return streaming_ds, ds
 
+    def assert_dataset_values(
+        self, ds, expected, fields=None, include=None, exclude=None
+    ):
+        if include or exclude:
+            _expected = expected.copy()
+            if include:
+                _expected.update(include)
+            if exclude:
+                for key in exclude:
+                    del _expected[key]
+        else:
+            _expected = expected
+        assert _expected == self._get_dataset_values(ds, fields)
+
+    def _get_dataset_values(self, ds, fields=None):
+        variables = {
+            k: o.entity
+            for k, o in ds.variables.by("alias").items()
+            if not fields or k in fields
+        }
+        resp = {}
+        for alias, var in variables.items():
+            resp[alias] = self._get_var_values(var)
+        return resp
+
     def _get_var_values(self, var):
         """
         Given a variable, runs a /dataset/DID/variable/VID/values/ call to get the data values
@@ -556,6 +738,64 @@ class BaseTestCase(BaseIntegrationTestCase):
         return super().__new__(cls)
 
 
+DATASET_EXPECTED = {
+    "weight_var": [10.0, 8.0, 14.0, 10.0, 12.0, 9.0, 10.0, 11.0, 9.0, 7.0],
+    "A": [1.0, 2.0, 3.0, {"?": -1}, 5.0, 6.0, 7.0, 8.0, {"?": -1}, 11.0],
+    "B": [2.0, 3.0, 1.0, 5.0, {"?": -1}, 6.0, 8.0, 11.0, 7.0, {"?": -1}],
+    "M": [
+        [3, 10],
+        [5, 3],
+        [{"?": -1}, 6],
+        [7, {"?": -1}],
+        [{"?": -1}, 7],
+        [7, {"?": -1}],
+        [1, 11],
+        [2, 9],
+        [6, {"?": -1}],
+        [4, 8],
+    ],
+    "NA": [
+        [16.0, 10.0],
+        [26.0, 29.0],
+        [5.0, 4.0],
+        [{"?": -1}, {"?": -1}],
+        [{"?": -1}, 5.0],
+        [5.0, {"?": -1}],
+        [20.0, {"?": -1}],
+        [11.0, 22.0],
+        [7.0, 2.0],
+        [2.0, 9.0],
+    ],
+    "MR": [
+        [{"?": -1}, 1],
+        [1, {"?": -1}],
+        [3, 3],
+        [2, 4],
+        [1, 2],
+        [2, 1],
+        [{"?": -1}, 3],
+        [{"?": -1}, 4],
+        [3, {"?": -1}],
+        [3, 3],
+    ],
+    "DT": [
+        "2024-10-02",
+        "2024-10-03",
+        "2024-10-01",
+        "2024-10-05",
+        {"?": -1},
+        "2024-09-06",
+        "2024-10-08",
+        "2024-11-11",
+        "2024-10-07",
+        {"?": -1},
+    ],
+    "cat1": [1, 2, 3, {"?": -1}, {"?": -1}, {"?": -1}, 1, 2, 3, 1],
+    "cat2": [1, 3, 2, {"?": -1}, 1, {"?": -1}, 1, 2, 3, {"?": -1}],
+    "der1": [2.0, 3.0, 4.0, {"?": -1}, 6.0, 7.0, 8.0, 9.0, {"?": -1}, 12.0],
+}
+
+
 class BaseTestDatasets(BaseTestCase):
     """
     This class instantiates all the tests we need to run. The actual execution will be
@@ -572,6 +812,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
 
@@ -585,6 +828,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
 
@@ -616,6 +862,9 @@ class BaseTestDatasets(BaseTestCase):
             "der2",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
 
@@ -630,6 +879,9 @@ class BaseTestDatasets(BaseTestCase):
             "cat2",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
         ds = self._revert_dataset_version(ds)
@@ -639,6 +891,9 @@ class BaseTestDatasets(BaseTestCase):
             "cat2",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
 
@@ -655,6 +910,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
         assert set(view2.variable_aliases()) == {
@@ -664,6 +922,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
         view = self._revert_dataset_version(view)
@@ -675,6 +936,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
         assert set(view2.variable_aliases()) == {
@@ -684,6 +948,9 @@ class BaseTestDatasets(BaseTestCase):
             "der1",
             "A",
             "B",
+            "M",
+            "NA",
+            "MR",
             "weight_var",
         }
 
@@ -727,6 +994,101 @@ class BaseTestDatasets(BaseTestCase):
         ds_instance = ds_instance.refresh()
         assert ds_instance.variables.by("alias")["cat1"].name == "Var A"
 
+    def _test_run_script_materialize_derived(self):
+        ds, ds_instance = self._create_dataset(name="test_dataset")
+        body = """
+        MATERIALIZE VARIABLES der1;
+        """
+        orig_var = ds_instance.variables.by("alias")["der1"]
+        assert orig_var.entity.body.derived is True
+        ds_instance = self._run_script(
+            ds_instance, as_entity({"body": body, "async": False})
+        )
+        new_var = ds_instance.variables.by("alias")["der1"]
+        assert new_var.entity.body.derived is False
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED)
+        # Version change
+        ds = self._change_dataset_version(ds)
+        ds_instance = ds_instance.refresh()
+        new_var = ds_instance.variables.by("alias")["der1"]
+        assert new_var.entity.body.derived is False
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED)
+
+    def _test_run_script_create_dichotomy(self):
+        ds, ds_instance = self._create_dataset(name="test_dataset")
+        body = """
+        CREATE MULTIPLE DICHOTOMY FROM M SELECTED "10" AS NewMR1;
+        """
+        orig_catarr_var = ds_instance.variables.by("alias")["M"]
+        assert orig_catarr_var.get("type") == "categorical_array"
+        ds_instance = self._run_script(
+            ds_instance, as_entity({"body": body, "async": False})
+        )
+        include_data = {
+            "NewMR1": [
+                [
+                    0,
+                    0,
+                ],
+                [
+                    0,
+                    0,
+                ],
+                [
+                    {
+                        "?": -1,
+                    },
+                    0,
+                ],
+                [
+                    0,
+                    {
+                        "?": -1,
+                    },
+                ],
+                [
+                    {
+                        "?": -1,
+                    },
+                    0,
+                ],
+                [
+                    0,
+                    {
+                        "?": -1,
+                    },
+                ],
+                [
+                    1,
+                    0,
+                ],
+                [
+                    0,
+                    0,
+                ],
+                [
+                    0,
+                    {
+                        "?": -1,
+                    },
+                ],
+                [
+                    0,
+                    0,
+                ],
+            ],
+        }
+
+        new_catarr_var = ds_instance.variables.by("alias")["M"]
+        assert new_catarr_var.get("type") == "categorical_array"
+        new_mr_var = ds_instance.variables.by("alias")["NewMR1"]
+        assert new_mr_var.get("type") == "multiple_response"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
+        # Version change
+        ds = self._change_dataset_version(ds)
+        ds_instance = ds_instance.refresh()
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
+
     def _test_run_script_replace_convert_to_numeric(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
         body = """
@@ -739,10 +1101,120 @@ class BaseTestDatasets(BaseTestCase):
         )
         new_var = ds_instance.variables.by("alias")["cat1"]
         assert new_var.get("type") == "numeric"
+        include_data = {
+            "cat1": [
+                {"?": 1},
+                {"?": 1},
+                {"?": 1},
+                {"?": -1},
+                {"?": -1},
+                {"?": -1},
+                {"?": 1},
+                {"?": 1},
+                {"?": 1},
+                {"?": 1},
+            ]
+        }
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
         ds = self._change_dataset_version(ds)
         ds_instance = ds_instance.refresh()
         new_var = ds_instance.variables.by("alias")["cat1"]
         assert new_var.get("type") == "numeric"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
+
+    def _test_run_script_replace_convert_to_numeric_array(self):
+        ds, ds_instance = self._create_dataset(name="test_dataset")
+        body = """
+        REPLACE CONVERT M TO NUMERIC;
+        """
+        orig_var = ds_instance.variables.by("alias")["M"]
+        assert orig_var.get("type") == "categorical_array"
+        subvars = orig_var.entity.subvariables.by("alias")
+        assert subvars["C1"].type == "categorical"
+        assert subvars["C2"].type == "categorical"
+        ds_instance = self._run_script(
+            ds_instance, as_entity({"body": body, "async": False})
+        )
+        new_var = ds_instance.variables.by("alias")["M"]
+        subvars = orig_var.entity.subvariables.by("alias")
+        assert new_var.get("type") == "numeric_array"
+        assert subvars["C1"].type == "numeric"
+        assert subvars["C2"].type == "numeric"
+        include_data = {
+            "M": [
+                [{"?": 1}, {"?": 1}],
+                [{"?": 1}, {"?": 1}],
+                [{"?": -1}, {"?": 1}],
+                [{"?": 1}, {"?": -1}],
+                [{"?": -1}, {"?": 1}],
+                [{"?": 1}, {"?": -1}],
+                [{"?": 1}, {"?": 1}],
+                [{"?": 1}, {"?": 1}],
+                [{"?": 1}, {"?": -1}],
+                [{"?": 1}, {"?": 1}],
+            ]
+        }
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
+        ds = self._change_dataset_version(ds)
+        ds_instance = ds_instance.refresh()
+        new_var = ds_instance.variables.by("alias")["M"]
+        assert new_var.get("type") == "numeric_array"
+        assert subvars["C1"].type == "numeric"
+        assert subvars["C2"].type == "numeric"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
+
+    def _test_run_script_replace_convert_to_datetime_with_resolution(self):
+        ds, ds_instance = self._create_dataset(name="test_dataset")
+        body = """
+        REPLACE CONVERT DT TO DATETIME FORMAT "%Y-%m-%d" RESOLUTION "M";
+        """
+        orig_var = ds_instance.variables.by("alias")["DT"]
+        assert orig_var.get("type") == "text"
+        assert self._get_var_values(orig_var.entity) == [
+            "2024-10-02",
+            "2024-10-03",
+            "2024-10-01",
+            "2024-10-05",
+            {"?": -1},
+            "2024-09-06",
+            "2024-10-08",
+            "2024-11-11",
+            "2024-10-07",
+            {"?": -1},
+        ]
+        ds_instance = self._run_script(
+            ds_instance, as_entity({"body": body, "async": False})
+        )
+        new_var = ds_instance.variables.by("alias")["DT"]
+        assert new_var.get("type") == "datetime"
+        assert self._get_var_values(new_var.entity) == [
+            "2024-10",
+            "2024-10",
+            "2024-10",
+            "2024-10",
+            {"?": -1},
+            "2024-09",
+            "2024-10",
+            "2024-11",
+            "2024-10",
+            {"?": -1},
+        ]
+        ds = self._change_dataset_version(ds)
+        ds_instance = ds_instance.refresh()
+        new_var = ds_instance.variables.by("alias")["DT"]
+        assert new_var.get("type") == "datetime"
+        assert self._get_var_values(new_var.entity) == [
+            "2024-10",
+            "2024-10",
+            "2024-10",
+            "2024-10",
+            {"?": -1},
+            "2024-09",
+            "2024-10",
+            "2024-11",
+            "2024-10",
+            {"?": -1},
+        ]
 
     def _test_run_script_replace_convert_to_datetime(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -819,6 +1291,11 @@ class BaseTestDatasets(BaseTestCase):
         assert new_var_2.get("type") == "categorical"
         assert new_var.get("scale") == "interval"
         assert new_var_2.get("scale") == "interval"
+        include_data = {
+            "A": [1, 3, 4, {"?": -1}, 5, 6, 7, 8, {"?": -1}, 9],
+            "B": [3, 4, 1, 5, {"?": -1}, 6, 7, 8, 9, {"?": -1}],
+        }
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
         ds = self._change_dataset_version(ds)
         ds_instance = ds_instance.refresh()
         new_var = ds_instance.variables.by("alias")["A"]
@@ -827,6 +1304,7 @@ class BaseTestDatasets(BaseTestCase):
         assert new_var_2.get("type") == "categorical"
         assert new_var.get("scale") == "interval"
         assert new_var_2.get("scale") == "interval"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
 
     def _test_run_script_replace_convert_to_text(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -840,10 +1318,26 @@ class BaseTestDatasets(BaseTestCase):
         )
         new_var = ds_instance.variables.by("alias")["A"]
         assert new_var.get("type") == "text"
+        expected = {
+            "A": [
+                "1.0",
+                "2.0",
+                "3.0",
+                {"?": -1},
+                "5.0",
+                "6.0",
+                "7.0",
+                "8.0",
+                {"?": -1},
+                "11.0",
+            ]
+        }
+        self.assert_dataset_values(ds_instance, expected, fields="A")
         ds = self._change_dataset_version(ds)
         ds_instance = ds_instance.refresh()
         new_var = ds_instance.variables.by("alias")["A"]
         assert new_var.get("type") == "text"
+        self.assert_dataset_values(ds_instance, expected, fields="A")
 
     def _test_run_script_create_categorical_array(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -856,10 +1350,26 @@ class BaseTestDatasets(BaseTestCase):
         )
         new_var = ds_instance.variables.by("alias")["array1"]
         assert new_var.get("type") == "categorical_array"
+        include_data = {
+            "array1": [
+                [1, 4],
+                [2, 6],
+                [3, 5],
+                [{"?": -1}, {"?": -1}],
+                [{"?": -1}, 4],
+                [{"?": -1}, {"?": -1}],
+                [1, 4],
+                [2, 5],
+                [3, 6],
+                [1, {"?": -1}],
+            ]
+        }
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
         ds = self._change_dataset_version(ds)
         ds_instance = ds_instance.refresh()
         new_var = ds_instance.variables.by("alias")["array1"]
         assert new_var.get("type") == "categorical_array"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
 
     def _test_run_script_create_categorical_case(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -1025,10 +1535,13 @@ class BaseTestDatasets(BaseTestCase):
         )
         new_var = ds_instance.variables.by("alias")["illogical"]
         assert new_var.get("type") == "categorical"
+        include_data = {"illogical": [1, 0, 0, {"?": -1}, 0, 0, 0, 0, {"?": -1}, 0]}
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
         ds = self._change_dataset_version(ds)
         ds_instance = ds_instance.refresh()
         new_var = ds_instance.variables.by("alias")["illogical"]
         assert new_var.get("type") == "categorical"
+        self.assert_dataset_values(ds_instance, DATASET_EXPECTED, include=include_data)
 
     def _test_run_script_overwrite_numeric_values(self):
         ds, ds_instance = self._create_dataset(name="test_dataset")
@@ -1133,6 +1646,34 @@ class BaseTestDatasets(BaseTestCase):
                 "No Data",
                 "12.0",
             ],
+            "C1": ["3", "5", "-1", "7", "-1", "7", "1", "2", "6", "4"],
+            "C2": ["10", "3", "6", "-1", "7", "-1", "11", "9", "-1", "8"],
+            "MR1": ["-1", "1", "3", "2", "1", "2", "-1", "-1", "3", "3"],
+            "MR2": ["1", "-1", "3", "4", "2", "1", "3", "4", "-1", "3"],
+            "N1": [
+                "16.0",
+                "26.0",
+                "5.0",
+                "No Data",
+                "No Data",
+                "5.0",
+                "20.0",
+                "11.0",
+                "7.0",
+                "2.0",
+            ],
+            "N2": [
+                "10.0",
+                "29.0",
+                "4.0",
+                "No Data",
+                "5.0",
+                "No Data",
+                "No Data",
+                "22.0",
+                "2.0",
+                "9.0",
+            ],
         }
         self._test_export_dataset("csv", EXPECTED)
 
@@ -1202,36 +1743,32 @@ class BaseTestDatasets(BaseTestCase):
                 "2024-10-07",
                 "-1",
             ],
+            "C1": [3.0, 5.0, nan, 7.0, nan, 7.0, 1.0, 2.0, 6.0, 4.0],
+            "C2": [10.0, 3.0, 6.0, nan, 7.0, nan, 11.0, 9.0, nan, 8.0],
+            "MR1": [nan, 1.0, 3.0, 2.0, 1.0, 2.0, nan, nan, 3.0, 3.0],
+            "MR2": [1.0, nan, 3.0, 4.0, 2.0, 1.0, 3.0, 4.0, nan, 3.0],
+            "N1": [16.0, 26.0, 5.0, nan, nan, 5.0, 20.0, 11.0, 7.0, 2.0],
+            "N2": [10.0, 29.0, 4.0, nan, 5.0, nan, nan, 22.0, 2.0, 9.0],
         }
 
         self._test_export_dataset("spss", EXPECTED)
 
     def _test_import_spss_dataset(self):
         imported_ds = self._import_dataset(
-            {"description": "Imported csv dataset"},
+            {"description": "Imported spss dataset"},
             "all_pets.sav",
             format_="spss",
         )
         assert imported_ds.body.description == "Imported spss dataset"
         assert set(imported_ds.variables.by("alias").keys()) == {
-            "Q7",
-            "Q99",
-            "Q6",
-            "Q2_5",
-            "Q2_4",
-            "Q4_9",
-            "Q2_9",
-            "Q4_3",
-            "Q2_1",
-            "Q4_1",
-            "Q3",
-            "Q4_5",
-            "Q5",
-            "Q4_2",
-            "Q2_3",
-            "Q2_2",
-            "Q4_4",
-            "Q1",
+            "favorite_pet_name",
+            "petloc_home",
+            "petloc_work",
+            "dogs_with_papers",
+            "dogs_without_papers",
+            "wave",
+            "caseid",
+            "allpets",
         }
 
     def _test_import_csv_dataset(self):
@@ -1277,10 +1814,12 @@ ALL_TEST_FUNCTIONS = [
     "test_export_dataset_as_spss",
     "test_import_csv_dataset",
     # TODO: still being implemented
-    # "test_import_spss_dataset",
+    "test_import_spss_dataset",
     "test_run_script_change_var_name",
+    "test_run_script_replace_convert_to_numeric_array",
     "test_run_script_replace_convert_to_categorical",
     "test_run_script_replace_convert_to_datetime",
+    "test_run_script_replace_convert_to_datetime_with_resolution",
     "test_run_script_replace_convert_to_numeric",
     "test_run_script_replace_convert_to_text",
     "test_run_script_set_exclusion",
@@ -1292,6 +1831,8 @@ ALL_TEST_FUNCTIONS = [
     "test_run_script_create_categorical_case",
     "test_run_script_create_categorical_recode",
     "test_run_script_rename_variable",
+    "test_run_script_create_dichotomy",
+    "test_run_script_materialize_derived",
 ]
 
 
