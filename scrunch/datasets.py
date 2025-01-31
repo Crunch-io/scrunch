@@ -2708,7 +2708,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             graph = [self[v].url for v in variables]
         if variables is None:
             graph = []
-        payload = {'graph': graph}
+        payload = {"element": "shoji:order", "graph": graph}
         return self.resource.variables.weights.patch(json.dumps(payload))
 
     @property
@@ -2740,7 +2740,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 raise NameError("%s was not found in weights" % variables)
 
         graph = [self[v].url for v in weights]
-        payload = {'graph': graph}
+        payload = {"element": "shoji:order", "graph": graph}
         return self.resource.variables.weights.patch(json.dumps(payload))
 
     def drop_rows(self, filter):
