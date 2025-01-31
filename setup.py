@@ -10,7 +10,7 @@ import sys
 
 import setuptools
 
-with io.open('README.rst', encoding='utf-8') as readme:
+with io.open('README.md', encoding='utf-8') as readme:
     long_description = readme.read()
 
 PY2 = sys.version_info[0] < 3
