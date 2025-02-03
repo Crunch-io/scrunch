@@ -34,7 +34,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              subvar_alias, validate_categories, shoji_catalog_wrapper,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
-                             generate_subvariable_codes)
+                             generate_subvariable_codes, shoji_order_wrapper)
 from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
@@ -2380,7 +2380,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        
+
         # Handling project vs owner conflict
         owner = kwargs.get("owner")
 
@@ -2421,7 +2421,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
             else:
                 # Create fork in source dataset path.
-                body["project"] = self.resource.body.owner 
+                body["project"] = self.resource.body.owner
         else:
             if project:
                 # Create fork in given Project path.
