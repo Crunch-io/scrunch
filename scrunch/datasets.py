@@ -2380,7 +2380,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :returns _fork: scrunch.datasets.BaseDataset
         """
         from scrunch.mutable_dataset import MutableDataset
-        
+
         # Handling project vs owner conflict
         owner = kwargs.get("owner")
 
@@ -2426,14 +2426,15 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             if project:
                 # Create fork in given Project path.
                 try:
-                    project = get_project(project).url
+                    project_url = get_project(project).url
                 except KeyError:
                     # Creating full project URL for sub-folders
-                    connection = _default_connection(connection=None)
-                    site_url = connection.session.site_url
-                    project = site_url + "/projects/{}/".format(project)
+                    project_url = "{}/projects/{}/".format(
+                        self.resource.session.site_url,
+                        project
+                    )
                 finally:
-                    body["project"] = project
+                    body["project"] = project_url
             else:
                 raise ValueError(
                     "Project parameter should be provided when preserve_owner=False."
