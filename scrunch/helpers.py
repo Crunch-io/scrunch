@@ -222,16 +222,6 @@ def shoji_view_wrapper(value, **kwargs):
     return payload
 
 
-def shoji_order_wrapper(graph, **kwargs):
-    """
-    receives a dictionary and wraps its content on a body keyed dictionary
-    with the appropriate shoji:<class> attribute
-    """
-    payload = {"element": "shoji:order", "graph": graph}
-    payload.update(**kwargs)
-    return payload
-
-
 def shoji_entity_wrapper(body, **kwargs):
     """
     receives a dictionary and wraps its content on a body keyed dictionary
