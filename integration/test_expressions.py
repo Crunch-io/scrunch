@@ -6,7 +6,7 @@ import pytest
 from pycrunch.importing import Importer
 from pycrunch.shoji import as_entity
 
-from fixtures import BaseIntegrationTestCase, MR_CATS
+from .fixtures import BaseIntegrationTestCase, MR_CATS
 from scrunch.mutable_dataset import get_mutable_dataset
 
 

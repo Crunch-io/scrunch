@@ -10,7 +10,7 @@ from scrunch.datasets import Project
 from scrunch.helpers import shoji_entity_wrapper
 from scrunch.scripts import ScriptExecutionError
 from scrunch.mutable_dataset import get_mutable_dataset
-from fixtures import BaseIntegrationTestCase
+from .fixtures import BaseIntegrationTestCase
 
 
 @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
