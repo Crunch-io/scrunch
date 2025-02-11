@@ -6,7 +6,7 @@ from datetime import datetime
 from scrunch.datasets import Project
 from scrunch.helpers import shoji_entity_wrapper
 from scrunch import connect, get_project, get_dataset, get_user
-from fixtures import BaseIntegrationTestCase
+from .fixtures import BaseIntegrationTestCase
 
 UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
 FEATURE_FLAG = 'old_projects_order'

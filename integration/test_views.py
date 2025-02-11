@@ -3,7 +3,7 @@
 from pycrunch.shoji import as_entity
 
 from scrunch.mutable_dataset import get_mutable_dataset
-from fixtures import BaseIntegrationTestCase
+from .fixtures import BaseIntegrationTestCase
 
 
 class TestViews(BaseIntegrationTestCase):

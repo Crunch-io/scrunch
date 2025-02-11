@@ -7,7 +7,7 @@ Tests that the variable Folders API is properly supported
 
 from pycrunch.shoji import Catalog, as_entity
 
-from fixtures import NEWS_DATASET, BaseIntegrationTestCase
+from .fixtures import NEWS_DATASET, BaseIntegrationTestCase
 from scrunch import get_dataset
 from scrunch.datasets import Variable
 from scrunch.exceptions import InvalidPathError

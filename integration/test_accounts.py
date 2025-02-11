@@ -5,7 +5,7 @@ import pytest
 
 from pycrunch.shoji import as_entity
 
-from fixtures import BaseIntegrationTestCase
+from .fixtures import BaseIntegrationTestCase
 from scrunch.accounts import Account
 
 

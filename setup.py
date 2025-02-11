@@ -64,7 +64,7 @@ params = dict(
             'pytest-cov==2.12.1',
             'mock==3.0.5',
             'isodate',
-        ],
+        ] + ([] if PY2 else ["pyspssio"]),
         'docs': [
             # upstream
             'sphinx',
