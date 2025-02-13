@@ -2425,9 +2425,16 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         else:
             if project:
                 # Create fork in given Project path.
-                body["project"] = (
-                    project if project.startswith("http") else get_project(project).url
-                )
+                try:
+                    project_url = get_project(project).url
+                except KeyError:
+                    # Creating full project URL for sub-folders
+                    project_url = "{}/projects/{}/".format(
+                        self.resource.session.site_url,
+                        project
+                    )
+                finally:
+                    body["project"] = project_url
             else:
                 raise ValueError(
                     "Project parameter should be provided when preserve_owner=False."
