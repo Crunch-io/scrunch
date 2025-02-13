@@ -10,7 +10,7 @@ import tempfile
 from six import StringIO
 
 
-from fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT, BaseIntegrationTestCase
+from .fixtures import NEWS_DATASET, NEWS_DATASET_ROWS, mr_in, RECODES_CSV_OUTPUT, BaseIntegrationTestCase
 from scrunch.streaming_dataset import get_streaming_dataset
 from scrunch.mutable_dataset import get_mutable_dataset
 from pycrunch.importing import Importer
