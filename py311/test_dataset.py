@@ -4,6 +4,7 @@ import csv
 import os
 import sys
 import tempfile
+import time
 import uuid
 from datetime import datetime
 
@@ -24,6 +25,7 @@ if not IS_PYTHON_2:
 PROJECT_ID = os.environ.get("SCRUNCH_PROJECT_ID")
 PROJECT_311_ID = os.environ.get("SCRUNCH_PROJECT_311_ID")
 TEST_DATASET_ID = os.environ.get("SCRUNCH_TEST_DATASET_ID")
+FACTORY_TIMEOUT = int(os.environ.get("SCRUNCH_FACTORY_TIMEOUT", 90))
 
 
 class ST:
@@ -320,6 +322,8 @@ class BaseTestCase(BaseIntegrationTestCase):
         """
         project_id = PROJECT_311_ID if self.CURRENT_VERSION == "3.6" else PROJECT_ID
         ds.move(self._project(project_id))
+        if FACTORY_TIMEOUT:
+            time.sleep(FACTORY_TIMEOUT)
         return ds
 
     def _revert_dataset_version(self, ds):
@@ -328,6 +332,8 @@ class BaseTestCase(BaseIntegrationTestCase):
         """
         project_id = PROJECT_ID if self.CURRENT_VERSION == "3.6" else PROJECT_311_ID
         ds.move(self._project(project_id))
+        if FACTORY_TIMEOUT:
+            time.sleep(FACTORY_TIMEOUT)
         return ds
 
     def _create_view(self, ds, on_311=None, **values):
