@@ -2372,7 +2372,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             If preserve_owner=False and project is passed, the fork dataset
             will be created in the given project location.
         :param project: str, default=None
-            The project ID or path where the fork dataset should be created.
+            The project ID or project path where the fork dataset should be
+            created.
             If project=None, the fork dataset will be created in the same
             location as the source dataset.
 
