@@ -183,26 +183,25 @@ def get_project(project, connection=None):
     connection = _default_connection(connection)
     sub_project = None
 
-    if '|' in project:
-        project_split = project.split('|')
-        project = project_split.pop(0)
-        sub_project = '|' + '|'.join(project_split)
-
     try:
-        ret = connection.projects.by('name')[project].entity
+        if re.match(r'^[0-9a-f]{32}$', project, re.I):
+            pr_url = '{}projects/{}/'.format(connection.session.site_url, project)
+            ret = connection.session.get(pr_url).payload
+        else:
+            if '|' in project:
+                project_split = project.split('|')
+                project = project_split.pop(0)
+                sub_project = '|' + '|'.join(project_split)
+
+            ret = connection.projects.by('name')[project].entity
     except KeyError:
-        try:
-            ret = connection.projects.by('id')[project].entity
-        except KeyError:
-            raise KeyError("Project (name or id: %s) not found." % project)
-
-    _project = Project(ret)
-
-    if sub_project:
-        _project = _project.get(sub_project)
+        raise KeyError("Project (name or id: %s) not found." % project)
+    else:
+        _project = Project(ret)
+        if sub_project:
+            _project = _project.get(sub_project)
 
     return _project
-
 
 def get_personal_project(connection=None):
     if connection is None:
