@@ -185,7 +185,7 @@ def get_project(project, connection=None):
 
     try:
         if re.match(r'^[0-9a-f]{32}$', project, re.I):
-            pr_url = '{}projects/{}/'.format(connection.session.site_url, project)
+            pr_url = '{0}projects/{1}/'.format(connection.session.site_url, project)
             ret = connection.session.get(pr_url).payload
         else:
             if '|' in project:
@@ -196,11 +196,13 @@ def get_project(project, connection=None):
             ret = connection.projects.by('name')[project].entity
     except KeyError:
         raise KeyError("Project (name or id: %s) not found." % project)
-    
-    _project = Project(ret)
-    if sub_project:
-        _project = _project.get(sub_project)
+    else:
+        _project = Project(ret)
+        if sub_project:
+            _project = _project.get(sub_project)
+
     return _project
+
 
 def get_personal_project(connection=None):
     if connection is None:
