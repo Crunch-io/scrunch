@@ -2257,29 +2257,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
-            payload['where'] = {
-                'function': 'make_frame',
-                'args': [{
-                    'map': {
-                        x: {'variable': x} for x in id_vars
-                    }
-                }]
-            }
+            payload['variables'] = id_vars
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
             if not self.resource.body.permissions.edit:
                 raise AttributeError(
                     "Only Dataset editors can export hidden variables")
-            payload['where'] = {
-                'function': 'make_frame',
-                'args': [{
-                    'map': {
-                        x: {'variable': x}
-                        for x in self.resource.variables.index.keys()
-                    }
-                }]
-            }
+            payload['variables'] = self.resource.variables.index.keys()
 
         progress_tracker = pycrunch.progress.DefaultProgressTracking(timeout)
         url = export_dataset(
