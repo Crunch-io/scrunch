@@ -259,67 +259,29 @@ class TestUtilities(object):
 
     @mock.patch('pycrunch.session')
     def test_get_project_by_id(self, session):
-        shoji_entity1 = {
+
+        shoji_entity = {
             "element": "shoji:catalog",
             "body": {
                 "name": "Y Team",
                 "id": "614a7b2ebe9a4292bba54edce83563ae"
-            }
-        }        
-        shoji_entity2 = {
-            "element": "shoji:catalog",
-            "body": {
-                "name": "Y Team",
-                "id": "614a7b2ebe9a4292bba54edce83563ae"
-            },
-            "index": {
-                "9165e5f4eb004bb4b257a90645bfb968": {
-                    "name": "California",
-                    "id": "9165e5f4eb004bb4b257a90645bfb968",
-                    "type": "project"
-                }
             }
         }
 
-        entities = [shoji_entity1, shoji_entity2]
-        def _get(url):
-            pid = url.split('/')[-2]
-            shoji_entity = []
-            for entity in entities:
-                if pid == entity['body']['id']:
-                    shoji_entity = entity
-                elif entity.get('index') and pid in entity.get('index').keys():
-                    shoji_entity = entity
+        site_mock = mock.MagicMock(**shoji_entity)
+        site_mock.entity = mock.MagicMock(**shoji_entity)
+        session.projects.by.side_effect = _by_side_effect(shoji_entity, site_mock)
 
-            if shoji_entity:
-                site_mock = mock.MagicMock(**shoji_entity)
-                site_mock.entity = mock.MagicMock(**shoji_entity)
-                response = mock.MagicMock()
-                response.payload = site_mock.entity
-            else:
-                raise KeyError('Project (name or id: {}) not found.'.format(pid))
-            return response
-
-        session.session.get.side_effect = _get
-        
-        pid = "614a7b2ebe9a4292bba54edce83563ae"
-        project = get_project(pid)
-        p_url = '{}projects/{}/'.format(session.session.site_url, pid)
-        session.session.get.assert_called_with(p_url)
-        assert isinstance(project, Project)
-        assert project.name == "Y Team"
-
-        sub_pid = "9165e5f4eb004bb4b257a90645bfb968"
-        project = get_project(sub_pid)
-        p_url = '{}projects/{}/'.format(session.session.site_url, sub_pid)
-        session.session.get.assert_called_with(p_url)
+        project = get_project('614a7b2ebe9a4292bba54edce83563ae')
+        session.projects.by.assert_called_with('id')
         assert isinstance(project, Project)
 
         with pytest.raises(KeyError) as excinfo:
-            get_project('11111111111111111111111111111111')
+            get_project('invalidid')
         assert str(excinfo.value) == \
-               "'Project (name or id: 11111111111111111111111111111111) not found.'"
+               "'Project (name or id: invalidid) not found.'"
         # ^ That exception message is wrapped in quotes? Ugh?
+
     @mock.patch('pycrunch.session')
     def test_get_user(self, session):
 

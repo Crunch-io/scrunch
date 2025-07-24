@@ -183,23 +183,23 @@ def get_project(project, connection=None):
     connection = _default_connection(connection)
     sub_project = None
 
-    try:
-        if re.match(r'^[0-9a-f]{32}$', project, re.I):
-            pr_url = '{0}projects/{1}/'.format(connection.session.site_url, project)
-            ret = connection.session.get(pr_url).payload
-        else:
-            if '|' in project:
-                project_split = project.split('|')
-                project = project_split.pop(0)
-                sub_project = '|' + '|'.join(project_split)
+    if '|' in project:
+        project_split = project.split('|')
+        project = project_split.pop(0)
+        sub_project = '|' + '|'.join(project_split)
 
-            ret = connection.projects.by('name')[project].entity
+    try:
+        ret = connection.projects.by('name')[project].entity
     except KeyError:
-        raise KeyError("Project (name or id: %s) not found." % project)
-    else:
-        _project = Project(ret)
-        if sub_project:
-            _project = _project.get(sub_project)
+        try:
+            ret = connection.projects.by('id')[project].entity
+        except KeyError:
+            raise KeyError("Project (name or id: %s) not found." % project)
+
+    _project = Project(ret)
+
+    if sub_project:
+        _project = _project.get(sub_project)
 
     return _project
 
@@ -2257,29 +2257,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 )
                 raise AttributeError("At least a variable was not found")
             # Now build the payload with selected variables
-            payload['where'] = {
-                'function': 'make_frame',
-                'args': [{
-                    'map': {
-                        x: {'variable': x} for x in id_vars
-                    }
-                }]
-            }
+            payload['variables'] = id_vars
         # hidden is mutually exclusive with
         # variables to include in the download
         if hidden and not variables:
             if not self.resource.body.permissions.edit:
                 raise AttributeError(
                     "Only Dataset editors can export hidden variables")
-            payload['where'] = {
-                'function': 'make_frame',
-                'args': [{
-                    'map': {
-                        x: {'variable': x}
-                        for x in self.resource.variables.index.keys()
-                    }
-                }]
-            }
+            payload['variables'] = self.resource.variables.index.keys()
 
         progress_tracker = pycrunch.progress.DefaultProgressTracking(timeout)
         url = export_dataset(
