@@ -323,3 +323,37 @@ class TestUtilities(object):
             scrunch.connect(user, pw, site)
         prep_req = mock_send.call_args[0][0]
         assert prep_req.headers['user-agent'] == 'scrunch/%s (pycrunch/%s)' % (scrunch.__version__, pycrunch_v)
+
+    @mock.patch('pycrunch.session')
+    def test_Project_get_by_id(self, session):
+        project_id = 'b2c4c6b7d3a94e58937b23c1fed1b65e'
+        shoji_entity = {
+            'element': 'shoji:entity',
+            'body': {
+                'id': project_id,
+                'name': 'project_name',
+                'path': 'Parent|project_name'
+            }
+        }
+
+        pr_res = mock.MagicMock(**shoji_entity)
+        pr_res.entity = mock.MagicMock(**shoji_entity)
+        session.project.by.side_effect = KeyError()
+
+        response = mock.MagicMock()
+        response.payload = pr_res
+
+        def _get(*args, **kwargs):
+            return response
+
+        session.session.get.side_effect = _get
+        session.session.site_url = 'https://test.crunch.io/api/'
+        session.catalogs.projects = 'https://test.crunch.io/api/projects/'
+
+        pr = Project.get_by_id(project_id)
+        session.session.get.assert_called_with('https://test.crunch.io/api/projects/b2c4c6b7d3a94e58937b23c1fed1b65e')
+
+        assert isinstance(pr, Project)
+        assert pr.name == 'project_name'
+        assert pr.id == project_id
+        assert pr.resource.body['path'] == 'Parent|project_name'

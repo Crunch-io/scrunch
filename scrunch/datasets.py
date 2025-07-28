@@ -449,6 +449,17 @@ class Project:
 
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def get_by_id(cls, project_id, connection=None):
+        """
+        :param project_id: Crunch project ID
+        :param connection: An scrunch session object
+        :return: Project class instance
+        """
+        connection = _default_connection(connection)
+        url = urljoin(connection.session.site_url, "projects/{}".format(project_id))
+        return cls(project_resource=connection.session.get(url).payload)
 
     def execute(self, script_body, strict_subvariable_syntax=None):
         """Will run a system script on this project."""
