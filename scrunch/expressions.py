@@ -169,22 +169,16 @@ def r(lower, upper):
     return list(range(lower, upper + 1))
 
 
-def parse_expr(expr, platonic=False):
+def parse_expr(expr):
     """
     Converts a text python-like expression into ZCL tree.
 
-    If `platonic` is True, the aliases will use `{"var": <alias:str>}` terms.
-
     :param expr: String with a python-like expression
-    :param platonic: Boolean, when True variables will be alias `var` terms
     :return: Dictionary with a ZCL expression
     """
 
     def _var_term(_var_id):
-        if platonic:
-            return {"var": _var_id}
-        else:
-            return {'variable': _var_id}
+        return {"var": _var_id}
 
     def _parse(node, parent=None):
         obj = {}
@@ -305,12 +299,7 @@ def parse_expr(expr, platonic=False):
                     name_node = dict(ast.iter_fields(fields[1][1]))["value"]
                     subscript_fields = dict(ast.iter_fields(name_node))
                     subvariable_alias = subscript_fields["id"]
-                if platonic:
-                    return {"var": array_alias, "axes": [subvariable_alias]}
-                else:
-                    # For non-platonic expressions, keep track of both the array
-                    # and subvariable to make a proper url lookup.
-                    return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
+                return {"var": array_alias, "axes": [subvariable_alias]}
             # "Non-terminal" nodes.
             else:
                 for _name, _val in fields:
