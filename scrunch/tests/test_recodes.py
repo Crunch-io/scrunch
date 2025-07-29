@@ -368,13 +368,13 @@ class TestRecode(TestCase):
                     }, {
                         'function': 'in',
                         'args': [
-                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
+                            {'var': 'sexuality'},
                             {'value': [1]}
                         ]
                     }, {
                         'function': 'in',
                         'args': [
-                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/00001/'},
+                            {'var': 'sexuality'},
                             {'value': [2, 3, 4, 5]}
                         ]
                     }]
