@@ -32,7 +32,7 @@ jobs:
       max-parallel: 4
       matrix:
         python-version:
-          - 3.6
+          - 3.6.7
           - 3.7
           - 3.11
         include:
@@ -40,7 +40,7 @@ jobs:
           # There is no build for Python 3.6 in ubuntu>20.04.
           # This include can be removed when we drop support for Python 3.6.
           - os: "ubuntu-20.04"
-            python-version: "3.6"
+            python-version: "3.6.7"
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
