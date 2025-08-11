@@ -3715,12 +3715,12 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert expected == cel
 
-    def test_variable_url(self):
+    def test_variable_alias(self):
         expr = {
             'function': '==',
             'args': [
                 {
-                    'variable': 'https://host.com/api/datasets/123/variables/001/'
+                    'var': 'age'
                 },
                 {
                     'value': 1
@@ -3738,15 +3738,14 @@ class TestExpressionPrettify(TestCase):
         expected = 'age == 1'
         cel = prettify(expr, ds)
         assert expected == cel
-        ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
 
     def test_square_bracket_subvariables(self):
-        subvariable_url = 'https://host.com/api/datasets/123/variables/001/subvariables/abc/'
         expr = {
             'function': '==',
             'args': [
                 {
-                    'variable': subvariable_url
+                    'var': 'array_alias',
+                    'axes': ['sv_1']
                 },
                 {
                     'value': 1
@@ -3768,10 +3767,10 @@ class TestExpressionPrettify(TestCase):
 
         # Prepare array
         response2 = mock.MagicMock()
-        response2.payload.body = {"alias": 'array_variable'}
+        response2.payload.body = {"alias": 'array_alias'}
         ds.resource.session.get.side_effect = [response1, response2]
 
-        expected = 'array_variable[subvar_1] == 1'
+        expected = 'array_alias[sv_1] == 1'
         assert prettify(expr, ds) == expected
 
     def test_variable_url_no_dataset(self):
@@ -3779,7 +3778,7 @@ class TestExpressionPrettify(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': 'https://host.com/api/datasets/123/variables/001/'
+                    'var': 'var_alias'
                 },
                 {
                     'value': 1
@@ -3787,13 +3786,8 @@ class TestExpressionPrettify(TestCase):
             ]
         }
 
-        with pytest.raises(Exception) as err:
-            prettify(expr)
+        assert prettify(expr) == "var_alias == 1"
 
-        assert str(err.value) == (
-            'Valid Dataset instance is required to resolve variable urls '
-            'in the expression'
-        )
 
     def test_parse_equal_string(self):
         expr_obj = {

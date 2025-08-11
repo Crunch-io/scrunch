@@ -638,26 +638,6 @@ def process_expr(obj, ds):
         subvariables = []
         needs_wrap = True
 
-        # inspect function, then inspect variable, if multiple_response,
-        # then change in --> any
-        if 'function' in obj and 'args' in obj:
-            if obj['function'] == 'in':
-                args = obj['args']
-                if 'variable' in args[0]:
-                    if isinstance(args[0], dict):
-                        # This is the case of a square bracket subvariable
-                        # array[subvar] in [values]
-                        # In this case, we do not need to do the `in` to `any`
-                        # function conversion, because this subvariable will
-                        # never be of type multiple_response.
-                        pass
-                    else:
-                        try:
-                            if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                                obj['function'] = 'any'
-                        except TypeError:
-                            raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
-
         new_obj = copy.deepcopy(obj)
         for key, val in obj.items():
             if isinstance(val, dict) and "array" not in val:
@@ -700,47 +680,6 @@ def process_expr(obj, ds):
                     subitems, needs_wrap = ensure_category_ids(subitems, values, arrays)
 
                 new_obj[key] = subitems
-            elif key == 'variable':
-                if isinstance(val, dict) and "array" in val:
-                    # This is a subvariable reference with this shape:
-                    # {"variable": {"array": array_alias, "subvariable": subvariable_alias}`
-                    array_alias, subvar_alias = val["array"], val["subvariable"]
-                    try:
-                        array_value = variables[array_alias]
-                    except KeyError:
-                        raise ValueError("Invalid variable alias '%s'" % array_alias)
-                    subreferences = array_value["subreferences"]
-                    subvar_map = {sr["alias"]: sv_id for sv_id, sr in subreferences.items()}
-                    array_id = array_value["id"]
-                    try:
-                        subvar_id = subvar_map[subvar_alias]
-                    except KeyError:
-                        raise ValueError("Invalid subvariable `%s` for array '%s'" % (subvariables, array_alias))
-                    subvar_url = "%svariables/%s/subvariables/%s/" % (base_url, array_id, subvar_id)
-                    new_obj[key] = subvar_url
-                else:
-                    # Otherwise a regular variable references {"variable": alias}
-                    var = variables.get(val)
-                    if not var:
-                        raise ValueError("Invalid variable alias '%s'" % val)
-
-                    # TODO: We shouldn't stitch URLs together, use the API
-                    if var.get('is_subvar'):
-                        new_obj[key] = '%svariables/%s/subvariables/%s/' \
-                                   % (base_url, var['parent_id'], var['id'])
-                    else:
-                        new_obj[key] = '%svariables/%s/' % (base_url, var['id'])
-
-                    if var['type'] in ARRAY_TYPES:
-                        subvariables = []
-                        for subvar_id in var.get('subvariables', []):
-                            # In case the subvar_id comes as a subvariable URL
-                            # we want to only consider the ID bit of the URL
-                            subvar_id = subvar_id.strip("/").split("/")[-1]
-                            subvariables.append(
-                                '%svariables/%s/subvariables/%s/'
-                                % (base_url, var['id'], subvar_id)
-                            )
             elif key == 'var':
                 var = variables.get(val)
                 if not var:
@@ -862,34 +801,6 @@ def prettify(expr, ds=None):
     methods = {m[1]: m[0] for m in CRUNCH_METHOD_MAP.items()}
     functions = {f[1]: f[0] for f in CRUNCH_FUNC_MAP.items()}
 
-    def _resolve_variable(var):
-        is_url = validate_variable_url(var)
-
-        if not is_url:
-            return var
-        elif not isinstance(ds, scrunch.datasets.BaseDataset):
-            raise Exception(
-                'Valid Dataset instance is required to resolve variable urls '
-                'in the expression'
-            )
-        var_resource = ds.resource.session.get(var).payload
-        var_alias = var_resource.body["alias"]
-
-        # From an arbitrary URL we can detect whether this is a variable or a
-        # subvariable by checking the adjacent resources linked. A subvariable
-        # will point to its parent `/subvariables/` catalog and refer to its
-        # array variable by `.fragments["variable"]`.
-        is_subvariable = 'parent' in var_resource.catalogs and 'variable' in var_resource.fragments
-
-        if is_subvariable:
-            # Fetch the array variable
-            array_url = var_resource.fragments['variable']
-            array_var = ds.resource.session.get(array_url).payload
-            array_alias = array_var.body["alias"]
-            var_alias = "%s[%s]" % (array_alias, var_alias)
-
-        return var_alias
-
     def _resolve_variables(_expr):
         new_expr = dict(
             function=_expr['function'],
@@ -899,11 +810,6 @@ def prettify(expr, ds=None):
             if 'function' in arg:
                 # arg is a function, resolve inner variables
                 new_expr['args'].append(_resolve_variables(arg))
-            elif 'variable' in arg:
-                # arg is a variable, resolve
-                new_expr['args'].append(
-                    {'variable': _resolve_variable(arg['variable'])}
-                )
             else:
                 # arg is neither a variable or function, pass as is
                 new_expr['args'].append(arg)
@@ -962,6 +868,11 @@ def prettify(expr, ds=None):
                     value = [clean_integer(v) for v in value]
 
                 return value
+            
+            if 'var' in fragment:
+                if 'axes' in fragment:
+                    return f"{fragment['var']}[{fragment['axes'][0]}]"
+                return fragment['var']
 
             return list(fragment.values())[0]
 
