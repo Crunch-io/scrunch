@@ -861,7 +861,7 @@ def prettify(expr, ds=None):
             
             if 'var' in fragment:
                 if 'axes' in fragment:
-                    return f"{fragment['var']}[{fragment['axes'][0]}]"
+                    return "{}[{}]".format(fragment['var'], fragment['axes'][0])
                 return fragment['var']
 
             return list(fragment.values())[0]
