@@ -534,11 +534,9 @@ def _update_values_for_multiple_response(new_values, values, subitem, vars_by_al
     - Multiple response does not need the `value` key, but it relies on the `column` key
     - Remove from `arrays` (subvariable list) the ones that should not be considered
     """
-    # var_url = subitem.get("variable", "").split("subvariables")[0]
     var_alias = subitem.get("var")
     column = new_values[0].get("column")
     value = values[0].get("value")
-    # if var_url and var_index[var_url]['type'] == 'multiple_response':
     if var_alias and vars_by_alias[var_alias]['type'] == 'multiple_response':
         if column:
             values[0]['column'] = column
@@ -672,7 +670,6 @@ def process_expr(obj, ds):
                     has_value = any('column' in item for item in subitems if not is_number(item))
 
                 has_variable = any(
-                    # 'variable' in item for item in subitems if not is_number(item)
                     'var' in item for item in subitems if not is_number(item)
                 )
 
@@ -738,11 +735,6 @@ def process_expr(obj, ds):
                     value['value'] = inner_value[0]
 
                 if len(subvariables) == 1:
-                    # obj['function'] = real_op
-                    # obj["args"] = [
-                    #     {'variable': subvariables[0]},
-                    #     value
-                    # ]
                     obj['function'] = real_op
                     obj['args'] = [
                         {
@@ -751,8 +743,6 @@ def process_expr(obj, ds):
                         },
                         value
                     ]
-                    # obj['args'][0]['axes'] = [var['subreferences'][subvariables[0]]['alias']]
-                    # obj['args'][1] = value
                 else:
                     obj = {
                         'function': expansion_op,
