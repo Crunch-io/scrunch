@@ -553,11 +553,6 @@ class TestDatasets(TestDatasetBase, TestCase):
             if use_fsum and res == 1.0:
                 raise Exception('1.0')
 
-        # `sum` fails
-        # with pytest.raises(Exception, match='not 1.0'):
-        #     _test_sum(targets[0]['foo'])
-
-        # `fsum` does not
         with pytest.raises(Exception, match='1.0'):
             _test_sum(targets[0]['foo'], use_fsum=True)
 
