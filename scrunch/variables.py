@@ -67,11 +67,11 @@ def combine_responses_expr(variable_url, responses):
     }
 
 
-def combine_categories_expr(variable_url, combinations):
+def combine_categories_expr(var_alias, combinations):
     return {
         'function': 'combine_categories',
         'args': [{
-            'variable': variable_url
+            'var': var_alias
         }, {
             'value': combinations
         }]

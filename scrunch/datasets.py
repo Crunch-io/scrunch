@@ -1873,7 +1873,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'derivation': combine_categories_expr(
-                variable.resource.self, combinations)
+                variable.alias, combinations)
         })
         return self._var_create_reload_return(payload)
 

@@ -54,11 +54,11 @@ RESPONSE_NAMES = {
 RECODES_PAYLOAD = {
     'element': 'shoji:entity',
     'body': {
-        'alias': 'alias',
+        'alias': 'derived_variable_alias',
         'derivation': {
             'function': 'combine_categories',
             'args': [
-                {'variable': var_url},
+                {'var': 'dependency_variable_alias'},
                 {'value': [
                     {'combined_ids': [2, 3], 'missing': False, 'id': 1, 'name': 'China'},
                     {'combined_ids': [1], 'missing': False, 'id': 2, 'name': 'Other'}
@@ -151,14 +151,20 @@ class TestCombine(TestCase):
         resource = mock.MagicMock()
         resource.body = {'name': 'mocked_dataset'}
         entity_mock = mock.MagicMock()
-        entity_mock.entity.self = var_url
+        entity_mock.__getitem__.side_effect = lambda key: 'dependency_variable_alias' if key == 'alias' else None
         resource.variables.by.return_value = {
-            'test': entity_mock,
+            'dependency_variable_alias': entity_mock,
         }
         resource.variables.index = {}
         ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
-            ds.combine_categorical('test', CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
+            ds.combine_categorical(
+                'dependency_variable_alias',
+                CATEGORY_MAP,
+                CATEGORY_NAMES,
+                name='name',
+                alias='derived_variable_alias'
+            )
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
         assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
@@ -168,18 +174,25 @@ class TestCombine(TestCase):
         entity_mock = mock.MagicMock()
         entity_mock.entity.self = var_url
         resource.variables.by.return_value = {
-            'test': entity_mock
+            'dependency_variable_alias': entity_mock
         }
         resource.variables.index = {}  # Var not present
 
         # mock a Tuple object
         tuple_mock = mock.MagicMock()
         tuple_mock.entity.self = var_url
+        tuple_mock.__getitem__.side_effect = lambda key: 'dependency_variable_alias' if key == 'alias' else None
 
         entity = Variable(tuple_mock, resource)
         ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
-            ds.combine_categorical(entity, CATEGORY_MAP, CATEGORY_NAMES, name='name', alias='alias')
+            ds.combine_categorical(
+                entity,
+                CATEGORY_MAP,
+                CATEGORY_NAMES,
+                name='name',
+                alias='derived_variable_alias'
+            )
         ds.resource.variables.create.assert_called_with(RECODES_PAYLOAD)
         assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
