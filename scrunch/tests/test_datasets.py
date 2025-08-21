@@ -458,7 +458,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'element': 'shoji:entity',
                 'self': '%spreferences/' % mock.ds_url,
                 'body': dict_to_obj({
-                    'weight': '0001'
+                    'weight_alias': 'birthyr'
                 })
             }
 
@@ -470,7 +470,14 @@ class TestDatasets(TestDatasetBase, TestCase):
             mock.fragments.preferences = '%spreferences/' % mock.ds_url
             mock.session.get.side_effect = _session_get
 
-        ds_mock = self._dataset_mock()
+        ds_mock = self._dataset_mock(variables={
+            '001': {
+                'id': '001',
+                'alias': 'birthyr',
+                'name': 'Birthyear',
+                'type': 'numeric'
+            }
+        })
         # we need to include weight in preferences to test defaults
         mock_ds_preferences(ds_mock)
         ds = StreamingDataset(ds_mock)
@@ -485,7 +492,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'notes': '',
                 'force': False,
                 'where': None,
-                'weight': '0001'
+                'weight': ds['birthyr'].url,
             }
         }
 
@@ -5955,7 +5962,7 @@ class TestDatasetSettings(TestCase):
             'body': {
                 'viewers_can_export': False,
                 'min_base_size': 0,
-                'weight': None,
+                'weight_alias': None,
                 'viewers_can_change_weight': False
             }
         }
@@ -5978,7 +5985,7 @@ class TestDatasetSettings(TestCase):
         assert ds.settings == {
             'viewers_can_export': False,
             'min_base_size': 0,
-            'weight': None,
+            'weight_alias': None,
             'viewers_can_change_weight': False
         }
 

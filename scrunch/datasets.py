@@ -2087,7 +2087,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if weight is DefaultWeight:
             preferences = self.resource.session.get(
                 self.resource.fragments.preferences)
-            weight = preferences.payload.body.weight or None
+            weight_alias = getattr(preferences.payload.body, "weight_alias", None)
+            weight = None if weight_alias is None else self[weight_alias].url
 
         if not title:
             title = 'CrunchBox for {}'.format(str(self))
