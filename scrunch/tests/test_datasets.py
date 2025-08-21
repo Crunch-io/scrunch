@@ -357,6 +357,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'body': {
                     'alias': 'monthly_rent',
                     'name': 'Monthly rent',
+                    "derived": False,
                     'derivation': {
                         'function': '/',
                         'args': [
@@ -398,7 +399,8 @@ class TestDatasets(TestDatasetBase, TestCase):
                 'body': {
                     'alias': 'new_rolledup_var',
                     'name': 'new_rolledup_var',
-                    'expr': {
+                    "derived": False,
+                    'derivation': {
                         'function': 'rollup',
                         'args': [
                             {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
@@ -1490,7 +1492,7 @@ class TestVariables(TestDatasetBase, TestCase):
         assert not var_tuple.entity.edit.called
 
         # check we call `edit` for derived variables
-        body['derived'] = True
+        body["derived"] = True
         var.integrate()
         var_tuple.entity.edit.assert_called_once_with(derived=False)
 
@@ -2172,6 +2174,7 @@ class TestFillVariables(TestCase):
             "element": "shoji:entity",
             "body": {
                 "alias": "filled",
+                "derived": False,
                 "derivation": fill_expr,
                 "name": "Filled var",
                 "description": ""
@@ -2230,6 +2233,7 @@ class TestFillVariables(TestCase):
             "element": "shoji:entity",
             "body": {
                 "alias": "filled",
+                "derived": False,
                 "derivation": fill_expr,
                 "name": "Filled var",
                 "description": ""
@@ -2288,6 +2292,7 @@ class TestFillVariables(TestCase):
             "element": "shoji:entity",
             "body": {
                 "alias": "filled",
+                "derived": False,
                 "derivation": fill_expr,
                 "name": "Filled var",
                 "description": ""
@@ -2354,7 +2359,8 @@ class TestRecode(TestDatasetBase):
                 'notes': '',
                 'alias': 'cat',
                 'name': 'My cat',
-                'expr': {
+                "derived": False,
+                'derivation': {
                     'function': 'case',
                     'args': [{
                         'column': [1, 2, 3, -1],
@@ -2474,6 +2480,7 @@ class TestRecode(TestDatasetBase):
                 'description': '',
                 'notes': '',
                 'name': 'my mr',
+                "derived": False,
                 'derivation': {
                     'function': 'array',
                     'args': [{
@@ -2647,7 +2654,8 @@ class TestRecode(TestDatasetBase):
             "body": {
                 "alias": "agerange",
                 "name": "Age Range",
-                "expr": {
+                "derived": False,
+                "derivation": {
                     "function": "case",
                     "args": [
                         {
@@ -2799,12 +2807,13 @@ class TestRecode(TestDatasetBase):
             }
         }
         ds.resource.variables.create.assert_called_with({
-           "element": "shoji:entity",
+            "element": "shoji:entity",
             "body": {
                 "name": "Age range multi",
                 "alias": "agerange_multi",
                 "description": "",
                 "notes": "",
+                "derived": False,
                 "derivation": {
                     "function": "array",
                     "args": [
@@ -2992,6 +3001,7 @@ class TestRecode(TestDatasetBase):
                 "description": "",
                 "notes": "",
                 "uniform_basis": False,
+                "derived": False,
                 "derivation": {
                     "function": "array",
                     "args": [
@@ -3373,6 +3383,7 @@ class TestRecode(TestDatasetBase):
                 "description": "",
                 "notes": "",
                 "uniform_basis": False,
+                "derived": False,
                 "derivation": {
                     "function": "array",
                     "args": [
@@ -3617,6 +3628,7 @@ class TestRecode(TestDatasetBase):
                 'description': '',
                 'notes': '',
                 'uniform_basis': False,
+                "derived": False,
                 'derivation': {
                     'function': 'array',
                     'args': [{
@@ -3713,7 +3725,7 @@ class TestCopyVariable(TestCase):
         var_res.entity.body = {'type': 'numeric'}
 
         def getitem(key):
-            if key == 'derived':
+            if key == "derived":
                 return False
         var_res.__getitem__.side_effect = getitem
         var_res.entity.self = '/variable/url/'
@@ -3725,6 +3737,7 @@ class TestCopyVariable(TestCase):
             'body': {
                 'alias': 'copy',
                 'name': 'copy',
+                "derived": False,
                 'derivation': {
                     'function': 'copy_variable',
                     'args': [{'variable': '/variable/url/'}]
@@ -3737,7 +3750,7 @@ class TestCopyVariable(TestCase):
         var_res = mock.MagicMock()
 
         def getitem(key):
-            if key == 'derived':
+            if key == "derived":
                 return True
         var_res.__getitem__.side_effect = getitem
         var_res.entity.body = {
@@ -3767,6 +3780,7 @@ class TestCopyVariable(TestCase):
             'body': {
                 'alias': 'copy',
                 'name': 'copy',
+                "derived": False,
                 'derivation': {
                     'function': 'array',
                     'args': [{
@@ -6716,7 +6730,7 @@ class TestHeadingSubtotals(TestDatasetBase):
             'categories': TEST_CATEGORIES(),
             'is_subvar': False,
             'view': {},
-            'derived': False,
+            "derived": False,
         },
     }
 
@@ -6921,14 +6935,11 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "My Array",
-                "alias": "my_array",
-                "notes": "",
-                "description": "",
-                "derivation": expression,
-            }
+            "name": "My Array",
+            "alias": "my_array",
+            "notes": "",
+            "description": "",
+            "derivation": expression,
         }]
 
     def test_bind_categorical_array_with_codes(self):
@@ -6957,14 +6968,11 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "My Array",
-                "alias": "my_array",
-                "notes": "",
-                "description": "",
-                "derivation": expression,
-            }
+            "name": "My Array",
+            "alias": "my_array",
+            "notes": "",
+            "description": "",
+            "derivation": expression,
         }]
 
     def test_copy_variable_no_codes(self):
@@ -7020,12 +7028,9 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "copied",
-                "alias": "copied",
-                "derivation": expression,
-            }
+            "name": "copied",
+            "alias": "copied",
+            "derivation": expression,
         }]
 
     def test_copy_variable_with_codes(self):
@@ -7083,11 +7088,7 @@ class TestSubvariableCodes:
             "references": {"subreferences": subreferences}
         }
         assert args == [{
-            "element": "shoji:entity",
-            "body": {
-                "name": "copied",
-                "alias": "copied",
-                "derivation": expression,
-            }
+            "name": "copied",
+            "alias": "copied",
+            "derivation": expression,
         }]
-
