@@ -18,7 +18,7 @@ class DatasetViews:
         view_args = {
             "name": name,
             "view_of": self.dataset_resource.self,
-            "project":  self.dataset_resource.catalogs["parent"]
+            "owner": self.dataset_resource.body["owner"]
         }
         if columns is not None:
             # Columns is a list of aliases, convert to URLs
