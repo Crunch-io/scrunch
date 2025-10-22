@@ -11,7 +11,8 @@ from .fixtures import BaseIntegrationTestCase
 
 class TestDatasetMethods(BaseIntegrationTestCase):
     def test_replace_values(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_replace_values"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_replace_values", "project": project.self})).refresh()
         variable = ds.variables.create(
             as_entity(
                 {
@@ -49,7 +50,8 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
     def test_append_dataset(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset", "project": project.self})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -132,7 +134,8 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset", "project": project.self})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -229,7 +232,8 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_filter_and_exclusion(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_filter_exclusion", "project": project.self})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -327,7 +331,8 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_and_exclusion(self):
-        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion"})).refresh()
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
+        ds = self.site.datasets.create(as_entity({"name": "test_scrunch_append_dataset_with_variable_exclusion", "project": project.self})).refresh()
         ds.variables.create(
             as_entity(
                 {
@@ -424,8 +429,10 @@ class TestDatasetMethods(BaseIntegrationTestCase):
 
     @pytest.mark.skipif(os.environ.get("LOCAL_INTEGRATION") is None, reason="Do not run this test during CI/CD")
     def test_append_dataset_with_variables_list_filters_and_exclusion(self):
+        project = self.site.projects.create(as_entity({"name": "test_project"}))
         ds = self.site.datasets.create(as_entity({
-            "name": "test_scrunch_append_dataset_with_variable_filters_exclusion"
+            "name": "test_scrunch_append_dataset_with_variable_filters_exclusion",
+            "project": project.self
         })).refresh()
         ds.variables.create(
             as_entity(
