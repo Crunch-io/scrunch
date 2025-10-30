@@ -93,12 +93,13 @@ class TestViews:
         dataset_url = "http://host/datasets/id/"
         variables_url = "http://host/variables/url/"
         new_view_url = "http://host/new/view/url/"
-        project_url = "http://host/project/id"
+        project_url = "http://host/project/url/"
         ds_res = Entity(session, **{
             'self': dataset_url,
+            'project': Entity(session, **{'self': project_url}),
             'body': {
                 "view_of": None,
-                "owner": project_url
+                "owner": project_url,
             },
             "catalogs": {
                 "views": views_url,
@@ -142,7 +143,7 @@ class TestViews:
             "body": {
                 "name": "My view",
                 "view_of": dataset_url,
-                "owner": project_url,
+                "project": project_url,
             },
         }
 
@@ -151,9 +152,10 @@ class TestViews:
         views_url = "http://host/views/url/"
         dataset_url = "http://host/datasets/id/"
         new_view_url = "http://host/new/view/url/"
-        project_url = "http://host/project/id"
+        project_url = "http://host/project/url/"
         ds_res = Entity(session, **{
             'self': dataset_url,
+            'project': Entity(session, **{'self': project_url}),
             'body': {
                 "view_of": None,
                 "owner": project_url,
@@ -201,7 +203,7 @@ class TestViews:
                 "view_cols": ["idA", "idB"],
                 "name": "My view",
                 "view_of": dataset_url,
-                "owner": project_url
+                "project": project_url
             },
         }
 
