@@ -48,7 +48,7 @@ class TestCubes(TestDatasetBase, TestCase):
             "function": ">",
             "args": [
                 {
-                    "variable": "https://test.crunch.io/api/datasets/123456/variables/0001/"
+                    "var": "var1_alias"
                 },
                 {"value": 1},
             ],

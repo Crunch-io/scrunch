@@ -106,15 +106,15 @@ class TestExpressionParsing(TestCase):
                         {
                             'function': '==',
                             'args': [
-                                {'variable': 'http://host.com/api/datasets/abc123/variables/0001/'},
+                                {'var': 'identity'},
                                 {'value': 1}
                             ]
                         },
                         {
                             'function': '<=',
                             'args': [
-                                {'variable': 'http://host.com/api/datasets/abc123/variables/0002/'},
-                                {'variable': 'http://host.com/api/datasets/abc123/variables/0003/'}
+                                {'var': 'caseid'},
+                                {'var': 'surveyid'}
                             ]
                         }
                     ]
@@ -122,7 +122,7 @@ class TestExpressionParsing(TestCase):
                 {
                     'function': '>=',
                     'args': [
-                        {'variable': 'http://host.com/api/datasets/abc123/variables/0001/'},
+                        {'var': 'identity'},
                         {'value': 2}
                     ]
                 }
@@ -160,7 +160,7 @@ class TestExpressionParsing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': 'age'
+                    'var': 'age'
                 },
                 {
                     'value': 1
@@ -178,7 +178,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1
                 },
                 {
-                    'variable': 'age'
+                    'var': 'age'
                 }
             ]
         }
@@ -190,7 +190,7 @@ class TestExpressionParsing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': 'name'
+                    'var': 'name'
                 },
                 {
                     'value': 'John Doe'
@@ -208,7 +208,7 @@ class TestExpressionParsing(TestCase):
                     'value': 'John Doe'
                 },
                 {
-                    'variable': 'name'
+                    'var': 'name'
                 }
             ]
         }
@@ -220,7 +220,7 @@ class TestExpressionParsing(TestCase):
             'function': '!=',
             'args': [
                 {
-                    'variable': 'age'
+                    'var': 'age'
                 },
                 {
                     'value': 1
@@ -238,7 +238,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1
                 },
                 {
-                    'variable': 'age'
+                    'var': 'age'
                 }
             ]
         }
@@ -250,7 +250,7 @@ class TestExpressionParsing(TestCase):
             'function': '!=',
             'args': [
                 {
-                    'variable': 'name'
+                    'var': 'name'
                 },
                 {
                     'value': 'John Doe'
@@ -268,7 +268,7 @@ class TestExpressionParsing(TestCase):
                     'value': 'John Doe'
                 },
                 {
-                    'variable': 'name'
+                    'var': 'name'
                 }
             ]
         }
@@ -280,7 +280,7 @@ class TestExpressionParsing(TestCase):
             'function': '<',
             'args': [
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 },
                 {
                     'value': 1234
@@ -298,7 +298,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1234
                 },
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 }
             ]
         }
@@ -310,7 +310,7 @@ class TestExpressionParsing(TestCase):
             'function': '<=',
             'args': [
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 },
                 {
                     'value': 1234
@@ -328,7 +328,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1234
                 },
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 }
             ]
         }
@@ -340,7 +340,7 @@ class TestExpressionParsing(TestCase):
             'function': '>',
             'args': [
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 },
                 {
                     'value': 1234
@@ -358,7 +358,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1234
                 },
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 }
             ]
         }
@@ -370,7 +370,7 @@ class TestExpressionParsing(TestCase):
             'function': '>=',
             'args': [
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 },
                 {
                     'value': 1234
@@ -388,7 +388,7 @@ class TestExpressionParsing(TestCase):
                     'value': 1234
                 },
                 {
-                    'variable': 'caseid'
+                    'var': 'caseid'
                 }
             ]
         }
@@ -400,10 +400,10 @@ class TestExpressionParsing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -414,10 +414,10 @@ class TestExpressionParsing(TestCase):
             'function': '!=',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -428,10 +428,10 @@ class TestExpressionParsing(TestCase):
             'function': '<',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -442,10 +442,10 @@ class TestExpressionParsing(TestCase):
             'function': '<=',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -456,10 +456,10 @@ class TestExpressionParsing(TestCase):
             'function': '>',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -470,10 +470,10 @@ class TestExpressionParsing(TestCase):
             'function': '>=',
             'args': [
                 {
-                    'variable': 'starttdate'
+                    'var': 'starttdate'
                 },
                 {
-                    'variable': 'arrivedate'
+                    'var': 'arrivedate'
                 }
             ]
         }
@@ -491,7 +491,7 @@ class TestExpressionParsing(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': 'identity'
+                                    'var': 'identity'
                                 },
                                 {
                                     'value': 1
@@ -502,10 +502,10 @@ class TestExpressionParsing(TestCase):
                             'function': '<=',
                             'args': [
                                 {
-                                    'variable': 'caseid'
+                                    'var': 'caseid'
                                 },
                                 {
-                                    'variable': 'surveyid'
+                                    'var': 'surveyid'
                                 }
                             ]
                         }
@@ -515,7 +515,7 @@ class TestExpressionParsing(TestCase):
                     'function': '>=',
                     'args': [
                         {
-                            'variable': 'identity'
+                            'var': 'identity'
                         },
                         {
                             'value': 2
@@ -532,7 +532,7 @@ class TestExpressionParsing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': 'web_browser'
+                    'var': 'web_browser'
                 },
                 {
                     'value': ['abc', 'dfg', 'hij']
@@ -547,7 +547,7 @@ class TestExpressionParsing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': 'web_browser'
+                    'var': 'web_browser'
                 },
                 {
                     'value': ['abc', 'dfg', 'hij']
@@ -561,7 +561,7 @@ class TestExpressionParsing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': 'country_cat'
+                    'var': 'country_cat'
                 },
                 {
                     'value': [1.0]
@@ -577,7 +577,7 @@ class TestExpressionParsing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': 'country_cat'
+                    'var': 'country_cat'
                 },
                 {
                     'value': [1]
@@ -592,7 +592,7 @@ class TestExpressionParsing(TestCase):
         expected_expr_obj = {
             'args':
                 [
-                    {'variable': 'q1'},
+                    {'var': 'q1'},
                     {'value': [1, 2, 4, 5, 6, 7, 10, 11, 12]}
                 ],
             'function': 'in'
@@ -616,7 +616,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'country'
+                            'var': 'country'
                         },
                         {
                             'value': [1, 2, 3]
@@ -636,7 +636,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'country'
+                            'var': 'country'
                         },
                         {
                             'value': [1, 2, 3]
@@ -659,7 +659,7 @@ class TestExpressionParsing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'disposition'
+                            'var': 'disposition'
                         },
                         {
                             'value': 0
@@ -670,7 +670,7 @@ class TestExpressionParsing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'exit_status'
+                            'var': 'exit_status'
                         },
                         {
                             'value': 0
@@ -687,7 +687,7 @@ class TestExpressionParsing(TestCase):
             'function': 'any',
             'args': [
                 {
-                    'variable': 'Q2'
+                    'var': 'Q2'
                 },
                 {
                     'value': [1, 2, 3]
@@ -701,7 +701,7 @@ class TestExpressionParsing(TestCase):
             'function': 'any',
             'args': [
                 {
-                    'variable': 'Q2'
+                    'var': 'Q2'
                 },
                 {
                     'value': [1, 2, 3]
@@ -724,7 +724,7 @@ class TestExpressionParsing(TestCase):
             'function': 'all',
             'args': [
                 {
-                    'variable': 'Q2'
+                    'var': 'Q2'
                 },
                 {
                     'value': [1, 2, 3]
@@ -738,7 +738,7 @@ class TestExpressionParsing(TestCase):
             'function': 'all',
             'args': [
                 {
-                    'variable': 'Q2'
+                    'var': 'Q2'
                 },
                 {
                     'value': [1, 2, 3]
@@ -771,7 +771,7 @@ class TestExpressionParsing(TestCase):
                         'function': '==',
                         'args': [
                             {
-                                'variable': 'disposition'
+                                'var': 'disposition'
                             },
                             {
                                 'value': 0
@@ -782,7 +782,7 @@ class TestExpressionParsing(TestCase):
                         'function': '==',
                         'args': [
                             {
-                                'variable': 'exit_status'
+                                'var': 'exit_status'
                             },
                             {
                                 'value': 1
@@ -797,7 +797,7 @@ class TestExpressionParsing(TestCase):
                         'function': '==',
                         'args': [
                             {
-                                'variable': 'disposition'
+                                'var': 'disposition'
                             },
                             {
                                 'value': 0
@@ -808,7 +808,7 @@ class TestExpressionParsing(TestCase):
                         'function': '==',
                         'args': [
                             {
-                                'variable': 'exit_status'
+                                'var': 'exit_status'
                             },
                             {
                                 'value': 0
@@ -825,7 +825,7 @@ class TestExpressionParsing(TestCase):
         assert parsed_zcl_expr == {
             'function': 'any',
             'args': [
-                {'variable': 'MyMrVar'},
+                {'var': 'MyMrVar'},
                 {'column': ['subvar1', 'subvar2']}
             ]
         }
@@ -836,7 +836,7 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == {
             'function': 'all',
             'args': [
-                {'variable': 'MyMrVar'},
+                {'var': 'MyMrVar'},
                 {'column': ['subvar1', 'subvar2']}
             ]
         }
@@ -847,7 +847,7 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == {
             'function': 'in',
             'args': [
-                {'variable': 'MyMrVar'},
+                {'var': 'MyMrVar'},
                 {'column': ['subvar1', 'subvar2']}
             ]
         }
@@ -864,7 +864,7 @@ class TestExpressionParsing(TestCase):
             'function': 'any',
             'args': [
                 {
-                    'variable': 'CompanyTurnover'
+                    'var': 'CompanyTurnover'
                 },
                 {
                     'value': [99]
@@ -878,7 +878,7 @@ class TestExpressionParsing(TestCase):
             'function': 'any',
             'args': [
                 {
-                    'variable': 'sector'
+                    'var': 'sector'
                 },
                 {
                     'value': [2, 3, 98, 99]
@@ -896,7 +896,7 @@ class TestExpressionParsing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'age'
+                            'var': 'age'
                         },
                         {
                             'value': 1
@@ -916,7 +916,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'any',
                     'args': [
                         {
-                            'variable': 'Q2'
+                            'var': 'Q2'
                         },
                         {
                             'value': [1, 2, 3]
@@ -935,7 +935,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'all',
                     'args': [
                         {
-                            'variable': 'Q2'
+                            'var': 'Q2'
                         },
                         {
                             'value': [1, 2, 3]
@@ -952,7 +952,7 @@ class TestExpressionParsing(TestCase):
             'function': 'duplicates',
             'args': [
                 {
-                    'variable': 'identity'
+                    'var': 'identity'
                 }
             ]
         }
@@ -967,7 +967,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'duplicates',
                     'args': [
                         {
-                            'variable': 'identity'
+                            'var': 'identity'
                         }
                     ]
                 }
@@ -993,7 +993,7 @@ class TestExpressionParsing(TestCase):
             'args': [
                 {
                     'args': [
-                        {'variable': 'age'},
+                        {'var': 'age'},
                         {'value': 1}
                     ],
                     'function': '=='
@@ -1002,14 +1002,14 @@ class TestExpressionParsing(TestCase):
                     'args': [
                         {
                             'args': [
-                                {'variable': 'test'},
+                                {'var': 'test'},
                                 {'value': 3}
                             ],
                             'function': '=='
                         },
                         {
                             'args': [
-                                {'variable': 'myop'},
+                                {'var': 'myop'},
                                 {'value': 'age'}
                             ],
                             'function': '=='
@@ -1031,14 +1031,14 @@ class TestExpressionParsing(TestCase):
                     'args': [
                         {
                             'args': [
-                                {'variable': 'var1'},
+                                {'var': 'var1'},
                                 {'value': 3}
                             ],
                             'function': '+'
                         },
                         {
                             'args': [
-                                {'variable': 'var2'},
+                                {'var': 'var2'},
                                 {'value': 2}
                             ],
                             'function': '-'}
@@ -1049,14 +1049,14 @@ class TestExpressionParsing(TestCase):
                     'args': [
                         {
                             'args': [
-                                {'variable': 'var3'},
+                                {'var': 'var3'},
                                 {'value': 1}
                             ],
                             'function': '/'
                         },
                         {
                             'args': [
-                                {'variable': 'var4'},
+                                {'var': 'var4'},
                                 {'value': 10}
                             ],
                             'function': '*'}
@@ -1077,7 +1077,7 @@ class TestExpressionParsing(TestCase):
                     'args': [
                         {
                             'args': [
-                                {'variable': 'var1'},
+                                {'var': 'var1'},
                                 {'value': 10}
                             ],
                             'function': '*'
@@ -1092,7 +1092,7 @@ class TestExpressionParsing(TestCase):
                     ],
                     'function': '+'
                 },
-                {'variable': 'var2'}
+                {'var': 'var2'}
             ],
             'function': '=='
         }
@@ -1156,7 +1156,7 @@ class TestExpressionParsing(TestCase):
                     "function": "*",
                     "args": [
                         {
-                            "variable": "weekly_rent"
+                            "var": "weekly_rent"
                         },
                         {
                             "value": 52
@@ -1177,7 +1177,7 @@ class TestExpressionParsing(TestCase):
             'function': 'is_valid',
             'args': [
                 {
-                    'variable': 'birthyear'
+                    'var': 'birthyear'
                 }
             ]
         }
@@ -1188,7 +1188,7 @@ class TestExpressionParsing(TestCase):
             'function': 'is_missing',
             'args': [
                 {
-                    'variable': 'birthyear'
+                    'var': 'birthyear'
                 }
             ]
         }
@@ -1203,7 +1203,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_valid',
                     'args': [
                         {
-                            'variable': 'birthyear'
+                            'var': 'birthyear'
                         }
                     ]
                 }
@@ -1219,7 +1219,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_missing',
                     'args': [
                         {
-                            'variable': 'birthyear'
+                            'var': 'birthyear'
                         }
                     ]
                 }
@@ -1236,7 +1236,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_valid',
                     'args': [
                         {
-                            'variable': 'birthyear'
+                            'var': 'birthyear'
                         }
                     ]
                 },
@@ -1244,7 +1244,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_valid',
                     'args': [
                         {
-                            'variable': 'birthmonth'
+                            'var': 'birthmonth'
                         }
                     ]
                 }
@@ -1260,7 +1260,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_missing',
                     'args': [
                         {
-                            'variable': 'birthyear'
+                            'var': 'birthyear'
                         }
                     ]
                 },
@@ -1268,7 +1268,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'is_missing',
                     'args': [
                         {
-                            'variable': 'birthmonth'
+                            'var': 'birthmonth'
                         }
                     ]
                 }
@@ -1288,7 +1288,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_valid',
                             'args': [
                                 {
-                                    'variable': 'birthyear'
+                                    'var': 'birthyear'
                                 }
                             ]
                         },
@@ -1296,7 +1296,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_valid',
                             'args': [
                                 {
-                                    'variable': 'birthmonth'
+                                    'var': 'birthmonth'
                                 }
                             ]
                         }
@@ -1317,7 +1317,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_missing',
                             'args': [
                                 {
-                                    'variable': 'birthyear'
+                                    'var': 'birthyear'
                                 }
                             ]
                         },
@@ -1325,7 +1325,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_missing',
                             'args': [
                                 {
-                                    'variable': 'birthmonth'
+                                    'var': 'birthmonth'
                                 }
                             ]
                         }
@@ -1344,7 +1344,7 @@ class TestExpressionParsing(TestCase):
                     'function': '<',
                     'args': [
                         {
-                            'variable': 'caseid'
+                            'var': 'caseid'
                         },
                         {
                             'value': 12345
@@ -1358,7 +1358,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_missing',
                             'args': [
                                 {
-                                    'variable': 'birthyear'
+                                    'var': 'birthyear'
                                 }
                             ]
                         },
@@ -1366,7 +1366,7 @@ class TestExpressionParsing(TestCase):
                             'function': 'is_missing',
                             'args': [
                                 {
-                                    'variable': 'birthmonth'
+                                    'var': 'birthmonth'
                                 }
                             ]
                         }
@@ -1382,17 +1382,17 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == {
             'args': [
                 {
-                    'args': [{'variable': 'year'}],
+                    'args': [{'var': 'year'}],
                     'function': 'is_missing'
                 },
                 {
                     'args': [
                         {
-                            'args': [{'variable': 'month'}],
+                            'args': [{'var': 'month'}],
                             'function': 'is_missing'
                         },
                         {
-                            'args': [{'variable': 'age'}],
+                            'args': [{'var': 'age'}],
                             'function': 'is_missing'
                         }
                     ],
@@ -1407,23 +1407,23 @@ class TestExpressionParsing(TestCase):
         assert expr_obj == {
             'args': [
                 {
-                    'args': [{'variable': 'year'}],
+                    'args': [{'var': 'year'}],
                     'function': 'is_valid'
                 },
                 {
                     'args': [
                         {
-                            'args': [{'variable': 'month'}],
+                            'args': [{'var': 'month'}],
                             'function': 'is_valid'
                         },
                         {
                             'args': [
                                 {
-                                    'args': [{'variable': 'age'}],
+                                    'args': [{'var': 'age'}],
                                     'function': 'is_valid'
                                 },
                                 {
-                                    'args': [{'variable': 'gender'}],
+                                    'args': [{'var': 'gender'}],
                                     'function': 'is_valid'
                                 }
                             ],
@@ -1446,7 +1446,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'a'
+                            'var': 'a'
                         },
                         {
                             'value': [1, 2, 3]
@@ -1465,7 +1465,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'a'
+                            'var': 'a'
                         },
                         {
                             'value': [1, 2, 3]
@@ -1484,7 +1484,7 @@ class TestExpressionParsing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'a'
+                            'var': 'a'
                         },
                         {
                             'value': [1, 2, 3]
@@ -1496,7 +1496,7 @@ class TestExpressionParsing(TestCase):
 
     def test_parse_subvariable_brackets(self):
         expr = "array_alias[subvariable_alias] in [1, 2, 3]"
-        expr_obj = parse_expr(expr, platonic=False)
+        expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1504,11 +1504,11 @@ class TestExpressionParsing(TestCase):
                 # this is a temporary intern format, so we can use this later
                 # on to convert to URLs appropriately discovering first the
                 # array and then the subvariable
-                {'variable': {"array": "array_alias", "subvariable": "subvariable_alias"}},
+                {'var': "array_alias", "axes": ["subvariable_alias"]},
                 {'value': [1, 2, 3]}
             ]
         }
-        expr_obj = parse_expr(expr, platonic=True)
+        expr_obj = parse_expr(expr)
         assert expr_obj == {
             'function': 'in',
             'args': [
@@ -1523,7 +1523,7 @@ class TestExpressionParsing(TestCase):
 
     def test_parse_platonic_expr(self):
         expr = """not (array[subvar] or num_val) and other[dimension] and not logical"""
-        parsed = parse_expr(expr, platonic=True)
+        parsed = parse_expr(expr)
         assert parsed == {
             'function': 'and',
             'args': [
@@ -1650,7 +1650,7 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': 1
@@ -1665,10 +1665,10 @@ class TestExpressionProcessing(TestCase):
         var_type = 'multiple_response'
         var_url = '{}variables/{}/'.format(self.ds_url, var_id)
         var_categories = [
-                    {"id": 1, "name": "cat1", "selected": True},
-                    {"id": 2, "name": "cat2", "selected": True},
-                    {"id": 3, "name": "cat3", "selected": False},
-                ]
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
 
         table_mock = mock.MagicMock(metadata={
             var_id: {
@@ -1695,7 +1695,7 @@ class TestExpressionProcessing(TestCase):
                 "name": "Multiple Response",
                 "description": "",
                 "notes": "",
-                "alias": "mr_variable",
+                "alias": var_alias,
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
@@ -1711,10 +1711,11 @@ class TestExpressionProcessing(TestCase):
         with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
             categories.return_value = var_categories
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
-            result, need_wrap = adapt_multiple_response(var_url, values, ds.variables.index)
+            vars_by_alias = {v['alias']: v for _, v in ds.variables.index.items()}
+            result, need_wrap = adapt_multiple_response(var_alias, values, vars_by_alias)
             assert result == [
-                {'variable': "{}subvariables/001/".format(var_url), 'column': [1, 2]},
-                {'variable': "{}subvariables/002/".format(var_url), 'column': [1, 2]}
+                {'var': var_alias, 'axes': ['subvar1'], 'column': [1, 2]},
+                {'var': var_alias, 'axes': ['subvar2'], 'column': [1, 2]}
             ]
             assert need_wrap is True
 
@@ -1920,7 +1921,7 @@ class TestExpressionProcessing(TestCase):
                 "name": "Multiple Response",
                 "description": "",
                 "notes": "",
-                "alias": "mr_variable",
+                "alias": var_alias,
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
@@ -1960,7 +1961,8 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                    'var': 'MyMrVar',
+                    'axes': ['subvar1']
                 },
                 {
                     'column': [1]
@@ -2005,7 +2007,7 @@ class TestExpressionProcessing(TestCase):
                 "name": "Multiple Response",
                 "description": "",
                 "notes": "",
-                "alias": "mr_variable",
+                "alias": var_alias,
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
@@ -2047,7 +2049,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/001/'
+                            'var': 'MyMrVar',
+                            'axes': ['subvar1']
                         },
                         {
                             'column': [1]
@@ -2058,7 +2061,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/subvariables/002/'
+                            'var': 'MyMrVar',
+                            'axes': ['subvar2']
                         },
                         {
                             'column': [1]
@@ -2141,7 +2145,8 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': "{}subvariables/001/".format(var_url),
+                    'var': var_alias,
+                    'axes': ['subvar1']
                 },
                 {
                     'value': 1
@@ -2184,7 +2189,8 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                    'var': var_alias,
+                    'axes': ['hobbies_1']
                 },
                 {
                     'value': 4
@@ -2217,7 +2223,7 @@ class TestExpressionProcessing(TestCase):
 
         # Expression with subvariable indicated by bracket syntax
         expr = "hobbies_array[hobbies_1] == 4"
-        parsed_platonic = parse_expr(expr, platonic=True)
+        parsed_platonic = parse_expr(expr)
         assert parsed_platonic == {
             'function': '==',
             'args': [
@@ -2231,7 +2237,7 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 # Stores a reference to the pieces of the array/subvariable
-                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {"var": 'hobbies_array', "axes": ['hobbies_1']},
                 {'value': 4}
             ]
         }
@@ -2240,14 +2246,14 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 # Correctly translates into the subvariable URL
-                {'variable': subvariable_url},
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
                 {'value': 4}
             ]
         }
 
         # Expression with subvariable indicated by bracket syntax
         expr = "hobbies_array[hobbies_1].any([1, 2])"
-        parsed_platonic = parse_expr(expr, platonic=True)
+        parsed_platonic = parse_expr(expr)
         assert parsed_platonic == {
             'function': "any",
             'args': [
@@ -2261,7 +2267,7 @@ class TestExpressionProcessing(TestCase):
             'function': "any",
             'args': [
                 # Stores a reference to the array/subvairable
-                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {"var": 'hobbies_array', "axes": ['hobbies_1']},
                 {'value': [1, 2]}
             ]
         }
@@ -2270,14 +2276,14 @@ class TestExpressionProcessing(TestCase):
             'function': "in",
             'args': [
                 # Still finds the correct subvariable ID under the array URL
-                {'variable': subvariable_url},
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
                 {'value': [1, 2]}
             ]
         }
 
         # `IN` functions have a bit of a special treatment.
         expr = "hobbies_array[hobbies_1] in [1]"
-        parsed_platonic = parse_expr(expr, platonic=True)
+        parsed_platonic = parse_expr(expr)
         assert parsed_platonic == {
             'function': 'in',
             'args': [
@@ -2291,7 +2297,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 # Stores a reference to the pieces of the array/subvariable
-                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {"var": 'hobbies_array', "axes": ['hobbies_1']},
                 {'value': [1]}
             ]
         }
@@ -2300,7 +2306,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 # Correctly translates into the subvariable URL
-                {'variable': subvariable_url},
+                {'var': 'hobbies_array', 'axes': ['hobbies_1']},
                 {'value': [1]}
             ]
         }
@@ -2330,7 +2336,7 @@ class TestExpressionProcessing(TestCase):
 
         # Expression with subvariable indicated by bracket syntax
         expr = "hobbies_array[hobbies_1] == 4"
-        parsed = parse_expr(expr, platonic=True)
+        parsed = parse_expr(expr)
         assert parsed == {
             'function': '==',
             'args': [
@@ -2342,12 +2348,12 @@ class TestExpressionProcessing(TestCase):
         expr_obj = process_expr(parsed, ds)
         assert expr_obj == parsed
 
-        parsed = parse_expr(expr, platonic=False)
+        parsed = parse_expr(expr)
         assert parsed == {
             'function': '==',
             'args': [
                 # Keeps the platonic reference to the subvariable
-                {"variable": {"array": 'hobbies_array', "subvariable": 'hobbies_1'}},
+                {"var": 'hobbies_array', "axes": ['hobbies_1']},
                 {'value': 4}
             ]
         }
@@ -2356,7 +2362,7 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 # Keeps the platonic reference to the subvariable
-                {"variable": subvariable_url},
+                {"var": 'hobbies_array', "axes": ['hobbies_1']},
                 {'value': 4}
             ]
         }
@@ -2394,7 +2400,8 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                    'var': 'hobbies',
+                    'axes': ['hobbies_1']
                 },
                 {
                     'value': [32766]
@@ -2434,7 +2441,8 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                    'var': 'hobbies',
+                    'axes': ['hobbies_1']
                 },
                 {
                     'value': 32766
@@ -2478,7 +2486,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_1']
                         },
                         {
                             'value': [32766]
@@ -2524,7 +2533,7 @@ class TestExpressionProcessing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                            'var': 'hobbies', 'axes': ['hobbies_1']
                         },
                         {
                             'value': 32766
@@ -2568,7 +2577,8 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                    'var': 'hobbies',
+                    'axes': ['hobbies_1']
                 },
                 {
                     'value': [32766, 32767]
@@ -2647,7 +2657,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_1'],
                         },
                         {
                             'value': [32766]
@@ -2658,7 +2669,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_2'],
                         },
                         {
                             'value': [32766]
@@ -2669,7 +2681,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_3'],
                         },
                         {
                             'value': [32766]
@@ -2680,7 +2693,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_4'],
                         },
                         {
                             'value': [32766]
@@ -2731,7 +2745,8 @@ class TestExpressionProcessing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_1'],
                         },
                         {
                             'value': 32766
@@ -2742,7 +2757,8 @@ class TestExpressionProcessing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_2'],
                         },
                         {
                             'value': 32766
@@ -2753,7 +2769,8 @@ class TestExpressionProcessing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_3'],
                         },
                         {
                             'value': 32766
@@ -2764,7 +2781,8 @@ class TestExpressionProcessing(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_4'],
                         },
                         {
                             'value': 32766
@@ -2819,7 +2837,8 @@ class TestExpressionProcessing(TestCase):
                              'function': 'in',
                              'args': [
                                 {
-                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                                     'var': 'hobbies',
+                                     'axes': ['hobbies_1'],
                                 },
                                  {
                                      'value': [32766]
@@ -2830,7 +2849,8 @@ class TestExpressionProcessing(TestCase):
                              'function': 'in',
                              'args': [
                                  {
-                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                                     'var': 'hobbies',
+                                     'axes': ['hobbies_2'],
                                  },
                                  {
                                      'value': [32766]
@@ -2841,7 +2861,8 @@ class TestExpressionProcessing(TestCase):
                              'function': 'in',
                              'args': [
                                  {
-                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                     'var': 'hobbies',
+                                     'axes': ['hobbies_3'],
                                  },
                                  {
                                      'value': [32766]
@@ -2852,7 +2873,8 @@ class TestExpressionProcessing(TestCase):
                              'function': 'in',
                              'args': [
                                  {
-                                     'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                     'var': 'hobbies',
+                                     'axes': ['hobbies_4'],
                                  },
                                  {
                                      'value': [32766]
@@ -2908,7 +2930,8 @@ class TestExpressionProcessing(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_1'],
                                 },
                                 {
                                     'value': 32766
@@ -2919,7 +2942,8 @@ class TestExpressionProcessing(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_2'],
                                 },
                                 {
                                     'value': 32766
@@ -2930,7 +2954,8 @@ class TestExpressionProcessing(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_3'],
                                 },
                                 {
                                     'value': 32766
@@ -2941,7 +2966,8 @@ class TestExpressionProcessing(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_4'],
                                 },
                                 {
                                     'value': 32766
@@ -2995,7 +3021,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_1'],
                         },
                         {
                             'value': [32766, 32767]
@@ -3006,7 +3033,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_2'],
                         },
                         {
                             'value': [32766, 32767]
@@ -3017,7 +3045,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_3'],
                         },
                         {
                             'value': [32766, 32767]
@@ -3028,7 +3057,8 @@ class TestExpressionProcessing(TestCase):
                     'function': 'in',
                     'args': [
                         {
-                            'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                            'var': 'hobbies',
+                            'axes': ['hobbies_4'],
                         },
                         {
                             'value': [32766, 32767]
@@ -3083,7 +3113,8 @@ class TestExpressionProcessing(TestCase):
                             'function': 'in',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[0])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_1'],
                                 },
                                 {
                                     'value': [32766, 32767]
@@ -3094,7 +3125,8 @@ class TestExpressionProcessing(TestCase):
                             'function': 'in',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[1])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_2'],
                                 },
                                 {
                                     'value': [32766, 32767]
@@ -3105,7 +3137,8 @@ class TestExpressionProcessing(TestCase):
                             'function': 'in',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[2])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_3'],
                                 },
                                 {
                                     'value': [32766, 32767]
@@ -3116,7 +3149,8 @@ class TestExpressionProcessing(TestCase):
                             'function': 'in',
                             'args': [
                                 {
-                                    'variable': '%ssubvariables/%s/' % (var_url, subvariables[3])
+                                    'var': 'hobbies',
+                                    'axes': ['hobbies_4'],
                                 },
                                 {
                                     'value': [32766, 32767]
@@ -3167,7 +3201,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'all_valid',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 }
             ]
         }
@@ -3181,7 +3215,7 @@ class TestExpressionProcessing(TestCase):
                     'function': 'all_valid',
                     'args': [
                         {
-                            'variable': var_url
+                            'var': var_alias
                         }
                     ]
                 }
@@ -3194,7 +3228,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'is_missing',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 }
             ]
         }
@@ -3208,7 +3242,7 @@ class TestExpressionProcessing(TestCase):
                     'function': 'is_missing',
                     'args': [
                         {
-                            'variable': var_url
+                            'var': var_alias
                         }
                     ]
                 }
@@ -3245,7 +3279,7 @@ class TestExpressionProcessing(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': 1
@@ -3287,7 +3321,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': var_url
+                    'var': 'hobbies'
                 },
                 {
                     'value': [1, 2]
@@ -3329,7 +3363,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': [1, 2]
@@ -3372,7 +3406,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': [1]
@@ -3414,7 +3448,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': [1]
@@ -3457,7 +3491,7 @@ class TestExpressionProcessing(TestCase):
             'function': 'in',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': [1.0]
@@ -3507,7 +3541,7 @@ class TestExpressionPrettify(TestCase):
             "function": "in",
             "args": [
                 {
-                    "variable": "my_var"
+                    "var": "my_var"
                 },
                 {
                     "value": [
@@ -3523,7 +3557,7 @@ class TestExpressionPrettify(TestCase):
             "function": "in",
             "args": [
                 {
-                    "variable": "my_var"
+                    "var": "my_var"
                 },
                 {
                     "value": [
@@ -3542,7 +3576,7 @@ class TestExpressionPrettify(TestCase):
                     'function': '>',
                     'args': [
                         {
-                            'variable': 'age'
+                            'var': 'age'
                         },
                         {
                             'value': 1
@@ -3553,7 +3587,7 @@ class TestExpressionPrettify(TestCase):
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'favcolor'
+                            'var': 'favcolor'
                         },
                         {
                             'value': 2
@@ -3575,7 +3609,7 @@ class TestExpressionPrettify(TestCase):
                     'function': '>',
                     'args': [
                         {
-                            'variable': 'age'
+                            'var': 'age'
                         },
                         {
                             'value': 1
@@ -3589,7 +3623,7 @@ class TestExpressionPrettify(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': 'favcolor'
+                                    'var': 'favcolor'
                                 },
                                 {
                                     'value': 2
@@ -3600,7 +3634,7 @@ class TestExpressionPrettify(TestCase):
                             'function': '==',
                             'args': [
                                 {
-                                    'variable': 'genre'
+                                    'var': 'genre'
                                 },
                                 {
                                     'value': 1
@@ -3624,7 +3658,7 @@ class TestExpressionPrettify(TestCase):
                     'function': '>',
                     'args': [
                         {
-                            'variable': 'age'
+                            'var': 'age'
                         },
                         {
                             'value': 55
@@ -3641,7 +3675,7 @@ class TestExpressionPrettify(TestCase):
                                     'function': '==',
                                     'args': [
                                         {
-                                            'variable': 'genre'
+                                            'var': 'genre'
                                         },
                                         {
                                             'value': 1
@@ -3652,7 +3686,7 @@ class TestExpressionPrettify(TestCase):
                                     'function': '==',
                                     'args': [
                                         {
-                                            'variable': 'favfruit'
+                                            'var': 'favfruit'
                                         },
                                         {
                                             'value': 9
@@ -3665,7 +3699,7 @@ class TestExpressionPrettify(TestCase):
                             'function': 'in',
                             'args': [
                                 {
-                                    'variable': 'favcolor'
+                                    'var': 'favcolor'
                                 },
                                 {
                                     'value': [3, 4, 5]
@@ -3681,12 +3715,12 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert expected == cel
 
-    def test_variable_url(self):
+    def test_variable_alias(self):
         expr = {
             'function': '==',
             'args': [
                 {
-                    'variable': 'https://host.com/api/datasets/123/variables/001/'
+                    'var': 'age'
                 },
                 {
                     'value': 1
@@ -3704,15 +3738,14 @@ class TestExpressionPrettify(TestCase):
         expected = 'age == 1'
         cel = prettify(expr, ds)
         assert expected == cel
-        ds.resource.session.get.assert_called_with('https://host.com/api/datasets/123/variables/001/')
 
     def test_square_bracket_subvariables(self):
-        subvariable_url = 'https://host.com/api/datasets/123/variables/001/subvariables/abc/'
         expr = {
             'function': '==',
             'args': [
                 {
-                    'variable': subvariable_url
+                    'var': 'array_alias',
+                    'axes': ['sv_1']
                 },
                 {
                     'value': 1
@@ -3734,10 +3767,10 @@ class TestExpressionPrettify(TestCase):
 
         # Prepare array
         response2 = mock.MagicMock()
-        response2.payload.body = {"alias": 'array_variable'}
+        response2.payload.body = {"alias": 'array_alias'}
         ds.resource.session.get.side_effect = [response1, response2]
 
-        expected = 'array_variable[subvar_1] == 1'
+        expected = 'array_alias[sv_1] == 1'
         assert prettify(expr, ds) == expected
 
     def test_variable_url_no_dataset(self):
@@ -3745,7 +3778,7 @@ class TestExpressionPrettify(TestCase):
             'function': '==',
             'args': [
                 {
-                    'variable': 'https://host.com/api/datasets/123/variables/001/'
+                    'var': 'var_alias'
                 },
                 {
                     'value': 1
@@ -3753,13 +3786,8 @@ class TestExpressionPrettify(TestCase):
             ]
         }
 
-        with pytest.raises(Exception) as err:
-            prettify(expr)
+        assert prettify(expr) == "var_alias == 1"
 
-        assert str(err.value) == (
-            'Valid Dataset instance is required to resolve variable urls '
-            'in the expression'
-        )
 
     def test_parse_equal_string(self):
         expr_obj = {
@@ -4438,7 +4466,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21T12:00:00+00:00"
@@ -4452,7 +4480,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21T12:00:00"
@@ -4466,7 +4494,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21T12:00:00"
@@ -4480,7 +4508,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21T12:00"
@@ -4494,7 +4522,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21T12"
@@ -4508,7 +4536,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12-21"
@@ -4522,7 +4550,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016-12"
@@ -4536,7 +4564,7 @@ class TestDatetimeStrings(TestCase):
             "function": "<",
             "args": [
                 {
-                    "variable": "starttime"
+                    "var": "starttime"
                 },
                 {
                     "value": "2016"
@@ -4575,7 +4603,6 @@ class TestDateTimeExpression(TestCase):
         var_id = '0001'
         var_alias = 'starttime'
         var_type = 'datetime'
-        var_url = '%svariables/%s/' % (self.ds_url, var_id)
         ds = self.mock_dataset(var_id, var_alias, var_type)
         expr = "starttime < '2016-12-21'"
         parsed = parse_expr(expr)
@@ -4584,7 +4611,7 @@ class TestDateTimeExpression(TestCase):
             'function': '<',
             'args': [
                 {
-                    'variable': var_url
+                    'var': var_alias
                 },
                 {
                     'value': '2016-12-21'

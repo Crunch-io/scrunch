@@ -51,7 +51,7 @@ from scrunch.variables import validate_variable_url
 
 import sys
 
-PY311 = sys.version_info[:2] == (3, 11)
+GT_PY_311 = sys.version_info[:2] >= (3, 11)
 
 if six.PY2:
     from urllib import urlencode
@@ -169,22 +169,16 @@ def r(lower, upper):
     return list(range(lower, upper + 1))
 
 
-def parse_expr(expr, platonic=False):
+def parse_expr(expr):
     """
     Converts a text python-like expression into ZCL tree.
 
-    If `platonic` is True, the aliases will use `{"var": <alias:str>}` terms.
-
     :param expr: String with a python-like expression
-    :param platonic: Boolean, when True variables will be alias `var` terms
     :return: Dictionary with a ZCL expression
     """
 
     def _var_term(_var_id):
-        if platonic:
-            return {"var": _var_id}
-        else:
-            return {'variable': _var_id}
+        return {"var": _var_id}
 
     def _parse(node, parent=None):
         obj = {}
@@ -298,19 +292,14 @@ def parse_expr(expr, platonic=False):
                 # We will take the subvariable alias bit from the subscript
                 # and return an object with the array and subvariable alias
                 array_alias = dict(ast.iter_fields(fields[0][1]))["id"]
-                if PY311:                
+                if GT_PY_311:                
                     name_node = dict(ast.iter_fields(fields[1][1]))
                     subvariable_alias = name_node["id"]
                 else:
                     name_node = dict(ast.iter_fields(fields[1][1]))["value"]
                     subscript_fields = dict(ast.iter_fields(name_node))
                     subvariable_alias = subscript_fields["id"]
-                if platonic:
-                    return {"var": array_alias, "axes": [subvariable_alias]}
-                else:
-                    # For non-platonic expressions, keep track of both the array
-                    # and subvariable to make a proper url lookup.
-                    return {"variable": {"array": array_alias, "subvariable": subvariable_alias}}
+                return {"var": array_alias, "axes": [subvariable_alias]}
             # "Non-terminal" nodes.
             else:
                 for _name, _val in fields:
@@ -505,17 +494,17 @@ def get_subvariables_resource(var_url, var_index):
     return {sv['alias'].strip('#'): sv['id'] for sv in sub_variables.values()}
 
 
-def _get_categories_from_var_index(var_index, var_url):
-    return var_index[var_url].entity.body.categories
+def _get_categories_from_var_index(vars_by_alias, var_alias):
+    return vars_by_alias[var_alias].entity.body.categories
 
 
-def adapt_multiple_response(var_url, values, var_index):
+def adapt_multiple_response(var_alias, values, vars_by_alias):
     """
     Converts multiple response arguments
     to column.
     :return: the new args for multiple_response
     """
-    aliases = get_subvariables_resource(var_url, var_index)
+    aliases = get_subvariables_resource(var_alias, vars_by_alias)
     result = []
 
     if all(isinstance(value, int) for value in values):
@@ -526,35 +515,36 @@ def adapt_multiple_response(var_url, values, var_index):
         # scenario var.any([subvar1, subvar2])
         # in this scenario, we only want category ids that refers to `selected` categories
         column = [
-            cat.get("id") for cat in _get_categories_from_var_index(var_index, var_url) if cat.get("selected")
+            cat.get("id") for cat in _get_categories_from_var_index(vars_by_alias, var_alias) if cat.get("selected")
         ]
-        variables = [var_id for alias, var_id in aliases.items() if alias in values]
+        subvars = [sva for sva in aliases if sva in values]
 
-    for variable_id in variables:
-        variable_url = "{}subvariables/{}/".format(var_url, variable_id)
+    for sva in subvars:
         result.append({
-            "variable": variable_url,
+            "var": var_alias,
+            'axes': [sva],
             "column": column
         })
 
     return result, True
 
 
-def _update_values_for_multiple_response(new_values, values, subitem, var_index, arrays):
+def _update_values_for_multiple_response(new_values, values, subitem, vars_by_alias, arrays):
     """
     - Multiple response does not need the `value` key, but it relies on the `column` key
     - Remove from `arrays` (subvariable list) the ones that should not be considered
     """
-    var_url = subitem.get("variable", "").split("subvariables")[0]
+    var_alias = subitem.get("var")
     column = new_values[0].get("column")
     value = values[0].get("value")
-    if var_url and var_index[var_url]['type'] == 'multiple_response':
+    if var_alias and vars_by_alias[var_alias]['type'] == 'multiple_response':
         if column:
             values[0]['column'] = column
         elif value is not None:
             values[0]['column'] = value
         values[0].pop("value", None)
-        arrays[0] = [new_value["variable"] for new_value in new_values]
+        subvar_ids_by_aliases = {v['alias']: k for k, v in vars_by_alias[var_alias]['entity']['subvariables']['index'].items()}
+        arrays[0] = [subvar_ids_by_aliases[new_value["axes"][0]] for new_value in new_values]
 
 
 def process_expr(obj, ds):
@@ -578,7 +568,7 @@ def process_expr(obj, ds):
         def variable_id(variable_url):
             return variable_url.split('/')[-2]
 
-        def category_ids(var_id, var_value, variables=variables):
+        def category_ids(var_alias, var_value, variables=variables):
             value = None
             if isinstance(var_value, list) or isinstance(var_value, tuple):
                 # {'values': [val1, val2, ...]}
@@ -589,7 +579,7 @@ def process_expr(obj, ds):
                         value.append(val)
                         continue
                     for var in variables:
-                        if variables[var]['id'] == var_id:
+                        if variables[var]['alias'] == var_alias:
                             if 'categories' in variables[var]:
                                 for cat in variables[var]['categories']:
                                     if cat['name'] == val:
@@ -598,22 +588,21 @@ def process_expr(obj, ds):
                                 # variable has no categories, return original
                                 # list of values
                                 value = var_value
-
             elif isinstance(var_value, str):
-                for var in variables:
+                for va, var in variables.items():
                     # if the variable is a date, don't try to process it's categories
-                    if variables[var]['type'] == 'datetime':
+                    if var['type'] == 'datetime':
                         return var_value
-                    if variables[var]['id'] == var_id and 'categories' in variables[var]:
+                    if va == var_alias and 'categories' in var:
                         found = False
-                        for cat in variables[var]['categories']:
+                        for cat in var['categories']:
                             if cat['name'] == var_value:
                                 value = cat['id']
                                 found = True
                                 break
                         if not found:
                             raise ValueError("Couldn't find a category id for category %s in filter for variable %s" % (var_value, var))
-                    elif 'categories' not in variables[var]:
+                    elif 'categories' not in variables[var['alias']]:
                         return var_value
 
             else:
@@ -623,20 +612,19 @@ def process_expr(obj, ds):
         # special case for multiple_response variables
         if len(subitems) == 2:
             _variable, _value = subitems
-            var_url = _variable.get('variable')
+            var_alias = _variable.get('var')
             _value_key = next(iter(_value))
-            if _value_key in {'column', "value"} and var_url:
-                if var_url in var_index and var_index[var_url]['type'] == 'multiple_response':
-                    result = adapt_multiple_response(var_url, _value[_value_key], var_index)
+            if _value_key in {'column', "value"} and var_alias:
+                vars_by_alias = {v['alias']: v for _, v in var_index.items()}
+                if var_alias in vars_by_alias and vars_by_alias[var_alias]['type'] == 'multiple_response':
+                    result = adapt_multiple_response(var_alias, _value[_value_key], vars_by_alias)
                     # handle the multiple response type
-                    _update_values_for_multiple_response(result[0], values, subitems[0], var_index, arrays)
+                    _update_values_for_multiple_response(result[0], values, subitems[0], vars_by_alias, arrays)
                     return result
 
         for item in subitems:
-            if isinstance(item, dict) and 'variable' in item and not isinstance(item["variable"], dict):
-                var_id = variable_id(item['variable'])
-            elif isinstance(item, dict) and 'value' in item:
-                item['value'] = category_ids(var_id, item['value'])
+            if isinstance(item, dict) and 'value' in item:
+                item['value'] = category_ids(var_alias, item['value'])
             _subitems.append(item)
 
         return _subitems, True
@@ -648,31 +636,12 @@ def process_expr(obj, ds):
         subvariables = []
         needs_wrap = True
 
-        # inspect function, then inspect variable, if multiple_response,
-        # then change in --> any
-        if 'function' in obj and 'args' in obj:
-            if obj['function'] == 'in':
-                args = obj['args']
-                if 'variable' in args[0]:
-                    if isinstance(args[0], dict):
-                        # This is the case of a square bracket subvariable
-                        # array[subvar] in [values]
-                        # In this case, we do not need to do the `in` to `any`
-                        # function conversion, because this subvariable will
-                        # never be of type multiple_response.
-                        pass
-                    else:
-                        try:
-                            if variables.get(args[0]['variable'])['type'] == 'multiple_response':
-                                obj['function'] = 'any'
-                        except TypeError:
-                            raise ValueError("Invalid variable alias '%s'" % args[0]['variable'])
-
+        new_obj = copy.deepcopy(obj)
         for key, val in obj.items():
             if isinstance(val, dict) and "array" not in val:
                 # This is not an array object, then it's a nested ZCL expression
                 # so we need to proceed for nested processing.
-                obj[key] = _process(val, variables)
+                new_obj[key] = _process(val, variables)
             elif isinstance(val, (list, tuple)):
                 subitems = []
                 for subitem in val:
@@ -682,6 +651,13 @@ def process_expr(obj, ds):
                             arrays.append(subitem.pop('subvariables'))
                         elif 'value' in subitem or 'column' in subitem:
                             values.append(subitem)
+                        elif 'var' in subitem:
+                            var = variables.get(subitem['var'])
+                            if var['type'] in ARRAY_TYPES and 'axes' not in subitem:
+                                # Add info about the fact that the "var" referenced
+                                # variable is an array, so that the validation can
+                                # work properly in the remaindere of the code.
+                                arrays.append(var['subvariables'])
                     subitems.append(subitem)
 
                 has_value = any(
@@ -694,56 +670,26 @@ def process_expr(obj, ds):
                     has_value = any('column' in item for item in subitems if not is_number(item))
 
                 has_variable = any(
-                    'variable' in item for item in subitems if not is_number(item)
+                    'var' in item for item in subitems if not is_number(item)
                 )
 
                 if has_value and has_variable:
                     subitems, needs_wrap = ensure_category_ids(subitems, values, arrays)
 
-                obj[key] = subitems
-            elif key == 'variable':
-                if isinstance(val, dict) and "array" in val:
-                    # This is a subvariable reference with this shape:
-                    # {"variable": {"array": array_alias, "subvariable": subvariable_alias}`
-                    array_alias, subvar_alias = val["array"], val["subvariable"]
-                    try:
-                        array_value = variables[array_alias]
-                    except KeyError:
-                        raise ValueError("Invalid variable alias '%s'" % array_alias)
-                    subreferences = array_value["subreferences"]
-                    subvar_map = {sr["alias"]: sv_id for sv_id, sr in subreferences.items()}
-                    array_id = array_value["id"]
-                    try:
-                        subvar_id = subvar_map[subvar_alias]
-                    except KeyError:
-                        raise ValueError("Invalid subvariable `%s` for array '%s'" % (subvariables, array_alias))
-                    subvar_url = "%svariables/%s/subvariables/%s/" % (base_url, array_id, subvar_id)
-                    obj[key] = subvar_url
-                else:
-                    # Otherwise a regular variable references {"variable": alias}
-                    var = variables.get(val)
-                    if not var:
-                        raise ValueError("Invalid variable alias '%s'" % val)
-
-                    # TODO: We shouldn't stitch URLs together, use the API
-                    if var.get('is_subvar'):
-                        obj[key] = '%svariables/%s/subvariables/%s/' \
-                                   % (base_url, var['parent_id'], var['id'])
-                    else:
-                        obj[key] = '%svariables/%s/' % (base_url, var['id'])
-
-                    if var['type'] in ARRAY_TYPES:
-                        subvariables = []
-                        for subvar_id in var.get('subvariables', []):
-                            # In case the subvar_id comes as a subvariable URL
-                            # we want to only consider the ID bit of the URL
-                            subvar_id = subvar_id.strip("/").split("/")[-1]
-                            subvariables.append(
-                                '%svariables/%s/subvariables/%s/'
-                                % (base_url, var['id'], subvar_id)
-                            )
+                new_obj[key] = subitems
+            elif key == 'var':
+                var = variables.get(val)
+                if not var:
+                    raise ValueError("Invalid variable alias '%s'" % val)
+                if var.get('is_subvar'):
+                    parents_by_ids = {v['id']: v for v in variables.values() if not v.get('is_subvar')}
+                    parent = parents_by_ids[var['parent_id']]
+                    new_obj[key] = parent['alias']
+                    new_obj['axes'] = [val]
             elif key == 'function':
                 op = val
+        
+        obj = new_obj
 
         if subvariables:
             obj['subvariables'] = subvariables
@@ -790,8 +736,11 @@ def process_expr(obj, ds):
 
                 if len(subvariables) == 1:
                     obj['function'] = real_op
-                    obj["args"] = [
-                        {'variable': subvariables[0]},
+                    obj['args'] = [
+                        {
+                            'var': var['alias'],
+                            'axes': [var['subreferences'][subvariables[0]]['alias']]
+                        },
                         value
                     ]
                 else:
@@ -804,7 +753,7 @@ def process_expr(obj, ds):
                         [{
                             'function': real_op,
                             'args': [
-                                {'variable': subvar},
+                                {'var': var['alias'], 'axes': [var['subreferences'][subvar]['alias']]},
                                 value
                             ]
                         } for subvar in subvariables]
@@ -842,34 +791,6 @@ def prettify(expr, ds=None):
     methods = {m[1]: m[0] for m in CRUNCH_METHOD_MAP.items()}
     functions = {f[1]: f[0] for f in CRUNCH_FUNC_MAP.items()}
 
-    def _resolve_variable(var):
-        is_url = validate_variable_url(var)
-
-        if not is_url:
-            return var
-        elif not isinstance(ds, scrunch.datasets.BaseDataset):
-            raise Exception(
-                'Valid Dataset instance is required to resolve variable urls '
-                'in the expression'
-            )
-        var_resource = ds.resource.session.get(var).payload
-        var_alias = var_resource.body["alias"]
-
-        # From an arbitrary URL we can detect whether this is a variable or a
-        # subvariable by checking the adjacent resources linked. A subvariable
-        # will point to its parent `/subvariables/` catalog and refer to its
-        # array variable by `.fragments["variable"]`.
-        is_subvariable = 'parent' in var_resource.catalogs and 'variable' in var_resource.fragments
-
-        if is_subvariable:
-            # Fetch the array variable
-            array_url = var_resource.fragments['variable']
-            array_var = ds.resource.session.get(array_url).payload
-            array_alias = array_var.body["alias"]
-            var_alias = "%s[%s]" % (array_alias, var_alias)
-
-        return var_alias
-
     def _resolve_variables(_expr):
         new_expr = dict(
             function=_expr['function'],
@@ -879,11 +800,6 @@ def prettify(expr, ds=None):
             if 'function' in arg:
                 # arg is a function, resolve inner variables
                 new_expr['args'].append(_resolve_variables(arg))
-            elif 'variable' in arg:
-                # arg is a variable, resolve
-                new_expr['args'].append(
-                    {'variable': _resolve_variable(arg['variable'])}
-                )
             else:
                 # arg is neither a variable or function, pass as is
                 new_expr['args'].append(arg)
@@ -942,6 +858,11 @@ def prettify(expr, ds=None):
                     value = [clean_integer(v) for v in value]
 
                 return value
+            
+            if 'var' in fragment:
+                if 'axes' in fragment:
+                    return "{}[{}]".format(fragment['var'], fragment['axes'][0])
+                return fragment['var']
 
             return list(fragment.values())[0]
 
