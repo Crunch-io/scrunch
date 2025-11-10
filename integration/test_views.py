@@ -52,7 +52,7 @@ class TestViews(BaseIntegrationTestCase):
 
         # Assert it is a view
         assert new_view.resource.body["view_of"] == api_ds.self
-        assert new_view.resource.body["owner"] == project.self
+        assert new_view.resource.body["project"] == project.self
 
         # Assert the variables are here
         for alias, v_type in self.FIXTURE_VARIABLES:
