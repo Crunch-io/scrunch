@@ -55,6 +55,7 @@ RECODES_PAYLOAD = {
     'element': 'shoji:entity',
     'body': {
         'alias': 'alias',
+        "derived": False,
         'derivation': {
             'function': 'combine_categories',
             'args': [
@@ -76,6 +77,7 @@ COMBINE_RESPONSES_PAYLOAD = {
         'name': 'name',
         'description': '',
         'alias': 'alias',
+        "derived": False,
         'derivation': {
             'function': 'combine_responses',
             'args': [
@@ -351,7 +353,8 @@ class TestRecode(TestCase):
                 'alias': 'sexuality2',
                 'description': '',
                 'notes': '',
-                'expr': {
+                "derived": False,
+                'derivation': {
                     'function': 'case',
                     'args': [{
                         'column': [1, 2, -1],
@@ -491,6 +494,7 @@ class TestRecode(TestCase):
                 'description': '',
                 'notes': '',
                 'alias': 'Q1_recoded',
+                "derived": False,
                 'derivation': {
                     'function': 'array',
                     'args': [{
