@@ -211,6 +211,41 @@ class TestDatasetScripts(BaseIntegrationTestCase):
         assert variable.body["name"] == "pk"
         ds.delete()
 
+    def test_revert_script_recant_alias_changes(self):
+        """Test that recant_alias_changes=True updates folder references to old alias."""
+        ds, variable = self._create_ds()
+        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+
+        # Verify initial alias is in the public folder
+        folder_aliases = scrunch_dataset.folders.public.keys()
+        assert "pk" in folder_aliases
+
+        # Rename the variable via script
+        script = "RENAME pk TO renamed_var;"
+        scrunch_dataset.scripts.execute(script)
+
+        # Refresh and verify the NEW alias is now in the folder
+        scrunch_dataset.resource.refresh()
+        scrunch_dataset._reload_variables()
+        folder_aliases = scrunch_dataset.folders.public.keys()
+        assert "renamed_var" in folder_aliases
+        assert "pk" not in folder_aliases
+
+        # Revert with recant_alias_changes=True
+        scrunch_dataset.scripts.revert_to(script_number=0, recant_alias_changes=True)
+
+        # Verify the OLD alias is back in the folder
+        scrunch_dataset.resource.refresh()
+        scrunch_dataset._reload_variables()
+        folder_aliases = scrunch_dataset.folders.public.keys()
+        assert "pk" in folder_aliases
+        assert "renamed_var" not in folder_aliases
+
+        # Also verify the variable itself has the old alias
+        variable.refresh()
+        assert variable.body["alias"] == "pk"
+        ds.delete()
+
     @pytest.mark.skip(reason="Collapse is 504ing in the server.")
     def test_fetch_all_and_collapse(self):
         ds, variable = self._create_ds()
