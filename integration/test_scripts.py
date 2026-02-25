@@ -214,37 +214,48 @@ class TestDatasetScripts(BaseIntegrationTestCase):
     def test_revert_script_recant_alias_changes(self):
         """Test that recant_alias_changes=True updates folder references to old alias."""
         ds, variable = self._create_ds()
-        scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
+        try:
+            scrunch_dataset = get_mutable_dataset(ds.body.id, self.site)
 
-        # Verify initial alias is in the public folder
-        folder_aliases = scrunch_dataset.folders.public.keys()
-        assert "pk" in folder_aliases
+            # Capture the ORGANIZE script before any changes
+            expected_before = (
+                "RESET FOLDERS;\n"
+                "ORGANIZE pk INTO PUBLIC;"
+            )
+            organize_script_before = scrunch_dataset.resource.folders.script.value
+            assert organize_script_before == expected_before
 
-        # Rename the variable via script
-        script = "RENAME pk TO renamed_var;"
-        scrunch_dataset.scripts.execute(script)
+            # Rename the variable via script
+            script = "RENAME pk TO renamed_var;"
+            scrunch_dataset.scripts.execute(script)
 
-        # Refresh and verify the NEW alias is now in the folder
-        scrunch_dataset.resource.refresh()
-        scrunch_dataset._reload_variables()
-        folder_aliases = scrunch_dataset.folders.public.keys()
-        assert "renamed_var" in folder_aliases
-        assert "pk" not in folder_aliases
+            # Refresh and capture the ORGANIZE script after rename
+            expected_after = (
+                "RESET FOLDERS;\n"
+                "ORGANIZE `renamed_var` INTO PUBLIC;"
+            )
+            scrunch_dataset.resource.refresh()
+            organize_script_after_rename = scrunch_dataset.resource.folders.script.value
 
-        # Revert with recant_alias_changes=True
-        scrunch_dataset.scripts.revert_to(script_number=0, recant_alias_changes=True)
+            # The organize script should be different (has new alias)
+            assert organize_script_before != organize_script_after_rename
+            assert organize_script_after_rename == expected_after
 
-        # Verify the OLD alias is back in the folder
-        scrunch_dataset.resource.refresh()
-        scrunch_dataset._reload_variables()
-        folder_aliases = scrunch_dataset.folders.public.keys()
-        assert "pk" in folder_aliases
-        assert "renamed_var" not in folder_aliases
+            # Revert with recant_alias_changes=True
+            scrunch_dataset.scripts.revert_to(script_number=0, recant_alias_changes=True)
 
-        # Also verify the variable itself has the old alias
-        variable.refresh()
-        assert variable.body["alias"] == "pk"
-        ds.delete()
+            # Refresh and capture the ORGANIZE script after revert
+            scrunch_dataset.resource.refresh()
+            organize_script_after_revert = scrunch_dataset.resource.folders.script.value
+
+            # The organize script should match the original (old alias is back)
+            assert organize_script_after_revert == expected_before
+
+            # Also verify the variable itself has the old alias
+            variable.refresh()
+            assert variable.body["alias"] == "pk"
+        finally:
+            ds.delete()
 
     @pytest.mark.skip(reason="Collapse is 504ing in the server.")
     def test_fetch_all_and_collapse(self):
