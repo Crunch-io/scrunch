@@ -128,7 +128,7 @@ class DatasetScripts(BaseScript):
         scripts = sorted(scripts, key=lambda s: s.body["creation_time"])
         return scripts
 
-    def revert_to(self, id=None, script_number=None):
+    def revert_to(self, id=None, script_number=None, recant_alias_changes=False):
         all_scripts = self.all()
         if script_number is not None:
             script = all_scripts[script_number]
@@ -139,5 +139,5 @@ class DatasetScripts(BaseScript):
         else:
             raise ValueError("Must indicate either ID or script number")
 
-        resp = script.revert.post({})  # Asynchronous request
+        resp = script.revert.post({}, params={"recant_alias_changes": recant_alias_changes})  # Asynchronous request
         pycrunch.shoji.wait_progress(resp, self.resource.session)
