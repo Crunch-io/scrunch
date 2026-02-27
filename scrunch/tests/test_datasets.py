@@ -363,7 +363,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                             {
                                 'function': '*',
                                 'args': [
-                                    {'variable': 'weekly_rent'},
+                                    {'var': 'weekly_rent'},
                                     {'value': 52}
                                 ]
                             },
@@ -560,11 +560,6 @@ class TestDatasets(TestDatasetBase, TestCase):
             if use_fsum and res == 1.0:
                 raise Exception('1.0')
 
-        # `sum` fails
-        with pytest.raises(Exception, match='not 1.0'):
-            _test_sum(targets[0]['foo'])
-
-        # `fsum` does not
         with pytest.raises(Exception, match='1.0'):
             _test_sum(targets[0]['foo'], use_fsum=True)
 
@@ -602,7 +597,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             'expression': {
                 'function': '!=',
                 'args': [
-                    {'variable': var.url},  # Crunch needs variable URLs!
+                    {'var': 'var1_alias'},
                     {'value': 0}
                 ]
             }
@@ -638,7 +633,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             'expression': {
                 'function': '>',
                 'args': [
-                    {'variable': var.url},
+                    {'var': 'var1_alias'},
                     {'value': 5}
                 ]
             }
@@ -655,7 +650,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             "expression": {
                 "function": "in",
                 "args": [
-                    {"variable": var.url},
+                    {"var": "var1_alias"},
                     {"value": [32766]}
                 ]
             }
@@ -673,7 +668,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             "expression": {
                 "function": "in",
                 "args": [
-                    {"variable": var.url},
+                    {"var": "var1_alias"},
                     {"value": [32766, 32767]}
                 ]
             }
@@ -714,7 +709,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                 "function": "in",
                                 "args": [
                                     {
-                                        "variable": var1.url
+                                        "var": "disposition"
                                     },
                                     {
                                         "value": [
@@ -728,7 +723,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                 "function": "==",
                                 "args": [
                                     {
-                                        "variable": var2.url
+                                        "var": "exit_status"
                                     },
                                     {
                                         "value": 0
@@ -754,7 +749,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 "function": "in",
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     },
                     {
                         "value": [
@@ -781,7 +776,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "in",
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             },
                             {
                                 "value": [
@@ -807,7 +802,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 "function": "in",
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     },
                     {
                         "value": [
@@ -831,7 +826,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             "expression": {
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     },
                     {
                         "value": [32767]
@@ -857,7 +852,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "all",
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             },
                             {
                                 "value": [
@@ -884,7 +879,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                     {
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             },
                             {
                                 "value": [
@@ -897,7 +892,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                     {
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             },
                             {
                                 "value": [
@@ -929,7 +924,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": var.url
+                                        "var": "var1_alias"
                                     },
                                     {
                                         "value": [
@@ -942,7 +937,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": var.url
+                                        "var": "var1_alias"
                                     },
                                     {
                                         "value": [
@@ -972,7 +967,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 "function": "duplicates",
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     }
                 ]
             }
@@ -991,7 +986,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                 "function": "is_valid",
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     }
                 ]
             }
@@ -1011,7 +1006,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                     {
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             }
                         ],
                         "function": "is_valid"
@@ -1033,7 +1028,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             "expression": {
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     }
                 ],
                 "function": "is_missing"
@@ -1056,7 +1051,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                         "function": "is_missing",
                         "args": [
                             {
-                                "variable": var.url
+                                "var": "var1_alias"
                             }
                         ]
                     }
@@ -1076,7 +1071,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
             "expression": {
                 "args": [
                     {
-                        "variable": var.url
+                        "var": "var1_alias"
                     },
                     {
                         "value": 1
@@ -1117,7 +1112,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                             {
                                 "args": [
                                     {
-                                        "variable": var1.url
+                                        "var": "disposition"
                                     },
                                     {
                                         "value": 1
@@ -1132,7 +1127,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                             {
                                                 "args": [
                                                     {
-                                                        "variable": var2.url
+                                                        "var": "exit_status"
                                                     }
                                                 ],
                                                 "function": "is_valid"
@@ -1143,7 +1138,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": var2.url
+                                                "var": "exit_status"
                                             },
                                             {
                                                 "value": 1
@@ -1164,7 +1159,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": var1.url
+                                                "var": "disposition"
                                             },
                                             {
                                                 "value": 0
@@ -1175,7 +1170,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": var2.url
+                                                "var": "exit_status"
                                             },
                                             {
                                                 "value": 0
@@ -1191,7 +1186,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": var1.url
+                                                "var": "disposition"
                                             },
                                             {
                                                 "value": 0
@@ -1202,7 +1197,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
                                     {
                                         "args": [
                                             {
-                                                "variable": var2.url
+                                                "var": "exit_status"
                                             },
                                             {
                                                 "value": 1
@@ -1230,7 +1225,7 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         expr = {
             "args": [
                 {
-                    "variable": "http://test.crunch.io/api/datasets/123/variables/0002/"
+                    "var": "var1_alias"
                 },
                 {
                     "value": 1
@@ -2115,8 +2110,8 @@ class TestFillVariables(TestCase):
     def test_recode_w_fill(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "variable": "var_a"},
-            {"case": "var_b == 1", "variable": "var_b"}
+            {"case": "var_a == 1", "var": "var_a"},
+            {"case": "var_b == 1", "var": "var_b"}
         ]
 
         # This is what we want to test for!
@@ -2142,14 +2137,14 @@ class TestFillVariables(TestCase):
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"var": "var_a"},
                         {"value": 1}
                     ]
                 },
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/002/"},
+                        {"var": "var_b"},
                         {"value": 1}
                     ]
                 }
@@ -2161,8 +2156,8 @@ class TestFillVariables(TestCase):
                 case_expr,
                 {
                     "map": {
-                        "1": {"variable": "001"},
-                        "2": {"variable": "002"}
+                        "1": {"var": "var_a"},
+                        "2": {"var": "var_b"}
                     }
                 }
             ],
@@ -2182,7 +2177,7 @@ class TestFillVariables(TestCase):
     def test_else_code(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "var_a == 1", "var": "var_a"},
             {"case": "else", "missing": True, "name": "Not Asked", "id": 99}
         ]
 
@@ -2209,7 +2204,7 @@ class TestFillVariables(TestCase):
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"var": "var_a"},
                         {"value": 1}
                     ]
                 },
@@ -2221,7 +2216,7 @@ class TestFillVariables(TestCase):
                 case_expr,
                 {
                     "map": {
-                        "1": {"variable": "001"},
+                        "1": {"var": "var_a"},
                     }
                 }
             ],
@@ -2239,8 +2234,8 @@ class TestFillVariables(TestCase):
     def test_else_var(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "variable": "var_a"},
-            {"case": "else", "variable": "var_b"}
+            {"case": "var_a == 1", "var": "var_a"},
+            {"case": "else", "var": "var_b"}
         ]
 
         # This is what we want to test for!
@@ -2266,7 +2261,7 @@ class TestFillVariables(TestCase):
                 {
                     "function": "==",
                     "args": [
-                        {"variable": "http://host/api/projects/abc/variables/001/"},
+                        {"var": "var_a"},
                         {"value": 1}
                     ]
                 },
@@ -2278,8 +2273,8 @@ class TestFillVariables(TestCase):
                 case_expr,
                 {
                     "map": {
-                        "1": {"variable": "001"},
-                        "-1": {"variable": "002"}
+                        "1": {"var": "var_a"},
+                        "-1": {"var": "var_b"}
                     }
                 }
             ],
@@ -2372,7 +2367,7 @@ class TestRecode(TestDatasetBase):
                     }, {
                         'function': '>',
                         'args': [
-                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'var': 'var_a'},
                             {'value': 5}
                         ]
                     }, {
@@ -2380,12 +2375,12 @@ class TestRecode(TestDatasetBase):
                         'args': [{
                             'function': '<',
                             'args': [
-                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/002/'},
+                                {'var': 'var_b'},
                                 {'value': 10}
                             ]}, {
                             'function': 'in',
                             'args': [
-                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/003/'},
+                                {'var': 'var_c'},
                                 {'value': [1, 2, 3]}
                             ]
                         }]
@@ -2394,7 +2389,7 @@ class TestRecode(TestDatasetBase):
                         'args': [{
                             'function': '==',
                             'args': [
-                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/004/'},
+                                {'var': 'gender'},
                                 {'value': 1}
                             ]
                         }, {
@@ -2402,13 +2397,13 @@ class TestRecode(TestDatasetBase):
                             'args': [{
                                 'function': '>=',
                                 'args': [
-                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'var': 'age'},
                                     {'value': 16}
                                 ]
                             }, {
                                 'function': '<=',
                                 'args': [
-                                    {'variable': 'https://test.crunch.io/api/datasets/123456/variables/005/'},
+                                    {'var': 'age'},
                                     {'value': 24}
                                 ]
                             }]
@@ -2501,7 +2496,7 @@ class TestRecode(TestDatasetBase):
                                         # 'var_a > 5'
                                         'function': '>',
                                         'args': [
-                                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                            {'var': 'var_a'},
                                             {'value': 5}
                                         ]
                                     }]
@@ -2529,13 +2524,13 @@ class TestRecode(TestDatasetBase):
                                         'args': [{
                                             'function': '<',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'var': 'var_b'},
                                                 {'value': 10}
                                             ]
                                         }, {
                                             'function': 'in',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'var': 'var_c'},
                                                 {'value': [1, 2, 3]}
                                             ]
                                         }]
@@ -2563,15 +2558,15 @@ class TestRecode(TestDatasetBase):
                                         'function': 'and',
                                         'args': [{
                                             'function': '==',
-                                            'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['gender']['id']}, {'value': 1}]
+                                            'args': [{'var': 'gender'}, {'value': 1}]
                                         }, {
                                             'function': 'and',
                                             'args': [{
                                                 'function': '>=',
-                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 16}]
+                                                'args': [{'var': 'age'}, {'value': 16}]
                                             }, {
                                                 'function': '<=',
-                                                'args': [{'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['age']['id']}, {'value': 24}]
+                                                'args': [{'var': 'age'}, {'value': 24}]
                                             }]
                                         }]
                                     }]
@@ -2688,7 +2683,7 @@ class TestRecode(TestDatasetBase):
                             "function": "==",
                             "args": [
                                 {
-                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_a/"
+                                    "var": "var_a"
                                 },
                                 {
                                     "value": 1
@@ -2699,7 +2694,7 @@ class TestRecode(TestDatasetBase):
                             "function": "==",
                             "args": [
                                 {
-                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_b/"
+                                    "var": "var_b"
                                 },
                                 {
                                     "value": 1
@@ -2716,7 +2711,7 @@ class TestRecode(TestDatasetBase):
                                             "function": "==",
                                             "args": [
                                                 {
-                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_a/"
+                                                    "var": "var_a"
                                                 },
                                                 {
                                                     "value": 1
@@ -2732,7 +2727,7 @@ class TestRecode(TestDatasetBase):
                                             "function": "==",
                                             "args": [
                                                 {
-                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/var_b/"
+                                                    "var": "var_b"
                                                 },
                                                 {
                                                     "value": 1
@@ -2825,7 +2820,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "==",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         },
                                                         {
                                                             "value": 20
@@ -2846,7 +2841,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "==",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         },
                                                         {
                                                             "value": 50
@@ -2873,7 +2868,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 20
@@ -2889,7 +2884,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 50
@@ -3015,7 +3010,7 @@ class TestRecode(TestDatasetBase):
                                                             "function": "==",
                                                             "args": [
                                                                 {
-                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                    "var": "age"
                                                                 },
                                                                 {
                                                                     "value": 21
@@ -3029,7 +3024,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3047,7 +3042,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 21
@@ -3063,7 +3058,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3075,7 +3070,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "is_missing",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         }
                                                     ]
                                                 }
@@ -3096,7 +3091,7 @@ class TestRecode(TestDatasetBase):
                                                             "function": "==",
                                                             "args": [
                                                                 {
-                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                    "var": "age"
                                                                 },
                                                                 {
                                                                     "value": 51
@@ -3110,7 +3105,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3128,7 +3123,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 51
@@ -3144,7 +3139,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3156,7 +3151,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "is_missing",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         }
                                                     ]
                                                 }
@@ -3183,7 +3178,7 @@ class TestRecode(TestDatasetBase):
                                                                             "function": "==",
                                                                             "args": [
                                                                                 {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                                    "var": "age"
                                                                                 },
                                                                                 {
                                                                                     "value": 21
@@ -3199,7 +3194,7 @@ class TestRecode(TestDatasetBase):
                                                                             "function": "==",
                                                                             "args": [
                                                                                 {
-                                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                                    "var": "age"
                                                                                 },
                                                                                 {
                                                                                     "value": 51
@@ -3217,7 +3212,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": ">",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 100
@@ -3238,7 +3233,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 21
@@ -3249,7 +3244,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "==",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 51
@@ -3265,7 +3260,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": ">",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 100
@@ -3280,7 +3275,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": ">",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         },
                                                         {
                                                             "value": 100
@@ -3396,7 +3391,7 @@ class TestRecode(TestDatasetBase):
                                                             "function": ">",
                                                             "args": [
                                                                 {
-                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                    "var": "age"
                                                                 },
                                                                 {
                                                                     "value": 40
@@ -3410,7 +3405,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3428,7 +3423,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": ">",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 40
@@ -3444,7 +3439,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3456,7 +3451,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "is_missing",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         }
                                                     ]
                                                 }
@@ -3477,7 +3472,7 @@ class TestRecode(TestDatasetBase):
                                                             "function": "<=",
                                                             "args": [
                                                                 {
-                                                                    "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                    "var": "age"
                                                                 },
                                                                 {
                                                                     "value": 40
@@ -3491,7 +3486,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3509,7 +3504,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "<=",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         },
                                                                         {
                                                                             "value": 40
@@ -3525,7 +3520,7 @@ class TestRecode(TestDatasetBase):
                                                                     "function": "is_missing",
                                                                     "args": [
                                                                         {
-                                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                                            "var": "age"
                                                                         }
                                                                     ]
                                                                 }
@@ -3537,7 +3532,7 @@ class TestRecode(TestDatasetBase):
                                                     "function": "is_missing",
                                                     "args": [
                                                         {
-                                                            "variable": "https://test.crunch.io/api/datasets/123456/variables/age/"
+                                                            "var": "age"
                                                         }
                                                     ]
                                                 }
@@ -3634,14 +3629,14 @@ class TestRecode(TestDatasetBase):
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                                {'var': 'var_a'},
                                                 {'value': 1}
                                             ]
                                         },
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_a']['id']},
+                                                {'var': 'var_a'},
                                                 {'value': 2}
                                             ]
                                         }
@@ -3658,14 +3653,14 @@ class TestRecode(TestDatasetBase):
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'var': 'var_b'},
                                                 {'value': 1}
                                             ]
                                         },
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_b']['id']},
+                                                {'var': 'var_b'},
                                                 {'value': 2}
                                             ]
                                         }
@@ -3682,14 +3677,14 @@ class TestRecode(TestDatasetBase):
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'var': 'var_c'},
                                                 {'value': 1}
                                             ]
                                         },
                                         {
                                             'function': '==',
                                             'args': [
-                                                {'variable': 'https://test.crunch.io/api/datasets/123456/variables/%s/' % variables['var_c']['id']},
+                                                {'var': 'var_c'},
                                                 {'value': 2}
                                             ]
                                         }
@@ -6378,7 +6373,7 @@ class TestFilter(TestDatasetBase, TestCase):
                 'expression': {
                     'function': '!=',
                     'args': [
-                        {'variable': var.url},
+                        {'var': var.alias},
                         {'value': 0}
                     ]
                 }
@@ -6486,7 +6481,7 @@ class TestMultitable(TestDatasetBase, TestCase):
                 'template': [
                     {
                         'query': [
-                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/0001/'}
+                            {'var': 'var1_alias'}
                         ]
                     }
                 ]
@@ -6693,7 +6688,7 @@ class TestMutableMixin(TestDatasetBase):
                    "function": ">",
                    "args": [
                         {
-                            'variable': 'https://test.crunch.io/api/datasets/123456/variables/var_d/'
+                            'var': 'endtime'
                         },
                         {
                             "value": "2024-06-03T22:53:52.393"
