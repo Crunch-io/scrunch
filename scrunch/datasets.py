@@ -707,6 +707,17 @@ class DatasetVariablesMixin(Mapping):
     Handles dataset variable iteration in a dict-like way
     """
 
+    create_material_variables = True
+    """New variables created by methods of this class are usually defined by
+    an expression which is evaluated on the server. If create_material_variables
+    is True (the default), such an expression is evaluated eagerly, and its
+    output at that moment is stored as a "material" variable: part of the schema.
+    Changes to any of the input variables will not update the material variable.
+    If False, the expression itself is stored instead and re-evaluated on each
+    read; the resulting "derived" variable is an artifact rather than part of
+    the schema, and will change if any of its inputs change.
+    """
+
     def __getitem__(self, item):
         """
         Returns a Variable() instance, `item` can be either a variable alias,
@@ -755,11 +766,13 @@ class DatasetVariablesMixin(Mapping):
             self._order = DatasetVariablesOrder(self._catalog, order)
         return self._order
 
-    def _var_create_reload_return(self, payload):
+    def _var_create_reload_return(self, entity_body):
         """
         helper function for POSTing to variables, reload
         the catalog of variables and return newly created var
         """
+        entity_body.setdefault("derived", not self.create_material_variables)
+        payload = shoji_entity_wrapper(entity_body)
         new_var = self.resource.variables.create(payload)
         # needed to update the variables collection
         self._reload_variables()
@@ -1177,13 +1190,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 {"map": fill_map}
             ]
         }
-        payload = shoji_entity_wrapper({
+        body = {
             "alias": alias,
             "name": name,
             "description": description,
             "derivation": fill_expr
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def create_single_response(self, categories, name, alias, description='',
         missing=True, notes=''):
@@ -1234,13 +1247,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         expr = dict(function='case', args=args + more_args)
 
-        payload = shoji_entity_wrapper(dict(
+        body = dict(
             alias=alias,
             name=name,
-            expr=expr,
+            derivation=expr,
             description=description,
-            notes=notes))
-        return self._var_create_reload_return(payload)
+            notes=notes)
+        return self._var_create_reload_return(body)
 
     def rollup(self, variable_alias, name, alias, resolution, description='',
         notes=''):
@@ -1260,27 +1273,17 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         expr = {
             'function': 'rollup',
             'args': [
-                {
-                    'variable': self[variable_alias].url
-                },
-                {
-                    'value': resolution
-                }
+                {'variable': self[variable_alias].url},
+                {'value': resolution}
             ]
         }
-
-        payload = shoji_entity_wrapper(dict(
+        body = dict(
             alias=alias,
             name=name,
-            expr=expr,
+            derivation=expr,
             description=description,
-            notes=notes))
-
-        new_var = self.resource.variables.create(payload)
-        # needed to update the variables collection
-        self._reload_variables()
-        # return the variable instance
-        return self[new_var['body']['alias']]
+            notes=notes)
+        return self._var_create_reload_return(body)
 
     def derive_multiple_response(self, categories, subvariables, name, alias,
         description='', notes='', uniform_basis=False):
@@ -1331,7 +1334,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 categories=categories
             )
 
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
@@ -1347,8 +1350,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     ]
                 }]
             }
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def create_multiple_response(self, responses, name, alias, description='',
         notes=''):
@@ -1370,7 +1373,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 alias='%s_%d' % (alias, resp['id'])
             )
 
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
@@ -1385,8 +1388,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     ]
                 }]
             }
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def variable_aliases(self, include_subvariables=False):
         existing_aliases = set()
@@ -1456,14 +1459,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 "subreferences": subreferences
             }
         }
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
             'notes': notes,
             'derivation': expression
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def create_numeric(self, alias, name, derivation, description='', notes=''):
         """
@@ -1475,14 +1478,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         if not hasattr(self.resource, 'variables'):
             self.resource.refresh()
 
-        payload = shoji_entity_wrapper(dict(
+        body = dict(
             alias=alias,
             name=name,
             derivation=expr,
             description=description,
             notes=notes
-        ))
-        return self._var_create_reload_return(payload)
+        )
+        return self._var_create_reload_return(body)
 
     def create_categorical(self, categories, alias, name, multiple, description='',
         notes='', missing_case=None, uniform_basis=False):
@@ -1701,33 +1704,33 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             values = [1,4,5,2,1,3,1]
         """
         self._validate_vartypes(var_type, resolution, subvariables, categories)
-        payload = {
+        body = {
             'type': var_type,
             'name': name,
             'description': description,
         }
         if alias:
-            payload['alias'] = alias
+            body['alias'] = alias
         if resolution:
-            payload['resolution'] = resolution
+            body['resolution'] = resolution
         if var_type == 'multiple_response' and categories is None:
-            payload['categories'] = [
+            body['categories'] = [
                 {'name': 'Not selected', 'id': NOT_SELECTED_ID, 'numeric_value': 2, 'missing': False},
                 {'name': 'Selected', 'id': SELECTED_ID, 'numeric_value': 1, 'missing': False, 'selected': True},
             ]
         if categories:
-            payload['categories'] = categories
+            body['categories'] = categories
         if subvariables:
-            payload['subreferences'] = []
+            body['subreferences'] = []
             for item in subvariables:
                 subrefs = {'name': item['name']}
                 if item.get('alias'):
                     subrefs['alias'] = item['alias']
-                payload['subreferences'].append(subrefs)
+                body['subreferences'].append(subrefs)
         if values:
-            payload['values'] = values
+            body['values'] = values
 
-        self._var_create_reload_return(shoji_entity_wrapper(payload))
+        self._var_create_reload_return(body)
 
     def copy_variable(self, variable, name, alias, derived=None, subvariable_codes=None):
         """
@@ -1771,17 +1774,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             derivation = abs_url(variable.resource.body['derivation'],
                                  variable.resource.self)
             derivation.pop('references', None)
-            payload = shoji_entity_wrapper({
-                'name': name,
-                'alias': alias,
-                'derivation': derivation})
+            body = {'name': name, 'alias': alias, 'derivation': derivation}
 
             if variable.type == _MR_TYPE:
                 # We are re-executing a multiple_response derivation.
                 # We need to update the complex `array` function expression
                 # to contain the new suffixed aliases. Given that the map is
                 # unordered, we have to iterated and find a name match.
-                _ob = payload['body']['derivation']['args'][0]['args'][0]
+                _ob = body['derivation']['args'][0]['args'][0]
                 subvars = _ob['map']
                 subreferences = subrefs(variable, alias)
                 for subref in subreferences:
@@ -1793,15 +1793,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         else:
             derivation = {
                 'function': 'copy_variable',
-                'args': [{
-                    'variable': variable_resource.self
-                }]
+                'args': [{'variable': variable_resource.self}]
             }
-            payload = shoji_entity_wrapper({
-                'name': name,
-                'alias': alias,
-                'derivation': derivation
-            })
+            body = {'name': name, 'alias': alias, 'derivation': derivation}
 
         if "subvariables" in variable_resource.body:
             api_subreferences = variable_resource.body["subreferences"]
@@ -1825,9 +1819,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             derivation["references"] = {"subreferences": subreferences}
 
         if derived is False or derived:
-            payload['body']['derived'] = derived
+            body['derived'] = derived
 
-        return self._var_create_reload_return(payload)
+        return self._var_create_reload_return(body)
 
     def combine_categories(self, variable, map, categories, missing=None,
         default=None, name='', alias='', description=''):
@@ -1868,14 +1862,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # TODO: Implement `default` parameter in Crunch API
         combinations = combinations_from_map(
             map, categories or {}, missing or [])
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
             'derivation': combine_categories_expr(
                 variable.resource.self, combinations)
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def combine_multiple_response(self, variable, map, categories=None, default=None,
         name='', alias='', description=''):
@@ -1900,14 +1894,14 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         # TODO: Implement `default` parameter in Crunch API
         responses = responses_from_map(variable, map, categories or {}, alias,
                                        parent_alias)
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
             'derivation': combine_responses_expr(
                 variable.resource.self, responses)
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     def cast_summary(self, variable, cast_type):
         """
@@ -2800,7 +2794,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     'targets': list(map(list, val.items()))
                 })
 
-        payload = shoji_entity_wrapper({
+        body = {
             'name': name,
             'alias': alias,
             'description': description,
@@ -2808,8 +2802,8 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 'function': 'rake',
                 'args': _targets
             }
-        })
-        return self._var_create_reload_return(payload)
+        }
+        return self._var_create_reload_return(body)
 
     @property
     def is_view(self):
@@ -3063,7 +3057,7 @@ class Variable(ReadOnly, DatasetSubvariablesMixin):
         more_args = process_expr(more_args, self.dataset)
         # epression value building
         expr = dict(function='case', args=args + more_args)
-        payload = shoji_entity_wrapper(dict(expr=expr))
+        payload = shoji_entity_wrapper(dict(derivation=expr))
         # patch the variable with the new payload
         resp = self.resource.patch(payload)
         self._reload_variables()
