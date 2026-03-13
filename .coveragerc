@@ -1,6 +1,0 @@
-[run]
-omit = scrunch/tests/*
-
-
-[report]
-show_missing = True
