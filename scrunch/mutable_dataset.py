@@ -146,8 +146,8 @@ class MutableDataset(BaseDataset):
             return self.resource.batches.follow('compare', 'dataset={}'.format(dataset.url))
 
         def process_metadata(metadata):
-           """ Extract & format metadata with required information. """
-           return {
+            """ Extract & format metadata with required information. """
+            return {
                 v["alias"]: {
                     "alias": v["alias"],
                     "name": v["name"],
@@ -158,38 +158,41 @@ class MutableDataset(BaseDataset):
                     "subvariables": v.get("subreferences", [])
                     if v["type"] in ARRAY_TYPES
                     else [],
-                    "missing_rules": v.get("missing_rules", []),
+                    "missing_rules": {
+                        k: v['args'][1]['value']
+                        for k, v in v.get('missing_rules', {}).items()
+                    }
                 }
                 for v in metadata.values()
             }
-          
+
         self_meta = process_metadata(self.resource.table["metadata"])
         dataset_meta = process_metadata(dataset.resource.table["metadata"])
-
+        common_aliases = frozenset(self_meta.keys()) & frozenset(dataset_meta.keys())
+      
         self_names = {n["name"]: n["alias"] for n in self_meta.values()}
         dataset_names = {n["name"]: n["alias"] for n in dataset_meta.values()}
-
         common_names = frozenset(self_names.keys()) & frozenset(dataset_names.keys())
-        common_aliases = frozenset(self_meta.keys()) & frozenset(dataset_meta.keys())
-     
+
+
         diff = {
             "variables": {"by_type": [], "by_alias": [], "by_missing_rules": []},
             "categories": {},
             "subvariables": {},
         }
-     
+
         # 1. Compare types and categories by alias
         for alias in common_aliases:
             self_var, dataset_var = self_meta[alias], dataset_meta[alias]
-     
+
             if self_var["type"] != dataset_var["type"]:
                 diff["variables"]["by_type"].append(dataset_var["name"])
-     
+
             # 3. Compare category names for categorical variables
             if self_var["type"] == dataset_var["type"] == "categorical":
                 a_ids = {v["id"]: v["name"] for v in self_var["categories"]}
                 b_ids = {v["id"]: v["name"] for v in dataset_var["categories"]}
-     
+
                 mismatched_cats = [
                     cat_id
                     for cat_id in (a_ids.keys() & b_ids.keys())
@@ -201,19 +204,19 @@ class MutableDataset(BaseDataset):
         # 2. Compare aliases, subvariables, and missing rules by name
         for name in common_names:
             self_alias, dataset_alias = self_names[name], dataset_names[name]
-    
+
             if self_alias != dataset_alias:
                 diff["variables"]["by_alias"].append(name)
-    
+
             # 4. Compare subvariables for array types
             self_var, dataset_var = self_meta[self_alias], dataset_meta[dataset_alias]
-    
+
             if self_var["type"] == dataset_var["type"] and self_var["type"] in ARRAY_TYPES:
                 a_names = {i["name"]: i["alias"] for i in self_var["subvariables"].values()}
                 b_names = {
                     i["name"]: i["alias"] for i in dataset_var["subvariables"].values()
                 }
-    
+
                 mismatched_subs = [
                     b_names[sv_name]
                     for sv_name in (frozenset(a_names.keys()) & frozenset(b_names.keys()))
@@ -221,7 +224,7 @@ class MutableDataset(BaseDataset):
                 ]
                 if mismatched_subs:
                     diff["subvariables"][name] = mismatched_subs
-    
+
             # 6. Compare missing rules for non-categorical types
             if (
                 self_var["type"] not in CATEGORICAL_TYPES
