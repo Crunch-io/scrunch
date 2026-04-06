@@ -25,7 +25,7 @@ Does this package use "native" namespace packages or
 pkg_resources "managed" namespace packages?
 """
 
-crunch_cube = "cr.cube==3.3.1"
+crunch_cube = "cr.cube==3.2.0"
 requests = "requests"
 
 if PY2:
