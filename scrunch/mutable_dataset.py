@@ -124,21 +124,21 @@ class MutableDataset(BaseDataset):
         Compare the difference in structure between datasets.
 
         The criterion is the following:
-        (1) Variables that, when matched across datasets by alias, have different types.
-        (2) Variables that have the same name but don't match on alias.
-        (3) For variables that match and have categories, any categories that have the
+        (1) variables that, when matched across datasets by alias, have different types.
+        (2) variables that have the same name but don't match on alias.
+        (3) for variables that match and have categories, any categories that have the
         same id but don't match on name.
-        (4) For array variables that match, any subvariables that have the same name but
+        (4) for array variables that match, any subvariables that have the same name but
         don't match on alias.
-        (5) Array variables that, after assembling the union of their subvariables,
+        (5) array variables that, after assembling the union of their subvariables,
         point to subvariables that belong to other ds (Not implemented)
-        (6) Missing rules of the variable.
+        (6) missing rules of the variable.
 
         :param: dataset: Dataset instance to compare with
         :param: use_crunch: Use the Crunch comparison to compare
-        :return: A dictionary of differences
+        :return: a dictionary of differences
 
-        NOTE: This sould be done via: http://docs.crunch.io/#post217
+        NOTE: this sould be done via: http://docs.crunch.io/#post217
         but doesn't seem to be a working feature of Crunch
         """
 
