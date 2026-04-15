@@ -169,11 +169,27 @@ class MutableDataset(BaseDataset):
         self_meta = process_metadata(self.resource.table["metadata"])
         dataset_meta = process_metadata(dataset.resource.table["metadata"])
         common_aliases = frozenset(self_meta.keys()) & frozenset(dataset_meta.keys())
-      
-        self_names = {n["name"]: n["alias"] for n in self_meta.values()}
-        dataset_names = {n["name"]: n["alias"] for n in dataset_meta.values()}
-        common_names = frozenset(self_names.keys()) & frozenset(dataset_names.keys())
 
+        self_names = {}
+        dataset_names = {}
+
+        for n in self_meta.values():
+            name = n["name"]
+            alias = n["alias"]
+            if self_names.get(name):
+                self_names[name].append(alias)
+            else:
+                self_names[name] = [alias]
+
+        for n in dataset_meta.values():
+            name = n["name"]
+            alias = n["alias"]
+            if dataset_names.get(name):
+                dataset_names[name].append(alias)
+            else:
+                dataset_names[name] = [alias]
+
+        common_names = frozenset(self_names.keys()) & frozenset(dataset_names.keys())
 
         diff = {
             "variables": {"by_type": [], "by_alias": [], "by_missing_rules": []},
@@ -203,35 +219,40 @@ class MutableDataset(BaseDataset):
 
         # 2. Compare aliases, subvariables, and missing rules by name
         for name in common_names:
-            self_alias, dataset_alias = self_names[name], dataset_names[name]
+            self_alias = set(self_names[name])
+            dataset_alias = set(dataset_names[name])
 
-            if self_alias != dataset_alias:
-                diff["variables"]["by_alias"].append(name)
+            alias_diff = list(self_alias - dataset_alias)
+            alias_common = set(self_alias & dataset_alias)
+
+            if alias_diff:
+                diff["variables"]["by_alias"].extend(alias_diff)
 
             # 4. Compare subvariables for array types
-            self_var, dataset_var = self_meta[self_alias], dataset_meta[dataset_alias]
+            for com_als in alias_common:
+                self_var, dataset_var = self_meta[com_als], dataset_meta[com_als]
 
-            if self_var["type"] == dataset_var["type"] and self_var["type"] in ARRAY_TYPES:
-                a_names = {i["name"]: i["alias"] for i in self_var["subvariables"].values()}
-                b_names = {
-                    i["name"]: i["alias"] for i in dataset_var["subvariables"].values()
-                }
+                if self_var["type"] == dataset_var["type"] and self_var["type"] in ARRAY_TYPES:
+                    a_names = {i["name"]: i["alias"] for i in self_var["subvariables"].values()}
+                    b_names = {
+                        i["name"]: i["alias"] for i in dataset_var["subvariables"].values()
+                    }
 
-                mismatched_subs = [
-                    b_names[sv_name]
-                    for sv_name in (frozenset(a_names.keys()) & frozenset(b_names.keys()))
-                    if a_names[sv_name] != b_names[sv_name]
-                ]
-                if mismatched_subs:
-                    diff["subvariables"][name] = mismatched_subs
+                    mismatched_subs = [
+                        b_names[sv_name]
+                        for sv_name in (frozenset(a_names.keys()) & frozenset(b_names.keys()))
+                        if a_names[sv_name] != b_names[sv_name]
+                    ]
+                    if mismatched_subs:
+                        diff["subvariables"][name] = mismatched_subs
 
-            # 6. Compare missing rules for non-categorical types
-            if (
-                self_var["type"] not in CATEGORICAL_TYPES
-                and dataset_var["type"] not in CATEGORICAL_TYPES
-            ):
-                if self_var["missing_rules"] != dataset_var["missing_rules"]:
-                    diff["variables"]["by_missing_rules"].append(name)
+                # 6. Compare missing rules for non-categorical types
+                if (
+                    self_var["type"] not in CATEGORICAL_TYPES
+                    and dataset_var["type"] not in CATEGORICAL_TYPES
+                ):
+                    if self_var["missing_rules"] != dataset_var["missing_rules"]:
+                        diff["variables"]["by_missing_rules"].append(name)
 
         return diff
 
