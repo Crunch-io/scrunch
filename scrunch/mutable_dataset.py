@@ -226,7 +226,7 @@ class MutableDataset(BaseDataset):
             alias_common = set(self_alias & dataset_alias)
 
             if alias_diff:
-                diff["variables"]["by_alias"].extend(alias_diff)
+                diff["variables"]["by_alias"].append(name)
 
             # 4. Compare subvariables for array types
             for com_als in alias_common:
