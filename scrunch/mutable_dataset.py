@@ -8,6 +8,146 @@ from scrunch.exceptions import InvalidDatasetTypeError
 from scrunch.expressions import parse_expr, process_expr
 from scrunch.helpers import shoji_entity_wrapper
 
+from warnings import warn
+
+ARRAY_TYPES = frozenset(('multiple_response', 'categorical_array', 'numeric_array'))
+
+
+def compare_datasets(left_ds, right_ds, use_crunch=False):
+    """
+    Compare the difference in structure between datasets.
+
+    The criterion is the following:
+    (1) variables that, when matched across datasets by alias, have different types.
+    (2) variables that have the same name but don't match on alias.
+    (3) for variables that match and have categories, any categories that have the
+    same id but don't match on name.
+    (4) for array variables that match, any subvariables that have the same name but
+    don't match on alias.
+    (5) array variables that, after assembling the union of their subvariables,
+    point to subvariables that belong to other ds (Not implemented)
+    (6) missing rules of the variable.
+
+    :param: left_ds: dataset instance to compare
+    :param: right_ds: dataset instance to compare with
+    :param: use_crunch: Use the Crunch comparison to compare
+    :return: a dictionary of differences
+    """
+
+    if use_crunch:
+        return left_ds.resource.batches.follow('compare', 'dataset={}'.format(right_ds.url))
+
+    def process_metadata(metadata):
+        """ Extract & format metadata with required information. """
+        return {
+            v["alias"]: {
+                "alias": v["alias"],
+                "name": v["name"],
+                "type": v["type"],
+                "categories": v.get("categories", [])
+                if v["type"] in CATEGORICAL_TYPES
+                else [],
+                "subvariables": v.get("subreferences", [])
+                if v["type"] in ARRAY_TYPES
+                else [],
+                "missing_rules": {
+                    k: v['args'][1]['value']
+                    for k, v in v.get('missing_rules', {}).items()
+                }
+            }
+            for v in metadata.values()
+        }
+
+    left_ds_meta = process_metadata(left_ds.resource.table["metadata"])
+    dataset_meta = process_metadata(right_ds.resource.table["metadata"])
+    common_aliases = frozenset(left_ds_meta.keys()) & frozenset(dataset_meta.keys())
+
+    left_ds_names = {}
+    right_ds_names = {}
+
+    for n in left_ds_meta.values():
+        name = n["name"]
+        alias = n["alias"]
+        if left_ds_names.get(name):
+            left_ds_names[name].append(alias)
+        else:
+            left_ds_names[name] = [alias]
+
+    for n in dataset_meta.values():
+        name = n["name"]
+        alias = n["alias"]
+        if right_ds_names.get(name):
+            right_ds_names[name].append(alias)
+        else:
+            right_ds_names[name] = [alias]
+
+    common_names = frozenset(left_ds_names.keys()) & frozenset(right_ds_names.keys())
+
+    diff = {
+        "variables": {"by_type": [], "by_alias": [], "by_missing_rules": []},
+        "categories": {},
+        "subvariables": {},
+    }
+
+    # 1. Compare types and categories by alias
+    for alias in common_aliases:
+        left_ds_var, right_ds_var = left_ds_meta[alias], dataset_meta[alias]
+
+        if left_ds_var["type"] != right_ds_var["type"]:
+            diff["variables"]["by_type"].append(right_ds_var["name"])
+
+        # 3. Compare category names for categorical variables
+        if left_ds_var["type"] == right_ds_var["type"] == "categorical":
+            a_ids = {v["id"]: v["name"] for v in left_ds_var["categories"]}
+            b_ids = {v["id"]: v["name"] for v in right_ds_var["categories"]}
+
+            mismatched_cats = [
+                cat_id
+                for cat_id in (a_ids.keys() & b_ids.keys())
+                if a_ids[cat_id] != b_ids[cat_id]
+            ]
+            if mismatched_cats:
+                diff["categories"][alias] = mismatched_cats
+
+    # 2. Compare aliases, subvariables, and missing rules by name
+    for name in common_names:
+        left_ds_alias = set(left_ds_names[name])
+        right_ds_alias = set(right_ds_names[name])
+
+        alias_diff = list(left_ds_alias - right_ds_alias)
+        alias_common = set(left_ds_alias & right_ds_alias)
+
+        if alias_diff:
+            diff["variables"]["by_alias"].append(name)
+
+        # 4. Compare subvariables for array types
+        for com_als in alias_common:
+            left_ds_var, right_ds_var = left_ds_meta[com_als], dataset_meta[com_als]
+
+            if left_ds_var["type"] == right_ds_var["type"] and left_ds_var["type"] in ARRAY_TYPES:
+                a_names = {i["name"]: i["alias"] for i in left_ds_var["subvariables"].values()}
+                b_names = {
+                    i["name"]: i["alias"] for i in right_ds_var["subvariables"].values()
+                }
+
+                mismatched_subs = [
+                    b_names[sv_name]
+                    for sv_name in (frozenset(a_names.keys()) & frozenset(b_names.keys()))
+                    if a_names[sv_name] != b_names[sv_name]
+                ]
+                if mismatched_subs:
+                    diff["subvariables"][name] = mismatched_subs
+
+            # 6. Compare missing rules for non-categorical types
+            if (
+                left_ds_var["type"] not in CATEGORICAL_TYPES
+                and right_ds_var["type"] not in CATEGORICAL_TYPES
+            ):
+                if left_ds_var["missing_rules"] != right_ds_var["missing_rules"]:
+                    diff["variables"]["by_missing_rules"].append(name)
+
+    return diff
+
 
 def get_mutable_dataset(dataset, connection=None, editor=False, project=None):
     """
@@ -140,6 +280,10 @@ class MutableDataset(BaseDataset):
         NOTE: this sould be done via: http://docs.crunch.io/#post217
         but doesn't seem to be a working feature of Crunch
         """
+        warn(
+            "Deprecated: Use compare_datasets() for optimized comparison operations.",
+            DeprecationWarning
+        )
 
         if use_crunch:
             resp = self.resource.batches.follow(
