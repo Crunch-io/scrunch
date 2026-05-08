@@ -434,7 +434,7 @@ class Project:
         elif item in self.LAZY_ATTRIBUTES:
             if not self._lazy:
                 if self.resource.session.feature_flags['old_projects_order']:
-                    datasets = self.resource.datasets
+                    datasets = self.resource.index
                     self.order = ProjectDatasetsOrder(datasets, datasets.order)
                 else:
                     # We detected the new API of nested projects
@@ -510,12 +510,12 @@ class Project:
         self.members.edit(user, {'permissions': {'edit': edit}})
 
     def get_dataset(self, dataset):
-        datasets = self.resource.datasets
+        index = self.resource.index
         try:
-            shoji_ds = datasets.by('name')[dataset].entity
+            shoji_ds = index.by('name')[dataset].entity
         except KeyError:
             try:
-                shoji_ds = datasets.by('id')[dataset].entity
+                shoji_ds = index.by('id')[dataset].entity
             except KeyError:
                 raise KeyError(
                     "Dataset (name or id: %s) not found in project." % dataset)

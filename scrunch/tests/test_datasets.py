@@ -3868,7 +3868,7 @@ class TestProjectsHierarchicalOrder(TestCase):
 
         proj_resource = MagicMock()
         proj_resource.self = 'http://test.crunch.local/api/projects/42/'
-        proj_resource.datasets = datasets
+        proj_resource.index = datasets
         self.proj = Project(proj_resource)
 
     def test_datasets_project_order_loaded_correctly(self):
