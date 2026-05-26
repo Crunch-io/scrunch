@@ -6,13 +6,11 @@ Project skeleton maintained at https://github.com/jaraco/skeleton
 
 import io
 import sys
-from pathlib import Path
 
 import setuptools
 
 # Read long description from README
-readme_path = Path(__file__).parent / "README.md"
-with io.open(readme_path, encoding="utf-8") as readme:
+with io.open("README.md", encoding="utf-8") as readme:
     long_description = readme.read()
 
 # Python version detection
@@ -41,7 +39,7 @@ install_requires = [
 
 # Python 2.7 specific dependencies
 if PY2:
-    install_requires = [
+    install_requires += [
         "importlib_metadata==0.17",
         "zipp==1.1.0",
         "tabulate==0.8.10",
@@ -54,7 +52,7 @@ if PY2:
 
 # Python 3.6 specific dependencies
 elif PY36:
-    install_requires = [
+    install_requires += [
         "setuptools==51.0.0",
         "setuptools_scm==6.4.2",
         "scipy==1.1.0",
@@ -102,7 +100,6 @@ setuptools.setup(
     },
     setup_requires=[
         "setuptools_scm>=1.15.0,<10.0.0",
-
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
