@@ -19,14 +19,13 @@ with io.open(readme_path, encoding="utf-8") as readme:
 PY_VERSION = sys.version_info[:2]
 PY2 = sys.version_info[0] < 3
 PY36 = PY_VERSION == (3, 6)
-PY311 = PY_VERSION == (3, 11)
 
 # Package metadata
 PACKAGE_NAME = "scrunch"
 DESCRIPTION = "Pythonic scripting library for cleaning data in Crunch"
 AUTHOR = "Crunch.io"
 AUTHOR_EMAIL = "dev@crunch.io"
-URL = f"https://github.com/Crunch-io/{PACKAGE_NAME}"
+URL = "https://github.com/Crunch-io/" + PACKAGE_NAME
 
 # Version-specific dependencies
 CRUNCH_CUBE = "cr.cube==2.3.9" if PY2 else "cr.cube==3.2.0"
@@ -42,7 +41,7 @@ install_requires = [
 
 # Python 2.7 specific dependencies
 if PY2:
-    install_requires = install_requires + [
+    install_requires = [
         "importlib_metadata==0.17",
         "zipp==1.1.0",
         "tabulate==0.8.10",
@@ -54,19 +53,13 @@ if PY2:
     ]
 
 # Python 3.6 specific dependencies
-elif PY36 or PY311:
-    install_requires = install_requires + [
+elif PY36:
+    install_requires = [
         "setuptools==51.0.0",
         "setuptools_scm==6.4.2",
         "scipy==1.1.0",
         "numpy==1.15.1",
         "dataclasses==0.8",
-    ]
-# Python 3.11 specific dependencies
-elif PY36 or PY311:
-    install_requires = install_requires + [
-        "setuptools",
-        "setuptools_scm<=10.0.0",
     ]
 
 # Testing dependencies
@@ -108,7 +101,8 @@ setuptools.setup(
         "pandas": ["pandas"],
     },
     setup_requires=[
-        "setuptools_scm>=1.15.0",
+        "setuptools_scm>=1.15.0,<10.0.0",
+
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
