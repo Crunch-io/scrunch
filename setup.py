@@ -53,7 +53,7 @@ if PY2:
         "certifi==2021.10.8",
     ]
 
-# Python 3.6 and 3.11 specific dependencies
+# Python 3.6 specific dependencies
 elif PY36 or PY311:
     install_requires = install_requires + [
         "setuptools==51.0.0",
@@ -61,6 +61,12 @@ elif PY36 or PY311:
         "scipy==1.1.0",
         "numpy==1.15.1",
         "dataclasses==0.8",
+    ]
+# Python 3.11 specific dependencies
+elif PY36 or PY311:
+    install_requires = install_requires + [
+        "setuptools",
+        "setuptools_scm<=10.0.0",
     ]
 
 # Testing dependencies
