@@ -551,10 +551,3 @@ class DatasetVariablesOrder(Order):
     def _load(self, refresh=True):
         self.vars = self.catalog.by('id')
         super(DatasetVariablesOrder, self)._load(refresh=refresh)
-
-
-class ProjectDatasetsOrder(Order):
-
-    def _load(self, refresh=False):
-        self.datasets = self.catalog.by('id')
-        super(ProjectDatasetsOrder, self)._load(refresh=refresh)
