@@ -72,7 +72,7 @@ def _by_side_effect(shoji, entity_mock):
 
 def mocked_project_get_child(name):
     session = MockSession()
-    session.feature_flags = {'old_projects_order': False}
+    session.feature_flags = {}
     res_url = 'http://example.com/api/projects/A/'
     payload = {
         'element': 'shoji:entity',

@@ -76,7 +76,7 @@ params = dict(
         'pandas': ['pandas'],
     },
     setup_requires=[
-        'setuptools_scm>=1.15.0',
+        'setuptools_scm>=1.15.0,<8',
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

@@ -35,7 +35,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              get_else_case, else_case_not_selected, SELECTED_ID,
                              NOT_SELECTED_ID, NO_DATA_ID, valid_categorical_date,
                              generate_subvariable_codes, shoji_order_wrapper)
-from scrunch.order import DatasetVariablesOrder, ProjectDatasetsOrder
+from scrunch.order import DatasetVariablesOrder
 from scrunch.subentity import Deck, Filter, Multitable
 from scrunch.variables import (combinations_from_map, combine_categories_expr,
                                combine_responses_expr, responses_from_map)
@@ -433,12 +433,8 @@ class Project:
 
         elif item in self.LAZY_ATTRIBUTES:
             if not self._lazy:
-                if self.resource.session.feature_flags['old_projects_order']:
-                    datasets = self.resource.datasets
-                    self.order = ProjectDatasetsOrder(datasets, datasets.order)
-                else:
-                    # We detected the new API of nested projects
-                    self.order = self  # ;) ;) ;)
+                # We use the new API of nested projects
+                self.order = self  # ;) ;) ;)
                 self._lazy = True
             return getattr(self, item)
 
@@ -510,15 +506,21 @@ class Project:
         self.members.edit(user, {'permissions': {'edit': edit}})
 
     def get_dataset(self, dataset):
-        datasets = self.resource.datasets
-        try:
-            shoji_ds = datasets.by('name')[dataset].entity
-        except KeyError:
-            try:
-                shoji_ds = datasets.by('id')[dataset].entity
-            except KeyError:
-                raise KeyError(
-                    "Dataset (name or id: %s) not found in project." % dataset)
+        self.resource.refresh()
+        by_name = self.resource.by('name')
+        by_id = self.resource.by('id')
+        shoji_ds = None
+        if dataset in by_name:
+            tup = by_name[dataset]
+            if tup.get('type') != 'project':
+                shoji_ds = tup.entity
+        if shoji_ds is None and dataset in by_id:
+            tup = by_id[dataset]
+            if tup.get('type') != 'project':
+                shoji_ds = tup.entity
+        if shoji_ds is None:
+            raise KeyError(
+                "Dataset (name or id: %s) not found in project." % dataset)
         ds = BaseDataset(shoji_ds)
         return ds
 

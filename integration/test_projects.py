@@ -9,17 +9,11 @@ from scrunch import connect, get_project, get_dataset, get_user
 from .fixtures import BaseIntegrationTestCase
 
 UNIQUE_PREFIX = str(datetime.now()).replace(':', '').replace('.', '')
-FEATURE_FLAG = 'old_projects_order'
 
 
 class TestProjects(BaseIntegrationTestCase):
     def setUp(self):
-        """
-        These tests need to have the `old_projects_order` turned OFF in order
-        to enable the new API in Scrunch.
-        """
         super(TestProjects, self).setUp()
-        self.site.session.feature_flags[FEATURE_FLAG] = False
 
     def new_project(self, name):
         res = self.site.projects.create(shoji_entity_wrapper({

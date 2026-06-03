@@ -31,7 +31,7 @@ class ScrunchSSLUnsafeSession(ScrunchSession):
         self.verify = False
 
 
-FLAGS_TO_CHECK = {"old_projects_order", "clients_strict_subvariable_syntax"}
+FLAGS_TO_CHECK = {"clients_strict_subvariable_syntax"}
 
 
 def set_feature_flags(site):

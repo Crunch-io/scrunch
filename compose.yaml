@@ -1,0 +1,13 @@
+services:
+  test:
+    build: .
+    command: tox -e py311
+    volumes:
+      - .:/app
+      - tox-cache:/app/.tox
+    env_file:
+      - path: .env
+        required: false
+
+volumes:
+  tox-cache:

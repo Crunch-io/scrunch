@@ -6,11 +6,11 @@ from mock import Mock
 from requests import Response
 from unittest import TestCase
 
-from pycrunch.shoji import Entity, Catalog, Order
+from pycrunch.shoji import Entity, Catalog
 
 from scrunch.order import InvalidPathError
 from scrunch.scripts import ScriptExecutionError
-from scrunch.datasets import Project, ProjectDatasetsOrder, get_personal_project
+from scrunch.datasets import Project, get_personal_project
 
 from .mock_session import MockSession
 
@@ -18,26 +18,7 @@ from .mock_session import MockSession
 class TestProjectNesting(TestCase):
     def test_detect_correct_handler(self):
         session = Mock(
-            feature_flags={'old_projects_order': True}
-        )
-        dataset_order = Order(session, **{
-            'graph': []
-        })
-        datasets_catalog = Catalog(session, **{
-            'index': {},
-            'order': dataset_order
-        })
-        shoji_resource = Entity(session, **{
-            'self': '/project/url/',
-            'body': {},
-            'index': {},
-            'datasets': datasets_catalog
-        })
-        project = Project(shoji_resource)
-        self.assertTrue(isinstance(project.order, ProjectDatasetsOrder))
-
-        session = Mock(
-            feature_flags={'old_projects_order': False}
+            feature_flags={}
         )
         shoji_resource = Entity(session, **{
             'self': '/project/url/',
@@ -50,7 +31,7 @@ class TestProjectNesting(TestCase):
 
     def test_create_subproject(self):
         session = MockSession()
-        session.feature_flags = {'old_projects_order': False}
+        session.feature_flags = {}
         shoji_resource = Entity(session, **{
             'self': 'http://example.com/project/url/',
             'body': {},
@@ -95,7 +76,7 @@ class TestProjectNesting(TestCase):
 
     def make_tree(self):
         session = MockSession()
-        session.feature_flags = {'old_projects_order': False}
+        session.feature_flags = {}
 
         #       A
         #     /   \
