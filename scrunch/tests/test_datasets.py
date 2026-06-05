@@ -401,7 +401,7 @@ class TestDatasets(TestDatasetBase, TestCase):
                     'expr': {
                         'function': 'rollup',
                         'args': [
-                            {'variable': 'https://test.crunch.io/api/datasets/123456/variables/001/'},
+                            {'var': 'datetime_var'},
                             {'value': 'Y'}
                         ]
                     },
@@ -570,6 +570,21 @@ class TestDatasets(TestDatasetBase, TestCase):
         # mock the variable creation
         ds._var_create_reload_return = MagicMock()
         ds.derive_weight(targets=targets, alias='weight', name='Weight')
+        ds._var_create_reload_return.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'Weight',
+                'alias': 'weight',
+                'description': '',
+                'derivation': {
+                    'function': 'rake',
+                    'args': [{
+                        'var': 'foo',
+                        'targets': list(map(list, targets[0]['foo'].items()))
+                    }]
+                }
+            }
+        })
 
 
 class TestExclusionFilters(TestDatasetBase, TestCase):
@@ -2110,8 +2125,8 @@ class TestFillVariables(TestCase):
     def test_recode_w_fill(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "var": "var_a"},
-            {"case": "var_b == 1", "var": "var_b"}
+            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "var_b == 1", "variable": "var_b"}
         ]
 
         # This is what we want to test for!
@@ -2177,7 +2192,7 @@ class TestFillVariables(TestCase):
     def test_else_code(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "var": "var_a"},
+            {"case": "var_a == 1", "variable": "var_a"},
             {"case": "else", "missing": True, "name": "Not Asked", "id": 99}
         ]
 
@@ -2234,8 +2249,8 @@ class TestFillVariables(TestCase):
     def test_else_var(self):
         ds, session = self.prepare_ds()
         responses = [
-            {"case": "var_a == 1", "var": "var_a"},
-            {"case": "else", "var": "var_b"}
+            {"case": "var_a == 1", "variable": "var_a"},
+            {"case": "else", "variable": "var_b"}
         ]
 
         # This is what we want to test for!
@@ -3705,11 +3720,13 @@ class TestCopyVariable(TestCase):
     def test_base_variable(self):
         ds_res = mock.MagicMock()
         var_res = mock.MagicMock()
-        var_res.entity.body = {'type': 'numeric'}
+        var_res.entity.body = {'type': 'numeric', 'alias': 'original'}
 
         def getitem(key):
             if key == 'derived':
                 return False
+            if key == 'alias':
+                return 'original'
         var_res.__getitem__.side_effect = getitem
         var_res.entity.self = '/variable/url/'
         ds = StreamingDataset(ds_res)
@@ -3722,7 +3739,7 @@ class TestCopyVariable(TestCase):
                 'name': 'copy',
                 'derivation': {
                     'function': 'copy_variable',
-                    'args': [{'variable': '/variable/url/'}]
+                    'args': [{'var': 'original'}]
                 }
             }
         })
@@ -6474,9 +6491,9 @@ class TestSubvariableCodes:
         dataset.bind_categorical_array("My Array", "my_array", subvariables)
 
         array_map = {
-            '1': {'variable': '/variables/var_1/'},
-            '2': {'variable': '/variables/var_2/'},
-            '3': {'variable': '/variables/var_3/'}
+            '1': {'var': 'var_1'},
+            '2': {'var': 'var_2'},
+            '3': {'var': 'var_3'}
         }
         subreferences = [
             # See how var_1 and var_2 have been disambiguated because
@@ -6512,9 +6529,9 @@ class TestSubvariableCodes:
         dataset.bind_categorical_array("My Array", "my_array", subvariables, subvariable_codes=subvariable_codes)
 
         array_map = {
-            '1': {'variable': '/variables/var_1/'},
-            '2': {'variable': '/variables/var_2/'},
-            '3': {'variable': '/variables/var_3/'}
+            '1': {'var': 'var_1'},
+            '2': {'var': 'var_2'},
+            '3': {'var': 'var_3'}
         }
         subreferences = [
             {'alias': 'code_1', 'name': 'Variable 1'},
@@ -6563,6 +6580,7 @@ class TestSubvariableCodes:
             "self": var_url,
             "body": {
                 "derived": False,
+                "alias": "source_var",
                 "subvariables": [
                     "%s001/" % var_url,
                     "%s002/" % var_url,
@@ -6586,7 +6604,7 @@ class TestSubvariableCodes:
         ]
         expression = {
             "function": "copy_variable",
-            "args": [{"variable": var_url}],
+            "args": [{"var": "source_var"}],
             "references": {"subreferences": subreferences}
         }
         assert args == [{
@@ -6624,6 +6642,7 @@ class TestSubvariableCodes:
             "self": var_url,
             "body": {
                 "derived": False,
+                "alias": "source_var",
                 "subvariables": [
                     "%s001/" % var_url,
                     "%s002/" % var_url,
@@ -6649,7 +6668,7 @@ class TestSubvariableCodes:
         ]
         expression = {
             "function": "copy_variable",
-            "args": [{"variable": var_url}],
+            "args": [{"var": "source_var"}],
             "references": {"subreferences": subreferences}
         }
         assert args == [{
@@ -6660,4 +6679,3 @@ class TestSubvariableCodes:
                 "derivation": expression,
             }
         }]
-

@@ -56,14 +56,11 @@ def combinations_from_map(map, categories, missing):
     return combinations
 
 
-# NOTE: This needs to stay the same because the translation
-# to zz9 is done on cr.lib level, and that's where we need
-# to convert variables from urls to aliases
-def combine_responses_expr(variable_url, responses):
+def combine_responses_expr(var_alias, responses):
     return {
         'function': 'combine_responses',
         'args': [{
-            'variable': variable_url
+            'var': var_alias
         }, {
             'value': responses
         }]

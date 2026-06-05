@@ -791,6 +791,36 @@ def prettify(expr, ds=None):
     methods = {m[1]: m[0] for m in CRUNCH_METHOD_MAP.items()}
     functions = {f[1]: f[0] for f in CRUNCH_FUNC_MAP.items()}
 
+    def _resolve_variable(var):
+        is_url = validate_variable_url(var)
+
+        if not is_url:
+            return {"var": var}
+        elif not isinstance(ds, scrunch.datasets.BaseDataset):
+            raise Exception(
+                'Valid Dataset instance is required to resolve variable urls '
+                'in the expression'
+            )
+
+        # Transitional compatibility: old Crunch API responses may still return
+        # `variable` URL terms. Once all API responses use `var`/`axes`, this URL
+        # lookup path should be removed.
+        var_resource = ds.resource.session.get(var).payload
+        var_alias = var_resource.body["alias"]
+
+        # From an arbitrary URL we can detect whether this is a variable or a
+        # subvariable by checking the adjacent resources linked. A subvariable
+        # will point to its parent `/subvariables/` catalog and refer to its
+        # array variable by `.fragments["variable"]`.
+        is_subvariable = 'parent' in var_resource.catalogs and 'variable' in var_resource.fragments
+
+        if is_subvariable:
+            array_url = var_resource.fragments['variable']
+            array_var = ds.resource.session.get(array_url).payload
+            return {"var": array_var.body["alias"], "axes": [var_alias]}
+
+        return {"var": var_alias}
+
     def _resolve_variables(_expr):
         new_expr = dict(
             function=_expr['function'],
@@ -800,6 +830,8 @@ def prettify(expr, ds=None):
             if 'function' in arg:
                 # arg is a function, resolve inner variables
                 new_expr['args'].append(_resolve_variables(arg))
+            elif 'variable' in arg:
+                new_expr['args'].append(_resolve_variable(arg['variable']))
             else:
                 # arg is neither a variable or function, pass as is
                 new_expr['args'].append(arg)

@@ -79,7 +79,7 @@ COMBINE_RESPONSES_PAYLOAD = {
         'derivation': {
             'function': 'combine_responses',
             'args': [
-                {'variable': var_url},
+                {'var': 'test'},
                 {'value': [
                     {'alias': 'alias_1', 'combined_ids': [subvar1_url, subvar2_url], 'name': 'online'}
                 ]}

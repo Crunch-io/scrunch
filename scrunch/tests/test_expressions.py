@@ -3715,7 +3715,7 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr)
         assert expected == cel
 
-    def test_variable_alias(self):
+    def test_var_alias(self):
         expr = {
             'function': '==',
             'args': [
@@ -3739,7 +3739,32 @@ class TestExpressionPrettify(TestCase):
         cel = prettify(expr, ds)
         assert expected == cel
 
-    def test_square_bracket_subvariables(self):
+    def test_transitional_variable_url(self):
+        variable_url = 'https://host.com/api/datasets/123/variables/001/'
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': variable_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+        ds = mock.MagicMock()
+        ds.__class__ = scrunch.mutable_dataset.MutableDataset
+        response = mock.MagicMock()
+        response.payload.body = {"alias": "age"}
+        response.payload.catalogs = {}
+        response.payload.fragments = {}
+        ds.resource.session.get.return_value = response
+
+        assert prettify(expr, ds) == 'age == 1'
+        ds.resource.session.get.assert_called_once_with(variable_url)
+
+    def test_var_square_bracket_subvariables(self):
         expr = {
             'function': '==',
             'args': [
@@ -3773,7 +3798,44 @@ class TestExpressionPrettify(TestCase):
         expected = 'array_alias[sv_1] == 1'
         assert prettify(expr, ds) == expected
 
-    def test_variable_url_no_dataset(self):
+    def test_transitional_variable_url_square_bracket_subvariables(self):
+        subvariable_url = 'https://host.com/api/datasets/123/variables/001/subvariables/abc/'
+        array_url = 'https://host.com/api/datasets/123/variables/001/'
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': subvariable_url
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+        ds = mock.MagicMock()
+        ds.__class__ = scrunch.mutable_dataset.MutableDataset
+
+        subvar_resource = mock.MagicMock()
+        subvar_resource.catalogs = {"parent": "/subvariables/"}
+        subvar_resource.fragments = {"variable": array_url}
+        subvar_resource.body = {"alias": "sv_1"}
+
+        subvar_response = mock.MagicMock()
+        subvar_response.payload = subvar_resource
+
+        array_response = mock.MagicMock()
+        array_response.payload.body = {"alias": "array_alias"}
+
+        ds.resource.session.get.side_effect = [subvar_response, array_response]
+
+        assert prettify(expr, ds) == 'array_alias[sv_1] == 1'
+        assert ds.resource.session.get.call_args_list == [
+            mock.call(subvariable_url),
+            mock.call(array_url)
+        ]
+
+    def test_var_alias_no_dataset(self):
         expr = {
             'function': '==',
             'args': [
@@ -3787,6 +3849,27 @@ class TestExpressionPrettify(TestCase):
         }
 
         assert prettify(expr) == "var_alias == 1"
+
+    def test_transitional_variable_url_no_dataset(self):
+        expr = {
+            'function': '==',
+            'args': [
+                {
+                    'variable': 'https://host.com/api/datasets/123/variables/001/'
+                },
+                {
+                    'value': 1
+                }
+            ]
+        }
+
+        with pytest.raises(Exception) as err:
+            prettify(expr)
+
+        assert str(err.value) == (
+            'Valid Dataset instance is required to resolve variable urls '
+            'in the expression'
+        )
 
 
     def test_parse_equal_string(self):
