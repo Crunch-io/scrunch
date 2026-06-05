@@ -1128,13 +1128,10 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         else_case = else_case[0] if else_case else {}
         variables = [c for c in variables if c["case"] != "else"]
 
-        if ("variable" in else_case or "var" in else_case) and "name" in else_case:
+        if "variable" in else_case and "name" in else_case:
             raise ValueError("Else case can be either variable or category not both")
 
-        def _fill_variable_alias(case):
-            return case.get("var", case["variable"])
-
-        aliases = {_fill_variable_alias(c) for c in variables}
+        aliases = {c["variable"] for c in variables}
         vars_by_alias = self.resource.variables.by("alias")
         types = {vars_by_alias[al]["type"] for al in aliases}
         if types != {"categorical"}:
@@ -1167,13 +1164,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             })
 
         expr = {"function": "case", "args": args}
-        fill_map = {str(cid): {"var": _fill_variable_alias(v)}
+        fill_map = {str(cid): {"var": v["variable"]}
                     for cid, v in zip(cat_ids, variables)}
 
-        if "var" in else_case or "variable" in else_case:
+        if "variable" in else_case:
             # We are in the case of a default fill, replace the -1 with the new
             # variable
-            fill_map["-1"] = {"var": _fill_variable_alias(else_case)}
+            fill_map["-1"] = {"var": else_case["variable"]}
 
         fill_expr = {
             "function": "fill",
