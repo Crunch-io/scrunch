@@ -510,14 +510,14 @@ def adapt_multiple_response(var_alias, values, vars_by_alias):
     if all(isinstance(value, int) for value in values):
         # scenario var.any([1])
         column = values
-        subvars = list(aliases)
+        subvars = sorted(aliases)
     else:
         # scenario var.any([subvar1, subvar2])
         # in this scenario, we only want category ids that refers to `selected` categories
         column = [
             cat.get("id") for cat in _get_categories_from_var_index(vars_by_alias, var_alias) if cat.get("selected")
         ]
-        subvars = [sva for sva in aliases if sva in values]
+        subvars = [sva for sva in values if sva in aliases]
 
     for sva in subvars:
         result.append({
