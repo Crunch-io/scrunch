@@ -596,7 +596,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         """
         ds_res = self._dataset_mock()
         ds = StreamingDataset(ds_res)
-        var = ds['var1_alias']
 
         # Action!
         exclusion_filter = 'var1_alias != 0'
@@ -641,7 +640,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_gt(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias > 5')
         expected_expr_obj = {
@@ -658,7 +656,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_in(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in [32766]')
         expected_expr_obj = {
@@ -676,7 +673,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_in_multiple(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias in (32766, 32767)')
         expected_expr_obj = {
@@ -709,8 +705,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
 
         ds_mock = self._dataset_mock(variables=variables)
         ds = StreamingDataset(ds_mock)
-        var1 = ds['disposition']
-        var2 = ds['exit_status']
 
         data = self._exclude_payload(ds, 'not (disposition in (1, 2) and exit_status == 0)')
         expected_expr_obj = {
@@ -756,7 +750,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_any(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766])')
         expected_expr_obj = {
@@ -780,7 +773,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_not_any(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.any([32766])')
         expected_expr_obj = {
@@ -809,7 +801,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_any_multiple(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.any([32766, 32767])')
         expected_expr_obj = {
@@ -834,7 +825,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_all(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([32767])')
         expected_expr_obj = {
@@ -856,7 +846,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_not_all(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not var1_alias.all([32767])')
         expected_expr_obj = {
@@ -885,7 +874,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_all_or_all(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.all([1]) or var1_alias.all([2])')
         expected_expr_obj = {
@@ -927,7 +915,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_not_all_or_all(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not(var1_alias.all([1]) or var1_alias.all([2]))')
         expected_expr_obj = {
@@ -974,7 +961,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_duplicates(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias.duplicates()')
         expected_expr_obj = {
@@ -993,7 +979,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_valid(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'valid(var1_alias)')
         expected_expr_obj = {
@@ -1012,7 +997,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_not_valid(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not valid(var1_alias)')
         expected_expr_obj = {
@@ -1036,7 +1020,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_missing(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'missing(var1_alias)')
         expected_expr_obj = {
@@ -1055,7 +1038,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_not_missing(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'not missing(var1_alias)')
         expected_expr_obj = {
@@ -1079,7 +1061,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
     def test_equal(self):
         ds_mock = self._dataset_mock()
         ds = StreamingDataset(ds_mock)
-        var = ds['var1_alias']
 
         data = self._exclude_payload(ds, 'var1_alias == 1')
         expected_expr_obj = {
@@ -1115,8 +1096,6 @@ class TestExclusionFilters(TestDatasetBase, TestCase):
         }
         ds_mock = self._dataset_mock(variables=variables)
         ds = StreamingDataset(ds_mock)
-        var1 = ds['disposition']
-        var2 = ds['exit_status']
 
         data = self._exclude_payload(ds, '(disposition != 1 and (not valid(exit_status) or exit_status >= 1)) or (disposition == 0 and exit_status == 0) or (disposition == 0 and exit_status == 1)')
         expected_expr_obj = {

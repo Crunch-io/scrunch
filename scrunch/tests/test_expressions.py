@@ -1719,6 +1719,39 @@ class TestExpressionProcessing(TestCase):
             ]
             assert need_wrap is True
 
+    def test_adapt_multiple_response_any_category_id(self):
+        var_alias = 'MyMrVar'
+        vars_by_alias = {
+            var_alias: {
+                "alias": var_alias,
+                "type": "multiple_response",
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {"id": "001", "alias": "subvar1"},
+                            "002": {"id": "002", "alias": "subvar2"},
+                            "003": {"id": "003", "alias": "subvar3"},
+                        }
+                    }
+                }
+            }
+        }
+
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
+            mock_subvars.return_value = {
+                "subvar1": "001",
+                "subvar2": "002",
+                "subvar3": "003",
+            }
+            result, need_wrap = adapt_multiple_response(var_alias, [1], vars_by_alias)
+
+        assert result == [
+            {'var': var_alias, 'axes': ['subvar1'], 'column': [1]},
+            {'var': var_alias, 'axes': ['subvar2'], 'column': [1]},
+            {'var': var_alias, 'axes': ['subvar3'], 'column': [1]},
+        ]
+        assert need_wrap is True
+
     def test_process_all_multiple_response(self):
         var_id = '0001'
         var_alias = 'MyMrVar'
@@ -1736,14 +1769,14 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
@@ -1755,14 +1788,23 @@ class TestExpressionProcessing(TestCase):
                 "name": "Multiple Response",
                 "description": "",
                 "notes": "",
-                "alias": "mr_variable",
+                "alias": var_alias,
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002",
+                    "003",
                 ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {"id": "001", "alias": "subvar1"},
+                            "002": {"id": "002", "alias": "subvar2"},
+                            "003": {"id": "003", "alias": "subvar3"},
+                        }
+                    }
+                }
             }
         }
 
@@ -1774,36 +1816,34 @@ class TestExpressionProcessing(TestCase):
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
-            assert sorted(processed_zcl_expr) == sorted({
+            assert processed_zcl_expr == {
                 'function': 'and',
                 'args': [
                     {
                         'function': '==',
                         'args': [
-                            {'variable': "{}subvariables/001/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar1']},
                             {'value': 1}
                         ],
                     },
                     {
                         'function': '==',
                         'args': [
-                            {'variable': "{}subvariables/002/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar2']},
                             {'value': 1}
                         ],
                     },
                     {
                         'function': '==',
                         'args': [
-                            {'variable': "{}subvariables/003/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar3']},
                             {'value': 1}
                         ],
                     }
                 ],
-            })
+            }
 
-    @pytest.mark.xfail(reason="multiple response with `in` is not yet supported")
     def test_process_in_multiple_response(self):
-        # TODO: check how to handle this scenario in future releases. This should work as .any
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
@@ -1820,14 +1860,14 @@ class TestExpressionProcessing(TestCase):
                 'alias': var_alias,
                 'type': var_type,
                 "subvariables": [
-                    "%ssubvariables/001/" % var_url,
-                    "%ssubvariables/002/" % var_url,
-                    "%ssubvariables/003/" % var_url,
+                    "001",
+                    "002",
+                    "003",
                 ],
                 "subreferences": {
-                    "%ssubvariables/001/" % var_url: {"alias": "subvar1"},
-                    "%ssubvariables/002/" % var_url: {"alias": "subvar2"},
-                    "%ssubvariables/003/" % var_url: {"alias": "subvar3"},
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 },
                 "categories": var_categories
             }
@@ -1839,14 +1879,23 @@ class TestExpressionProcessing(TestCase):
                 "name": "Multiple Response",
                 "description": "",
                 "notes": "",
-                "alias": "mr_variable",
+                "alias": var_alias,
                 "id": "{}".format(var_id),
                 "type": "multiple_response",
                 "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
+                    "001",
+                    "002",
+                    "003",
                 ],
+                "entity": {
+                    "subvariables": {
+                        "index": {
+                            "001": {"id": "001", "alias": "subvar1"},
+                            "002": {"id": "002", "alias": "subvar2"},
+                            "003": {"id": "003", "alias": "subvar3"},
+                        }
+                    }
+                }
             }
         }
 
@@ -1864,21 +1913,21 @@ class TestExpressionProcessing(TestCase):
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "{}subvariables/001/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar1']},
                             {'column': [1]}
                         ],
                     },
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "{}subvariables/002/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar2']},
                             {'column': [1]}
                         ],
                     },
                     {
                         'function': 'in',
                         'args': [
-                            {'variable': "{}subvariables/003/".format(var_url)},
+                            {'var': var_alias, 'axes': ['subvar3']},
                             {'column': [1]}
                         ],
                     }

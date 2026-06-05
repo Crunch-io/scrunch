@@ -510,7 +510,7 @@ def adapt_multiple_response(var_alias, values, vars_by_alias):
     if all(isinstance(value, int) for value in values):
         # scenario var.any([1])
         column = values
-        variables = aliases.values()
+        subvars = list(aliases)
     else:
         # scenario var.any([subvar1, subvar2])
         # in this scenario, we only want category ids that refers to `selected` categories
@@ -697,6 +697,10 @@ def process_expr(obj, ds):
         # support for categorical variables with `any`
         if not arrays and op == "any":
             obj["function"] = "in"
+
+        if arrays and op == "in":
+            op = "any"
+            obj["function"] = "any"
 
         if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
             # Support for array variables.
