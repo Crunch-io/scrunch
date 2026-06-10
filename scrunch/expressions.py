@@ -12,7 +12,7 @@ be transformed by this module's parser into:
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'disposition'
+                            'var': 'disposition'
                         },
                         {
                             'value': 0
@@ -23,7 +23,7 @@ be transformed by this module's parser into:
                     'function': '==',
                     'args': [
                         {
-                            'variable': 'exit_status'
+                            'var': 'exit_status'
                         },
                         {
                             'value': 0
@@ -33,11 +33,12 @@ be transformed by this module's parser into:
             ]
         }
 
-Its important to note that the expression objects produced by this module's
-parser are not ready for being sent to crunch, as they refer to variables
-by `alias` rather than by `variable_id` (which is a URL). So, this module
-also provides a `process_expr` function that creates an expression object
-ready for the crunch API.
+Expression objects produced by `parse_expr` are purely syntactic: they
+refer to variables by `alias` (in `var` terms) and know nothing about
+the dataset. They are not yet ready to be sent to Crunch -- the API still
+needs some metadata-driven rewrites (subvariable -> parent+axes, category
+name -> id, array variable expansion, etc.). Those rewrites are applied
+by `process_expr` in a second pass, given a dataset entity.
 """
 
 import ast
@@ -549,24 +550,38 @@ def _update_values_for_multiple_response(new_values, values, subitem, vars_by_al
 
 def process_expr(obj, ds):
     """
-    Given a Crunch expression object (or objects) and a Dataset entity object
-    (i.e. a Shoji entity), this function returns a tuple, the first element is
-    new expression object (or a list of new expression objects) with all
-    variable aliases transformed into variable URLs and the second element
-    of the tuple is a flag indicating if the expressions needs nesting/wrapping
-    in `or` functions (for the case when an array variable is passed).
+    Apply dataset metadata to a parsed expression so it is ready for the
+    Crunch API.
+
+    `parse_expr` produces a syntactic, AST-level expression that knows
+    nothing about the dataset. This function takes that expression plus a
+    dataset entity and applies the metadata-driven rewrites the API
+    requires:
+
+      1. Subvariable -> parent + axes: `{'var': sub_alias}` becomes
+         `{'var': parent_alias, 'axes': [sub_alias]}`.
+      2. Category name -> id: `disposition == 'Complete'` becomes
+         `disposition == <id>` using the variable's category list.
+      3. Multiple-response adaptation: filters against MR variables are
+         rewritten into the array-level `column` form.
+      4. `any` <-> `in` swap: the API wants `in` for categorical `.any()`
+         and `any` for array `.in()` calls.
+      5. Array variable expansion: `Q2.any([1,2,3])` over an array gets
+         expanded into an `or(...)` chain over its subvariables.
+
+    Aliases are NOT converted to URLs -- the API accepts alias-based `var`
+    terms directly. Alias existence is validated here as a side-effect of
+    the metadata lookups.
     """
 
-    base_url = ds.self
     variables = get_dataset_variables(ds)
     var_index = ds.variables.index
 
     def ensure_category_ids(subitems, values, arrays, variables=variables):
-        var_id = None
+        """Replace category-name strings in value args with their numeric
+        ids using the variable's category metadata. Multiple-response args
+        are delegated to `adapt_multiple_response`."""
         _subitems = []
-
-        def variable_id(variable_url):
-            return variable_url.split('/')[-2]
 
         def category_ids(var_alias, var_value, variables=variables):
             value = None
@@ -609,7 +624,9 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
-        # special case for multiple_response variables
+        # MR special case: when the args look like (<var>, <value>) and the
+        # variable is multiple_response, delegate to the MR adapter which
+        # rewrites the filter into the array-level `column` form.
         if len(subitems) == 2:
             _variable, _value = subitems
             var_alias = _variable.get('var')
@@ -618,10 +635,11 @@ def process_expr(obj, ds):
                 vars_by_alias = {v['alias']: v for _, v in var_index.items()}
                 if var_alias in vars_by_alias and vars_by_alias[var_alias]['type'] == 'multiple_response':
                     result = adapt_multiple_response(var_alias, _value[_value_key], vars_by_alias)
-                    # handle the multiple response type
                     _update_values_for_multiple_response(result[0], values, subitems[0], vars_by_alias, arrays)
                     return result
 
+        # General case: replace category names with their ids inside each
+        # value arg.
         for item in subitems:
             if isinstance(item, dict) and 'value' in item:
                 item['value'] = category_ids(var_alias, item['value'])
@@ -629,18 +647,86 @@ def process_expr(obj, ds):
 
         return _subitems, True
 
+    def _expand_array_filter(obj, op, array_var, arrays, values):
+        """Expand a filter against an array variable across its
+        subvariables. `Q2.any([1,2,3])` over an array with subvariables
+        sv1, sv2 becomes `or(sv1 in [1,2,3], sv2 in [1,2,3])`. With a
+        single subvariable, just emit the per-subvariable call directly.
+        For `is_valid` / `is_missing` (no value arg), only the function
+        name is swapped."""
+        if len(arrays) != 1:
+            raise ValueError
+
+        # Map the public op to the per-subvariable op + the wrapper used
+        # when expanding across multiple subvariables.
+        real_op = 'in'
+        expansion_op = 'or'
+        if op == 'all':
+            real_op = '=='
+            expansion_op = 'and'
+        elif op == 'is_valid':
+            real_op = 'all_valid'
+        elif op == 'is_missing':
+            real_op = 'is_missing'
+
+        if op in ('is_valid', 'is_missing'):
+            if len(values) != 0:
+                raise ValueError
+            obj['function'] = real_op
+            return obj
+
+        if len(values) != 1:
+            raise ValueError
+
+        subvariables = arrays[0]
+        value = values[0]
+
+        # `all` is one-value: unwrap the singleton list/column into a scalar.
+        if op == 'all':
+            inner_value = value.get("value", value.get("column", []))
+            if len(inner_value) != 1:
+                raise ValueError
+            value.pop("column", None)
+            value['value'] = inner_value[0]
+
+        if len(subvariables) == 1:
+            obj['function'] = real_op
+            obj['args'] = [
+                {
+                    'var': array_var['alias'],
+                    'axes': [array_var['subreferences'][subvariables[0]]['alias']]
+                },
+                value
+            ]
+            return obj
+
+        return {
+            'function': expansion_op,
+            'args': [
+                {
+                    'function': real_op,
+                    'args': [
+                        {'var': array_var['alias'], 'axes': [array_var['subreferences'][subvar]['alias']]},
+                        value
+                    ]
+                } for subvar in subvariables
+            ]
+        }
+
     def _process(obj, variables):
         op = None
         arrays = []
         values = []
-        subvariables = []
         needs_wrap = True
+        # Set when we encounter an array-typed `var` arg during the walk.
+        # Used downstream by the array-expansion phase.
+        array_var = None
 
+        # === Walk children, collecting arrays / values / op ============
         new_obj = copy.deepcopy(obj)
         for key, val in obj.items():
             if isinstance(val, dict) and "array" not in val:
-                # This is not an array object, then it's a nested ZCL expression
-                # so we need to proceed for nested processing.
+                # Nested ZCL expression -- recurse.
                 new_obj[key] = _process(val, variables)
             elif isinstance(val, (list, tuple)):
                 subitems = []
@@ -654,21 +740,18 @@ def process_expr(obj, ds):
                         elif 'var' in subitem:
                             var = variables.get(subitem['var'])
                             if var['type'] in ARRAY_TYPES and 'axes' not in subitem:
-                                # Add info about the fact that the "var" referenced
-                                # variable is an array, so that the validation can
-                                # work properly in the remaindere of the code.
+                                # Record the array variable so later phases
+                                # (swap, expansion) can do their job.
+                                array_var = var
                                 arrays.append(var['subvariables'])
                     subitems.append(subitem)
 
                 has_value = any(
                     'value' in item for item in subitems if not is_number(item)
                 )
-
                 if not has_value:
-                    # Since values can be see with `value` or `column` keys
-                    # check if `column` is there if not `value`
+                    # Values may be carried as either `value` or `column`.
                     has_value = any('column' in item for item in subitems if not is_number(item))
-
                 has_variable = any(
                     'var' in item for item in subitems if not is_number(item)
                 )
@@ -678,6 +761,9 @@ def process_expr(obj, ds):
 
                 new_obj[key] = subitems
             elif key == 'var':
+                # === Subvariable rewrite ===============================
+                # `{'var': sub_alias}` -> `{'var': parent_alias, 'axes': [sub_alias]}`.
+                # Also doubles as alias-existence validation.
                 var = variables.get(val)
                 if not var:
                     raise ValueError("Invalid variable alias '%s'" % val)
@@ -688,80 +774,21 @@ def process_expr(obj, ds):
                     new_obj['axes'] = [val]
             elif key == 'function':
                 op = val
-        
+
         obj = new_obj
 
-        if subvariables:
-            obj['subvariables'] = subvariables
-
-        # support for categorical variables with `any`
+        # === Type-aware `any` <-> `in` swap ============================
+        # The API expects `in` for categorical `.any()` and `any` for
+        # array `.in()`. Pick based on whether we saw an array arg.
         if not arrays and op == "any":
             obj["function"] = "in"
-
         if arrays and op == "in":
             op = "any"
             obj["function"] = "any"
 
+        # === Array variable expansion ==================================
         if arrays and op in ('any', 'all', 'is_valid', 'is_missing') and needs_wrap:
-            # Support for array variables.
-
-            if len(arrays) != 1:
-                raise ValueError
-
-            real_op = 'in'
-            expansion_op = 'or'
-            if op == 'all':
-                real_op = '=='
-                expansion_op = 'and'
-            elif op == 'is_valid':
-                real_op = 'all_valid'
-            elif op == 'is_missing':
-                real_op = 'is_missing'
-
-            if op in ('is_valid', 'is_missing'):
-                if len(values) != 0:
-                    raise ValueError
-
-                # Just swap the op. Yep, that's it.
-                obj['function'] = real_op
-            else:
-                if len(values) != 1:
-                    raise ValueError
-
-                subvariables = arrays[0]
-                value = values[0]
-
-                if op == 'all':
-                    inner_value = value.get("value", value.get("column", []))
-                    if len(inner_value) != 1:
-                        raise ValueError
-                    value.pop("column", None)
-                    value['value'] = inner_value[0]
-
-                if len(subvariables) == 1:
-                    obj['function'] = real_op
-                    obj['args'] = [
-                        {
-                            'var': var['alias'],
-                            'axes': [var['subreferences'][subvariables[0]]['alias']]
-                        },
-                        value
-                    ]
-                else:
-                    obj = {
-                        'function': expansion_op,
-                        'args': []
-                    }
-                    args_ref = obj['args']
-                    args_ref.extend(
-                        [{
-                            'function': real_op,
-                            'args': [
-                                {'var': var['alias'], 'axes': [var['subreferences'][subvar]['alias']]},
-                                value
-                            ]
-                        } for subvar in subvariables]
-                    )
+            obj = _expand_array_filter(obj, op, array_var, arrays, values)
 
         return obj
 
@@ -769,8 +796,7 @@ def process_expr(obj, ds):
         return [
             _process(copy.deepcopy(element), variables) for element in obj
         ]
-    else:
-        return _process(copy.deepcopy(obj), variables)
+    return _process(copy.deepcopy(obj), variables)
 
 
 def clean_integer(value):
