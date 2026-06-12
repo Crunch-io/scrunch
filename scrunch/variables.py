@@ -56,22 +56,22 @@ def combinations_from_map(map, categories, missing):
     return combinations
 
 
-def combine_responses_expr(variable_url, responses):
+def combine_responses_expr(var_alias, responses):
     return {
         'function': 'combine_responses',
         'args': [{
-            'variable': variable_url
+            'var': var_alias
         }, {
             'value': responses
         }]
     }
 
 
-def combine_categories_expr(variable_url, combinations):
+def combine_categories_expr(var_alias, combinations):
     return {
         'function': 'combine_categories',
         'args': [{
-            'variable': variable_url
+            'var': var_alias
         }, {
             'value': combinations
         }]

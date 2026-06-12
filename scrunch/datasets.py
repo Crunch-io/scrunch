@@ -1114,7 +1114,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             * In the case of a default category, it should indicate:
                 {"case": "else", "name": "Cat Name", "missing": <bool>, "id": <int cat code>}
 
-        :param variables: list of dictionaries with an `variable` and `case`
+        :param variables: list of dictionaries with `variable` and `case`
         :param name: Name of the new variable
         :param alias: Alias of the new variable
         :param description: Description of the new variable
@@ -1164,13 +1164,13 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             })
 
         expr = {"function": "case", "args": args}
-        fill_map = {str(cid): {"variable": vars_by_alias[v["variable"]]["id"]}
+        fill_map = {str(cid): {"var": v["variable"]}
                     for cid, v in zip(cat_ids, variables)}
 
         if "variable" in else_case:
             # We are in the case of a default fill, replace the -1 with the new
             # variable
-            fill_map["-1"] = {"variable": vars_by_alias[else_case["variable"]]["id"]}
+            fill_map["-1"] = {"var": else_case["variable"]}
 
         fill_expr = {
             "function": "fill",
@@ -1263,7 +1263,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'function': 'rollup',
             'args': [
                 {
-                    'variable': self[variable_alias].url
+                    'var': variable_alias
                 },
                 {
                     'value': resolution
@@ -1450,7 +1450,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             subvar_name = subvar.get("name", subvar.get("alias")) or sv_code
             subreferences.append({"alias": sv_code, "name": subvar_name})
 
-        array_map = {v['id']: {'variable': self.get_url_by_alias(v['alias'])} for v in subvariables}
+        array_map = {v['id']: {'var': v['alias']} for v in subvariables}
         expression = {
             'function': 'array',
             'args': [{'function': 'make_frame', 'args': [{'map': array_map}]}],
@@ -1796,7 +1796,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             derivation = {
                 'function': 'copy_variable',
                 'args': [{
-                    'variable': variable_resource.self
+                    'var': variable.alias
                 }]
             }
             payload = shoji_entity_wrapper({
@@ -1875,7 +1875,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'derivation': combine_categories_expr(
-                variable.resource.self, combinations)
+                variable.alias, combinations)
         })
         return self._var_create_reload_return(payload)
 
@@ -1907,7 +1907,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'alias': alias,
             'description': description,
             'derivation': combine_responses_expr(
-                variable.resource.self, responses)
+                parent_alias, responses)
         })
         return self._var_create_reload_return(payload)
 
@@ -2798,7 +2798,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                 if fsum(val.values()) != 1.0:
                     raise ValueError('Weights for target {} need to add up to 1.0'.format(key))
                 _targets.append({
-                    'variable': self[key].id,
+                    'var': key,
                     'targets': list(map(list, val.items()))
                 })
 
