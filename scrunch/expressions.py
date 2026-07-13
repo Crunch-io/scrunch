@@ -490,19 +490,19 @@ def get_dataset_variables(ds):
 
 
 def get_subvariables_resource(var_url, var_index):
-    variable = var_index[var_url].entity
-    sub_variables = variable.subvariables['index']
-    return {sv['alias'].strip('#'): sv['id'] for sv in sub_variables.values()}
-
-
-def _get_categories_from_var_index(vars_by_alias, var_alias):
-    return vars_by_alias[var_alias].entity.body.categories
+    """Return subvariable alias -> id from table metadata subreferences."""
+    subreferences = var_index[var_url].get("subreferences", {}) or {}
+    return {
+        subref["alias"].strip('#'): subvar_id
+        for subvar_id, subref in subreferences.items()
+    }
 
 
 def adapt_multiple_response(var_alias, values, vars_by_alias):
     """
-    Converts multiple response arguments
-    to column.
+    Convert multiple response arguments to the API's per-subvariable column form.
+
+    vars_by_alias is the table-derived alias map from get_dataset_variables().
     :return: the new args for multiple_response
     """
     aliases = get_subvariables_resource(var_alias, vars_by_alias)
@@ -516,7 +516,7 @@ def adapt_multiple_response(var_alias, values, vars_by_alias):
         # scenario var.any([subvar1, subvar2])
         # in this scenario, we only want category ids that refers to `selected` categories
         column = [
-            cat.get("id") for cat in _get_categories_from_var_index(vars_by_alias, var_alias) if cat.get("selected")
+            cat.get("id") for cat in vars_by_alias[var_alias].get("categories", []) if cat.get("selected")
         ]
         subvars = [sva for sva in values if sva in aliases]
 
@@ -534,6 +534,7 @@ def _update_values_for_multiple_response(new_values, values, subitem, vars_by_al
     """
     - Multiple response does not need the `value` key, but it relies on the `column` key
     - Remove from `arrays` (subvariable list) the ones that should not be considered
+    - vars_by_alias is the table-derived alias map from get_dataset_variables()
     """
     var_alias = subitem.get("var")
     column = new_values[0].get("column")
@@ -544,7 +545,7 @@ def _update_values_for_multiple_response(new_values, values, subitem, vars_by_al
         elif value is not None:
             values[0]['column'] = value
         values[0].pop("value", None)
-        subvar_ids_by_aliases = {v['alias']: k for k, v in vars_by_alias[var_alias]['entity']['subvariables']['index'].items()}
+        subvar_ids_by_aliases = get_subvariables_resource(var_alias, vars_by_alias)
         arrays[0] = [subvar_ids_by_aliases[new_value["axes"][0]] for new_value in new_values]
 
 
@@ -575,7 +576,6 @@ def process_expr(obj, ds):
     """
 
     variables = get_dataset_variables(ds)
-    var_index = ds.variables.index
 
     def ensure_category_ids(subitems, values, arrays, variables=variables):
         """Replace category-name strings in value args with their numeric
@@ -624,18 +624,21 @@ def process_expr(obj, ds):
                 return var_value
             return value
 
-        # MR special case: when the args look like (<var>, <value>) and the
-        # variable is multiple_response, delegate to the MR adapter which
-        # rewrites the filter into the array-level `column` form.
+        # MR special case: use the table-derived variables map, not
+        # ds.variables.index, because variables.index may only contain sparse
+        # subvariable URLs without the aliases needed for expansion.
         if len(subitems) == 2:
             _variable, _value = subitems
             var_alias = _variable.get('var')
             _value_key = next(iter(_value))
             if _value_key in {'column', "value"} and var_alias:
-                vars_by_alias = {v['alias']: v for _, v in var_index.items()}
-                if var_alias in vars_by_alias and vars_by_alias[var_alias]['type'] == 'multiple_response':
-                    result = adapt_multiple_response(var_alias, _value[_value_key], vars_by_alias)
-                    _update_values_for_multiple_response(result[0], values, subitems[0], vars_by_alias, arrays)
+                if (
+                    var_alias in variables
+                    and variables[var_alias]['type'] == 'multiple_response'
+                    and isinstance(_value[_value_key], (list, tuple))
+                ):
+                    result = adapt_multiple_response(var_alias, _value[_value_key], variables)
+                    _update_values_for_multiple_response(result[0], values, subitems[0], variables, arrays)
                     return result
 
         # General case: replace category names with their ids inside each

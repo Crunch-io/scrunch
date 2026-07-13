@@ -1670,8 +1670,12 @@ class TestExpressionProcessing(TestCase):
             {"id": 3, "name": "cat3", "selected": False},
         ]
 
-        table_mock = mock.MagicMock(metadata={
-            var_id: {
+        # adapt_multiple_response receives the alias map built by
+        # get_dataset_variables() from table metadata, not ds.variables.index.
+        # The table metadata has the subreference aliases needed for the MR
+        # expansion; variables.index may only have sparse subvariable URLs.
+        table_variables_by_alias = {
+            var_alias: {
                 'id': var_id,
                 'alias': var_alias,
                 'type': var_type,
@@ -1687,63 +1691,31 @@ class TestExpressionProcessing(TestCase):
                 },
                 "categories": var_categories
             }
-        })
-        ds = mock.MagicMock()
-        ds.self = self.ds_url
-        ds.variables.index = {
-            "{}".format(var_url): {
-                "name": "Multiple Response",
-                "description": "",
-                "notes": "",
-                "alias": var_alias,
-                "id": "{}".format(var_id),
-                "type": "multiple_response",
-                "subvariables": [
-                    "{}subvariables/001/".format(var_url),
-                    "{}subvariables/002/".format(var_url),
-                    "{}subvariables/003/".format(var_url),
-                ],
-            }
         }
-
-        ds.follow.return_value = table_mock
         values = ["subvar1", "subvar2"]
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
-            mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
-            vars_by_alias = {v['alias']: v for _, v in ds.variables.index.items()}
-            result, need_wrap = adapt_multiple_response(var_alias, values, vars_by_alias)
-            assert result == [
-                {'var': var_alias, 'axes': ['subvar1'], 'column': [1, 2]},
-                {'var': var_alias, 'axes': ['subvar2'], 'column': [1, 2]}
-            ]
-            assert need_wrap is True
+        result, need_wrap = adapt_multiple_response(var_alias, values, table_variables_by_alias)
+        assert result == [
+            {'var': var_alias, 'axes': ['subvar1'], 'column': [1, 2]},
+            {'var': var_alias, 'axes': ['subvar2'], 'column': [1, 2]}
+        ]
+        assert need_wrap is True
 
     def test_adapt_multiple_response_any_category_id(self):
         var_alias = 'MyMrVar'
-        vars_by_alias = {
+        # Same table-derived alias map shape used by process_expr().
+        table_variables_by_alias = {
             var_alias: {
                 "alias": var_alias,
                 "type": "multiple_response",
-                "entity": {
-                    "subvariables": {
-                        "index": {
-                            "001": {"id": "001", "alias": "subvar1"},
-                            "002": {"id": "002", "alias": "subvar2"},
-                            "003": {"id": "003", "alias": "subvar3"},
-                        }
-                    }
+                "subreferences": {
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
                 }
             }
         }
 
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
-            mock_subvars.return_value = {
-                "subvar1": "001",
-                "subvar2": "002",
-                "subvar3": "003",
-            }
-            result, need_wrap = adapt_multiple_response(var_alias, [1], vars_by_alias)
+        result, need_wrap = adapt_multiple_response(var_alias, [1], table_variables_by_alias)
 
         assert result == [
             {'var': var_alias, 'axes': ['subvar1'], 'column': [1]},
@@ -1810,9 +1782,7 @@ class TestExpressionProcessing(TestCase):
 
         ds.follow.return_value = table_mock
         expr = "MyMrVar.all([1])"
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
-                "scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
@@ -1901,9 +1871,7 @@ class TestExpressionProcessing(TestCase):
 
         ds.follow.return_value = table_mock
         expr = "MyMrVar in [1]"
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
-                "scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             parsed_expr = parse_expr(expr)
             processed_zcl_expr = process_expr(parsed_expr, ds)
@@ -1933,6 +1901,63 @@ class TestExpressionProcessing(TestCase):
                     }
                 ],
             }
+
+    def test_process_in_multiple_response_without_entity_key(self):
+        var_id = '0001'
+        var_alias = 'MyMrVar'
+        var_type = 'multiple_response'
+        var_categories = [
+            {"id": 1, "name": "cat1", "selected": True},
+            {"id": 2, "name": "cat2", "selected": True},
+            {"id": 3, "name": "cat3", "selected": False},
+        ]
+
+        table_mock = mock.MagicMock(metadata={
+            var_id: {
+                'id': var_id,
+                'alias': var_alias,
+                'type': var_type,
+                "subvariables": ["001", "002", "003"],
+                "subreferences": {
+                    "001": {"alias": "subvar1"},
+                    "002": {"alias": "subvar2"},
+                    "003": {"alias": "subvar3"},
+                },
+                "categories": var_categories
+            }
+        })
+        ds = mock.MagicMock()
+        ds.self = self.ds_url
+
+        ds.follow.return_value = table_mock
+        parsed_expr = parse_expr("MyMrVar in [1]")
+
+        assert process_expr(parsed_expr, ds) == {
+            'function': 'or',
+            'args': [
+                {
+                    'function': 'in',
+                    'args': [
+                        {'var': var_alias, 'axes': ['subvar1']},
+                        {'column': [1]}
+                    ],
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {'var': var_alias, 'axes': ['subvar2']},
+                        {'column': [1]}
+                    ],
+                },
+                {
+                    'function': 'in',
+                    'args': [
+                        {'var': var_alias, 'axes': ['subvar3']},
+                        {'column': [1]}
+                    ],
+                }
+            ],
+        }
 
     def test_multiple_response_any_process_single_subvariables(self):
         var_id = '0001'
@@ -2001,9 +2026,7 @@ class TestExpressionProcessing(TestCase):
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([subvar1])"
         parsed_expr = parse_expr(expr)
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch(
-                "scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
@@ -2087,8 +2110,7 @@ class TestExpressionProcessing(TestCase):
         ds.follow.return_value = table_mock
         expr = "MyMrVar.any([subvar1, subvar2])"
         parsed_expr = parse_expr(expr)
-        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars, mock.patch("scrunch.expressions._get_categories_from_var_index") as categories:
-            categories.return_value = var_categories
+        with mock.patch("scrunch.expressions.get_subvariables_resource") as mock_subvars:
             mock_subvars.return_value = dict(sorted({"subvar1": "001", "subvar2": "002", "subvar3": "003"}.items()))
             processed_zcl_expr = process_expr(parsed_expr, ds)
         assert processed_zcl_expr == {
