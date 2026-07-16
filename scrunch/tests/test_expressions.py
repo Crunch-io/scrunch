@@ -1606,7 +1606,7 @@ class TestExpressionParsing(TestCase):
 #     'index_mapper': {'pets_sample': not_any([1, 2, 3, 4])}}]
 
 
-class TestExpressionProcessing(TestCase):
+class TestExpressionProcessing:
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
 
@@ -2143,7 +2143,12 @@ class TestExpressionProcessing(TestCase):
             ]
         }
 
-    def test_multiple_response_subvar_equality(self):
+    @pytest.mark.parametrize("expr, function, expected_value", [
+        ('subvar1 == 1', '==', {'value': 1}),
+        ('subvar1 in [1]', 'in', {'value': [1]}),
+        ('MyMrVar[subvar1] in [1]', 'in', {'value': [1]}),
+    ])
+    def test_multiple_response_subvar_filter(self, expr, function, expected_value):
         var_id = '0001'
         var_alias = 'MyMrVar'
         var_type = 'multiple_response'
@@ -2208,20 +2213,15 @@ class TestExpressionProcessing(TestCase):
             }
         }
         ds.follow.return_value = table_mock
-        expr = 'subvar1 == 1'
-        parsed_expr = parse_expr(expr)
-        expr_obj = process_expr(parsed_expr, ds)
 
-        assert expr_obj == {
-            'function': '==',
+        assert process_expr(parse_expr(expr), ds) == {
+            'function': function,
             'args': [
                 {
                     'var': var_alias,
                     'axes': ['subvar1']
                 },
-                {
-                    'value': 1
-                }
+                expected_value
             ]
         }
 

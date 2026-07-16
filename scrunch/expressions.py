@@ -636,6 +636,7 @@ def process_expr(obj, ds):
                     var_alias in variables
                     and variables[var_alias]['type'] == 'multiple_response'
                     and isinstance(_value[_value_key], (list, tuple))
+                    and 'axes' not in _variable
                 ):
                     result = adapt_multiple_response(var_alias, _value[_value_key], variables)
                     _update_values_for_multiple_response(result[0], values, subitems[0], variables, arrays)
