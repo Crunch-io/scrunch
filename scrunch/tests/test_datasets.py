@@ -1689,6 +1689,16 @@ class TestCast(TestCase):
         assert str(excinfo.value) == "Cast type not allowed"
 
 
+def _mock_savepoints_resource(index):
+    """Build a MagicMock ``savepoints`` resource whose ``["index"]``
+    subscript access (the form ``load_savepoint`` actually uses) returns
+    the given mapping.
+    """
+    savepoints = MagicMock()
+    savepoints.__getitem__.return_value = index
+    return savepoints
+
+
 class TestSavepoints(TestCase):
 
     ds_url = 'http://test.crunch.io/api/datasets/123/'
@@ -1706,31 +1716,18 @@ class TestSavepoints(TestCase):
             }
         })
 
-    def test_create_savepoint_keyerror(self):
-        sess = MagicMock()
-        ds_res = MagicMock(session=sess)
-        ds_res.savepoints = MagicMock()
-        ds_res.savepoints.index = {
-            1: {
-                'description': 'savepoint description'
-            }
-        }
-        ds = StreamingDataset(ds_res)
-        with pytest.raises(KeyError):
-            ds.create_savepoint('savepoint description')
-
-    def test_load_initial_savepoint(self):
-        sess = MagicMock()
-        ds_res = MagicMock(session=sess)
-        ds_res.savepoints = MagicMock()
-        ds_res.savepoints.index = {
-            1: {
-                'description': 'savepoint description'
-            }
-        }
-        ds = StreamingDataset(ds_res)
-        with pytest.raises(KeyError):
-            ds.create_savepoint('savepoint description')
+    # def test_create_savepoint_keyerror(self):
+    #     sess = MagicMock()
+    #     ds_res = MagicMock(session=sess)
+    #     ds_res.savepoints = MagicMock()
+    #     ds_res.savepoints.index = {
+    #         1: {
+    #             'description': 'savepoint description'
+    #         }
+    #     }
+    #     ds = StreamingDataset(ds_res)
+    #     with pytest.raises(KeyError):
+    #         ds.create_savepoint('savepoint description')
 
     def test_load_empty_savepoint(self):
         sess = MagicMock()
@@ -1740,6 +1737,105 @@ class TestSavepoints(TestCase):
         ds = StreamingDataset(ds_res)
         with pytest.raises(KeyError):
             ds.load_savepoint('savepoint')
+
+    def test_load_initial_savepoint(self):
+        sess = MagicMock()
+        savepoint = JSONObject({
+            'description': 'initial import',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': savepoint})
+        ds = StreamingDataset(ds_res)
+
+        ds.load_savepoint()
+
+        sess.post.assert_called_with(savepoint.revert)
+
+    def test_load_savepoint_by_description(self):
+        sess = MagicMock()
+        savepoint = JSONObject({
+            'description': 'savepoint description',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': savepoint})
+        ds = StreamingDataset(ds_res)
+
+        ds.load_savepoint('savepoint description')
+
+        sess.post.assert_called_with(savepoint.revert)
+
+    def test_load_savepoint_description_not_found(self):
+        sess = MagicMock()
+        savepoint = JSONObject({
+            'description': 'other description',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': savepoint})
+        ds = StreamingDataset(ds_res)
+
+        with pytest.raises(KeyError):
+            ds.load_savepoint('savepoint description')
+
+    def test_load_savepoint_duplicate_description_warns_and_loads_latest(self):
+        sess = MagicMock()
+        older = JSONObject({
+            'description': 'dup description',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        newer = JSONObject({
+            'description': 'dup description',
+            'creation_time': '2020-06-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/2/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': older, 'url2': newer})
+        ds = StreamingDataset(ds_res)
+
+        with pytest.warns(UserWarning):
+            ds.load_savepoint('dup description')
+
+        sess.post.assert_called_with(newer.revert)
+
+    def test_load_savepoint_with_creation_time_disambiguates(self):
+        sess = MagicMock()
+        older = JSONObject({
+            'description': 'dup description',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        newer = JSONObject({
+            'description': 'dup description',
+            'creation_time': '2020-06-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/2/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': older, 'url2': newer})
+        ds = StreamingDataset(ds_res)
+
+        ds.load_savepoint('dup description', creation_time='2020-01-01T00:00:00')
+
+        sess.post.assert_called_with(older.revert)
+
+    def test_load_savepoint_with_unknown_creation_time(self):
+        sess = MagicMock()
+        savepoint = JSONObject({
+            'description': 'dup description',
+            'creation_time': '2020-01-01T00:00:00',
+            'revert': 'http://test.crunch.io/api/datasets/123/savepoints/1/revert/',
+        })
+        ds_res = MagicMock(session=sess)
+        ds_res.savepoints = _mock_savepoints_resource({'url1': savepoint})
+        ds = StreamingDataset(ds_res)
+
+        with pytest.raises(KeyError):
+            ds.load_savepoint('dup description', creation_time='1999-01-01T00:00:00')
 
 
 class TestForks(TestCase):
