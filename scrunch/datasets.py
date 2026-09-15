@@ -1948,42 +1948,86 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
     def create_savepoint(self, description):
         """
-        Creates a savepoint on the dataset.
+        Creates a new savepoint on the dataset.
 
         :param description:
-            The description that should be given to the new savepoint. This
-            function will not let you create a new savepoint with the same
-            description as any other savepoint.
+            The description that should be given to the new savepoint.
         """
-        if len(self.resource.savepoints.index) > 0:
-            if description in self.savepoint_attributes('description'):
-                raise KeyError(
-                    "A checkpoint with the description '{}' already"
-                    " exists.".format(description)
-                )
+        return self.resource.savepoints.create(
+                shoji_entity_wrapper({"description": description})
+            )
 
-        sp = shoji_entity_wrapper({'description': description})
-        return self.resource.savepoints.create(sp)
-
-    def load_savepoint(self, description=None):
+    def load_savepoint(self, description=None, creation_time=None):
         """
         Load a savepoint on the dataset.
 
-        :param description: default=None
-            The description that identifies which savepoint to be loaded.
-            When loading a savepoint, all savepoints that were saved after
-            the loaded savepoint will be destroyed permanently.
+        Restores the dataset to the state captured at the specified savepoint.
+        All savepoints created after the loaded savepoint will be permanently destroyed.
+
+        :param description: The description identifying which savepoint to load.
+            Defaults to 'initial import' if not provided.
+        :type description: str or None
+
+        :param creation_time: The timestamp to disambiguate between savepoints sharing
+            the same description. Required when multiple savepoints share a description
+            and a specific one (not the most recent) is desired.
+            This can be found using `savepoint_attributes('creation_time')` method.
+        :type creation_time: str or None, Optional
+
+        :raises KeyError: If no savepoint with the given description exists.
+        :raises KeyError: If the provided creation_time timestamp does not match
+            any savepoint with the given description.
         """
-        if description is None:
-            description = 'initial import'
-        elif description not in self.savepoint_attributes('description'):
+        resolved_description = description or "initial import"
+
+        # Build a mapping of {creation_time: savepoint} for matching savepoints
+        matching_savepoints = {
+            savepoint["creation_time"]: savepoint
+            for savepoint in self.resource.savepoints["index"].values()
+            if savepoint["description"] == resolved_description
+        }
+
+        if not matching_savepoints:
             raise KeyError(
-                "No checkpoint with the description '{}'"
-                " exists.".format(description)
+                "No savepoint with the description '{0}' exists.".format(
+                    resolved_description
+                )
             )
 
-        sp = self.resource.savepoints.by('description').get(description)
-        self.resource.session.post(sp.revert)
+        if creation_time is not None:
+            if creation_time not in matching_savepoints:
+                available = "\n".join(sorted(matching_savepoints.keys(), reverse=True))
+                raise KeyError(
+                    "No savepoint with description '{0}' "
+                    "and creation_time '{1}' exists.\n"
+                    "Available timestamps:\n{2}".format(
+                        resolved_description, creation_time, available
+                    )
+                )
+            target_savepoint = matching_savepoints[creation_time]
+        else:
+            sorted_timestamps = sorted(matching_savepoints, reverse=True)
+            most_recent_timestamp = sorted_timestamps[0]
+
+            if len(matching_savepoints) > 1:
+                warn(
+                    "\nDescription '{0}' found {1} times."
+                    "\nLoading the most recently created savepoint: '{2}'.\n"
+                    "\nPass 'creation_time' parameter with a timestamp "
+                    "to load a specific savepoint.\n"
+                    "\nAvailable 'creation_time' timestamps for '{0}':\n{3}".format(
+                        resolved_description,
+                        len(matching_savepoints),
+                        most_recent_timestamp,
+                        "\n".join(sorted_timestamps),
+                    ),
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            target_savepoint = matching_savepoints[most_recent_timestamp]
+
+        self.resource.session.post(target_savepoint.revert)
         self._reload_variables()
 
     def savepoint_attributes(self, attrib):
