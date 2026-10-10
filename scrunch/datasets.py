@@ -37,8 +37,7 @@ from scrunch.helpers import (ReadOnly, _validate_category_rules, abs_url,
                              generate_subvariable_codes, shoji_order_wrapper)
 from scrunch.order import DatasetVariablesOrder
 from scrunch.subentity import Deck, Filter, Multitable
-from scrunch.variables import (combinations_from_map, combine_categories_expr,
-                               combine_responses_expr, responses_from_map)
+from scrunch.variables import combinations_from_map, combine_categories_expr
 
 from scrunch.connections import LOG, _default_connection, _get_connection
 
@@ -1900,14 +1899,58 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             parent_alias = variable.alias
 
         # TODO: Implement `default` parameter in Crunch API
-        responses = responses_from_map(variable, map, categories or {}, alias,
-                                       parent_alias)
+        categories = categories or {}
+        subvars = variable.resource.subvariables.by('alias')
+
+        # In python 2.7, range(...) returns a list, starting from python 3,
+        # range is a python type.
+        if six.PY2:
+            supported_iterable_types = (list, tuple)
+        else:
+            supported_iterable_types = (list, tuple, range)
+
+        def as_list(value):
+            return value if isinstance(value, supported_iterable_types) else [value]
+
+        try:
+            value = []
+            subreferences = []
+            for response_id, mapped_response_ids in sorted(six.iteritems(map)):
+                output_alias = subvar_alias(alias, response_id)
+                mapped_codes = [
+                    subvar_alias(parent_alias, sv_alias)
+                    for sv_alias in as_list(mapped_response_ids)
+                ]
+                for mapped_code in mapped_codes:
+                    subvars[mapped_code]
+
+                value.append({
+                    'code': output_alias,
+                    'mapped codes': mapped_codes,
+                })
+                subreferences.append({
+                    'alias': output_alias,
+                    'name': categories.get(response_id, "Response %s" % response_id),
+                })
+        except KeyError:
+            # This means we tried to combine a subvariable with ~id~ that does not
+            # exist in the subvariables. Treat as bad input.
+            raise ValueError("Unknown subvariables for variable %s" % parent_alias)
+
         payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
-            'derivation': combine_responses_expr(
-                parent_alias, responses)
+            'derivation': {
+                'function': 'combine_logical_responses',
+                'args': [
+                    {'var': parent_alias},
+                    {'value': value}
+                ],
+                'references': {
+                    'subreferences': subreferences
+                }
+            }
         })
         return self._var_create_reload_return(payload)
 

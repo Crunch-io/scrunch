@@ -4,7 +4,6 @@ from unittest import TestCase
 import pytest
 from scrunch.datasets import Variable
 from scrunch.mutable_dataset import MutableDataset
-from scrunch.variables import responses_from_map
 from scrunch.helpers import subvar_alias
 
 from pycrunch.shoji import Entity
@@ -70,20 +69,25 @@ RECODES_PAYLOAD = {
     }
 }
 
-COMBINE_RESPONSES_PAYLOAD = {
+COMBINE_LOGICAL_RESPONSES_PAYLOAD = {
     'element': 'shoji:entity',
     'body': {
         'name': 'name',
         'description': '',
         'alias': 'alias',
         'derivation': {
-            'function': 'combine_responses',
+            'function': 'combine_logical_responses',
             'args': [
                 {'var': 'test'},
                 {'value': [
-                    {'alias': 'alias_1', 'combined_ids': [subvar1_url, subvar2_url], 'name': 'online'}
+                    {'code': 'alias_1', 'mapped codes': ['test_1', 'test_2']}
                 ]}
-            ]
+            ],
+            'references': {
+                'subreferences': [
+                    {'alias': 'alias_1', 'name': 'online'}
+                ]
+            }
         }
     }
 }
@@ -91,47 +95,93 @@ COMBINE_RESPONSES_PAYLOAD = {
 
 class TestCombine(TestCase):
 
-    def test_validate_range_expression(self):
-        test_map = {
-            1: range(1, 5)
-        }
-        test_cats = {
-            1: "China"
-        }
-        ds_res_mock = mock.MagicMock()
-        variable_mock = mock.MagicMock()
+    def test_combine_responses_range_mapping_by_alias(self):
+        resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
+        resource.entity.self = dataset_url
+        resource.variables.index = {}
         subvar_mock = mock.MagicMock(entity_url=subvar1_url)
-        # mock the call to entity, this will happen on Variable.resource
-        variable_mock.entity.subvariables.by.return_value = {
-            'parent_1': subvar_mock,
-            'parent_2': subvar_mock,
-            'parent_3': subvar_mock,
-            'parent_4': subvar_mock,
-        }
-        parent_var = Variable(variable_mock, ds_res_mock)
-        modified_map = responses_from_map(parent_var, test_map, test_cats, 'test', 'parent')
-        # subvar_url * 4 because we used the same mock for all subvars
-        assert modified_map[0]['combined_ids'] == [subvar1_url] * 4
 
-    def test_validate_integer(self):
-        test_map = {
-            1: 1
+        entity_mock = mock.MagicMock()
+        entity_mock.entity.self = var_url
+        entity_mock.entity.subvariables.by.return_value = {
+            'test_1': subvar_mock,
+            'test_2': subvar_mock,
+            'test_3': subvar_mock,
+            'test_4': subvar_mock,
         }
-        test_cats = {
-            1: "China"
-        }
+        resource.variables.by.return_value = {'test': entity_mock}
 
-        ds_res_mock = mock.MagicMock()
-        variable_mock = mock.MagicMock()
-        subvar_mock = mock.MagicMock(entity_url=subvar1_url)
-        # mock the call to entity, this will happen on Variable.resource
-        variable_mock.entity.subvariables.by.return_value = {
-            'parent_1': subvar_mock
+        ds = MutableDataset(resource)
+        with pytest.raises(ValueError):
+            ds.combine_multiple_response(
+                'test', {1: range(1, 5)}, {1: 'China'}, name='name', alias='alias'
+            )
+
+        resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'name',
+                'description': '',
+                'alias': 'alias',
+                'derivation': {
+                    'function': 'combine_logical_responses',
+                    'args': [
+                        {'var': 'test'},
+                        {'value': [
+                            {'code': 'alias_1', 'mapped codes': ['test_1', 'test_2', 'test_3', 'test_4']}
+                        ]}
+                    ],
+                    'references': {
+                        'subreferences': [
+                            {'alias': 'alias_1', 'name': 'China'}
+                        ]
+                    }
+                }
+            }
+        })
+
+    def test_combine_responses_scalar_mapping_by_alias(self):
+        resource = mock.MagicMock()
+        resource.body = {'name': 'mocked_dataset'}
+        resource.entity.self = dataset_url
+        resource.variables.index = {}
+
+        entity_mock = mock.MagicMock()
+        entity_mock.entity.self = var_url
+        entity_mock.entity.subvariables.by.return_value = {
+            'test_1': mock.MagicMock(entity_url=subvar1_url)
         }
-        parent_var = Variable(variable_mock, ds_res_mock)
-        modified_map = responses_from_map(parent_var, test_map, test_cats, 'test', 'parent')
-        # subvar_url * 4 because we used the same mock for all subvars
-        assert modified_map[0]['combined_ids'] == [subvar1_url]
+        resource.variables.by.return_value = {'test': entity_mock}
+
+        ds = MutableDataset(resource)
+        with pytest.raises(ValueError):
+            ds.combine_multiple_response(
+                'test', {1: 1}, {1: 'China'}, name='name', alias='alias'
+            )
+
+        resource.variables.create.assert_called_with({
+            'element': 'shoji:entity',
+            'body': {
+                'name': 'name',
+                'description': '',
+                'alias': 'alias',
+                'derivation': {
+                    'function': 'combine_logical_responses',
+                    'args': [
+                        {'var': 'test'},
+                        {'value': [
+                            {'code': 'alias_1', 'mapped codes': ['test_1']}
+                        ]}
+                    ],
+                    'references': {
+                        'subreferences': [
+                            {'alias': 'alias_1', 'name': 'China'}
+                        ]
+                    }
+                }
+            }
+        })
 
     def test_combine_categories_unknown_alias(self):
         resource = mock.MagicMock()
@@ -253,7 +303,7 @@ class TestCombine(TestCase):
         ds = MutableDataset(resource)
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response('test', RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
-        resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
+        resource.variables.create.assert_called_with(COMBINE_LOGICAL_RESPONSES_PAYLOAD)
         assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
     def test_combine_responses_by_entity(self):
@@ -287,7 +337,7 @@ class TestCombine(TestCase):
 
         with pytest.raises(ValueError) as err:
             ds.combine_multiple_response(entity_mock, RESPONSE_MAP, RESPONSE_NAMES, name='name', alias='alias')
-        resource.variables.create.assert_called_with(COMBINE_RESPONSES_PAYLOAD)
+        resource.variables.create.assert_called_with(COMBINE_LOGICAL_RESPONSES_PAYLOAD)
         assert 'Entity mocked_dataset has no (sub)variable' in str(err.value)
 
 
