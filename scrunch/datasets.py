@@ -1289,10 +1289,11 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         This is the generic approach to create_multiple_response but this
         allows the definition of any set of categories and rules (expressions)
-        for it's subvariables to fit these defined categories.
-        :param categories: a list of category dictionary:
+        for its subvariables to fit these defined categories.
+        :param categories: a list of category dictionaries:
             categories=[{id: 1, name: 'Yes', 'selected': True} ...]
-        :param subvariables: a list of dictionary definind rules and attributes for each subvariable:
+        :param subvariables: a list of dictionaries, defining rules and attributes
+            for each subvariable:
             subvariables=[
                 {
                     'id': 1,
@@ -1308,7 +1309,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         :param notes: Notes of the variable to create
 
         Note: It's important that each subvariable defines the same number of cases for every category.
-        Suvariable alias will be derived from the alias to the variable + subvariable id to keep
+        Subvariable alias will be derived from the alias to the variable + subvariable id to keep
         compliance with other methods in Scrunch
         """
         # validate categories and fill defaults
@@ -1317,7 +1318,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         for subvar in subvariables:
             _validate_category_rules(categories, subvar['cases'])
 
-        responses_map = collections.OrderedDict()
+        responses = []
         for subvar in subvariables:
             _cases = []
             for case in subvar['cases'].values():
@@ -1325,13 +1326,12 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
                     _case = process_expr(parse_expr(case), self.resource)
                     _cases.append(_case)
 
-            resp_id = '%04d' % subvar['id']
-            responses_map[resp_id] = case_expr(
+            responses.append(case_expr(
                 _cases,
                 name=subvar['name'],
                 alias='%s_%d' % (alias, subvar['id']),
                 categories=categories
-            )
+            ))
 
         payload = shoji_entity_wrapper({
             'name': name,
@@ -1339,16 +1339,7 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             'description': description,
             'notes': notes,
             'uniform_basis': uniform_basis,
-            'derivation': {
-                'function': 'array',
-                'args': [{
-                    'function': 'make_frame',
-                    'args': [
-                        {'map': responses_map},
-                        {'value': list(responses_map.keys())}
-                    ]
-                }]
-            }
+            'derivation': {'function': 'array', 'args': [responses]}
         })
         return self._var_create_reload_return(payload)
 
@@ -1357,36 +1348,25 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
         """
         Creates a Multiple response (array) of only 2 categories, selected and not selected.
         """
-        responses_map = collections.OrderedDict()
-
+        response_list = []
         for resp in responses:
             case = resp['case']
             case = get_else_case(case, responses)
             if isinstance(case, six.string_types):
                 case = process_expr(parse_expr(case), self.resource)
 
-            resp_id = '%04d' % resp['id']
-            responses_map[resp_id] = case_expr(
+            response_list.append(case_expr(
                 [case,],
                 name=resp['name'],
                 alias='%s_%d' % (alias, resp['id'])
-            )
+            ))
 
         payload = shoji_entity_wrapper({
             'name': name,
             'alias': alias,
             'description': description,
             'notes': notes,
-            'derivation': {
-                'function': 'array',
-                'args': [{
-                    'function': 'make_frame',
-                    'args': [
-                        {'map': responses_map},
-                        {'value': list(responses_map.keys())}
-                    ]
-                }]
-            }
+            'derivation': {'function': 'array', 'args': [response_list]}
         })
         return self._var_create_reload_return(payload)
 
@@ -1450,10 +1430,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             subvar_name = subvar.get("name", subvar.get("alias")) or sv_code
             subreferences.append({"alias": sv_code, "name": subvar_name})
 
-        array_map = {v['id']: {'var': v['alias']} for v in subvariables}
         expression = {
             'function': 'array',
-            'args': [{'function': 'make_frame', 'args': [{'map': array_map}]}],
+            'args': [{'var': v['alias']} for v in subvariables],
             "references": {
                 "subreferences": subreferences
             }
@@ -2114,20 +2093,16 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
             # NOTE: if we want to check if variables are public we would have
             # to use Variable instances instead of their Tuple representation.
             # This would cause additional GET's
-            variables = [
-                var.shoji_tuple if isinstance(var, Variable)
-                else self.resource.variables.by('alias')[var]
+            aliases = [
+                var.alias if isinstance(var, Variable)
+                else var
                 for var in variables
             ]
 
-            variables = dict(
-                function='make_frame',
-                args=[
-                    {'map': {
-                        v.id: {'variable': v.entity_url}
-                        for v in variables
-                    }}
-                ])
+            variables = {
+                "function": 'frame_subset',
+                "args": [{'frame': 'unsecured'}, {'value': aliases}]
+            }
 
         # use weight from preferences, remove in #158676482
         if weight is DefaultWeight:
