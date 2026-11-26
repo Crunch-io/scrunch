@@ -104,10 +104,17 @@ class Multitable(SubEntity):
 
         if where:
             if isinstance(where, list):
+                id_vars = []
+                for var in where:
+                    id_vars.append(self.ds[var].url)
                 # Now build the payload with selected variables
                 payload['where'] = {
-                    'function': 'frame_subset',
-                    'args': [{'frame': 'unsecured'}, {'value': where}]
+                    'function': 'make_frame',
+                    'args': [{
+                        'map': {
+                            x: {'variable': x} for x in id_vars
+                        }
+                    }]
                 }
             else:
                 raise ValueError('where param must be a list of variable names')
