@@ -506,68 +506,60 @@ class TestRecode(TestCase):
                 'alias': 'Q1_recoded',
                 'derivation': {
                     'function': 'array',
-                    'args': [{
-                        'function': 'make_frame',
-                        'args': [{
-                            'map': {
-                                '0001': {
-                                    'function': 'case',
-                                    'args': [{
-                                        'column': [1, 2],
-                                        'type': {
-                                            'value': {
-                                                'class': 'categorical',
-                                                'categories': [
-                                                    {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
-                                                    {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
-                                                ]
-                                            }
+                    'args': [
+                        [
+                            {
+                                'function': 'case',
+                                'args': [{
+                                    'column': [1, 2],
+                                    'type': {
+                                        'value': {
+                                            'class': 'categorical',
+                                            'categories': [
+                                                {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
+                                                {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
+                                            ]
                                         }
-                                    }, {
-                                        'function': 'any',
-                                        'args': [
-                                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
-                                            {'column': ['subvar', 'subvar']}
-                                        ]
-                                    }],
-                                    'references': {
-                                        'alias': 'Q1_recoded_1',
-                                        'name': 'Q1_recoded_1'
                                     }
-                                },
-                                '0002': {
-                                    'function': 'case',
-                                    'args': [{
-                                        'column': [1, 2],
-                                        'type': {
-                                            'value': {
-                                                'class': 'categorical',
-                                                'categories': [
-                                                    {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
-                                                    {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
-                                                ]
-                                            }
+                                }, {
+                                    'function': 'any',
+                                    'args': [
+                                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
+                                        {'column': ['subvar', 'subvar']}
+                                    ]
+                                }],
+                                'references': {
+                                    'alias': 'Q1_recoded_1',
+                                    'name': 'Q1_recoded_1'
+                                }
+                            },
+                            {
+                                'function': 'case',
+                                'args': [{
+                                    'column': [1, 2],
+                                    'type': {
+                                        'value': {
+                                            'class': 'categorical',
+                                            'categories': [
+                                                {'selected': True, 'numeric_value': None, 'missing': False, 'id': 1, 'name': 'Selected'},
+                                                {'selected': False, 'numeric_value': None, 'missing': False, 'id': 2, 'name': 'Not selected'}
+                                            ]
                                         }
-                                    }, {
-                                        'function': 'any',
-                                        'args': [
-                                            {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
-                                            {'column': ['subvar']}
-                                        ]
-                                    }],
-                                    'references': {
-                                        'alias': 'Q1_recoded_2',
-                                        'name': 'Q1_recoded_2'
                                     }
+                                }, {
+                                    'function': 'any',
+                                    'args': [
+                                        {'variable': 'http://test.crunch.io/api/datasets/123/variables/0001/'},
+                                        {'column': ['subvar']}
+                                    ]
+                                }],
+                                'references': {
+                                    'alias': 'Q1_recoded_2',
+                                    'name': 'Q1_recoded_2'
                                 }
                             }
-                        }, {
-                            'value': [
-                                '0001',
-                                '0002'
-                            ]
-                        }]
-                    }]
+                        ],
+                    ]
                 }
             }
         })

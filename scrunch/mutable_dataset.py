@@ -235,17 +235,12 @@ class MutableDataset(BaseDataset):
         if columns and isinstance(columns, list):
             # overwrite body to new format
             payload['body'] = {
-                'frame': adapter,
-                'function': 'make_frame',
+                'function': 'frame_subset',
                 'args': [
-                    {'map': {}}
+                    {'frame': adapter},
+                    {'value': columns}
                 ]
             }
-            # add the individual variable columns to the payload
-            alias_list = right_ds.resource.variables.by("alias")
-            var_urls = [alias_list[alias].entity_url for alias in columns]
-            var_url_list = {var_url: {"variable": var_url} for var_url in var_urls}
-            payload['body']['args'][0]['map'] = var_url_list
 
         if filter:
             # in the case of a filter, convert it to crunch
