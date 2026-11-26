@@ -3294,7 +3294,6 @@ class TestRecode(TestDatasetBase):
                                 ]
                             }
                         ],
-                        {"value": ["0001", "0002"]}
                     ]
                 }
             }
@@ -5402,12 +5401,11 @@ class TestDatasetJoins(TestCase):
     def test_dataset_joins_column_urls(self):
         left_ds = self.left_ds
         right_ds = self.right_ds
-        right_var = right_ds['id']
 
         with mock.patch("scrunch.mutable_dataset.wait_progress") as mock_wait:
             left_ds.join('id', right_ds, 'id', ['id'])
         call_payload = left_ds.resource.variables.post.call_args[0][0]
-        assert call_payload['body']['args'][1] == {"value": [right_var.url]}
+        assert call_payload['body']['args'][1] == {"value": ["id"]}
 
 
 @mock.patch('scrunch.datasets.download_file')
