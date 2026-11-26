@@ -107,7 +107,7 @@ class Multitable(SubEntity):
                 # Now build the payload with selected variables
                 payload['where'] = {
                     'function': 'frame_subset',
-                    'args': [{'frame': 'unsecured'} {'value': where}]
+                    'args': [{'frame': 'unsecured'}, {'value': where}]
                 }
             else:
                 raise ValueError('where param must be a list of variable names')
