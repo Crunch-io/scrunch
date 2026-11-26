@@ -2552,6 +2552,18 @@ class TestRecode(TestDatasetBase):
         with pytest.raises(ValueError) as err:
             ds.create_categorical(responses, alias='mr', name='my mr', multiple=True)
         assert 'Entity test_dataset_name has no (sub)variable' in str(err.value)
+        choices = {
+            'column': [1, 2],
+            'type': {
+                'value': {
+                    'class': 'categorical',
+                    'categories': [
+                        {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
+                        {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
+                    ]
+                }
+            }
+        }
         ds.resource.variables.create.assert_called_with({
             'element': 'shoji:entity',
             'body': {
@@ -2562,102 +2574,53 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [
-                        {
-                            'function': 'case',
-                            'references': {
-                                'name': 'Facebook',
-                                'alias': 'mr_1',
-                            },
-                            'args': [{
-                                'column': [1, 2],
-                                'type': {
-                                    'value': {
-                                        'class': 'categorical',
-                                        'categories': [
-                                            {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
-                                            {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
-                                        ]
-                                    }
-                                }
-                            }, {
-                                # 'var_a > 5'
-                                'function': '>',
-                                'args': [
-                                    {'var': 'var_a'},
-                                    {'value': 5}
-                                ]
-                            }]
-                        },
-                        {
-                            'function': 'case',
-                            'references': {
-                                'alias': 'mr_2',
-                                'name': 'Twitter',
-                            },
-                            'args': [{
-                                'column': [1, 2],
-                                'type': {
-                                    'value': {
-                                        'class': 'categorical',
-                                        'categories': [
-                                            {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
-                                            {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
-                                        ]
-                                    }
-                                }
-                            }, {
-                                # 'var_b < 10 and var_c in (1, 2, 3)'}
-                                'function': 'and',
-                                'args': [{
-                                    'function': '<',
-                                    'args': [
-                                        {'var': 'var_b'},
-                                        {'value': 10}
-                                    ]
-                                }, {
-                                    'function': 'in',
-                                    'args': [
-                                        {'var': 'var_c'},
-                                        {'value': [1, 2, 3]}
-                                    ]
+                        [
+                            {
+                                'function': 'case',
+                                'references': {'name': 'Facebook', 'alias': 'mr_1'},
+                                'args': [choices, {
+                                    # 'var_a > 5'
+                                    'function': '>',
+                                    'args': [{'var': 'var_a'}, {'value': 5}]
                                 }]
-                            }]
-                        },
-                        {
-                            'function': 'case',
-                            'references': {
-                                'alias': 'mr_3',
-                                'name': 'Google+',
                             },
-                            'args': [{
-                                'column': [1, 2],
-                                'type': {
-                                    'value': {
-                                        'class': 'categorical',
-                                        'categories': [
-                                            {'numeric_value': None, 'selected': True, 'id': 1, 'name': 'Selected', 'missing': False},
-                                            {'numeric_value': None, 'selected': False, 'id': 2, 'name': 'Not selected', 'missing': False}
-                                        ]
-                                    }
-                                }
-                            }, {
-                                # '(gender == 1) and (age >= 16 and age <= 24)'
-                                'function': 'and',
-                                'args': [{
-                                    'function': '==',
-                                    'args': [{'var': 'gender'}, {'value': 1}]
-                                }, {
+                            {
+                                'function': 'case',
+                                'references': {'alias': 'mr_2', 'name': 'Twitter'},
+                                'args': [choices, {
+                                    # 'var_b < 10 and var_c in (1, 2, 3)'}
                                     'function': 'and',
                                     'args': [{
-                                        'function': '>=',
-                                        'args': [{'var': 'age'}, {'value': 16}]
+                                        'function': '<',
+                                        'args': [{'var': 'var_b'}, {'value': 10}]
                                     }, {
-                                        'function': '<=',
-                                        'args': [{'var': 'age'}, {'value': 24}]
+                                        'function': 'in',
+                                        'args': [{'var': 'var_c'}, {'value': [1, 2, 3]}]
                                     }]
                                 }]
-                            }]
-                        }
+                            },
+                            {
+                                'function': 'case',
+                                'references': {'alias': 'mr_3', 'name': 'Google+'},
+                                'args': [choices, {
+                                    # '(gender == 1) and (age >= 16 and age <= 24)'
+                                    'function': 'and',
+                                    'args': [{
+                                        'function': '==',
+                                        'args': [{'var': 'gender'}, {'value': 1}]
+                                    }, {
+                                        'function': 'and',
+                                        'args': [{
+                                            'function': '>=',
+                                            'args': [{'var': 'age'}, {'value': 16}]
+                                        }, {
+                                            'function': '<=',
+                                            'args': [{'var': 'age'}, {'value': 24}]
+                                        }]
+                                    }]
+                                }]
+                            }
+                        ]
                     ]
                 }
             }
@@ -2882,59 +2845,61 @@ class TestRecode(TestDatasetBase):
                 "derivation": {
                     "function": "array",
                     "args": [
-                        {
-                            "references": {"name": "20", "alias": "agerange_multi_1"},
-                            "function": "case",
-                            "args": [
-                                categories_arg,
-                                {
-                                    "function": "==",
-                                    "args": [{"var": "age"}, {"value": 20}]
-                                }
-                            ]
-                        },
-                        {
-                            "references": {"name": "50", "alias": "agerange_multi_2"},
-                            "function": "case",
-                            "args": [
-                                categories_arg,
-                                {
-                                    "function": "==",
-                                    "args": [{"var": "age"}, {"value": 50}]
-                                }
-                            ]
-                        },
-                        {
-                            "references": {"name": "The rest", "alias": "agerange_multi_3"},
-                            "function": "case",
-                            "args": [
-                                categories_arg,
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 20}]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 50}
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
+                        [
+                            {
+                                "references": {"name": "20", "alias": "agerange_multi_1"},
+                                "function": "case",
+                                "args": [
+                                    categories_arg,
+                                    {
+                                        "function": "==",
+                                        "args": [{"var": "age"}, {"value": 20}]
+                                    }
+                                ]
+                            },
+                            {
+                                "references": {"name": "50", "alias": "agerange_multi_2"},
+                                "function": "case",
+                                "args": [
+                                    categories_arg,
+                                    {
+                                        "function": "==",
+                                        "args": [{"var": "age"}, {"value": 50}]
+                                    }
+                                ]
+                            },
+                            {
+                                "references": {"name": "The rest", "alias": "agerange_multi_3"},
+                                "function": "case",
+                                "args": [
+                                    categories_arg,
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 20}]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 50}
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
                     ]
                 }
             }
@@ -3021,185 +2986,187 @@ class TestRecode(TestDatasetBase):
                 "derivation": {
                     "function": "array",
                     "args": [
-                        {
-                            "references": {"name": "21", "alias": "agerange_multi3_1"},
-                            "function": "case",
-                            "args": [
-                                column_args,
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "==",
-                                            "args": [{"var": "age"}, {"value": 21}]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "is_missing",
-                                                    "args": [{"var": "age"}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 21}]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "is_missing",
-                                                    "args": [{"var": "age"}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": "is_missing",
-                                    "args": [{"var": "age"}]
-                                }
-                            ]
-                        },
-                        {
-                            "references": {"name": "51", "alias": "agerange_multi3_2"},
-                            "function": "case",
-                            "args": [
-                                column_args,
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "==",
-                                            "args": [{"var": "age"}, {"value": 51}]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "is_missing",
-                                                    "args": [{"var": "age"}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 51}]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": "is_missing",
-                                                    "args": [{"var": "age"}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": "is_missing",
-                                    "args": [{"var": "age"}]
-                                }
-                            ]
-                        },
-                        {
-                            "references": {"name": "The rest", "alias": "agerange_multi3_3"},
-                            "function": "case",
-                            "args": [
-                                column_args,
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "and",
-                                            "args": [
-                                                {
-                                                    "function": "not",
-                                                    "args": [
-                                                        {
-                                                            "function": "==",
-                                                            "args": [{"var": "age"}, {"value": 21}]
-                                                        }
-                                                    ]
-                                                },
-                                                {
-                                                    "function": "not",
-                                                    "args": [
-                                                        {
-                                                            "function": "==",
-                                                            "args": [{"var": "age"}, {"value": 51}]
-                                                        }
-                                                    ]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": ">",
-                                                    "args": [{"var": "age"}, {"value": 100}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": "and",
-                                    "args": [
-                                        {
-                                            "function": "or",
-                                            "args": [
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 21}]
-                                                },
-                                                {
-                                                    "function": "==",
-                                                    "args": [{"var": "age"}, {"value": 51}]
-                                                }
-                                            ]
-                                        },
-                                        {
-                                            "function": "not",
-                                            "args": [
-                                                {
-                                                    "function": ">",
-                                                    "args": [{"var": "age"}, {"value": 100}]
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    "function": ">",
-                                    "args": [{"var": "age"}, {"value": 100}]
-                                }
-                            ]
-                        }
+                        [
+                            {
+                                "references": {"name": "21", "alias": "agerange_multi3_1"},
+                                "function": "case",
+                                "args": [
+                                    column_args,
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "==",
+                                                "args": [{"var": "age"}, {"value": 21}]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "is_missing",
+                                                        "args": [{"var": "age"}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 21}]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "is_missing",
+                                                        "args": [{"var": "age"}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": "is_missing",
+                                        "args": [{"var": "age"}]
+                                    }
+                                ]
+                            },
+                            {
+                                "references": {"name": "51", "alias": "agerange_multi3_2"},
+                                "function": "case",
+                                "args": [
+                                    column_args,
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "==",
+                                                "args": [{"var": "age"}, {"value": 51}]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "is_missing",
+                                                        "args": [{"var": "age"}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 51}]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": "is_missing",
+                                                        "args": [{"var": "age"}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": "is_missing",
+                                        "args": [{"var": "age"}]
+                                    }
+                                ]
+                            },
+                            {
+                                "references": {"name": "The rest", "alias": "agerange_multi3_3"},
+                                "function": "case",
+                                "args": [
+                                    column_args,
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "and",
+                                                "args": [
+                                                    {
+                                                        "function": "not",
+                                                        "args": [
+                                                            {
+                                                                "function": "==",
+                                                                "args": [{"var": "age"}, {"value": 21}]
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
+                                                        "function": "not",
+                                                        "args": [
+                                                            {
+                                                                "function": "==",
+                                                                "args": [{"var": "age"}, {"value": 51}]
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": ">",
+                                                        "args": [{"var": "age"}, {"value": 100}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": "and",
+                                        "args": [
+                                            {
+                                                "function": "or",
+                                                "args": [
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 21}]
+                                                    },
+                                                    {
+                                                        "function": "==",
+                                                        "args": [{"var": "age"}, {"value": 51}]
+                                                    }
+                                                ]
+                                            },
+                                            {
+                                                "function": "not",
+                                                "args": [
+                                                    {
+                                                        "function": ">",
+                                                        "args": [{"var": "age"}, {"value": 100}]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "function": ">",
+                                        "args": [{"var": "age"}, {"value": 100}]
+                                    }
+                                ]
+                            }
+                        ]
                     ]
                 }
             }
@@ -3398,51 +3365,53 @@ class TestRecode(TestDatasetBase):
                 'derivation': {
                     'function': 'array',
                     'args': [
-                        {
-                            'references': {'name': 'Facebook', 'alias': 'mr_1'},
-                            'function': 'case',
-                            'args': [
-                                categories_arg,
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_a'}, {'value': 1}]
-                                },
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_a'}, {'value': 2}]
-                                }
-                            ]
-                        },
-                        {
-                            'references': {'alias': 'mr_2', 'name': 'Twitter'},
-                            'function': 'case',
-                            'args': [
-                                categories_arg,
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_b'}, {'value': 1}]
-                                },
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_b'}, {'value': 2}]
-                                }
-                            ]
-                        },
-                        {
-                            'references': {'alias': 'mr_3', 'name': 'Google+'},
-                            'function': 'case',
-                            'args': [
-                                categories_arg,
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_c'}, {'value': 1}]
-                                },
-                                {
-                                    'function': '==',
-                                    'args': [{'var': 'var_c'}, {'value': 2}]
-                                }
-                            ]
-                        }
+                        [
+                            {
+                                'references': {'name': 'Facebook', 'alias': 'mr_1'},
+                                'function': 'case',
+                                'args': [
+                                    categories_arg,
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_a'}, {'value': 1}]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_a'}, {'value': 2}]
+                                    }
+                                ]
+                            },
+                            {
+                                'references': {'alias': 'mr_2', 'name': 'Twitter'},
+                                'function': 'case',
+                                'args': [
+                                    categories_arg,
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_b'}, {'value': 1}]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_b'}, {'value': 2}]
+                                    }
+                                ]
+                            },
+                            {
+                                'references': {'alias': 'mr_3', 'name': 'Google+'},
+                                'function': 'case',
+                                'args': [
+                                    categories_arg,
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_c'}, {'value': 1}]
+                                    },
+                                    {
+                                        'function': '==',
+                                        'args': [{'var': 'var_c'}, {'value': 2}]
+                                    }
+                                ]
+                            }
+                        ]
                     ]
                 }
             }
@@ -3490,10 +3459,10 @@ class TestCopyVariable(TestCase):
             'type': 'multiple_response',
             'derivation': {
                 'function': 'array',
-                'args': [{
+                'args': [[{
                     'function': 'combine_responses',
                     'args': [{'variable': '../original_variable'}]
-                }]
+                }]]
             }}
         var_res.entity.self = '/variable/url/'
         ds = StreamingDataset(ds_res)
@@ -3507,13 +3476,15 @@ class TestCopyVariable(TestCase):
                 'derivation': {
                     'function': 'array',
                     'args': [
-                        {
-                            'function': 'combine_responses',
-                            'args': [
-                                # Look how the variable url got abs()ed
-                                {'variable': '/variable/original_variable'}
-                            ]
-                        }
+                        [
+                            {
+                                'function': 'combine_responses',
+                                'args': [
+                                    # Look how the variable url got abs()ed
+                                    {'variable': '/variable/original_variable'}
+                                ]
+                            }
+                        ]
                     ]
                 }
             }
@@ -5436,12 +5407,7 @@ class TestDatasetJoins(TestCase):
         with mock.patch("scrunch.mutable_dataset.wait_progress") as mock_wait:
             left_ds.join('id', right_ds, 'id', ['id'])
         call_payload = left_ds.resource.variables.post.call_args[0][0]
-        expected_payload = {
-            'map': {
-                right_var.url: {'variable': right_var.url}
-            }
-        }
-        assert call_payload['body']['args'][0] == expected_payload
+        assert call_payload['body']['args'][1] == {"value": [right_var.url]}
 
 
 @mock.patch('scrunch.datasets.download_file')

@@ -1432,7 +1432,9 @@ class BaseDataset(ReadOnly, DatasetVariablesMixin):
 
         expression = {
             'function': 'array',
-            'args': [{'var': v['alias']} for v in subvariables],
+            'args': [
+                [{'var': v['alias']} for v in subvariables]
+            ],
             "references": {
                 "subreferences": subreferences
             }
